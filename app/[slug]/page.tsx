@@ -1,121 +1,159 @@
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { notFound } from 'next/navigation'
+import { Metadata } from 'next'
 import Link from 'next/link'
-import { getTheme, getThemeCSS } from '@/lib/themes'
-import ContentCard from '@/components/ContentCard'
-import AnalyticsTracker from '@/components/AnalyticsTracker'
+import { getTheme } from '@/lib/themes'
+import { AnalyticsTracker } from '@/components/AnalyticsTracker'
 
-interface PageProps {
+interface Props {
   params: { slug: string }
 }
 
-export default async function FootprintPage({ params }: PageProps) {
-  const supabase = createServerSupabaseClient()
-  
-  const { data: footprint, error } = await supabase
-    .from('footprints')
-    .select(`*, users (serial_number), content (*)`)
-    .eq('slug', params.slug)
-    .eq('is_public', true)
-    .single()
-
-  if (error || !footprint) notFound()
-
-  const { data: rooms } = await supabase
-    .from('footprints')
-    .select('id, slug, name, icon')
-    .eq('user_id', footprint.user_id)
-    .eq('is_public', true)
-    .order('is_primary', { ascending: false })
-
-  const serialNumber = footprint.users?.[0]?.serial_number || 0
-  const content = footprint.content || []
-  const theme = getTheme(footprint.theme || 'midnight')
-  const themeCSS = getThemeCSS(theme)
-
-  return (
-    <>
-      <style dangerouslySetInnerHTML={{ __html: `:root { ${themeCSS} }` }} />
-      <AnalyticsTracker footprintId={footprint.id} />
-      
-      <div className="min-h-screen" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
-        <header className="sticky top-0 z-50 p-6 flex justify-between items-center" style={{ background: 'linear-gradient(to bottom, var(--bg) 60%, transparent)' }}>
-          <Link href="/" className="font-mono text-xs opacity-40 hover:opacity-60 transition-opacity">← footprint</Link>
-          <span className="font-mono text-xs opacity-30 tracking-widest">#{serialNumber.toLocaleString()}</span>
-        </header>
-
-        <section className="px-6 py-10 max-w-xl mx-auto text-center">
-          <div className="w-28 h-28 rounded-full mx-auto mb-6 flex items-center justify-center" style={{ background: footprint.avatar_url ? `url(${footprint.avatar_url}) center/cover` : 'linear-gradient(135deg, var(--glass-hover), var(--glass))', border: '2px solid var(--border)' }}>
-            {!footprint.avatar_url && <span className="text-4xl opacity-40">◈</span>}
-          </div>
-          <h1 className="text-3xl font-normal tracking-tight mb-2">{footprint.display_name || 'Untitled'}</h1>
-          {footprint.handle && <p className="font-mono text-sm opacity-50 mb-5">{footprint.handle}</p>}
-          {footprint.bio && <p className="opacity-60 leading-relaxed max-w-sm mx-auto mb-6">{footprint.bio}</p>}
-          <span className="font-mono text-xs tracking-widest opacity-30">FOOTPRINT #{serialNumber.toLocaleString()}</span>
-        </section>
-
-        {rooms && rooms.length > 1 && (
-          <nav className="px-6 pb-8 max-w-2xl mx-auto">
-            <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2">
-              {rooms.map((room: any) => (
-                <Link key={room.id} href={`/${room.slug}`} className={`px-5 py-2.5 rounded-full font-mono text-xs whitespace-nowrap transition-all ${room.id === footprint.id ? 'text-[var(--bg)]' : 'opacity-60 hover:opacity-100'}`} style={{ background: room.id === footprint.id ? 'var(--accent)' : 'var(--glass)' }}>
-                  <span className="mr-2">{room.icon}</span>{room.name}
-                </Link>
-              ))}
-            </div>
-          </nav>
-        )}
-
-        <section className="px-6 pb-24 max-w-4xl mx-auto">
-          {content.length === 0 ? (
-            <div className="text-center py-20 opacity-40">
-              <p className="text-4xl mb-4 opacity-30">◈</p>
-              <p>Nothing here yet</p>
-            </div>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {content.sort((a: any, b: any) => a.position - b.position).map((item: any) => (
-                <ContentCard key={item.id} content={item} />
-              ))}
-            </div>
-          )}
-        </section>
-
-        <footer className="py-10 text-center" style={{ borderTop: '1px solid var(--border)' }}>
-          <Link href="/" className="font-mono text-xs opacity-25 hover:opacity-40 transition-opacity">Get your own Footprint · $10 forever</Link>
-        </footer>
-      </div>
-    </>
-  )
-}
-
-export async function generateMetadata({ params }: PageProps) {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const supabase = createServerSupabaseClient()
   const { data: footprint } = await supabase
     .from('footprints')
-    .select('display_name, bio, users(serial_number)')
+    .select('display_name, bio, theme, user_id')
     .eq('slug', params.slug)
+    .eq('is_public', true)
     .single()
 
   if (!footprint) return { title: 'Footprint' }
 
-  const serial = footprint.users?.[0]?.serial_number || 0
-  const title = footprint.display_name ? `${footprint.display_name} · Footprint #${serial}` : `Footprint #${serial}`
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://footprint.link'
+  const { data: user } = await supabase
+    .from('users')
+    .select('serial_number')
+    .eq('id', footprint.user_id)
+    .single()
+
+  const serial = user?.serial_number || 0
+  const title = footprint.display_name 
+    ? `${footprint.display_name} · Footprint #${serial}`
+    : `Footprint #${serial}`
 
   return {
     title,
-    description: footprint.bio || 'My universe. Curated.',
+    description: footprint.bio || 'A digital footprint',
     openGraph: {
       title,
-      description: footprint.bio || 'My universe. Curated.',
-      images: [`${baseUrl}/api/og?slug=${params.slug}`],
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title,
-      description: footprint.bio || 'My universe. Curated.',
-      images: [`${baseUrl}/api/og?slug=${params.slug}`],
+      description: footprint.bio || 'A digital footprint',
+      images: [`/api/og?slug=${params.slug}`],
     },
   }
+}
+
+export default async function FootprintPage({ params }: Props) {
+  const supabase = createServerSupabaseClient()
+
+  const { data: footprint } = await supabase
+    .from('footprints')
+    .select('*, content(*)')
+    .eq('slug', params.slug)
+    .eq('is_public', true)
+    .single()
+
+  if (!footprint) notFound()
+
+  const { data: user } = await supabase
+    .from('users')
+    .select('serial_number')
+    .eq('id', footprint.user_id)
+    .single()
+
+  const serial = user?.serial_number || 0
+  const theme = getTheme(footprint.theme || 'midnight')
+  const content = (footprint.content || []).sort((a: any, b: any) => a.position - b.position)
+
+  return (
+    <div className="min-h-screen" style={{ background: theme.bg, color: theme.text }}>
+      <AnalyticsTracker footprintId={footprint.id} />
+      
+      <div className="max-w-2xl mx-auto px-4 py-12">
+        {/* Header */}
+        <header className="mb-12 text-center">
+          {footprint.avatar_url && (
+            <img 
+              src={footprint.avatar_url} 
+              alt="" 
+              className="w-24 h-24 rounded-full mx-auto mb-4 object-cover"
+            />
+          )}
+          <h1 className="text-3xl font-light mb-2">
+            {footprint.display_name || `Footprint #${serial}`}
+          </h1>
+          {footprint.handle && (
+            <p style={{ color: theme.muted }}>@{footprint.handle}</p>
+          )}
+          {footprint.bio && (
+            <p className="mt-4 max-w-md mx-auto" style={{ color: theme.muted }}>
+              {footprint.bio}
+            </p>
+          )}
+        </header>
+
+        {/* Content */}
+        <div className="space-y-4">
+          {content.map((item: any) => (
+            
+              key={item.id}
+              href={item.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block p-4 rounded-xl transition-transform hover:scale-[1.02]"
+              style={{ 
+                background: theme.card,
+                border: `1px solid ${theme.border}`,
+              }}
+            >
+              <div className="flex items-center gap-4">
+                {item.thumbnail_url && (
+                  <img 
+                    src={item.thumbnail_url} 
+                    alt="" 
+                    className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
+                  />
+                )}
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-medium truncate">
+                    {item.title || item.url}
+                  </h3>
+                  {item.description && (
+                    <p className="text-sm truncate" style={{ color: theme.muted }}>
+                      {item.description}
+                    </p>
+                  )}
+                  <p className="text-xs mt-1" style={{ color: theme.muted }}>
+                    {new URL(item.url).hostname}
+                  </p>
+                </div>
+              </div>
+            </a>
+          ))}
+        </div>
+
+        {content.length === 0 && (
+          <p className="text-center" style={{ color: theme.muted }}>
+            Nothing here yet.
+          </p>
+        )}
+
+        {/* Footer */}
+        <footer className="mt-16 pt-8 text-center text-sm" style={{ 
+          borderTop: `1px solid ${theme.border}`,
+          color: theme.muted 
+        }}>
+          <p>Footprint #{serial}</p>
+          <p className="mt-2">
+            <Link 
+              href="/" 
+              className="hover:underline"
+              style={{ color: theme.accent }}
+            >
+              Get your own Footprint · $10 forever
+            </Link>
+          </p>
+        </footer>
+      </div>
+    </div>
+  )
 }
