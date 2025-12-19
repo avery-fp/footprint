@@ -28,7 +28,7 @@ export default async function FootprintPage({ params }: PageProps) {
     .eq('is_public', true)
     .order('is_primary', { ascending: false })
 
-  const serialNumber = footprint.users?.serial_number || 0
+  const serialNumber = footprint.users?.[0]?.serial_number || 0
   const content = footprint.content || []
   const theme = getTheme(footprint.theme || 'midnight')
   const themeCSS = getThemeCSS(theme)
@@ -99,7 +99,7 @@ export async function generateMetadata({ params }: PageProps) {
 
   if (!footprint) return { title: 'Footprint' }
 
-  const serial = footprint.users?.serial_number || 0
+  const serial = footprint.users?.[0]?.serial_number || 0
   const title = footprint.display_name ? `${footprint.display_name} · Footprint #${serial}` : `Footprint #${serial}`
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://footprint.link'
 
