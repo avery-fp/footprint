@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Footprint Setup Wizard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { 
+      font-family: system-ui, -apple-system, sans-serif; 
+      background: #07080A; 
+      color: #F5F5F5; 
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    .container { max-width: 700px; margin: 0 auto; padding: 40px 20px; }
+    h1 { font-size: 2.5rem; font-weight: 300; margin-bottom: 10px; }
+    .subtitle { color: rgba(255,255,255,0.5); margin-bottom: 40px; }
+    
+    .step { 
+      background: rgba(255,255,255,0.05); 
+      border: 1px solid rgba(255,255,255,0.1); 
+      border-radius: 16px; 
+      padding: 24px; 
+      margin-bottom: 20px;
+      display: none;
+    }
+    .step.active { display: block; }
+    .step-header { 
+      display: flex; 
+      align-items: center; 
+      gap: 12px; 
+      margin-bottom: 20px;
+    }
+    .step-number { 
+      width: 32px; 
+      height: 32px; 
+      background: rgba(255,255,255,0.1); 
+      border-radius: 50%; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .step-title { font-size: 1.25rem; font-weight: 500; }
+    
+    .input-group { margin-bottom: 16px; }
+    .input-group label { 
+      display: block; 
+      font-size: 12px; 
+      text-transform: uppercase; 
+      letter-spacing: 0.1em;
+      color: rgba(255,255,255,0.5);
+      margin-bottom: 8px;
+    }
+    .input-group input, .input-group textarea { 
+      width: 100%; 
+      padding: 12px 16px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      color: #F5F5F5;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 14px;
+    }
+    .input-group input:focus, .input-group textarea:focus { 
+      outline: none;
+      border-color: rgba(255,255,255,0.3);
+    }
+    .input-group textarea { min-height: 100px; resize: vertical; }
+    
+    .btn { 
+      padding: 14px 28px;
+      background: #F5F5F5;
+      color: #07080A;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn-secondary { 
+      background: transparent; 
+      color: #F5F5F5; 
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .btn-group { display: flex; gap: 12px; margin-top: 24px; }
+    
+    a { color: #5CA4E8; }
+    .link-btn {
+      display: inline-block;
+      padding: 10px 20px;
+      background: rgba(92,164,232,0.1);
+      border: 1px solid rgba(92,164,232,0.3);
+      border-radius: 8px;
+      color: #5CA4E8;
+      text-decoration: none;
+      font-size: 14px;
+      margin-bottom: 16px;
+    }
+    .link-btn:hover { background: rgba(92,164,232,0.2); }
+    
+    .code-block {
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      padding: 16px;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 13px;
+      overflow-x: auto;
+      margin: 16px 0;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    
+    .output-box {
+      background: #000;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 12px;
+      padding: 20px;
+      margin-top: 20px;
+    }
+    .output-box h3 { 
+      font-size: 12px; 
+      text-transform: uppercase; 
+      letter-spacing: 0.1em;
+      color: rgba(255,255,255,0.5);
+      margin-bottom: 16px;
+    }
+    .output-box pre {
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    
+    .checklist { list-style: none; }
+    .checklist li { 
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .checklist li:last-child { border-bottom: none; }
+    .checklist input[type="checkbox"] { 
+      width: 20px; 
+      height: 20px; 
+      margin-top: 2px;
+      accent-color: #5CA4E8;
+    }
+    
+    .progress { 
+      display: flex; 
+      gap: 8px; 
+      margin-bottom: 40px;
+    }
+    .progress-dot { 
+      width: 12px; 
+      height: 12px; 
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      transition: background 0.3s;
+    }
+    .progress-dot.active { background: #F5F5F5; }
+    .progress-dot.done { background: #5DB87A; }
+    
+    .success {
+      text-align: center;
+      padding: 60px 20px;
+    }
+    .success-icon {
+      width: 80px;
+      height: 80px;
+      background: #5DB87A;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      margin: 0 auto 24px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Footprint Setup</h1>
+    <p class="subtitle">Let's get you live in 15 minutes.</p>
+    
+    <div class="progress" id="progress">
+      <div class="progress-dot active"></div>
+      <div class="progress-dot"></div>
+      <div class="progress-dot"></div>
+      <div class="progress-dot"></div>
+      <div class="progress-dot"></div>
+    </div>
+
+    <!-- STEP 1: SUPABASE -->
+    <div class="step active" id="step1">
+      <div class="step-header">
+        <div class="step-number">1</div>
+        <div class="step-title">Supabase Setup</div>
+      </div>
+      
+      <p style="margin-bottom: 16px;">Create your database and get your keys.</p>
+      
+      <a href="https://supabase.com/dashboard" target="_blank" class="link-btn">Open Supabase Dashboard →</a>
+      
+      <ul class="checklist">
+        <li><input type="checkbox" id="s1-1"><label for="s1-1">Create new project named "footprint"</label></li>
+        <li><input type="checkbox" id="s1-2"><label for="s1-2">Wait for project to provision (~2 min)</label></li>
+        <li><input type="checkbox" id="s1-3"><label for="s1-3">Go to SQL Editor → paste schema.sql → Run</label></li>
+        <li><input type="checkbox" id="s1-4"><label for="s1-4">Go to Storage → New bucket "avatars" (public)</label></li>
+        <li><input type="checkbox" id="s1-5"><label for="s1-5">Go to Settings → API → copy keys below:</label></li>
+      </ul>
+      
+      <div class="input-group">
+        <label>Project URL</label>
+        <input type="text" id="supabase-url" placeholder="https://xxxxx.supabase.co">
+      </div>
+      <div class="input-group">
+        <label>anon public key</label>
+        <input type="text" id="supabase-anon" placeholder="eyJhbGc...">
+      </div>
+      <div class="input-group">
+        <label>service_role key (secret)</label>
+        <input type="text" id="supabase-service" placeholder="eyJhbGc...">
+      </div>
+      
+      <div class="btn-group">
+        <button class="btn" onclick="nextStep(2)">Continue →</button>
+      </div>
+    </div>
+
+    <!-- STEP 2: STRIPE -->
+    <div class="step" id="step2">
+      <div class="step-header">
+        <div class="step-number">2</div>
+        <div class="step-title">Stripe Setup</div>
+      </div>
+      
+      <p style="margin-bottom: 16px;">Get your payment API keys.</p>
+      
+      <a href="https://dashboard.stripe.com/test/apikeys" target="_blank" class="link-btn">Open Stripe API Keys →</a>
+      
+      <ul class="checklist">
+        <li><input type="checkbox" id="s2-1"><label for="s2-1">Make sure you're in Test Mode</label></li>
+        <li><input type="checkbox" id="s2-2"><label for="s2-2">Copy keys below:</label></li>
+      </ul>
+      
+      <div class="input-group">
+        <label>Publishable key</label>
+        <input type="text" id="stripe-pk" placeholder="pk_test_...">
+      </div>
+      <div class="input-group">
+        <label>Secret key</label>
+        <input type="text" id="stripe-sk" placeholder="sk_test_...">
+      </div>
+      
+      <div class="btn-group">
+        <button class="btn btn-secondary" onclick="nextStep(1)">← Back</button>
+        <button class="btn" onclick="nextStep(3)">Continue →</button>
+      </div>
+    </div>
+
+    <!-- STEP 3: CONFIG -->
+    <div class="step" id="step3">
+      <div class="step-header">
+        <div class="step-number">3</div>
+        <div class="step-title">App Config</div>
+      </div>
+      
+      <div class="input-group">
+        <label>Your domain (optional - leave blank for Vercel URL)</label>
+        <input type="text" id="app-domain" placeholder="footprint.link">
+      </div>
+      
+      <div class="btn-group">
+        <button class="btn btn-secondary" onclick="nextStep(2)">← Back</button>
+        <button class="btn" onclick="generateEnv()">Generate .env.local →</button>
+      </div>
+    </div>
+
+    <!-- STEP 4: DEPLOY -->
+    <div class="step" id="step4">
+      <div class="step-header">
+        <div class="step-number">4</div>
+        <div class="step-title">Deploy to Vercel</div>
+      </div>
+      
+      <div class="output-box">
+        <h3>Your .env.local</h3>
+        <pre id="env-output">Loading...</pre>
+      </div>
+      
+      <p style="margin: 20px 0;">Copy this and add each variable to Vercel:</p>
+      
+      <a href="https://vercel.com/new" target="_blank" class="link-btn">Open Vercel →</a>
+      
+      <ul class="checklist">
+        <li><input type="checkbox" id="s4-1"><label for="s4-1">Push code to GitHub</label></li>
+        <li><input type="checkbox" id="s4-2"><label for="s4-2">Import repo in Vercel</label></li>
+        <li><input type="checkbox" id="s4-3"><label for="s4-3">Add all environment variables above</label></li>
+        <li><input type="checkbox" id="s4-4"><label for="s4-4">Deploy</label></li>
+      </ul>
+      
+      <div class="input-group">
+        <label>Your Vercel URL (after deploy)</label>
+        <input type="text" id="vercel-url" placeholder="https://footprint-xyz.vercel.app">
+      </div>
+      
+      <div class="btn-group">
+        <button class="btn btn-secondary" onclick="nextStep(3)">← Back</button>
+        <button class="btn" onclick="nextStep(5)">Continue to Webhook →</button>
+      </div>
+    </div>
+
+    <!-- STEP 5: WEBHOOK -->
+    <div class="step" id="step5">
+      <div class="step-header">
+        <div class="step-number">5</div>
+        <div class="step-title">Stripe Webhook</div>
+      </div>
+      
+      <p style="margin-bottom: 16px;">Final step - connect Stripe to your app.</p>
+      
+      <a href="https://dashboard.stripe.com/test/webhooks" target="_blank" class="link-btn">Open Stripe Webhooks →</a>
+      
+      <div class="code-block" id="webhook-url">https://your-vercel-url.vercel.app/api/webhook</div>
+      
+      <ul class="checklist">
+        <li><input type="checkbox" id="s5-1"><label for="s5-1">Click "Add endpoint"</label></li>
+        <li><input type="checkbox" id="s5-2"><label for="s5-2">Paste the URL above</label></li>
+        <li><input type="checkbox" id="s5-3"><label for="s5-3">Select event: checkout.session.completed</label></li>
+        <li><input type="checkbox" id="s5-4"><label for="s5-4">Click "Add endpoint"</label></li>
+        <li><input type="checkbox" id="s5-5"><label for="s5-5">Reveal signing secret (whsec_...)</label></li>
+        <li><input type="checkbox" id="s5-6"><label for="s5-6">Add to Vercel env as STRIPE_WEBHOOK_SECRET</label></li>
+        <li><input type="checkbox" id="s5-7"><label for="s5-7">Redeploy in Vercel</label></li>
+      </ul>
+      
+      <div class="btn-group">
+        <button class="btn btn-secondary" onclick="nextStep(4)">← Back</button>
+        <button class="btn" onclick="finish()">I'm Done! →</button>
+      </div>
+    </div>
+
+    <!-- SUCCESS -->
+    <div class="step" id="step6">
+      <div class="success">
+        <div class="success-icon">✓</div>
+        <h2 style="font-size: 2rem; font-weight: 300; margin-bottom: 16px;">You're Live</h2>
+        <p style="color: rgba(255,255,255,0.6); margin-bottom: 32px;">
+          Your Footprint is now accepting payments.
+        </p>
+        <div class="code-block" id="final-url" style="text-align: center; font-size: 16px;">
+          https://your-url.vercel.app
+        </div>
+        <p style="margin-top: 24px; color: rgba(255,255,255,0.4); font-size: 14px;">
+          Test with card: 4242 4242 4242 4242
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentStep = 1;
+    
+    function nextStep(step) {
+      document.getElementById(`step${currentStep}`).classList.remove('active');
+      document.getElementById(`step${step}`).classList.add('active');
+      
+      // Update progress dots
+      const dots = document.querySelectorAll('.progress-dot');
+      dots.forEach((dot, i) => {
+        dot.classList.remove('active', 'done');
+        if (i < step - 1) dot.classList.add('done');
+        if (i === step - 1) dot.classList.add('active');
+      });
+      
+      currentStep = step;
+      
+      // Update webhook URL
+      const vercelUrl = document.getElementById('vercel-url').value;
+      if (vercelUrl) {
+        document.getElementById('webhook-url').textContent = `${vercelUrl}/api/webhook`;
+      }
+    }
+    
+    function generateEnv() {
+      const supabaseUrl = document.getElementById('supabase-url').value;
+      const supabaseAnon = document.getElementById('supabase-anon').value;
+      const supabaseService = document.getElementById('supabase-service').value;
+      const stripePk = document.getElementById('stripe-pk').value;
+      const stripeSk = document.getElementById('stripe-sk').value;
+      const domain = document.getElementById('app-domain').value;
+      
+      const jwtSecret = btoa(Math.random().toString(36)).substring(0, 32) + 
+                        btoa(Math.random().toString(36)).substring(0, 12);
+      
+      const appUrl = domain ? `https://${domain}` : 'https://YOUR-VERCEL-URL.vercel.app';
+      
+      const env = `# Supabase
+NEXT_PUBLIC_SUPABASE_URL=${supabaseUrl}
+NEXT_PUBLIC_SUPABASE_ANON_KEY=${supabaseAnon}
+SUPABASE_SERVICE_ROLE_KEY=${supabaseService}
+
+# Stripe
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${stripePk}
+STRIPE_SECRET_KEY=${stripeSk}
+STRIPE_WEBHOOK_SECRET=whsec_UPDATE_AFTER_WEBHOOK_SETUP
+
+# Auth
+JWT_SECRET=${jwtSecret}
+
+# App
+NEXT_PUBLIC_APP_URL=${appUrl}`;
+      
+      document.getElementById('env-output').textContent = env;
+      nextStep(4);
+    }
+    
+    function finish() {
+      const vercelUrl = document.getElementById('vercel-url').value || 'https://your-url.vercel.app';
+      document.getElementById('final-url').textContent = vercelUrl;
+      nextStep(6);
+    }
+  </script>
+</body>
+</html>

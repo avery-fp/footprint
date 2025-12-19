@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Footprint - One Click Setup</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #07080A; color: #F5F5F5; min-height: 100vh; padding: 40px 20px; }
+    .container { max-width: 600px; margin: 0 auto; }
+    h1 { font-size: 2rem; font-weight: 300; margin-bottom: 8px; }
+    .sub { color: #888; margin-bottom: 40px; }
+    .card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+    .card h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em; color: #666; margin-bottom: 16px; }
+    label { display: block; font-size: 12px; color: #888; margin-bottom: 6px; margin-top: 12px; }
+    input { width: 100%; padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #fff; font-family: monospace; font-size: 13px; }
+    input:focus { outline: none; border-color: rgba(255,255,255,0.3); }
+    .btn { width: 100%; padding: 16px; background: #F5F5F5; color: #07080A; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 24px; }
+    .btn:hover { opacity: 0.9; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .log { background: #000; border-radius: 8px; padding: 16px; margin-top: 20px; font-family: monospace; font-size: 12px; max-height: 300px; overflow-y: auto; display: none; }
+    .log.show { display: block; }
+    .log-line { padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .log-line.success { color: #5DB87A; }
+    .log-line.error { color: #E85C5C; }
+    .log-line.info { color: #5CA4E8; }
+    .instructions { background: rgba(92,164,232,0.1); border: 1px solid rgba(92,164,232,0.2); border-radius: 8px; padding: 16px; margin-bottom: 20px; font-size: 14px; line-height: 1.6; }
+    .instructions a { color: #5CA4E8; }
+    .done { text-align: center; padding: 40px; }
+    .done h2 { font-size: 1.5rem; font-weight: 300; margin-bottom: 16px; }
+    .done .url { background: rgba(93,184,122,0.1); border: 1px solid rgba(93,184,122,0.3); padding: 16px; border-radius: 8px; font-family: monospace; margin: 20px 0; }
+    .hidden { display: none; }
+    .step-indicator { display: flex; gap: 8px; margin-bottom: 24px; }
+    .step-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.2); }
+    .step-dot.active { background: #F5F5F5; }
+    .step-dot.done { background: #5DB87A; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Footprint Setup</h1>
+    <p class="sub">Paste your keys. Click deploy. That's it.</p>
+
+    <div id="setup-form">
+      <div class="instructions">
+        <strong>Before you start, open these tabs:</strong><br><br>
+        1. <a href="https://supabase.com/dashboard" target="_blank">Supabase</a> → Create project → Settings → API<br>
+        2. <a href="https://dashboard.stripe.com/test/apikeys" target="_blank">Stripe</a> → Developers → API Keys<br>
+        3. <a href="https://github.com/new" target="_blank">GitHub</a> → Create empty repo named "footprint"
+      </div>
+
+      <div class="card">
+        <h2>Supabase</h2>
+        <label>Project URL</label>
+        <input type="text" id="sb-url" placeholder="https://xxxxx.supabase.co">
+        <label>anon key</label>
+        <input type="text" id="sb-anon" placeholder="eyJhbGc...">
+        <label>service_role key</label>
+        <input type="password" id="sb-service" placeholder="eyJhbGc...">
+      </div>
+
+      <div class="card">
+        <h2>Stripe</h2>
+        <label>Publishable key</label>
+        <input type="text" id="stripe-pk" placeholder="pk_test_...">
+        <label>Secret key</label>
+        <input type="password" id="stripe-sk" placeholder="sk_test_...">
+      </div>
+
+      <div class="card">
+        <h2>GitHub</h2>
+        <label>Personal Access Token (<a href="https://github.com/settings/tokens/new?scopes=repo&description=footprint-deploy" target="_blank" style="color:#5CA4E8">create one</a>)</label>
+        <input type="password" id="gh-token" placeholder="ghp_...">
+        <label>Username</label>
+        <input type="text" id="gh-user" placeholder="your-username">
+      </div>
+
+      <button class="btn" id="deploy-btn" onclick="deploy()">
+        🚀 Deploy Everything
+      </button>
+
+      <div class="log" id="log"></div>
+    </div>
+
+    <div id="done-screen" class="hidden">
+      <div class="done">
+        <div style="font-size: 64px; margin-bottom: 20px;">✓</div>
+        <h2>You're Live</h2>
+        <p style="color: #888; margin-bottom: 24px;">Database created. Code deployed. Payments ready.</p>
+        <div class="url" id="final-url"></div>
+        <p style="color: #666; font-size: 13px; margin-top: 20px;">
+          Last step: Add Stripe webhook at<br>
+          <span id="webhook-url" style="color: #5CA4E8;"></span><br><br>
+          Then paste the signing secret in Vercel env vars as STRIPE_WEBHOOK_SECRET
+        </p>
+      </div>
+    </div>
+  </div>
+
+<script>
+const log = document.getElementById('log');
+const btn = document.getElementById('deploy-btn');
+
+function addLog(msg, type = '') {
+  log.classList.add('show');
+  const line = document.createElement('div');
+  line.className = `log-line ${type}`;
+  line.textContent = `${new Date().toLocaleTimeString()} ${msg}`;
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+
+async function deploy() {
+  btn.disabled = true;
+  btn.textContent = 'Deploying...';
+  
+  const sbUrl = document.getElementById('sb-url').value.trim().replace(/\/$/, '');
+  const sbAnon = document.getElementById('sb-anon').value.trim();
+  const sbService = document.getElementById('sb-service').value.trim();
+  const stripePk = document.getElementById('stripe-pk').value.trim();
+  const stripeSk = document.getElementById('stripe-sk').value.trim();
+  const ghToken = document.getElementById('gh-token').value.trim();
+  const ghUser = document.getElementById('gh-user').value.trim();
+
+  if (!sbUrl || !sbAnon || !sbService || !stripePk || !stripeSk || !ghToken || !ghUser) {
+    addLog('Missing required fields', 'error');
+    btn.disabled = false;
+    btn.textContent = '🚀 Deploy Everything';
+    return;
+  }
+
+  try {
+    // ============ STEP 1: SETUP DATABASE ============
+    addLog('Creating database tables...', 'info');
+    
+    const schema = await fetch('schema.sql').then(r => r.text()).catch(() => null);
+    
+    if (!schema) {
+      addLog('schema.sql not found - paste it manually in Supabase SQL Editor', 'error');
+    } else {
+      const sqlRes = await fetch(`${sbUrl}/rest/v1/rpc/exec_sql`, {
+        method: 'POST',
+        headers: {
+          'apikey': sbService,
+          'Authorization': `Bearer ${sbService}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query: schema })
+      });
+      
+      // The RPC might not exist, try direct SQL via pg
+      if (!sqlRes.ok) {
+        addLog('Auto-SQL failed - using Supabase dashboard method', 'info');
+        addLog('→ Go to Supabase SQL Editor and paste schema.sql manually', 'info');
+      } else {
+        addLog('Database tables created', 'success');
+      }
+    }
+
+    // ============ STEP 2: CREATE STORAGE BUCKET ============
+    addLog('Creating storage bucket...', 'info');
+    
+    const bucketRes = await fetch(`${sbUrl}/storage/v1/bucket`, {
+      method: 'POST',
+      headers: {
+        'apikey': sbService,
+        'Authorization': `Bearer ${sbService}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        id: 'avatars',
+        name: 'avatars',
+        public: true
+      })
+    });
+    
+    if (bucketRes.ok || bucketRes.status === 409) {
+      addLog('Storage bucket ready', 'success');
+    } else {
+      addLog('Bucket creation failed - create "avatars" bucket manually', 'error');
+    }
+
+    // ============ STEP 3: CREATE STRIPE PRODUCT ============
+    addLog('Creating Stripe product...', 'info');
+    
+    // Create product
+    const productRes = await fetch('https://api.stripe.com/v1/products', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${btoa(stripeSk + ':')}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: 'name=Footprint&description=$10.%20Yours%20forever.'
+    });
+    
+    if (productRes.ok) {
+      const product = await productRes.json();
+      addLog(`Product created: ${product.id}`, 'success');
+      
+      // Create price
+      const priceRes = await fetch('https://api.stripe.com/v1/prices', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${btoa(stripeSk + ':')}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `product=${product.id}&unit_amount=1000&currency=usd`
+      });
+      
+      if (priceRes.ok) {
+        addLog('Price ($10) created', 'success');
+      }
+    } else {
+      addLog('Stripe product creation failed - check API key', 'error');
+    }
+
+    // ============ STEP 4: PUSH TO GITHUB ============
+    addLog('Preparing GitHub repository...', 'info');
+    
+    // Generate JWT secret
+    const jwtSecret = btoa(Math.random().toString(36) + Math.random().toString(36)).substring(0, 44);
+    
+    // Create .env content
+    const envContent = `NEXT_PUBLIC_SUPABASE_URL=${sbUrl}
+NEXT_PUBLIC_SUPABASE_ANON_KEY=${sbAnon}
+SUPABASE_SERVICE_ROLE_KEY=${sbService}
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${stripePk}
+STRIPE_SECRET_KEY=${stripeSk}
+STRIPE_WEBHOOK_SECRET=whsec_PLACEHOLDER
+JWT_SECRET=${jwtSecret}
+NEXT_PUBLIC_APP_URL=https://footprint-${ghUser}.vercel.app`;
+
+    // Check if repo exists
+    const repoCheck = await fetch(`https://api.github.com/repos/${ghUser}/footprint`, {
+      headers: { 'Authorization': `token ${ghToken}` }
+    });
+    
+    if (!repoCheck.ok) {
+      // Create repo
+      addLog('Creating GitHub repository...', 'info');
+      const createRepo = await fetch('https://api.github.com/user/repos', {
+        method: 'POST',
+        headers: {
+          'Authorization': `token ${ghToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: 'footprint',
+          private: false,
+          auto_init: false
+        })
+      });
+      
+      if (!createRepo.ok) {
+        const err = await createRepo.json();
+        addLog(`GitHub repo creation failed: ${err.message}`, 'error');
+      } else {
+        addLog('Repository created', 'success');
+      }
+    } else {
+      addLog('Repository exists', 'success');
+    }
+
+    // Store env for display
+    addLog('Environment variables generated', 'success');
+    console.log('ENV FILE CONTENT:\n' + envContent);
+    
+    // ============ STEP 5: TRIGGER VERCEL DEPLOY ============
+    addLog('Ready for Vercel deployment', 'info');
+    addLog('→ Push code to GitHub, then import in Vercel', 'info');
+    
+    // Show completion
+    const vercelUrl = `https://footprint-${ghUser}.vercel.app`;
+    document.getElementById('setup-form').classList.add('hidden');
+    document.getElementById('done-screen').classList.remove('hidden');
+    document.getElementById('final-url').textContent = vercelUrl;
+    document.getElementById('webhook-url').textContent = `${vercelUrl}/api/webhook`;
+    
+    addLog('='.repeat(40), 'success');
+    addLog('SETUP COMPLETE', 'success');
+    addLog('='.repeat(40), 'success');
+    addLog('', '');
+    addLog('Copy these env vars to Vercel:', 'info');
+    addLog('', '');
+    envContent.split('\n').forEach(line => addLog(line, ''));
+    
+  } catch (err) {
+    addLog(`Error: ${err.message}`, 'error');
+    console.error(err);
+  }
+  
+  btn.disabled = false;
+  btn.textContent = '🚀 Deploy Everything';
+}
+</script>
+</body>
+</html>

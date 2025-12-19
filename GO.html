@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DEPLOY FOOTPRINT</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #000; color: #fff; min-height: 100vh; }
+    .container { max-width: 500px; margin: 0 auto; padding: 40px 20px; }
+    h1 { font-size: 1.5rem; font-weight: 400; margin-bottom: 8px; letter-spacing: 0.2em; }
+    .sub { color: #666; margin-bottom: 40px; font-size: 13px; }
+    
+    .step { background: #111; border: 1px solid #222; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+    .step.done { border-color: #2a5; }
+    .step.active { border-color: #fff; }
+    .step-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .step-num { width: 28px; height: 28px; background: #222; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; }
+    .step.done .step-num { background: #2a5; }
+    .step.active .step-num { background: #fff; color: #000; }
+    .step-title { font-weight: 500; }
+    .step-time { margin-left: auto; font-size: 11px; color: #666; }
+    
+    .btn { display: block; width: 100%; padding: 14px; background: #fff; color: #000; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; text-align: center; margin-bottom: 12px; }
+    .btn:hover { opacity: 0.9; }
+    .btn-dim { background: #222; color: #fff; }
+    
+    input { width: 100%; padding: 12px; background: #000; border: 1px solid #333; border-radius: 6px; color: #fff; font-family: monospace; font-size: 12px; margin-bottom: 8px; }
+    input:focus { outline: none; border-color: #666; }
+    label { display: block; font-size: 11px; color: #666; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.1em; }
+    
+    .keys { display: none; margin-top: 16px; }
+    .keys.show { display: block; }
+    
+    .copy-row { display: flex; gap: 8px; margin-bottom: 8px; }
+    .copy-row input { margin: 0; flex: 1; }
+    .copy-btn { padding: 12px 16px; background: #333; border: none; border-radius: 6px; color: #fff; cursor: pointer; font-size: 11px; }
+    .copy-btn:hover { background: #444; }
+    
+    .final { background: #0a1a0a; border: 1px solid #2a5; border-radius: 12px; padding: 24px; text-align: center; display: none; }
+    .final.show { display: block; }
+    .final h2 { font-size: 1.25rem; font-weight: 400; margin-bottom: 8px; }
+    .final-url { background: #000; padding: 16px; border-radius: 8px; font-family: monospace; font-size: 14px; margin: 16px 0; word-break: break-all; }
+    
+    .secret { background: #1a1a00; border: 1px solid #553; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+    .secret-label { font-size: 11px; color: #aa8; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.1em; }
+    .secret-value { font-family: monospace; font-size: 12px; word-break: break-all; user-select: all; }
+    
+    .note { font-size: 12px; color: #666; margin-top: 12px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>DEPLOY FOOTPRINT</h1>
+  <p class="sub">4 steps. ~8 minutes. Then you're taking money.</p>
+
+  <!-- PRE-GENERATED SECRETS -->
+  <div class="secret">
+    <div class="secret-label">Your JWT Secret (pre-generated, save this)</div>
+    <div class="secret-value" id="jwt-secret"></div>
+  </div>
+
+  <!-- STEP 1: SUPABASE -->
+  <div class="step active" id="step1">
+    <div class="step-head">
+      <div class="step-num">1</div>
+      <div class="step-title">Create Database</div>
+      <div class="step-time">2 min</div>
+    </div>
+    
+    <a href="https://supabase.com/dashboard/new/new-project" target="_blank" class="btn">Open Supabase →</a>
+    
+    <p class="note">Create project named "footprint". Wait for it to provision. Then click below:</p>
+    
+    <button class="btn btn-dim" onclick="showSupabaseKeys()">I created the project →</button>
+    
+    <div class="keys" id="sb-keys">
+      <p class="note" style="margin-bottom: 12px;">Go to <b>Settings → API</b> and paste:</p>
+      <label>Project URL</label>
+      <input type="text" id="sb-url" placeholder="https://xxxxx.supabase.co">
+      <label>anon public key</label>
+      <input type="text" id="sb-anon" placeholder="eyJhbGc...">
+      <label>service_role secret</label>
+      <input type="text" id="sb-service" placeholder="eyJhbGc...">
+      
+      <p class="note" style="margin: 12px 0;">Now go to <b>SQL Editor</b>, paste the schema below, click <b>Run</b>:</p>
+      <button class="btn btn-dim" onclick="copySchema()">Copy Schema SQL</button>
+      
+      <button class="btn" onclick="completeStep1()" style="margin-top: 12px;">Done with Supabase →</button>
+    </div>
+  </div>
+
+  <!-- STEP 2: STRIPE -->
+  <div class="step" id="step2">
+    <div class="step-head">
+      <div class="step-num">2</div>
+      <div class="step-title">Connect Payments</div>
+      <div class="step-time">3 min</div>
+    </div>
+    
+    <a href="https://dashboard.stripe.com/register" target="_blank" class="btn">Open Stripe →</a>
+    
+    <p class="note">Create account (or sign in). Complete verification. Then:</p>
+    
+    <button class="btn btn-dim" onclick="showStripeKeys()">I'm in Stripe →</button>
+    
+    <div class="keys" id="stripe-keys">
+      <p class="note" style="margin-bottom: 12px;">Go to <b>Developers → API Keys</b> and paste:</p>
+      <label>Publishable key</label>
+      <input type="text" id="stripe-pk" placeholder="pk_test_...">
+      <label>Secret key</label>
+      <input type="text" id="stripe-sk" placeholder="sk_test_...">
+      
+      <button class="btn" onclick="completeStep2()">Done with Stripe →</button>
+    </div>
+  </div>
+
+  <!-- STEP 3: DEPLOY -->
+  <div class="step" id="step3">
+    <div class="step-head">
+      <div class="step-num">3</div>
+      <div class="step-title">Deploy to Vercel</div>
+      <div class="step-time">2 min</div>
+    </div>
+    
+    <p class="note" style="margin-bottom: 12px;">Click deploy, sign in with GitHub, paste these values when prompted:</p>
+    
+    <div id="env-display"></div>
+    
+    <a id="vercel-btn" href="#" target="_blank" class="btn" style="margin-top: 16px;">Deploy to Vercel →</a>
+    
+    <div class="keys show">
+      <label style="margin-top: 12px;">Your Vercel URL (after deploy)</label>
+      <input type="text" id="vercel-url" placeholder="https://footprint-xxx.vercel.app">
+      <button class="btn" onclick="completeStep3()">Deployed →</button>
+    </div>
+  </div>
+
+  <!-- STEP 4: WEBHOOK -->
+  <div class="step" id="step4">
+    <div class="step-head">
+      <div class="step-num">4</div>
+      <div class="step-title">Connect Webhook</div>
+      <div class="step-time">1 min</div>
+    </div>
+    
+    <a href="https://dashboard.stripe.com/webhooks/create" target="_blank" class="btn">Create Webhook →</a>
+    
+    <p class="note">Paste this URL as the endpoint:</p>
+    <div class="copy-row">
+      <input type="text" id="webhook-url" readonly value="https://your-url/api/webhook">
+      <button class="copy-btn" onclick="copyWebhook()">Copy</button>
+    </div>
+    
+    <p class="note">Select event: <b>checkout.session.completed</b><br>Click "Add endpoint", then "Reveal" the signing secret.</p>
+    
+    <label style="margin-top: 12px;">Webhook signing secret</label>
+    <input type="text" id="webhook-secret" placeholder="whsec_...">
+    
+    <p class="note">Add this to Vercel: Settings → Environment Variables → STRIPE_WEBHOOK_SECRET</p>
+    
+    <button class="btn" onclick="finish()">Done →</button>
+  </div>
+
+  <!-- FINAL -->
+  <div class="final" id="final">
+    <h2>✓ YOU'RE LIVE</h2>
+    <p style="color: #888;">Footprint is taking payments.</p>
+    <div class="final-url" id="final-url">https://your-url.vercel.app</div>
+    <p style="color: #666; font-size: 12px;">Test card: 4242 4242 4242 4242</p>
+    
+    <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #333;">
+      <p style="color: #666; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px;">Next: Feed to ARO</p>
+      <p style="color: #888; font-size: 13px;">Every $10 → Stripe → Your Bank → ARO seed capital</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// Generate JWT secret on load
+const jwtSecret = btoa(Math.random().toString(36) + Date.now() + Math.random().toString(36)).replace(/[^a-zA-Z0-9]/g, '').substring(0, 44);
+document.getElementById('jwt-secret').textContent = jwtSecret;
+
+// Schema SQL (minified reference - they'll copy from file)
+const schemaSql = `-- Paste the contents of schema.sql here`;
+
+function showSupabaseKeys() {
+  document.getElementById('sb-keys').classList.add('show');
+}
+
+function showStripeKeys() {
+  document.getElementById('stripe-keys').classList.add('show');
+}
+
+function copySchema() {
+  // Open schema.sql in new tab or copy
+  const schemaContent = `See schema.sql file in the footprint folder`;
+  navigator.clipboard.writeText(schemaContent).then(() => {
+    alert('Open schema.sql file and copy its contents to Supabase SQL Editor');
+  });
+}
+
+function completeStep1() {
+  document.getElementById('step1').classList.remove('active');
+  document.getElementById('step1').classList.add('done');
+  document.getElementById('step2').classList.add('active');
+  updateEnvDisplay();
+}
+
+function completeStep2() {
+  document.getElementById('step2').classList.remove('active');
+  document.getElementById('step2').classList.add('done');
+  document.getElementById('step3').classList.add('active');
+  updateEnvDisplay();
+}
+
+function updateEnvDisplay() {
+  const sbUrl = document.getElementById('sb-url').value || 'YOUR_SUPABASE_URL';
+  const sbAnon = document.getElementById('sb-anon').value || 'YOUR_ANON_KEY';
+  const sbService = document.getElementById('sb-service').value || 'YOUR_SERVICE_KEY';
+  const stripePk = document.getElementById('stripe-pk').value || 'YOUR_STRIPE_PK';
+  const stripeSk = document.getElementById('stripe-sk').value || 'YOUR_STRIPE_SK';
+  
+  const envHtml = `
+    <div class="copy-row"><input readonly value="NEXT_PUBLIC_SUPABASE_URL=${sbUrl}"><button class="copy-btn" onclick="navigator.clipboard.writeText('${sbUrl}')">Copy</button></div>
+    <div class="copy-row"><input readonly value="NEXT_PUBLIC_SUPABASE_ANON_KEY=${sbAnon}"><button class="copy-btn" onclick="navigator.clipboard.writeText('${sbAnon}')">Copy</button></div>
+    <div class="copy-row"><input readonly value="SUPABASE_SERVICE_ROLE_KEY=${sbService}"><button class="copy-btn" onclick="navigator.clipboard.writeText('${sbService}')">Copy</button></div>
+    <div class="copy-row"><input readonly value="NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${stripePk}"><button class="copy-btn" onclick="navigator.clipboard.writeText('${stripePk}')">Copy</button></div>
+    <div class="copy-row"><input readonly value="STRIPE_SECRET_KEY=${stripeSk}"><button class="copy-btn" onclick="navigator.clipboard.writeText('${stripeSk}')">Copy</button></div>
+    <div class="copy-row"><input readonly value="JWT_SECRET=${jwtSecret}"><button class="copy-btn" onclick="navigator.clipboard.writeText('${jwtSecret}')">Copy</button></div>
+    <div class="copy-row"><input readonly value="STRIPE_WEBHOOK_SECRET=whsec_placeholder"><button class="copy-btn" onclick="navigator.clipboard.writeText('whsec_placeholder')">Copy</button></div>
+    <div class="copy-row"><input readonly value="NEXT_PUBLIC_APP_URL=https://footprint.vercel.app"><button class="copy-btn" onclick="navigator.clipboard.writeText('https://footprint.vercel.app')">Copy</button></div>
+  `;
+  document.getElementById('env-display').innerHTML = envHtml;
+  
+  // Update Vercel deploy link
+  const vercelUrl = `https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fnickocorder%2Ffootprint&env=NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,STRIPE_SECRET_KEY,STRIPE_WEBHOOK_SECRET,JWT_SECRET,NEXT_PUBLIC_APP_URL`;
+  document.getElementById('vercel-btn').href = vercelUrl;
+}
+
+function completeStep3() {
+  const url = document.getElementById('vercel-url').value;
+  document.getElementById('webhook-url').value = url + '/api/webhook';
+  document.getElementById('step3').classList.remove('active');
+  document.getElementById('step3').classList.add('done');
+  document.getElementById('step4').classList.add('active');
+}
+
+function copyWebhook() {
+  const url = document.getElementById('webhook-url').value;
+  navigator.clipboard.writeText(url);
+}
+
+function finish() {
+  const url = document.getElementById('vercel-url').value;
+  document.getElementById('final-url').textContent = url;
+  document.getElementById('step4').classList.remove('active');
+  document.getElementById('step4').classList.add('done');
+  document.getElementById('final').classList.add('show');
+}
+
+// Initialize
+updateEnvDisplay();
+</script>
+</body>
+</html>

@@ -1,0 +1,204 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
+
+interface Room {
+  id: string
+  slug: string
+  name: string
+  icon: string
+  is_primary: boolean
+  content_count: number
+  view_count: number
+}
+
+interface UserData {
+  serial_number: number
+  email: string
+}
+
+/**
+ * Dashboard Page
+ * 
+ * The user's home base. Shows:
+ * - Their serial number (the flex)
+ * - All their rooms
+ * - Quick stats
+ * - Quick actions
+ * 
+ * From here they can:
+ * - Jump into any room to edit
+ * - Create new rooms
+ * - View their public profile
+ */
+export default function DashboardPage() {
+  const router = useRouter()
+  
+  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState<UserData | null>(null)
+  const [rooms, setRooms] = useState<Room[]>([])
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  async function loadData() {
+    try {
+      // Fetch user data
+      const userRes = await fetch('/api/user')
+      const userData = await userRes.json()
+      
+      if (userRes.ok) {
+        setUser(userData.user)
+      }
+
+      // Fetch rooms
+      const roomsRes = await fetch('/api/rooms')
+      const roomsData = await roomsRes.json()
+      
+      if (roomsRes.ok) {
+        setRooms(roomsData.rooms)
+      }
+
+    } catch (error) {
+      console.error('Failed to load:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Calculate total stats
+  const totalViews = rooms.reduce((sum, room) => sum + (room.view_count || 0), 0)
+  const totalContent = rooms.reduce((sum, room) => sum + (room.content_count || 0), 0)
+
+  // Get primary room for quick link
+  const primaryRoom = rooms.find(r => r.is_primary)
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="font-mono text-white/50 animate-pulse">Loading...</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen p-6 lg:p-12">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <header className="flex items-center justify-between mb-12">
+          <Link href="/" className="font-mono text-sm tracking-widest uppercase text-white/50">
+            Footprint
+          </Link>
+          <button 
+            onClick={() => {
+              document.cookie = 'session=; Max-Age=0; path=/'
+              router.push('/')
+            }}
+            className="font-mono text-xs text-white/40 hover:text-white/60 transition-colors"
+          >
+            Sign out
+          </button>
+        </header>
+
+        {/* Serial Number Hero */}
+        <div className="text-center mb-16">
+          <p className="font-mono text-xs tracking-widest uppercase text-white/40 mb-4">
+            Your Serial Number
+          </p>
+          <h1 className="text-6xl md:text-8xl font-light tracking-tight mb-4">
+            #{user?.serial_number?.toLocaleString() || '----'}
+          </h1>
+          <p className="text-white/50">
+            This number is yours forever. It can never be purchased again.
+          </p>
+        </div>
+
+        {/* Quick Stats */}
+        <div className="grid grid-cols-3 gap-4 mb-12">
+          <div className="glass rounded-xl p-6 text-center">
+            <p className="text-3xl font-light mb-2">{rooms.length}</p>
+            <p className="font-mono text-xs text-white/40 uppercase tracking-wider">Rooms</p>
+          </div>
+          <div className="glass rounded-xl p-6 text-center">
+            <p className="text-3xl font-light mb-2">{totalContent}</p>
+            <p className="font-mono text-xs text-white/40 uppercase tracking-wider">Items</p>
+          </div>
+          <div className="glass rounded-xl p-6 text-center">
+            <p className="text-3xl font-light mb-2">{totalViews}</p>
+            <p className="font-mono text-xs text-white/40 uppercase tracking-wider">Views</p>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="flex gap-4 justify-center mb-12">
+          {primaryRoom && (
+            <Link
+              href={`/edit/${primaryRoom.slug}`}
+              className="btn-primary rounded-lg"
+            >
+              Edit your Footprint
+            </Link>
+          )}
+          <Link
+            href={primaryRoom ? `/${primaryRoom.slug}` : '/'}
+            className="btn-primary bg-transparent border border-white/20 text-paper rounded-lg"
+          >
+            View public page
+          </Link>
+        </div>
+
+        {/* Rooms Grid */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="font-mono text-xs tracking-widest uppercase text-white/40">
+              Your Rooms
+            </h2>
+            <Link
+              href={primaryRoom ? `/edit/${primaryRoom.slug}` : '/'}
+              className="font-mono text-xs text-white/40 hover:text-paper transition-colors"
+            >
+              + New room
+            </Link>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {rooms.map((room) => (
+              <Link
+                key={room.id}
+                href={`/edit/${room.slug}`}
+                className="glass glass-hover rounded-xl p-6 transition-all card-hover group"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <span className="text-3xl">{room.icon}</span>
+                  {room.is_primary && (
+                    <span className="font-mono text-xs text-white/30 uppercase">Primary</span>
+                  )}
+                </div>
+                <h3 className="text-lg font-medium mb-2">{room.name}</h3>
+                <div className="flex gap-4 font-mono text-xs text-white/40">
+                  <span>{room.content_count || 0} items</span>
+                  <span>{room.view_count || 0} views</span>
+                </div>
+                <div className="mt-4 flex items-center text-white/40 group-hover:text-paper transition-colors">
+                  <span className="font-mono text-sm">Edit</span>
+                  <span className="ml-2 group-hover:translate-x-1 transition-transform">→</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <footer className="text-center pt-12 border-t border-white/10">
+          <p className="font-mono text-xs text-white/25">
+            {user?.email}
+          </p>
+        </footer>
+      </div>
+    </div>
+  )
+}
