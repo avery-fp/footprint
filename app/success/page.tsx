@@ -14,7 +14,7 @@ export default function SuccessPage() {
   const slug = searchParams.get('slug')
 
   const [status, setStatus] = useState<Status>('loading')
-  const [fpNumber, setFpNumber] = useState<number | null>(null)
+  const [serialNumber, setSerialNumber] = useState<number | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   useEffect(() => {
@@ -49,7 +49,7 @@ export default function SuccessPage() {
         const data = await res.json()
 
         if (res.ok && data.success) {
-          setFpNumber(data.fp_number)
+          setSerialNumber(data.serial_number)
           clearDraft(slug)
           setStatus('success')
           toast.success('Your page is live!')
@@ -131,13 +131,13 @@ export default function SuccessPage() {
         </p>
 
         {/* FP Number Card */}
-        {fpNumber && (
+        {serialNumber && (
           <div className="glass rounded-2xl p-8 mb-8 opacity-0 animate-fade-up delay-400">
             <p className="font-mono text-xs tracking-widest uppercase text-white/40 mb-3">
               Your Footprint Number
             </p>
             <p className="font-mono text-5xl font-medium mb-4">
-              FP #{fpNumber.toLocaleString()}
+              FP #{serialNumber.toLocaleString()}
             </p>
             <p className="text-sm text-white/40">
               This number is yours forever.
