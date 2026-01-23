@@ -33,7 +33,7 @@ export default function ContentCard({ content, editable, onDelete }: ContentCard
   } catch {}
 
   // For embeddable content, show the embed
-  if (content.embed_html && ['youtube', 'spotify', 'vimeo', 'soundcloud'].includes(content.type)) {
+  if (content.embed_html && ['youtube', 'spotify', 'applemusic', 'vimeo', 'soundcloud'].includes(content.type)) {
     return (
       <div className="glass rounded-xl overflow-hidden card-hover relative group">
         {/* Delete button when editable */}

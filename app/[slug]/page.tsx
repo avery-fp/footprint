@@ -4,6 +4,7 @@ import { Metadata } from 'next'
 import Link from 'next/link'
 import { getTheme } from '@/lib/themes'
 import { AnalyticsTracker } from '@/components/AnalyticsTracker'
+import ContentCard from '@/components/ContentCard'
 
 interface Props {
   params: { slug: string }
@@ -94,40 +95,7 @@ export default async function FootprintPage({ params }: Props) {
         {/* Content */}
         <div className="space-y-4">
           {content.map((item: any) => (
-            
-              key={item.id}
-              href={item.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block p-4 rounded-xl transition-transform hover:scale-[1.02]"
-              style={{ 
-                background: theme.card,
-                border: `1px solid ${theme.border}`,
-              }}
-            >
-              <div className="flex items-center gap-4">
-                {item.thumbnail_url && (
-                  <img 
-                    src={item.thumbnail_url} 
-                    alt="" 
-                    className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
-                  />
-                )}
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-medium truncate">
-                    {item.title || item.url}
-                  </h3>
-                  {item.description && (
-                    <p className="text-sm truncate" style={{ color: theme.muted }}>
-                      {item.description}
-                    </p>
-                  )}
-                  <p className="text-xs mt-1" style={{ color: theme.muted }}>
-                    {new URL(item.url).hostname}
-                  </p>
-                </div>
-              </div>
-            </a>
+            <ContentCard key={item.id} content={item} />
           ))}
         </div>
 
