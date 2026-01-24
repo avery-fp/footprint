@@ -5,7 +5,8 @@ import {
   DndContext,
   closestCenter,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent,
@@ -50,13 +51,20 @@ export default function SortableGrid({ items, onReorder, onDelete }: SortableGri
   const activeItem = activeId ? items.find(item => item.id === activeId) : null
 
   // Configure sensors for drag detection
-  // Pointer = mouse/touch, Keyboard = arrow keys for accessibility
+  // Mouse = desktop clicks, Touch = mobile with long-press, Keyboard = accessibility
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      // Require a small drag distance before starting
-      // This prevents accidental drags when clicking
+    useSensor(MouseSensor, {
+      // Desktop: small distance prevents accidental drags when clicking
       activationConstraint: {
         distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      // Mobile: long-press to drag (250ms delay)
+      // This allows normal scrolling and taps to work naturally
+      activationConstraint: {
+        delay: 250,
+        tolerance: 8,
       },
     }),
     useSensor(KeyboardSensor, {

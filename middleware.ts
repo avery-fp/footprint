@@ -24,9 +24,11 @@ export async function middleware(request: NextRequest) {
     '/auth',
     '/auth/verify',
     '/auth/login',
+    '/edit',
     '/api/checkout',
     '/api/webhook',
     '/api/parse',
+    '/api/import-draft',
   ]
   
   // Check if this is a public route

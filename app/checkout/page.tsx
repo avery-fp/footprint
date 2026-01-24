@@ -1,10 +1,14 @@
 'use client'
 
 import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
 
 export default function CheckoutPage() {
+  const searchParams = useSearchParams()
+  const slug = searchParams.get('slug')
+
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -23,7 +27,7 @@ export default function CheckoutPage() {
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, slug }),
       })
 
       const data = await res.json()
@@ -43,8 +47,8 @@ export default function CheckoutPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 py-24">
       {/* Back link */}
-      <Link 
-        href="/"
+      <Link
+        href={slug ? `/edit/${slug}` : '/'}
         className="fixed top-6 left-6 font-mono text-xs text-white/40 hover:text-white/60 transition-colors"
       >
         ← back
@@ -58,8 +62,16 @@ export default function CheckoutPage() {
             <span className="font-mono text-sm text-white/50 ml-2">once, forever</span>
           </div>
           
-          <h1 className="text-3xl font-light mb-4">Get your Footprint</h1>
-          <p className="text-white/50">One page. Infinite rooms. Yours forever.</p>
+          <h1 className="text-3xl font-light mb-4">
+            {slug ? 'Publish your Footprint' : 'Get your Footprint'}
+          </h1>
+          <p className="text-white/50">
+            {slug ? (
+              <>Your page will be live at <span className="text-white/70">footprint.onl/{slug}</span></>
+            ) : (
+              'One page. Infinite rooms. Yours forever.'
+            )}
+          </p>
         </div>
 
         {/* Checkout form */}
