@@ -16,6 +16,7 @@ export default function SuccessPage() {
   const [status, setStatus] = useState<Status>('loading')
   const [serialNumber, setSerialNumber] = useState<number | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     async function publishDraft() {
@@ -71,7 +72,8 @@ export default function SuccessPage() {
 
   const copyLink = () => {
     navigator.clipboard.writeText(link)
-    toast.success('Copied to clipboard')
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   if (status === 'loading' || status === 'publishing') {
@@ -152,9 +154,9 @@ export default function SuccessPage() {
           </span>
           <button
             onClick={copyLink}
-            className="bg-white/10 hover:bg-white/20 py-2 px-4 text-xs rounded-lg flex-shrink-0 transition"
+            className={`py-2 px-4 text-xs rounded-lg flex-shrink-0 transition ${copied ? 'bg-green-500 text-white' : 'bg-white/10 hover:bg-white/20'}`}
           >
-            Copy
+            {copied ? 'Copied!' : 'Copy Link'}
           </button>
         </div>
 
