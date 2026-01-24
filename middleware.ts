@@ -32,8 +32,8 @@ export async function middleware(request: NextRequest) {
   ]
   
   // Check if this is a public route
-  const isPublicRoute = publicRoutes.some(route => 
-    pathname === route || pathname.startsWith('/api/')
+  const isPublicRoute = pathname.startsWith('/api/') || publicRoutes.some(route =>
+    pathname === route || pathname.startsWith(route + '/')
   )
   
   // Check if this is a public footprint page (dynamic route)
