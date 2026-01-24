@@ -24,7 +24,6 @@ export default function PublicEditPage() {
 
   // Context-awareness: track if user owns this slug
   const [isOwner, setIsOwner] = useState(false)
-  const [serialNumber, setSerialNumber] = useState<number | null>(null)
   const [footprintId, setFootprintId] = useState<string | null>(null)
 
   // Track tile sources for owners (needed for delete)
@@ -43,7 +42,6 @@ export default function PublicEditPage() {
         if (data.owned && data.footprint) {
           // User owns this - load from DB
           setIsOwner(true)
-          setSerialNumber(data.footprint.serial_number)
           setFootprintId(data.footprint.id || data.footprint.serial_number)
 
           // Map tiles to draft format and track sources
@@ -176,13 +174,13 @@ export default function PublicEditPage() {
     if (!pasteUrl.trim() || !draft) return
     setIsAdding(true)
     try {
-      if (isOwner && serialNumber) {
-        // Add to DB via tiles API
+      if (isOwner) {
+        // Add to DB via tiles API (server derives serial_number from slug)
         const res = await fetch('/api/tiles', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            serial_number: serialNumber,
+            slug,
             url: pasteUrl,
           }),
         })
@@ -235,11 +233,15 @@ export default function PublicEditPage() {
 
   async function handleDelete(id: string) {
     if (isOwner) {
-      // Delete from DB via tiles API
+      // Delete from DB via tiles API (server derives serial_number from slug)
       const source = tileSources[id]
       if (source) {
         try {
-          await fetch(`/api/tiles?id=${id}&source=${source}`, { method: 'DELETE' })
+          await fetch('/api/tiles', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ slug, source, id }),
+          })
         } catch (error) {
           console.error('Failed to delete from DB:', error)
         }

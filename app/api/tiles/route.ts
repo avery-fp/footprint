@@ -3,12 +3,45 @@ import { createServerSupabaseClient } from '@/lib/supabase'
 import { parseURL } from '@/lib/parser'
 
 /**
+ * Verify ownership and get serial_number from slug
+ * Returns serial_number if user owns the footprint, null otherwise
+ */
+async function verifyOwnership(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  userId: string,
+  slug: string
+): Promise<number | null> {
+  // Get user's serial_number
+  const { data: user } = await supabase
+    .from('users')
+    .select('serial_number')
+    .eq('id', userId)
+    .single()
+
+  if (!user) return null
+
+  // Get footprint by username (slug)
+  const { data: footprint } = await supabase
+    .from('footprints')
+    .select('serial_number')
+    .eq('username', slug)
+    .single()
+
+  if (!footprint) return null
+
+  // Check ownership
+  if (user.serial_number !== footprint.serial_number) return null
+
+  return footprint.serial_number
+}
+
+/**
  * POST /api/tiles
  *
  * Add a tile (link/embed) to the links table.
- * Images go to library table via upload endpoint.
+ * Server derives serial_number from slug via ownership check.
  *
- * Body: { serial_number, url }
+ * Body: { slug, url }
  */
 export async function POST(request: NextRequest) {
   try {
@@ -17,22 +50,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { serial_number, url } = await request.json()
+    const { slug, url } = await request.json()
 
-    if (!serial_number || !url) {
-      return NextResponse.json({ error: 'serial_number and url required' }, { status: 400 })
+    if (!slug || !url) {
+      return NextResponse.json({ error: 'slug and url required' }, { status: 400 })
     }
 
     const supabase = createServerSupabaseClient()
 
-    // Verify ownership: user's serial_number must match
-    const { data: user } = await supabase
-      .from('users')
-      .select('serial_number')
-      .eq('id', userId)
-      .single()
-
-    if (!user || user.serial_number !== serial_number) {
+    // Verify ownership and get serial_number
+    const serialNumber = await verifyOwnership(supabase, userId, slug)
+    if (!serialNumber) {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
     }
 
@@ -43,7 +71,7 @@ export async function POST(request: NextRequest) {
     const { data: maxPos } = await supabase
       .from('links')
       .select('position')
-      .eq('serial_number', serial_number)
+      .eq('serial_number', serialNumber)
       .order('position', { ascending: false })
       .limit(1)
       .single()
@@ -54,7 +82,7 @@ export async function POST(request: NextRequest) {
     const { data: tile, error } = await supabase
       .from('links')
       .insert({
-        serial_number,
+        serial_number: serialNumber,
         url: parsed.url,
         type: parsed.type,
         title: parsed.title,
@@ -79,9 +107,12 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * DELETE /api/tiles?id=xxx&source=library|links
+ * DELETE /api/tiles
  *
  * Delete a tile from either library or links table.
+ * Server verifies ownership via slug before deletion.
+ *
+ * Body: { slug, source, id }
  */
 export async function DELETE(request: NextRequest) {
   try {
@@ -90,43 +121,26 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { searchParams } = new URL(request.url)
-    const tileId = searchParams.get('id')
-    const source = searchParams.get('source') as 'library' | 'links'
+    const { slug, source, id } = await request.json()
 
-    if (!tileId || !source || !['library', 'links'].includes(source)) {
-      return NextResponse.json({ error: 'id and source (library|links) required' }, { status: 400 })
+    if (!slug || !source || !id || !['library', 'links'].includes(source)) {
+      return NextResponse.json({ error: 'slug, source (library|links), and id required' }, { status: 400 })
     }
 
     const supabase = createServerSupabaseClient()
 
-    // Get user's serial_number
-    const { data: user } = await supabase
-      .from('users')
-      .select('serial_number')
-      .eq('id', userId)
-      .single()
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
-
-    // Verify ownership by checking tile's serial_number
-    const { data: tile } = await supabase
-      .from(source)
-      .select('serial_number')
-      .eq('id', tileId)
-      .single()
-
-    if (!tile || tile.serial_number !== user.serial_number) {
+    // Verify ownership and get serial_number
+    const serialNumber = await verifyOwnership(supabase, userId, slug)
+    if (!serialNumber) {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
     }
 
-    // Delete the tile
+    // Delete from the correct table, ensuring serial_number matches
     const { error } = await supabase
       .from(source)
       .delete()
-      .eq('id', tileId)
+      .eq('id', id)
+      .eq('serial_number', serialNumber)
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
