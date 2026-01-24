@@ -106,6 +106,18 @@ body::before {
   display: none;
 }
 
+/* Drag and drop touch support */
+.sortable-grid {
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.drag-handle {
+  touch-action: none;
+  -webkit-touch-callout: none;
+}
+
 /* Card hover effect */
 .card-hover {
   transition: all 0.3s ease;
