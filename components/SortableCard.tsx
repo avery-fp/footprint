@@ -20,33 +20,37 @@ export function SortableCard({ id, content, onDelete, isDragging }: SortableCard
     transform,
     transition,
     isDragging: isSortableDragging,
+    isOver,
   } = useSortable({ id })
+
+  const isActive = isDragging || isSortableDragging
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging || isSortableDragging ? 0.3 : 1,
+    opacity: isActive ? 0.4 : 1,
   }
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="relative group"
+      className={`relative group ${isOver ? 'ring-2 ring-white/30 rounded-xl' : ''} ${isActive ? 'scale-[0.98]' : ''}`}
     >
       {/* The actual content card - receives clicks normally */}
       <ContentCard content={content} editable onDelete={onDelete} />
 
       {/* Drag handle - ONLY this triggers drag */}
-      {/* Mobile: always visible (no hover), Desktop: show on hover */}
+      {/* Mobile: always visible with larger touch target, Desktop: show on hover */}
       <div
         {...attributes}
         {...listeners}
-        className="absolute top-3 left-3 z-20 touch-none opacity-40 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing"
+        className="absolute top-2 left-2 z-20 drag-handle opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing"
       >
-        <div className="w-8 h-8 rounded-lg bg-black/70 flex items-center justify-center text-white/60">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M5 3H9M5 7H9M5 11H9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        {/* Larger touch target for mobile (44x44px minimum) */}
+        <div className="w-11 h-11 sm:w-8 sm:h-8 rounded-lg bg-black/80 sm:bg-black/70 flex items-center justify-center text-white/80 sm:text-white/60 active:scale-95 transition-transform">
+          <svg width="16" height="16" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" className="sm:w-[14px] sm:h-[14px]">
+            <path d="M5 3H9M5 7H9M5 11H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
           </svg>
         </div>
       </div>

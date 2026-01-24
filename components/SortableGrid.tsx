@@ -7,6 +7,7 @@ import {
   KeyboardSensor,
   MouseSensor,
   TouchSensor,
+  PointerSensor,
   useSensor,
   useSensors,
   DragEndEvent,
@@ -51,20 +52,26 @@ export default function SortableGrid({ items, onReorder, onDelete }: SortableGri
   const activeItem = activeId ? items.find(item => item.id === activeId) : null
 
   // Configure sensors for drag detection
-  // Mouse = desktop clicks, Touch = mobile with long-press, Keyboard = accessibility
+  // Touch = mobile with long-press, Pointer = desktop/fallback, Keyboard = accessibility
   const sensors = useSensors(
-    useSensor(MouseSensor, {
-      // Desktop: small distance prevents accidental drags when clicking
+    useSensor(TouchSensor, {
+      // Mobile: long-press to drag (200ms delay)
+      // This allows normal scrolling and taps to work naturally
+      activationConstraint: {
+        delay: 200,
+        tolerance: 5,
+      },
+    }),
+    useSensor(PointerSensor, {
+      // Desktop & fallback: small distance prevents accidental drags
       activationConstraint: {
         distance: 8,
       },
     }),
-    useSensor(TouchSensor, {
-      // Mobile: long-press to drag (250ms delay)
-      // This allows normal scrolling and taps to work naturally
+    useSensor(MouseSensor, {
+      // Additional mouse support for older browsers
       activationConstraint: {
-        delay: 250,
-        tolerance: 8,
+        distance: 8,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -132,7 +139,7 @@ export default function SortableGrid({ items, onReorder, onDelete }: SortableGri
         items={items.map(item => item.id)} 
         strategy={rectSortingStrategy}
       >
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 sortable-grid">
           {items.map((item) => (
             <SortableCard
               key={item.id}
@@ -146,9 +153,12 @@ export default function SortableGrid({ items, onReorder, onDelete }: SortableGri
       </SortableContext>
 
       {/* Drag overlay - the floating card while dragging */}
-      <DragOverlay adjustScale={false}>
+      <DragOverlay adjustScale={false} dropAnimation={{
+        duration: 200,
+        easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
+      }}>
         {activeItem ? (
-          <div className="opacity-90 rotate-3 scale-105">
+          <div className="opacity-95 rotate-2 scale-[1.02] shadow-2xl shadow-black/50 ring-2 ring-white/20 rounded-xl">
             <ContentCard content={activeItem} />
           </div>
         ) : null}
