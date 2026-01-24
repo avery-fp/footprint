@@ -1,12 +1,17 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { nanoid } from 'nanoid'
 import { parseURL } from '@/lib/parser'
 import { loadDraft, saveDraft, clearDraft, DraftFootprint, DraftContent } from '@/lib/draft-store'
 import ContentCard from '@/components/ContentCard'
 import { getTheme } from '@/lib/themes'
+
+// Extended content type that tracks source table for owners
+interface TileContent extends DraftContent {
+  source?: 'library' | 'links'
+}
 
 export default function PublicEditPage() {
   const params = useParams()
@@ -17,79 +22,214 @@ export default function PublicEditPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isAdding, setIsAdding] = useState(false)
 
-  // Load draft from localStorage on mount
+  // Context-awareness: track if user owns this slug
+  const [isOwner, setIsOwner] = useState(false)
+
+  // Track tile sources for owners (needed for delete)
+  const [tileSources, setTileSources] = useState<Record<string, 'library' | 'links'>>({})
+
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Load data on mount - check ownership first
   useEffect(() => {
-    const existingDraft = loadDraft(slug)
-    if (existingDraft) {
-      setDraft(existingDraft)
-    } else {
-      setDraft({
-        slug,
-        display_name: '',
-        handle: '',
-        bio: '',
-        theme: 'midnight',
-        avatar_url: null,
-        content: [],
-        updated_at: Date.now(),
-      })
+    async function loadData() {
+      try {
+        // Check if user owns this slug
+        const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}`)
+        const data = await res.json()
+
+        if (data.owned && data.footprint) {
+          // User owns this - load from DB
+          setIsOwner(true)
+
+          // Map tiles to draft format and track sources
+          const sources: Record<string, 'library' | 'links'> = {}
+          const content = (data.tiles || []).map((tile: any) => {
+            sources[tile.id] = tile.source
+            return {
+              id: tile.id,
+              url: tile.url,
+              type: tile.type,
+              title: tile.title,
+              description: tile.description,
+              thumbnail_url: tile.thumbnail_url,
+              embed_html: tile.embed_html,
+              position: tile.position,
+            }
+          })
+          setTileSources(sources)
+
+          setDraft({
+            slug,
+            display_name: data.footprint.display_name || '',
+            handle: data.footprint.handle || '',
+            bio: data.footprint.bio || '',
+            theme: data.footprint.theme || 'midnight',
+            avatar_url: data.footprint.avatar_url,
+            content,
+            updated_at: Date.now(),
+          })
+        } else {
+          // Not owner - use localStorage
+          setIsOwner(false)
+          const existingDraft = loadDraft(slug)
+          if (existingDraft) {
+            setDraft(existingDraft)
+          } else {
+            setDraft({
+              slug,
+              display_name: '',
+              handle: '',
+              bio: '',
+              theme: 'midnight',
+              avatar_url: null,
+              content: [],
+              updated_at: Date.now(),
+            })
+          }
+        }
+      } catch (error) {
+        // Network error - fallback to localStorage
+        console.error('Failed to check ownership:', error)
+        setIsOwner(false)
+        const existingDraft = loadDraft(slug)
+        if (existingDraft) {
+          setDraft(existingDraft)
+        } else {
+          setDraft({
+            slug,
+            display_name: '',
+            handle: '',
+            bio: '',
+            theme: 'midnight',
+            avatar_url: null,
+            content: [],
+            updated_at: Date.now(),
+          })
+        }
+      }
+      setIsLoading(false)
     }
-    setIsLoading(false)
+
+    loadData()
   }, [slug])
 
-  // Debounced save to localStorage
-  const saveToLocalStorage = useCallback((d: DraftFootprint) => {
-    saveDraft(slug, d)
-  }, [slug])
+  // Save function - routes to DB or localStorage based on ownership
+  // Note: For owners, profile changes auto-save. Tiles use /api/tiles.
+  const saveData = useCallback(async (d: DraftFootprint) => {
+    if (!isOwner) {
+      // Save to localStorage for drafts
+      saveDraft(slug, d)
+    }
+    // Owner profile saving handled separately (tiles use /api/tiles)
+  }, [isOwner, slug])
 
-  // Auto-save on every change
+  // Debounced auto-save on profile changes
   useEffect(() => {
     if (draft && !isLoading) {
-      const timeout = setTimeout(() => {
-        saveToLocalStorage(draft)
-      }, 300)
-      return () => clearTimeout(timeout)
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+      }
+      saveTimeoutRef.current = setTimeout(() => {
+        saveData(draft)
+      }, 500)
+      return () => {
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current)
+        }
+      }
     }
-  }, [draft, isLoading, saveToLocalStorage])
+  }, [draft, isLoading, saveData])
 
   // Save before unload
   useEffect(() => {
     const handleBeforeUnload = () => {
-      if (draft) saveDraft(slug, draft)
+      if (draft && !isOwner) {
+        saveDraft(slug, draft)
+      }
     }
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [draft, slug])
+  }, [draft, slug, isOwner])
 
   async function handleAddContent() {
     if (!pasteUrl.trim() || !draft) return
     setIsAdding(true)
     try {
-      const parsed = await parseURL(pasteUrl)
-      const newContent: DraftContent = {
-        id: nanoid(),
-        url: parsed.url,
-        type: parsed.type,
-        title: parsed.title,
-        description: parsed.description,
-        thumbnail_url: parsed.thumbnail_url,
-        embed_html: parsed.embed_html,
-        position: 0,
+      if (isOwner) {
+        // Add to DB via tiles API (server derives serial_number from slug)
+        const res = await fetch('/api/tiles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            slug,
+            url: pasteUrl,
+          }),
+        })
+        const data = await res.json()
+        if (data.tile) {
+          // Track the source
+          setTileSources(prev => ({ ...prev, [data.tile.id]: data.tile.source }))
+
+          setDraft(prev => prev ? {
+            ...prev,
+            content: [...prev.content, {
+              id: data.tile.id,
+              url: data.tile.url,
+              type: data.tile.type,
+              title: data.tile.title,
+              description: data.tile.description,
+              thumbnail_url: data.tile.thumbnail_url,
+              embed_html: data.tile.embed_html,
+              position: data.tile.position,
+            }],
+            updated_at: Date.now(),
+          } : null)
+        }
+      } else {
+        // Add to draft (localStorage)
+        const parsed = await parseURL(pasteUrl)
+        const newContent: DraftContent = {
+          id: nanoid(),
+          url: parsed.url,
+          type: parsed.type,
+          title: parsed.title,
+          description: parsed.description,
+          thumbnail_url: parsed.thumbnail_url,
+          embed_html: parsed.embed_html,
+          position: 0,
+        }
+        setDraft(prev => prev ? {
+          ...prev,
+          content: [newContent, ...prev.content.map((c, i) => ({ ...c, position: i + 1 }))],
+          updated_at: Date.now(),
+        } : null)
       }
-      setDraft(prev => prev ? {
-        ...prev,
-        content: [newContent, ...prev.content.map((c, i) => ({ ...c, position: i + 1 }))],
-        updated_at: Date.now(),
-      } : null)
       setPasteUrl('')
     } catch (e) {
-      console.error('Failed to parse URL:', e)
+      console.error('Failed to add content:', e)
     } finally {
       setIsAdding(false)
     }
   }
 
-  function handleDelete(id: string) {
+  async function handleDelete(id: string) {
+    if (isOwner) {
+      // Delete from DB via tiles API (server derives serial_number from slug)
+      const source = tileSources[id]
+      if (source) {
+        try {
+          await fetch('/api/tiles', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ slug, source, id }),
+          })
+        } catch (error) {
+          console.error('Failed to delete from DB:', error)
+        }
+      }
+    }
+    // Always update local state
     setDraft(prev => prev ? {
       ...prev,
       content: prev.content.filter(c => c.id !== id),
@@ -98,6 +238,11 @@ export default function PublicEditPage() {
   }
 
   function handleClearDraft() {
+    if (isOwner) {
+      // Owners can't clear - they edit their live page
+      alert('This is your live page. Delete individual items instead.')
+      return
+    }
     if (confirm('Clear all draft content? This cannot be undone.')) {
       clearDraft(slug)
       setDraft({
@@ -114,7 +259,12 @@ export default function PublicEditPage() {
   }
 
   function handleGoLive() {
-    window.location.href = `/checkout?slug=${encodeURIComponent(slug)}`
+    if (isOwner) {
+      // Already live - go to public page
+      window.location.href = `/${slug}`
+    } else {
+      window.location.href = `/checkout?slug=${encodeURIComponent(slug)}`
+    }
   }
 
   if (isLoading || !draft) {
@@ -129,15 +279,19 @@ export default function PublicEditPage() {
 
   return (
     <div className="min-h-screen pb-32" style={{ background: theme.bg, color: theme.text }}>
-      {/* Draft mode indicator */}
+      {/* Mode indicator */}
       <div className="fixed top-4 right-4 z-50 flex items-center gap-3">
-        <span className="text-xs text-white/40 font-mono">draft · local</span>
-        <button
-          onClick={handleClearDraft}
-          className="text-xs text-white/40 hover:text-white/60 font-mono underline"
-        >
-          clear
-        </button>
+        <span className="text-xs text-white/40 font-mono">
+          {isOwner ? 'editing · live' : 'draft · local'}
+        </span>
+        {!isOwner && (
+          <button
+            onClick={handleClearDraft}
+            className="text-xs text-white/40 hover:text-white/60 font-mono underline"
+          >
+            clear
+          </button>
+        )}
       </div>
 
       <div className="max-w-2xl mx-auto px-4 py-12">
@@ -216,7 +370,7 @@ export default function PublicEditPage() {
         {/* URL Preview */}
         <div className="mt-12 text-center">
           <p className="font-mono text-xs text-white/30">
-            Your page will be live at
+            {isOwner ? 'Your page is live at' : 'Your page will be live at'}
           </p>
           <p className="font-mono text-sm text-white/60 mt-1">
             footprint.onl/{slug}
@@ -224,13 +378,17 @@ export default function PublicEditPage() {
         </div>
       </div>
 
-      {/* Go Live Button */}
+      {/* Bottom Button */}
       <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40">
         <button
           onClick={handleGoLive}
-          className="px-8 py-4 rounded-2xl bg-green-500 hover:bg-green-400 text-white font-medium shadow-lg shadow-green-500/25 transition transform hover:scale-105"
+          className={`px-8 py-4 rounded-2xl font-medium shadow-lg transition transform hover:scale-105 ${
+            isOwner
+              ? 'bg-white/10 hover:bg-white/20 text-white'
+              : 'bg-green-500 hover:bg-green-400 text-white shadow-green-500/25'
+          }`}
         >
-          Go Live · $10
+          {isOwner ? 'View Live Page' : 'Go Live · $10'}
         </button>
       </div>
     </div>
