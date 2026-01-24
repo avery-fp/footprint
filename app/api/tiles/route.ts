@@ -5,16 +5,21 @@ import { parseURL } from '@/lib/parser'
 /**
  * Verify ownership and get serial_number from slug
  * Returns serial_number if user owns the footprint, null otherwise
+ *
+ * Ownership is determined via purchases table:
+ * - Get user's email
+ * - Get footprint's serial_number
+ * - Check if purchase exists for that email + serial_number
  */
 async function verifyOwnership(
   supabase: ReturnType<typeof createServerSupabaseClient>,
   userId: string,
   slug: string
 ): Promise<number | null> {
-  // Get user's serial_number
+  // Get user's email
   const { data: user } = await supabase
     .from('users')
-    .select('serial_number')
+    .select('email')
     .eq('id', userId)
     .single()
 
@@ -29,8 +34,16 @@ async function verifyOwnership(
 
   if (!footprint) return null
 
-  // Check ownership
-  if (user.serial_number !== footprint.serial_number) return null
+  // Check ownership via purchases table
+  const { data: purchase } = await supabase
+    .from('purchases')
+    .select('id')
+    .eq('email', user.email)
+    .eq('serial_number', footprint.serial_number)
+    .limit(1)
+    .single()
+
+  if (!purchase) return null
 
   return footprint.serial_number
 }
