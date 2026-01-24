@@ -8,9 +8,10 @@ import { createServerSupabaseClient } from '@/lib/supabase'
  * If yes: returns footprint + tiles (merged from library + links)
  * If no: returns { owned: false } with NO data
  *
- * Ownership is determined by matching serial_number:
- * - users.serial_number (from x-user-id)
- * - footprints.serial_number (from username lookup)
+ * Ownership is determined via purchases table:
+ * - Get user's email
+ * - Get footprint's serial_number
+ * - Check if purchase exists for that email + serial_number
  */
 export async function GET(
   request: NextRequest,
@@ -27,10 +28,10 @@ export async function GET(
 
     const supabase = createServerSupabaseClient()
 
-    // Get user's serial_number
+    // Get user's email
     const { data: user, error: userError } = await supabase
       .from('users')
-      .select('serial_number')
+      .select('email')
       .eq('id', userId)
       .single()
 
@@ -49,8 +50,16 @@ export async function GET(
       return NextResponse.json({ owned: false })
     }
 
-    // Check ownership via serial_number match
-    if (user.serial_number !== footprint.serial_number) {
+    // Check ownership via purchases table
+    const { data: purchase } = await supabase
+      .from('purchases')
+      .select('id')
+      .eq('email', user.email)
+      .eq('serial_number', footprint.serial_number)
+      .limit(1)
+      .single()
+
+    if (!purchase) {
       return NextResponse.json({ owned: false })
     }
 
