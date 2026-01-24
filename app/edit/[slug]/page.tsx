@@ -8,6 +8,11 @@ import { loadDraft, saveDraft, clearDraft, DraftFootprint, DraftContent } from '
 import ContentCard from '@/components/ContentCard'
 import { getTheme } from '@/lib/themes'
 
+// Extended content type that tracks source table for owners
+interface TileContent extends DraftContent {
+  source?: 'library' | 'links'
+}
+
 export default function PublicEditPage() {
   const params = useParams()
   const slug = params.slug as string
@@ -19,7 +24,12 @@ export default function PublicEditPage() {
 
   // Context-awareness: track if user owns this slug
   const [isOwner, setIsOwner] = useState(false)
+  const [serialNumber, setSerialNumber] = useState<number | null>(null)
   const [footprintId, setFootprintId] = useState<string | null>(null)
+
+  // Track tile sources for owners (needed for delete)
+  const [tileSources, setTileSources] = useState<Record<string, 'library' | 'links'>>({})
+
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Load data on mount - check ownership first
@@ -33,7 +43,26 @@ export default function PublicEditPage() {
         if (data.owned && data.footprint) {
           // User owns this - load from DB
           setIsOwner(true)
-          setFootprintId(data.footprint.id)
+          setSerialNumber(data.footprint.serial_number)
+          setFootprintId(data.footprint.id || data.footprint.serial_number)
+
+          // Map tiles to draft format and track sources
+          const sources: Record<string, 'library' | 'links'> = {}
+          const content = (data.tiles || []).map((tile: any) => {
+            sources[tile.id] = tile.source
+            return {
+              id: tile.id,
+              url: tile.url,
+              type: tile.type,
+              title: tile.title,
+              description: tile.description,
+              thumbnail_url: tile.thumbnail_url,
+              embed_html: tile.embed_html,
+              position: tile.position,
+            }
+          })
+          setTileSources(sources)
+
           setDraft({
             slug,
             display_name: data.footprint.display_name || '',
@@ -41,16 +70,7 @@ export default function PublicEditPage() {
             bio: data.footprint.bio || '',
             theme: data.footprint.theme || 'midnight',
             avatar_url: data.footprint.avatar_url,
-            content: data.content.map((c: any) => ({
-              id: c.id,
-              url: c.url,
-              type: c.type,
-              title: c.title,
-              description: c.description,
-              thumbnail_url: c.thumbnail_url,
-              embed_html: c.embed_html,
-              position: c.position,
-            })),
+            content,
             updated_at: Date.now(),
           })
         } else {
@@ -101,7 +121,7 @@ export default function PublicEditPage() {
   // Save function - routes to DB or localStorage based on ownership
   const saveData = useCallback(async (d: DraftFootprint) => {
     if (isOwner && footprintId) {
-      // Save to DB
+      // Save profile to DB via rooms API
       try {
         await fetch('/api/rooms', {
           method: 'PUT',
@@ -156,37 +176,39 @@ export default function PublicEditPage() {
     if (!pasteUrl.trim() || !draft) return
     setIsAdding(true)
     try {
-      const parsed = await parseURL(pasteUrl)
-
-      if (isOwner && footprintId) {
-        // Add to DB
-        const res = await fetch('/api/content', {
+      if (isOwner && serialNumber) {
+        // Add to DB via tiles API
+        const res = await fetch('/api/tiles', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            serial_number: serialNumber,
             url: pasteUrl,
-            footprint_id: footprintId,
           }),
         })
         const data = await res.json()
-        if (data.content) {
+        if (data.tile) {
+          // Track the source
+          setTileSources(prev => ({ ...prev, [data.tile.id]: data.tile.source }))
+
           setDraft(prev => prev ? {
             ...prev,
             content: [...prev.content, {
-              id: data.content.id,
-              url: data.content.url,
-              type: data.content.type,
-              title: data.content.title,
-              description: data.content.description,
-              thumbnail_url: data.content.thumbnail_url,
-              embed_html: data.content.embed_html,
-              position: data.content.position,
+              id: data.tile.id,
+              url: data.tile.url,
+              type: data.tile.type,
+              title: data.tile.title,
+              description: data.tile.description,
+              thumbnail_url: data.tile.thumbnail_url,
+              embed_html: data.tile.embed_html,
+              position: data.tile.position,
             }],
             updated_at: Date.now(),
           } : null)
         }
       } else {
         // Add to draft (localStorage)
+        const parsed = await parseURL(pasteUrl)
         const newContent: DraftContent = {
           id: nanoid(),
           url: parsed.url,
@@ -205,7 +227,7 @@ export default function PublicEditPage() {
       }
       setPasteUrl('')
     } catch (e) {
-      console.error('Failed to parse URL:', e)
+      console.error('Failed to add content:', e)
     } finally {
       setIsAdding(false)
     }
@@ -213,11 +235,14 @@ export default function PublicEditPage() {
 
   async function handleDelete(id: string) {
     if (isOwner) {
-      // Delete from DB
-      try {
-        await fetch(`/api/content?id=${id}`, { method: 'DELETE' })
-      } catch (error) {
-        console.error('Failed to delete from DB:', error)
+      // Delete from DB via tiles API
+      const source = tileSources[id]
+      if (source) {
+        try {
+          await fetch(`/api/tiles?id=${id}&source=${source}`, { method: 'DELETE' })
+        } catch (error) {
+          console.error('Failed to delete from DB:', error)
+        }
       }
     }
     // Always update local state
