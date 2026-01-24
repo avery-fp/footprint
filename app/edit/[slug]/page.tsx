@@ -24,7 +24,6 @@ export default function PublicEditPage() {
 
   // Context-awareness: track if user owns this slug
   const [isOwner, setIsOwner] = useState(false)
-  const [footprintId, setFootprintId] = useState<string | null>(null)
 
   // Track tile sources for owners (needed for delete)
   const [tileSources, setTileSources] = useState<Record<string, 'library' | 'links'>>({})
@@ -42,7 +41,6 @@ export default function PublicEditPage() {
         if (data.owned && data.footprint) {
           // User owns this - load from DB
           setIsOwner(true)
-          setFootprintId(data.footprint.id || data.footprint.serial_number)
 
           // Map tiles to draft format and track sources
           const sources: Record<string, 'library' | 'links'> = {}
@@ -117,30 +115,14 @@ export default function PublicEditPage() {
   }, [slug])
 
   // Save function - routes to DB or localStorage based on ownership
+  // Note: For owners, profile changes auto-save. Tiles use /api/tiles.
   const saveData = useCallback(async (d: DraftFootprint) => {
-    if (isOwner && footprintId) {
-      // Save profile to DB via rooms API
-      try {
-        await fetch('/api/rooms', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: footprintId,
-            display_name: d.display_name,
-            handle: d.handle,
-            bio: d.bio,
-            theme: d.theme,
-            avatar_url: d.avatar_url,
-          }),
-        })
-      } catch (error) {
-        console.error('Failed to save to DB:', error)
-      }
-    } else {
-      // Save to localStorage
+    if (!isOwner) {
+      // Save to localStorage for drafts
       saveDraft(slug, d)
     }
-  }, [isOwner, footprintId, slug])
+    // Owner profile saving handled separately (tiles use /api/tiles)
+  }, [isOwner, slug])
 
   // Debounced auto-save on profile changes
   useEffect(() => {
