@@ -14,21 +14,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const supabase = createServerSupabaseClient()
   const { data: footprint } = await supabase
     .from('footprints')
-    .select('display_name, bio, theme, user_id')
-    .eq('slug', params.slug)
-    .eq('is_public', true)
+    .select('display_name, bio, dimension, serial_number')
+    .eq('username', params.slug)
+    .eq('published', true)
     .single()
 
   if (!footprint) return { title: 'Footprint' }
 
-  const { data: user } = await supabase
-    .from('users')
-    .select('serial_number')
-    .eq('id', footprint.user_id)
-    .single()
-
-  const serial = user?.serial_number || 0
-  const title = footprint.display_name 
+  const serial = footprint.serial_number || 0
+  const title = footprint.display_name
     ? `${footprint.display_name} · Footprint #${serial}`
     : `Footprint #${serial}`
 
@@ -46,24 +40,44 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function FootprintPage({ params }: Props) {
   const supabase = createServerSupabaseClient()
 
+  // Fetch footprint by username + published
   const { data: footprint } = await supabase
     .from('footprints')
-    .select('*, content(*)')
-    .eq('slug', params.slug)
-    .eq('is_public', true)
+    .select('*')
+    .eq('username', params.slug)
+    .eq('published', true)
     .single()
 
   if (!footprint) notFound()
 
-  const { data: user } = await supabase
-    .from('users')
-    .select('serial_number')
-    .eq('id', footprint.user_id)
-    .single()
+  // Fetch tiles from library (images) + links (embeds/urls)
+  const [{ data: images }, { data: links }] = await Promise.all([
+    supabase.from('library').select('*').eq('serial_number', footprint.serial_number).order('position'),
+    supabase.from('links').select('*').eq('serial_number', footprint.serial_number).order('position'),
+  ])
 
-  const serial = user?.serial_number || 0
-  const theme = getTheme(footprint.theme || 'midnight')
-  const content = (footprint.content || []).sort((a: any, b: any) => a.position - b.position)
+  // Merge and sort by position
+  const content = [
+    ...(images || []).map((img: any) => ({
+      id: img.id,
+      type: 'image',
+      url: img.image_url,
+      position: img.position,
+    })),
+    ...(links || []).map((link: any) => ({
+      id: link.id,
+      type: link.platform,
+      url: link.url,
+      title: link.title,
+      thumbnail_url: link.thumbnail,
+      embed_html: link.metadata?.embed_html,
+      description: link.metadata?.description,
+      position: link.position,
+    })),
+  ].sort((a, b) => a.position - b.position)
+
+  const serial = footprint.serial_number || 0
+  const theme = getTheme(footprint.dimension || 'midnight')
 
   return (
     <div className="min-h-screen" style={{ background: theme.bg, color: theme.text }}>
@@ -72,9 +86,9 @@ export default async function FootprintPage({ params }: Props) {
       <div className="max-w-2xl mx-auto px-4 py-12">
         {/* Header */}
         <header className="mb-12 text-center">
-          {footprint.avatar_url && (
+          {footprint.background_url && (
             <img 
-              src={footprint.avatar_url} 
+              src={footprint.background_url} 
               alt="" 
               className="w-24 h-24 rounded-full mx-auto mb-4 object-cover"
             />

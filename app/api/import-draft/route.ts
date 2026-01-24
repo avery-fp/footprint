@@ -10,11 +10,13 @@ import type { DraftFootprint } from '@/lib/draft-store'
  * Called from /success page after Stripe checkout completes.
  *
  * REAL SCHEMA:
- * - footprints: serial_number (PK), username (=slug), display_name, dimension (=theme), bio, gallery (jsonb), published
+ * - footprints: serial_number (PK), username (=slug), display_name, dimension (=theme), bio, published
  * - users: id, email, serial_number
- * - purchases: email, serial_number, stripe_session_id, amount_cents, status
- * - library: serial_number, image_url, position
- * - links: serial_number, platform, url, embed_url, title, position, thumbnail, metadata
+ * - purchases: email, serial_number, stripe_session_id (idempotency anchor), amount_cents, status
+ * - library: serial_number, image_url, position (images)
+ * - links: serial_number, platform, url, embed_url, title, position, thumbnail, metadata (embeds/urls)
+ *
+ * Tiles are stored in library + links tables (NOT gallery jsonb).
  */
 export async function POST(request: NextRequest) {
   try {
@@ -52,90 +54,93 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
-    // 3. Check if this session was already processed (idempotency)
+    // 3. Determine serial_number via purchases (idempotency anchor)
     const { data: existingPurchase } = await supabase
       .from('purchases')
       .select('serial_number')
       .eq('stripe_session_id', session_id)
       .single()
 
+    let serialNumber: number
+    let isRetry = false
+
     if (existingPurchase) {
-      // Already processed - return success with existing data
-      return NextResponse.json({
-        success: true,
-        serial_number: existingPurchase.serial_number,
-        slug,
-      })
+      // Session already processed - reuse serial_number
+      serialNumber = existingPurchase.serial_number
+      isRetry = true
+    } else {
+      // Claim next serial_number
+      const { data: serialData, error: serialError } = await supabase.rpc('get_next_serial')
+      if (serialError || !serialData) {
+        console.error('Failed to get serial:', serialError)
+        return NextResponse.json({ error: 'Failed to allocate serial number' }, { status: 500 })
+      }
+      serialNumber = serialData as number
     }
 
-    // 4. Get next serial_number for new footprint
-    const { data: serialData, error: serialError } = await supabase.rpc('get_next_serial')
-    if (serialError || !serialData) {
-      console.error('Failed to get serial:', serialError)
-      return NextResponse.json({ error: 'Failed to allocate serial number' }, { status: 500 })
+    // 4. Slug collision protection
+    const { data: existingFp } = await supabase
+      .from('footprints')
+      .select('serial_number')
+      .eq('username', slug)
+      .single()
+
+    if (existingFp && existingFp.serial_number !== serialNumber) {
+      return NextResponse.json({ error: 'Username already taken' }, { status: 409 })
     }
-    const serialNumber = serialData as number
 
-    // 5. Build gallery JSONB from draft content
-    const gallery = draft.content.map((item, index) => ({
-      id: item.id,
-      type: item.type,
-      url: item.url,
-      title: item.title,
-      description: item.description,
-      thumbnail_url: item.thumbnail_url,
-      embed_html: item.embed_html,
-      position: index,
-    }))
+    // 5. Idempotent delete before insert (safe retry)
+    await supabase.from('library').delete().eq('serial_number', serialNumber)
+    await supabase.from('links').delete().eq('serial_number', serialNumber)
 
-    // 6. Insert footprint
+    // 6. Upsert footprint by serial_number
     const { error: fpError } = await supabase
       .from('footprints')
-      .insert({
+      .upsert({
         serial_number: serialNumber,
         username: slug,
         display_name: draft.display_name || null,
         dimension: draft.theme || 'midnight',
         bio: draft.bio || null,
-        gallery: gallery,
         published: true,
         background_url: draft.avatar_url || null,
-      })
+      }, { onConflict: 'serial_number' })
 
     if (fpError) {
-      console.error('Failed to create footprint:', fpError)
+      console.error('Failed to upsert footprint:', fpError)
       return NextResponse.json({ error: 'Failed to create footprint' }, { status: 500 })
     }
 
-    // 7. Insert user
-    const { error: userError } = await supabase
-      .from('users')
-      .insert({
-        email: email.toLowerCase(),
-        serial_number: serialNumber,
-      })
+    // 7. Insert user (if new)
+    if (!isRetry) {
+      const { error: userError } = await supabase
+        .from('users')
+        .insert({
+          email: email.toLowerCase(),
+          serial_number: serialNumber,
+        })
 
-    if (userError) {
-      console.error('Failed to create user:', userError)
-      // Note: footprint was created but user failed - may need cleanup
+      if (userError) {
+        console.error('Failed to create user:', userError)
+      }
+
+      // 8. Insert purchase record (unique on stripe_session_id)
+      const { error: purchaseError } = await supabase
+        .from('purchases')
+        .insert({
+          email: email.toLowerCase(),
+          serial_number: serialNumber,
+          stripe_session_id: session_id,
+          amount_cents: session.amount_total || 1000,
+          status: 'completed',
+        })
+
+      if (purchaseError) {
+        console.error('Failed to record purchase:', purchaseError)
+      }
     }
 
-    // 8. Insert purchase record
-    const { error: purchaseError } = await supabase
-      .from('purchases')
-      .insert({
-        email: email.toLowerCase(),
-        serial_number: serialNumber,
-        stripe_session_id: session_id,
-        amount_cents: session.amount_total || 1000,
-        status: 'completed',
-      })
-
-    if (purchaseError) {
-      console.error('Failed to record purchase:', purchaseError)
-    }
-
-    // 9. Insert into library table (for images)
+    // 9. Insert into library table (images)
     const imageItems = draft.content.filter(item => item.type === 'image')
     if (imageItems.length > 0) {
       const libraryRows = imageItems.map((item, index) => ({
@@ -143,11 +148,10 @@ export async function POST(request: NextRequest) {
         image_url: item.url,
         position: index,
       }))
-
       await supabase.from('library').insert(libraryRows)
     }
 
-    // 10. Insert into links table (for embeds/links)
+    // 10. Insert into links table (embeds/urls)
     const linkItems = draft.content.filter(item => item.type !== 'image')
     if (linkItems.length > 0) {
       const linkRows = linkItems.map((item, index) => ({
@@ -163,7 +167,6 @@ export async function POST(request: NextRequest) {
           embed_html: item.embed_html,
         },
       }))
-
       await supabase.from('links').insert(linkRows)
     }
 
@@ -172,7 +175,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       serial_number: serialNumber,
-      slug,
+      username: slug,
     })
   } catch (error) {
     console.error('Import draft error:', error)
