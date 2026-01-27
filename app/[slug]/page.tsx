@@ -16,8 +16,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { data: footprint } = await supabase
     .from('footprints')
     .select('display_name, bio, dimension, serial_number')
-    .eq('slug', params.slug)
-    .eq('is_public', true)
+    .eq('username', params.slug)
+    .eq('published', true)
     .single()
 
   if (!footprint) return { title: 'Footprint' }
@@ -41,12 +41,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function FootprintPage({ params }: Props) {
   const supabase = createServerSupabaseClient()
 
-  // Fetch footprint by slug + is_public
+  // Fetch footprint by username + published
   const { data: footprint } = await supabase
     .from('footprints')
     .select('*')
-    .eq('slug', params.slug)
-    .eq('is_public', true)
+    .eq('username', params.slug)
+    .eq('published', true)
     .single()
 
   if (!footprint) notFound()

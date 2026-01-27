@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
     const { data: existingFp } = await supabase
       .from('footprints')
       .select('serial_number')
-      .eq('slug', slug)
+      .eq('username', slug)
       .single()
 
     if (existingFp && existingFp.serial_number !== serialNumber) {
@@ -98,16 +98,13 @@ export async function POST(request: NextRequest) {
       .from('footprints')
       .upsert({
         serial_number: serialNumber,
-        slug: slug,
+        username: slug,
         name: draft.display_name || 'Untitled',
         display_name: draft.display_name || null,
         handle: draft.handle || null,
-        theme: draft.theme || 'midnight',
-        grid_mode: draft.grid_mode || 'public',
+        dimension: draft.theme || 'midnight',
         bio: draft.bio || null,
-        is_public: true,
-        avatar_url: draft.avatar_url || null,
-        is_primary: true,
+        published: true,
       }, { onConflict: 'serial_number' })
 
     if (fpError) {
