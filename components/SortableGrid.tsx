@@ -6,6 +6,7 @@ import {
   closestCenter,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent,
@@ -50,13 +51,21 @@ export default function SortableGrid({ items, onReorder, onDelete }: SortableGri
   const activeItem = activeId ? items.find(item => item.id === activeId) : null
 
   // Configure sensors for drag detection
-  // Pointer = mouse/touch, Keyboard = arrow keys for accessibility
+  // Pointer = mouse, Touch = mobile/tablet, Keyboard = arrow keys for accessibility
   const sensors = useSensors(
     useSensor(PointerSensor, {
       // Require a small drag distance before starting
       // This prevents accidental drags when clicking
       activationConstraint: {
         distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      // Require a small drag distance before starting on touch devices
+      // This prevents conflicts with scrolling
+      activationConstraint: {
+        delay: 200,
+        tolerance: 8,
       },
     }),
     useSensor(KeyboardSensor, {

@@ -45,9 +45,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function FootprintPage({ params }: Props) {
   const supabase = createServerSupabaseClient()
 
+  // Fetch footprint by slug + is_public
   const { data: footprint } = await supabase
     .from('footprints')
-    .select('*, content(*)')
+    .select('*')
     .eq('slug', params.slug)
     .eq('is_public', true)
     .single()
@@ -61,8 +62,37 @@ export default async function FootprintPage({ params }: Props) {
     .single()
 
   const serial = user?.serial_number || 0
+
+  // Fetch tiles from library (images) + links (embeds/urls)
+  const [{ data: images }, { data: links }] = await Promise.all([
+    supabase.from('library').select('*').eq('serial_number', serial).order('position'),
+    supabase.from('links').select('*').eq('serial_number', serial).order('position'),
+  ])
+
+  // Merge and sort by position
+  const content = [
+    ...(images || []).map((img: any) => ({
+      id: img.id,
+      type: 'image',
+      url: img.image_url,
+      title: img.title || null,
+      description: img.description || null,
+      thumbnail_url: img.image_url,
+      position: img.position,
+    })),
+    ...(links || []).map((link: any) => ({
+      id: link.id,
+      type: link.platform,
+      url: link.url,
+      title: link.title,
+      description: link.metadata?.description || link.description,
+      thumbnail_url: link.thumbnail,
+      embed_html: link.metadata?.embed_html,
+      position: link.position,
+    })),
+  ].sort((a, b) => a.position - b.position)
+
   const theme = getTheme(footprint.theme || 'midnight')
-  const content = (footprint.content || []).sort((a: any, b: any) => a.position - b.position)
 
   return (
     <div className="min-h-screen" style={{ background: theme.bg, color: theme.text }}>
