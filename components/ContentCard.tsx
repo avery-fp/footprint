@@ -34,6 +34,18 @@ export default function ContentCard({ content, editable, onDelete }: ContentCard
 
   // For embeddable content, show the embed
   if (content.embed_html && ['youtube', 'spotify', 'applemusic', 'vimeo', 'soundcloud'].includes(content.type)) {
+    // Determine min-height based on type to prevent layout shift
+    let minHeightClass = ''
+    if (content.type === 'youtube' || content.type === 'vimeo') {
+      minHeightClass = 'min-h-[200px]'
+    } else if (content.type === 'spotify') {
+      minHeightClass = 'min-h-[152px]'
+    } else if (content.type === 'applemusic') {
+      minHeightClass = 'min-h-[175px]'
+    } else if (content.type === 'soundcloud') {
+      minHeightClass = 'min-h-[166px]'
+    }
+
     return (
       <div className="glass rounded-xl overflow-hidden card-hover relative group">
         {/* Delete button when editable */}
@@ -45,13 +57,13 @@ export default function ContentCard({ content, editable, onDelete }: ContentCard
             ×
           </button>
         )}
-        
+
         {/* Embed */}
-        <div 
-          className="w-full"
-          dangerouslySetInnerHTML={{ __html: content.embed_html }} 
+        <div
+          className={`w-full ${minHeightClass}`}
+          dangerouslySetInnerHTML={{ __html: content.embed_html }}
         />
-        
+
         {/* Info */}
         <div className="p-4">
           <p className="font-mono text-xs text-white/40 uppercase tracking-wider mb-1">
@@ -59,6 +71,41 @@ export default function ContentCard({ content, editable, onDelete }: ContentCard
           </p>
           <p className="text-sm font-medium truncate">
             {content.title || 'Untitled'}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // For videos (native video files)
+  if (content.type === 'video') {
+    return (
+      <div className="glass rounded-xl overflow-hidden card-hover relative group">
+        {editable && (
+          <button
+            onClick={onDelete}
+            className="absolute top-3 right-3 z-10 w-8 h-8 rounded-lg bg-black/70 text-white/80 hover:bg-red-500 hover:text-white opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-all flex items-center justify-center"
+          >
+            ×
+          </button>
+        )}
+
+        <video
+          src={content.url}
+          autoPlay
+          muted
+          loop
+          playsInline
+          controls
+          className="w-full aspect-video object-cover"
+        />
+
+        <div className="p-4">
+          <p className="font-mono text-xs text-white/40 uppercase tracking-wider mb-1">
+            Video
+          </p>
+          <p className="text-sm font-medium truncate">
+            {content.title || 'Video'}
           </p>
         </div>
       </div>
@@ -77,16 +124,16 @@ export default function ContentCard({ content, editable, onDelete }: ContentCard
             ×
           </button>
         )}
-        
+
         <a href={content.url} target="_blank" rel="noopener noreferrer">
-          <img 
-            src={content.thumbnail_url} 
-            alt={content.title || ''} 
+          <img
+            src={content.thumbnail_url}
+            alt={content.title || ''}
             className="w-full aspect-[4/3] object-cover"
             loading="lazy"
           />
         </a>
-        
+
         <div className="p-4">
           <p className="font-mono text-xs text-white/40 uppercase tracking-wider mb-1">
             Image
@@ -95,6 +142,26 @@ export default function ContentCard({ content, editable, onDelete }: ContentCard
             {content.title || 'Image'}
           </p>
         </div>
+      </div>
+    )
+  }
+
+  // For "thought" - glass text notebook page
+  if (content.type === 'thought') {
+    return (
+      <div className="glass rounded-2xl overflow-hidden card-hover relative group p-8 backdrop-blur-xl">
+        {editable && (
+          <button
+            onClick={onDelete}
+            className="absolute top-3 right-3 z-10 w-8 h-8 rounded-lg bg-black/70 text-white/80 hover:bg-red-500 hover:text-white opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-all flex items-center justify-center"
+          >
+            ×
+          </button>
+        )}
+
+        <p className="text-base leading-relaxed whitespace-pre-wrap text-white/90">
+          {content.title || content.description || ''}
+        </p>
       </div>
     )
   }
@@ -111,10 +178,10 @@ export default function ContentCard({ content, editable, onDelete }: ContentCard
             ×
           </button>
         )}
-        
-        <a 
-          href={content.url} 
-          target="_blank" 
+
+        <a
+          href={content.url}
+          target="_blank"
           rel="noopener noreferrer"
           className="block p-6"
         >
@@ -128,7 +195,7 @@ export default function ContentCard({ content, editable, onDelete }: ContentCard
               </p>
             </div>
           </div>
-          
+
           <p className="text-sm text-white/70 line-clamp-3">
             {content.title || 'View on ' + content.type}
           </p>

@@ -149,14 +149,19 @@ export default function SuccessPage() {
 
         {/* Link Box */}
         <div className="glass rounded-xl p-5 flex items-center gap-4 mb-8 opacity-0 animate-fade-up delay-500">
-          <span className="font-mono text-sm text-white/60 flex-1 text-left truncate">
+          <a
+            href={link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-mono text-sm text-white/60 hover:text-white/80 flex-1 text-left truncate transition"
+          >
             {link}
-          </span>
+          </a>
           <button
             onClick={copyLink}
             className={`py-2 px-4 text-xs rounded-lg flex-shrink-0 transition ${copied ? 'bg-green-500 text-white' : 'bg-white/10 hover:bg-white/20'}`}
           >
-            {copied ? 'Copied!' : 'Copy Link'}
+            {copied ? 'Copied!' : 'Copy'}
           </button>
         </div>
 

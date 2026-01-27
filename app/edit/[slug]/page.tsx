@@ -21,9 +21,15 @@ export default function PublicEditPage() {
   const [pasteUrl, setPasteUrl] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isAdding, setIsAdding] = useState(false)
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
 
   // Context-awareness: track if user owns this slug
   const [isOwner, setIsOwner] = useState(false)
+  const [isPublic, setIsPublic] = useState(true)
+  const [isTogglingPublic, setIsTogglingPublic] = useState(false)
+
+  // Grid mode: 'public' (tight), 'edit' (medium), 'spaced' (generous)
+  const [gridMode, setGridMode] = useState<'public' | 'edit' | 'spaced'>('public')
 
   // Track tile sources for owners (needed for delete)
   const [tileSources, setTileSources] = useState<Record<string, 'library' | 'links'>>({})
@@ -41,6 +47,11 @@ export default function PublicEditPage() {
         if (data.owned && data.footprint) {
           // User owns this - load from DB
           setIsOwner(true)
+          setIsPublic(data.footprint.is_public ?? true)
+
+          // Load grid mode
+          const mode = data.footprint.grid_mode || 'public'
+          setGridMode(mode)
 
           // Map tiles to draft format and track sources
           const sources: Record<string, 'library' | 'links'> = {}
@@ -65,6 +76,7 @@ export default function PublicEditPage() {
             handle: data.footprint.handle || '',
             bio: data.footprint.bio || '',
             theme: data.footprint.theme || 'midnight',
+            grid_mode: mode,
             avatar_url: data.footprint.avatar_url,
             content,
             updated_at: Date.now(),
@@ -75,6 +87,7 @@ export default function PublicEditPage() {
           const existingDraft = loadDraft(slug)
           if (existingDraft) {
             setDraft(existingDraft)
+            setGridMode(existingDraft.grid_mode || 'public')
           } else {
             setDraft({
               slug,
@@ -82,6 +95,7 @@ export default function PublicEditPage() {
               handle: '',
               bio: '',
               theme: 'midnight',
+              grid_mode: 'public',
               avatar_url: null,
               content: [],
               updated_at: Date.now(),
@@ -95,6 +109,7 @@ export default function PublicEditPage() {
         const existingDraft = loadDraft(slug)
         if (existingDraft) {
           setDraft(existingDraft)
+          setGridMode(existingDraft.grid_mode || 'public')
         } else {
           setDraft({
             slug,
@@ -102,6 +117,7 @@ export default function PublicEditPage() {
             handle: '',
             bio: '',
             theme: 'midnight',
+            grid_mode: 'public',
             avatar_url: null,
             content: [],
             updated_at: Date.now(),
@@ -115,13 +131,29 @@ export default function PublicEditPage() {
   }, [slug])
 
   // Save function - routes to DB or localStorage based on ownership
-  // Note: For owners, profile changes auto-save. Tiles use /api/tiles.
+  // Note: For owners, profile changes auto-save to DB. Tiles use /api/tiles.
   const saveData = useCallback(async (d: DraftFootprint) => {
     if (!isOwner) {
       // Save to localStorage for drafts
       saveDraft(slug, d)
+    } else {
+      // Save owner profile to DB
+      try {
+        await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            display_name: d.display_name,
+            handle: d.handle,
+            bio: d.bio,
+            theme: d.theme,
+            grid_mode: d.grid_mode,
+          }),
+        })
+      } catch (error) {
+        console.error('Failed to save profile:', error)
+      }
     }
-    // Owner profile saving handled separately (tiles use /api/tiles)
   }, [isOwner, slug])
 
   // Debounced auto-save on profile changes
@@ -214,27 +246,55 @@ export default function PublicEditPage() {
   }
 
   async function handleDelete(id: string) {
-    if (isOwner) {
-      // Delete from DB via tiles API (server derives serial_number from slug)
-      const source = tileSources[id]
-      if (source) {
-        try {
-          await fetch('/api/tiles', {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ slug, source, id }),
-          })
-        } catch (error) {
-          console.error('Failed to delete from DB:', error)
+    // Prevent duplicate deletes
+    if (deletingIds.has(id)) return
+
+    setDeletingIds(prev => new Set(prev).add(id))
+
+    try {
+      if (isOwner) {
+        // Delete from DB via tiles API (server derives serial_number from slug)
+        const source = tileSources[id]
+        if (!source) {
+          throw new Error('Unknown tile source')
+        }
+
+        const res = await fetch('/api/tiles', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slug, source, id }),
+        })
+
+        if (!res.ok) {
+          const error = await res.json()
+          throw new Error(error.error || 'Delete failed')
         }
       }
+
+      // Only update local state after successful server delete (or if draft mode)
+      setDraft(prev => prev ? {
+        ...prev,
+        content: prev.content.filter(c => c.id !== id),
+        updated_at: Date.now(),
+      } : null)
+
+      // Clean up source tracking
+      setTileSources(prev => {
+        const next = { ...prev }
+        delete next[id]
+        return next
+      })
+
+    } catch (error) {
+      console.error('Failed to delete:', error)
+      alert(`Delete failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setDeletingIds(prev => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
     }
-    // Always update local state
-    setDraft(prev => prev ? {
-      ...prev,
-      content: prev.content.filter(c => c.id !== id),
-      updated_at: Date.now(),
-    } : null)
   }
 
   function handleClearDraft() {
@@ -258,6 +318,42 @@ export default function PublicEditPage() {
     }
   }
 
+  async function handleTogglePublic() {
+    if (!isOwner || isTogglingPublic) return
+
+    setIsTogglingPublic(true)
+    const newValue = !isPublic
+
+    try {
+      const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_public: newValue }),
+      })
+
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || 'Failed to update')
+      }
+
+      setIsPublic(newValue)
+    } catch (error) {
+      console.error('Failed to toggle public:', error)
+      alert(`Failed to update: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setIsTogglingPublic(false)
+    }
+  }
+
+  function handleGridModeChange(mode: 'public' | 'edit' | 'spaced') {
+    setGridMode(mode)
+    setDraft(prev => prev ? {
+      ...prev,
+      grid_mode: mode,
+      updated_at: Date.now(),
+    } : null)
+  }
+
   function handleGoLive() {
     if (isOwner) {
       // Already live - go to public page
@@ -279,8 +375,22 @@ export default function PublicEditPage() {
 
   return (
     <div className="min-h-screen pb-32" style={{ background: theme.bg, color: theme.text }}>
-      {/* Mode indicator */}
+      {/* Mode indicator + Public/Private toggle */}
       <div className="fixed top-4 right-4 z-50 flex items-center gap-3">
+        {isOwner && (
+          <button
+            onClick={handleTogglePublic}
+            disabled={isTogglingPublic}
+            className={`text-xs font-mono px-3 py-1.5 rounded-md transition ${
+              isPublic
+                ? 'bg-green-500/20 text-green-300 hover:bg-green-500/30'
+                : 'bg-white/10 text-white/50 hover:bg-white/20'
+            } disabled:opacity-50`}
+            title={isPublic ? 'Page is public - click to make private' : 'Page is private - click to make public'}
+          >
+            {isTogglingPublic ? '...' : isPublic ? 'Public' : 'Private'}
+          </button>
+        )}
         <span className="text-xs text-white/40 font-mono">
           {isOwner ? 'editing · live' : 'draft · local'}
         </span>
@@ -348,15 +458,54 @@ export default function PublicEditPage() {
           </p>
         </div>
 
+        {/* Grid Mode Selector */}
+        {draft.content.length > 0 && (
+          <div className="mb-6 flex items-center justify-center gap-2">
+            <span className="font-mono text-xs text-white/30 mr-2">Spacing:</span>
+            <button
+              onClick={() => handleGridModeChange('public')}
+              className={`font-mono text-xs px-3 py-1.5 rounded-md transition ${
+                gridMode === 'public'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-white/5 text-white/40 hover:bg-white/10'
+              }`}
+            >
+              Tight
+            </button>
+            <button
+              onClick={() => handleGridModeChange('edit')}
+              className={`font-mono text-xs px-3 py-1.5 rounded-md transition ${
+                gridMode === 'edit'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-white/5 text-white/40 hover:bg-white/10'
+              }`}
+            >
+              Medium
+            </button>
+            <button
+              onClick={() => handleGridModeChange('spaced')}
+              className={`font-mono text-xs px-3 py-1.5 rounded-md transition ${
+                gridMode === 'spaced'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-white/5 text-white/40 hover:bg-white/10'
+              }`}
+            >
+              Generous
+            </button>
+          </div>
+        )}
+
         {/* Content Grid */}
-        <div className="space-y-4">
+        <div className={gridMode === 'public' ? 'space-y-4' : gridMode === 'edit' ? 'space-y-6' : 'space-y-10'}>
           {draft.content.map(item => (
             <div key={item.id} className="relative group">
-              <ContentCard
-                content={item as any}
-                editable
-                onDelete={() => handleDelete(item.id)}
-              />
+              <div className={deletingIds.has(item.id) ? 'opacity-50 pointer-events-none' : ''}>
+                <ContentCard
+                  content={item as any}
+                  editable
+                  onDelete={() => handleDelete(item.id)}
+                />
+              </div>
             </div>
           ))}
         </div>

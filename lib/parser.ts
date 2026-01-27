@@ -17,7 +17,9 @@ export type ContentType =
   | 'tiktok'
   | 'vimeo'
   | 'soundcloud'
+  | 'video'
   | 'image'
+  | 'thought'
   | 'link'
 
 // What we return after parsing
@@ -59,6 +61,9 @@ const PATTERNS: Record<string, { regex: RegExp; type: ContentType }[]> = {
   ],
   soundcloud: [
     { regex: /soundcloud\.com\/([a-zA-Z0-9-]+)\/([a-zA-Z0-9-]+)/, type: 'soundcloud' },
+  ],
+  video: [
+    { regex: /\.(mp4|mov|webm|avi|m4v|mkv)(\?.*)?$/i, type: 'video' },
   ],
   image: [
     { regex: /\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i, type: 'image' },
@@ -105,6 +110,7 @@ function parseByType(type: ContentType, url: string, match: RegExpMatchArray): P
     case 'tiktok': return parseTikTok(url, match)
     case 'vimeo': return parseVimeo(url, match)
     case 'soundcloud': return parseSoundCloud(url, match)
+    case 'video': return parseVideo(url)
     case 'image': return parseImage(url)
     default: return parseGenericLink(url)
   }
@@ -123,7 +129,7 @@ function parseYouTube(url: string, match: RegExpMatchArray): ParsedContent {
     title: 'YouTube Video',
     description: null,
     thumbnail_url: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
-    embed_html: `<iframe src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen class="w-full aspect-video rounded-xl"></iframe>`,
+    embed_html: `<iframe src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy" class="w-full aspect-video rounded-xl"></iframe>`,
   }
 }
 
@@ -133,7 +139,7 @@ function parseYouTube(url: string, match: RegExpMatchArray): ParsedContent {
 function parseSpotify(url: string, match: RegExpMatchArray): ParsedContent {
   const contentType = match[1] // track, album, playlist, etc.
   const spotifyId = match[2]
-  const height = contentType === 'track' ? 152 : 352
+  const heightClass = contentType === 'track' ? 'h-[152px]' : 'h-[352px]'
 
   return {
     type: 'spotify',
@@ -142,7 +148,7 @@ function parseSpotify(url: string, match: RegExpMatchArray): ParsedContent {
     title: `Spotify ${contentType}`,
     description: null,
     thumbnail_url: null,
-    embed_html: `<iframe src="https://open.spotify.com/embed/${contentType}/${spotifyId}?theme=0" frameborder="0" allowtransparency="true" allow="encrypted-media" class="w-full rounded-xl" style="height: ${height}px"></iframe>`,
+    embed_html: `<iframe src="https://open.spotify.com/embed/${contentType}/${spotifyId}?theme=0" frameborder="0" allowtransparency="true" allow="encrypted-media" loading="lazy" class="w-full rounded-xl ${heightClass}"></iframe>`,
   }
 }
 
@@ -164,7 +170,7 @@ function parseAppleMusic(url: string, match: RegExpMatchArray): ParsedContent {
     title: `Apple Music ${contentType}`,
     description: null,
     thumbnail_url: null,
-    embed_html: `<iframe src="${embedUrl}" frameborder="0" allow="autoplay *; encrypted-media *; fullscreen *" sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-top-navigation-by-user-activation" class="w-full rounded-xl" style="height: 175px"></iframe>`,
+    embed_html: `<iframe src="${embedUrl}" frameborder="0" allow="autoplay *; encrypted-media *; fullscreen *" sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-top-navigation-by-user-activation" loading="lazy" class="w-full rounded-xl h-[175px]"></iframe>`,
   }
 }
 
@@ -233,7 +239,7 @@ function parseVimeo(url: string, match: RegExpMatchArray): ParsedContent {
     title: 'Vimeo Video',
     description: null,
     thumbnail_url: null,
-    embed_html: `<iframe src="https://player.vimeo.com/video/${videoId}?color=ffffff&title=0&byline=0&portrait=0" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen class="w-full aspect-video rounded-xl"></iframe>`,
+    embed_html: `<iframe src="https://player.vimeo.com/video/${videoId}?color=ffffff&title=0&byline=0&portrait=0" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen loading="lazy" class="w-full aspect-video rounded-xl"></iframe>`,
   }
 }
 
@@ -248,7 +254,24 @@ function parseSoundCloud(url: string, match: RegExpMatchArray): ParsedContent {
     title: 'SoundCloud Track',
     description: null,
     thumbnail_url: null,
-    embed_html: `<iframe src="https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23ffffff&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=true" frameborder="0" allow="autoplay" class="w-full h-[166px] rounded-xl"></iframe>`,
+    embed_html: `<iframe src="https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23ffffff&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=true" frameborder="0" allow="autoplay" loading="lazy" class="w-full h-[166px] rounded-xl"></iframe>`,
+  }
+}
+
+// ============================================
+// VIDEO
+// ============================================
+function parseVideo(url: string): ParsedContent {
+  const filename = url.split('/').pop()?.split('?')[0] || 'Video'
+
+  return {
+    type: 'video',
+    url,
+    external_id: null,
+    title: filename,
+    description: null,
+    thumbnail_url: null,
+    embed_html: null, // Rendered as native video in ContentCard
   }
 }
 
@@ -257,7 +280,7 @@ function parseSoundCloud(url: string, match: RegExpMatchArray): ParsedContent {
 // ============================================
 function parseImage(url: string): ParsedContent {
   const filename = url.split('/').pop()?.split('?')[0] || 'Image'
-  
+
   return {
     type: 'image',
     url,
@@ -302,7 +325,9 @@ export function getContentIcon(type: ContentType): string {
     tiktok: '♪',
     vimeo: '▶',
     soundcloud: '♫',
+    video: '▶',
     image: '▣',
+    thought: '◈',
     link: '◎',
   }
   return icons[type] || '◎'

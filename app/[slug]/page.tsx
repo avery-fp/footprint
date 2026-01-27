@@ -3,8 +3,9 @@ import { notFound } from 'next/navigation'
 import { Metadata } from 'next'
 import Link from 'next/link'
 import { getTheme } from '@/lib/themes'
-import { AnalyticsTracker } from '@/components/AnalyticsTracker'
+import AnalyticsTracker from '@/components/AnalyticsTracker'
 import ContentCard from '@/components/ContentCard'
+import ShareButton from '@/components/ShareButton'
 
 interface Props {
   params: { slug: string }
@@ -15,8 +16,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { data: footprint } = await supabase
     .from('footprints')
     .select('display_name, bio, dimension, serial_number')
-    .eq('username', params.slug)
-    .eq('published', true)
+    .eq('slug', params.slug)
+    .eq('is_public', true)
     .single()
 
   if (!footprint) return { title: 'Footprint' }
@@ -40,12 +41,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function FootprintPage({ params }: Props) {
   const supabase = createServerSupabaseClient()
 
-  // Fetch footprint by username + published
+  // Fetch footprint by slug + is_public
   const { data: footprint } = await supabase
     .from('footprints')
     .select('*')
-    .eq('username', params.slug)
-    .eq('published', true)
+    .eq('slug', params.slug)
+    .eq('is_public', true)
     .single()
 
   if (!footprint) notFound()
@@ -78,18 +79,24 @@ export default async function FootprintPage({ params }: Props) {
 
   const serial = footprint.serial_number || 0
   const theme = getTheme(footprint.dimension || 'midnight')
+  const pageUrl = `https://footprint.onl/${params.slug}`
+  const gridMode = footprint.grid_mode || 'public'
+  const gridSpacing = gridMode === 'public' ? 'space-y-4' : gridMode === 'edit' ? 'space-y-6' : 'space-y-10'
 
   return (
     <div className="min-h-screen" style={{ background: theme.bg, color: theme.text }}>
       <AnalyticsTracker footprintId={footprint.id} />
-      
+
+      {/* Share Button */}
+      <ShareButton url={pageUrl} />
+
       <div className="max-w-2xl mx-auto px-4 py-12">
         {/* Header */}
         <header className="mb-12 text-center">
           {footprint.background_url && (
-            <img 
-              src={footprint.background_url} 
-              alt="" 
+            <img
+              src={footprint.background_url}
+              alt=""
               className="w-24 h-24 rounded-full mx-auto mb-4 object-cover"
             />
           )}
@@ -107,7 +114,7 @@ export default async function FootprintPage({ params }: Props) {
         </header>
 
         {/* Content */}
-        <div className="space-y-4">
+        <div className={gridSpacing}>
           {content.map((item: any) => (
             <ContentCard key={item.id} content={item} />
           ))}

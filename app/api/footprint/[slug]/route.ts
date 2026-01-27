@@ -39,11 +39,11 @@ export async function GET(
       return NextResponse.json({ owned: false })
     }
 
-    // Get footprint by username
+    // Get footprint by slug
     const { data: footprint, error: footprintError } = await supabase
       .from('footprints')
       .select('*')
-      .eq('username', username)
+      .eq('slug', username)
       .single()
 
     if (footprintError || !footprint) {
@@ -100,5 +100,94 @@ export async function GET(
   } catch (error) {
     console.error('Footprint lookup error:', error)
     return NextResponse.json({ owned: false })
+  }
+}
+
+/**
+ * PUT /api/footprint/[slug]
+ *
+ * Updates footprint settings (e.g., is_public).
+ * Requires ownership.
+ */
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { slug: string } }
+) {
+  try {
+    const username = params.slug
+    const userId = request.headers.get('x-user-id')
+
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { is_public, display_name, handle, bio, theme, grid_mode } = body
+
+    // Build update object with only provided fields
+    const updates: any = {}
+    if (typeof is_public === 'boolean') updates.is_public = is_public
+    if (typeof display_name === 'string') updates.display_name = display_name
+    if (typeof handle === 'string') updates.handle = handle
+    if (typeof bio === 'string') updates.bio = bio
+    if (typeof theme === 'string') updates.theme = theme
+    if (typeof grid_mode === 'string') updates.grid_mode = grid_mode
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
+    }
+
+    const supabase = createServerSupabaseClient()
+
+    // Get user's email
+    const { data: user } = await supabase
+      .from('users')
+      .select('email')
+      .eq('id', userId)
+      .single()
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    // Get footprint by slug
+    const { data: footprint } = await supabase
+      .from('footprints')
+      .select('serial_number')
+      .eq('slug', username)
+      .single()
+
+    if (!footprint) {
+      return NextResponse.json({ error: 'Footprint not found' }, { status: 404 })
+    }
+
+    // Verify ownership via purchases table
+    const { data: purchase } = await supabase
+      .from('purchases')
+      .select('id')
+      .eq('email', user.email)
+      .eq('serial_number', footprint.serial_number)
+      .limit(1)
+      .single()
+
+    if (!purchase) {
+      return NextResponse.json({ error: 'Not your footprint' }, { status: 403 })
+    }
+
+    // Update footprint
+    const { error: updateError } = await supabase
+      .from('footprints')
+      .update(updates)
+      .eq('slug', username)
+
+    if (updateError) {
+      return NextResponse.json({ error: updateError.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true, ...updates })
+
+  } catch (error) {
+    console.error('Update footprint error:', error)
+    return NextResponse.json({ error: 'Failed to update' }, { status: 500 })
   }
 }

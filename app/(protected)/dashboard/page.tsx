@@ -40,6 +40,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<UserData | null>(null)
   const [rooms, setRooms] = useState<Room[]>([])
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     loadData()
@@ -67,6 +68,41 @@ export default function DashboardPage() {
       console.error('Failed to load:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleDeleteRoom(roomId: string, roomName: string) {
+    if (deletingIds.has(roomId)) return
+
+    if (!confirm(`Delete "${roomName}"? This cannot be undone.`)) {
+      return
+    }
+
+    setDeletingIds(prev => new Set(prev).add(roomId))
+
+    try {
+      const res = await fetch(`/api/rooms?id=${roomId}`, {
+        method: 'DELETE',
+      })
+
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || 'Delete failed')
+      }
+
+      // Remove from local state
+      setRooms(prev => prev.filter(r => r.id !== roomId))
+      toast.success('Page deleted')
+
+    } catch (error) {
+      console.error('Failed to delete room:', error)
+      toast.error(`Delete failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setDeletingIds(prev => {
+        const next = new Set(prev)
+        next.delete(roomId)
+        return next
+      })
     }
   }
 
@@ -167,27 +203,46 @@ export default function DashboardPage() {
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {rooms.map((room) => (
-              <Link
+              <div
                 key={room.id}
-                href={`/edit/${room.slug}`}
-                className="glass glass-hover rounded-xl p-6 transition-all card-hover group"
+                className={`relative glass rounded-xl p-6 transition-all ${deletingIds.has(room.id) ? 'opacity-50' : ''}`}
               >
-                <div className="flex items-start justify-between mb-4">
-                  <span className="text-3xl">{room.icon}</span>
-                  {room.is_primary && (
-                    <span className="font-mono text-xs text-white/30 uppercase">Primary</span>
-                  )}
-                </div>
-                <h3 className="text-lg font-medium mb-2">{room.name}</h3>
-                <div className="flex gap-4 font-mono text-xs text-white/40">
-                  <span>{room.content_count || 0} items</span>
-                  <span>{room.view_count || 0} views</span>
-                </div>
-                <div className="mt-4 flex items-center text-white/40 group-hover:text-paper transition-colors">
-                  <span className="font-mono text-sm">Edit</span>
-                  <span className="ml-2 group-hover:translate-x-1 transition-transform">→</span>
-                </div>
-              </Link>
+                <Link
+                  href={`/edit/${room.slug}`}
+                  className="block glass-hover card-hover group"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <span className="text-3xl">{room.icon}</span>
+                    {room.is_primary && (
+                      <span className="font-mono text-xs text-white/30 uppercase">Primary</span>
+                    )}
+                  </div>
+                  <h3 className="text-lg font-medium mb-2">{room.name}</h3>
+                  <div className="flex gap-4 font-mono text-xs text-white/40">
+                    <span>{room.content_count || 0} items</span>
+                    <span>{room.view_count || 0} views</span>
+                  </div>
+                  <div className="mt-4 flex items-center text-white/40 group-hover:text-paper transition-colors">
+                    <span className="font-mono text-sm">Edit</span>
+                    <span className="ml-2 group-hover:translate-x-1 transition-transform">→</span>
+                  </div>
+                </Link>
+                {!room.is_primary && (
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault()
+                      handleDeleteRoom(room.id, room.name)
+                    }}
+                    disabled={deletingIds.has(room.id)}
+                    className="absolute top-3 right-3 text-white/20 hover:text-red-400 transition-colors disabled:opacity-50"
+                    title="Delete page"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             ))}
           </div>
         </div>

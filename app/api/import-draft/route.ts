@@ -82,11 +82,11 @@ export async function POST(request: NextRequest) {
     const { data: existingFp } = await supabase
       .from('footprints')
       .select('serial_number')
-      .eq('username', slug)
+      .eq('slug', slug)
       .single()
 
     if (existingFp && existingFp.serial_number !== serialNumber) {
-      return NextResponse.json({ error: 'Username already taken' }, { status: 409 })
+      return NextResponse.json({ error: 'Slug already taken' }, { status: 409 })
     }
 
     // 5. Idempotent delete before insert (safe retry)
@@ -98,12 +98,16 @@ export async function POST(request: NextRequest) {
       .from('footprints')
       .upsert({
         serial_number: serialNumber,
-        username: slug,
+        slug: slug,
+        name: draft.display_name || 'Untitled',
         display_name: draft.display_name || null,
-        dimension: draft.theme || 'midnight',
+        handle: draft.handle || null,
+        theme: draft.theme || 'midnight',
+        grid_mode: draft.grid_mode || 'public',
         bio: draft.bio || null,
-        published: true,
-        background_url: draft.avatar_url || null,
+        is_public: true,
+        avatar_url: draft.avatar_url || null,
+        is_primary: true,
       }, { onConflict: 'serial_number' })
 
     if (fpError) {
@@ -175,7 +179,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       serial_number: serialNumber,
-      username: slug,
+      slug: slug,
     })
   } catch (error) {
     console.error('Import draft error:', error)
