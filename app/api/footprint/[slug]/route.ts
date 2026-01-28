@@ -43,7 +43,7 @@ export async function GET(
     const { data: footprint, error: footprintError } = await supabase
       .from('footprints')
       .select('*')
-      .eq('slug', username)
+      .eq('username', username)
       .single()
 
     if (footprintError || !footprint) {
@@ -154,7 +154,7 @@ export async function PUT(
     const { data: footprint } = await supabase
       .from('footprints')
       .select('serial_number')
-      .eq('slug', username)
+      .eq('username', username)
       .single()
 
     if (!footprint) {
@@ -178,7 +178,7 @@ export async function PUT(
     const { error: updateError } = await supabase
       .from('footprints')
       .update(updates)
-      .eq('slug', username)
+      .eq('username', username)
 
     if (updateError) {
       return NextResponse.json({ error: updateError.message }, { status: 500 })
