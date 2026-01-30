@@ -39,7 +39,7 @@ export async function GET(
       return NextResponse.json({ owned: false })
     }
 
-    // Get footprint by slug
+    // Get footprint by username
     const { data: footprint, error: footprintError } = await supabase
       .from('footprints')
       .select('*')
@@ -124,13 +124,13 @@ export async function PUT(
     const body = await request.json()
     const { is_public, display_name, handle, bio, theme, grid_mode } = body
 
-    // Build update object with only provided fields
+    // Build update object with only provided fields (map to real schema)
     const updates: any = {}
-    if (typeof is_public === 'boolean') updates.is_public = is_public
+    if (typeof is_public === 'boolean') updates.published = is_public
     if (typeof display_name === 'string') updates.display_name = display_name
     if (typeof handle === 'string') updates.handle = handle
     if (typeof bio === 'string') updates.bio = bio
-    if (typeof theme === 'string') updates.theme = theme
+    if (typeof theme === 'string') updates.dimension = theme
     if (typeof grid_mode === 'string') updates.grid_mode = grid_mode
 
     if (Object.keys(updates).length === 0) {
@@ -150,7 +150,7 @@ export async function PUT(
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // Get footprint by slug
+    // Get footprint by username
     const { data: footprint } = await supabase
       .from('footprints')
       .select('serial_number')
