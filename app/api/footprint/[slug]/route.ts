@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { verifySessionToken } from '@/lib/auth'
 
 /**
  * GET /api/footprint/[slug]
@@ -9,7 +10,7 @@ import { createServerSupabaseClient } from '@/lib/supabase'
  * If no: returns { owned: false } with NO data
  *
  * Ownership is determined via purchases table:
- * - Get user's email
+ * - Get user's email from session cookie
  * - Get footprint's serial_number
  * - Check if purchase exists for that email + serial_number
  */
@@ -19,10 +20,18 @@ export async function GET(
 ) {
   try {
     const username = params.slug
-    const userId = request.headers.get('x-user-id')
+
+    // Read session cookie directly (don't rely on middleware)
+    const sessionCookie = request.cookies.get('session')?.value
 
     // Not authenticated - can't own anything
-    if (!userId) {
+    if (!sessionCookie) {
+      return NextResponse.json({ owned: false })
+    }
+
+    // Verify session and get userId
+    const session = await verifySessionToken(sessionCookie)
+    if (!session) {
       return NextResponse.json({ owned: false })
     }
 
@@ -32,7 +41,7 @@ export async function GET(
     const { data: user, error: userError } = await supabase
       .from('users')
       .select('email')
-      .eq('id', userId)
+      .eq('id', session.userId)
       .single()
 
     if (userError || !user) {
@@ -115,9 +124,16 @@ export async function PUT(
 ) {
   try {
     const username = params.slug
-    const userId = request.headers.get('x-user-id')
 
-    if (!userId) {
+    // Read session cookie directly
+    const sessionCookie = request.cookies.get('session')?.value
+    if (!sessionCookie) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Verify session and get userId
+    const session = await verifySessionToken(sessionCookie)
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -143,7 +159,7 @@ export async function PUT(
     const { data: user } = await supabase
       .from('users')
       .select('email')
-      .eq('id', userId)
+      .eq('id', session.userId)
       .single()
 
     if (!user) {
