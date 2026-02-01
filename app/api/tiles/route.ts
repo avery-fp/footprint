@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { parseURL } from '@/lib/parser'
+import { verifySessionToken } from '@/lib/auth'
 
 /**
  * Verify ownership and get serial_number from slug
@@ -58,8 +59,15 @@ async function verifyOwnership(
  */
 export async function POST(request: NextRequest) {
   try {
-    const userId = request.headers.get('x-user-id')
-    if (!userId) {
+    // Read session cookie directly
+    const sessionCookie = request.cookies.get('session')?.value
+    if (!sessionCookie) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Verify session and get userId
+    const session = await verifySessionToken(sessionCookie)
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -72,7 +80,7 @@ export async function POST(request: NextRequest) {
     const supabase = createServerSupabaseClient()
 
     // Verify ownership and get serial_number
-    const serialNumber = await verifyOwnership(supabase, userId, slug)
+    const serialNumber = await verifyOwnership(supabase, session.userId, slug)
     if (!serialNumber) {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
     }
@@ -129,8 +137,15 @@ export async function POST(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   try {
-    const userId = request.headers.get('x-user-id')
-    if (!userId) {
+    // Read session cookie directly
+    const sessionCookie = request.cookies.get('session')?.value
+    if (!sessionCookie) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Verify session and get userId
+    const session = await verifySessionToken(sessionCookie)
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -143,7 +158,7 @@ export async function DELETE(request: NextRequest) {
     const supabase = createServerSupabaseClient()
 
     // Verify ownership and get serial_number
-    const serialNumber = await verifyOwnership(supabase, userId, slug)
+    const serialNumber = await verifyOwnership(supabase, session.userId, slug)
     if (!serialNumber) {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
     }
