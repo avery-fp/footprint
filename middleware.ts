@@ -28,7 +28,6 @@ export async function middleware(request: NextRequest) {
     '/auth',
     '/auth/verify',
     '/auth/login',
-    '/edit',
     '/api/checkout',
     '/api/webhook',
     '/api/parse',
@@ -58,6 +57,27 @@ export async function middleware(request: NextRequest) {
 
   // Check for session
   const sessionToken = request.cookies.get('session')?.value
+
+  // /edit routes: optional auth - set headers if authenticated, allow through if not
+  if (pathname.startsWith('/edit/')) {
+    if (!sessionToken) {
+      return NextResponse.next() // Allow unauthenticated access
+    }
+
+    const session = await verifySessionToken(sessionToken)
+    if (!session) {
+      return NextResponse.next() // Invalid session, allow through (edit page handles it)
+    }
+
+    // Valid session - add user info to headers
+    const requestHeaders = new Headers(request.headers)
+    requestHeaders.set('x-user-id', session.userId)
+    requestHeaders.set('x-user-email', session.email)
+
+    return NextResponse.next({
+      request: { headers: requestHeaders },
+    })
+  }
 
   // API routes: set headers if authenticated, pass through if not (let API handle 401)
   if (pathname.startsWith('/api/')) {
