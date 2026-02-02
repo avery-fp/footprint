@@ -7,6 +7,9 @@ import AnalyticsTracker from '@/components/AnalyticsTracker'
 import ContentCard from '@/components/ContentCard'
 import ShareButton from '@/components/ShareButton'
 
+// Force dynamic rendering - never statically generate user pages
+export const dynamic = 'force-dynamic'
+
 interface Props {
   params: { slug: string }
 }

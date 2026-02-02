@@ -1,6 +1,9 @@
 import './globals.css'
 import { Toaster } from 'sonner'
 
+// Force dynamic rendering for all routes
+export const dynamic = 'force-dynamic'
+
 export const metadata = {
   title: 'Footprint',
   description: '$10. One page. Paste anything. Yours forever.',
