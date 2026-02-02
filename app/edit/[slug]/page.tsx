@@ -47,7 +47,7 @@ export default function PublicEditPage() {
         if (data.owned && data.footprint) {
           // User owns this - load from DB
           setIsOwner(true)
-          setIsPublic(data.footprint.is_public ?? true)
+          setIsPublic(data.footprint.published ?? true)
 
           // Load grid mode
           const mode = data.footprint.grid_mode || 'public'
@@ -75,9 +75,9 @@ export default function PublicEditPage() {
             display_name: data.footprint.display_name || '',
             handle: data.footprint.handle || '',
             bio: data.footprint.bio || '',
-            theme: data.footprint.theme || 'midnight',
+            theme: data.footprint.dimension || 'midnight',
             grid_mode: mode,
-            avatar_url: data.footprint.avatar_url,
+            avatar_url: data.footprint.background_url || null,
             content,
             updated_at: Date.now(),
           })
@@ -256,19 +256,27 @@ export default function PublicEditPage() {
         // Delete from DB via tiles API (server derives serial_number from slug)
         const source = tileSources[id]
         if (!source) {
+          console.error('Delete failed: Unknown tile source for id', id)
           throw new Error('Unknown tile source')
         }
+
+        console.log('Deleting tile:', { id, source, slug })
 
         const res = await fetch('/api/tiles', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ slug, source, id }),
+          credentials: 'include', // Ensure cookies are sent
         })
 
         if (!res.ok) {
           const error = await res.json()
-          throw new Error(error.error || 'Delete failed')
+          console.error('Delete API error:', error)
+          throw new Error(error.error || `Delete failed with status ${res.status}`)
         }
+
+        const result = await res.json()
+        console.log('Delete successful:', result)
       }
 
       // Only update local state after successful server delete (or if draft mode)
@@ -286,8 +294,14 @@ export default function PublicEditPage() {
       })
 
     } catch (error) {
-      console.error('Failed to delete:', error)
-      alert(`Delete failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error('Failed to delete tile:', error)
+      alert(`Delete failed: ${error instanceof Error ? error.message : 'Unknown error'}. Check console for details.`)
+      // Remove from deleting state so user can retry
+      setDeletingIds(prev => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
     } finally {
       setDeletingIds(prev => {
         const next = new Set(prev)
