@@ -89,13 +89,27 @@ export async function GET(
         .order('position', { ascending: true }),
     ])
 
-    // Merge and sort tiles by position
+    // Merge and sort tiles by position - normalize structure for edit page
     const libraryTiles = (libraryResult.data || []).map(item => ({
-      ...item,
+      id: item.id,
+      url: item.image_url,
+      type: 'image',
+      title: item.title || null,
+      description: item.description || null,
+      thumbnail_url: null,
+      embed_html: null,
+      position: item.position,
       source: 'library' as const,
     }))
     const linkTiles = (linksResult.data || []).map(item => ({
-      ...item,
+      id: item.id,
+      url: item.url,
+      type: item.platform,
+      title: item.title,
+      description: item.metadata?.description || null,
+      thumbnail_url: item.thumbnail || null,
+      embed_html: item.metadata?.embed_html || null,
+      position: item.position,
       source: 'links' as const,
     }))
 

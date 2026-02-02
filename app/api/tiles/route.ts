@@ -140,44 +140,55 @@ export async function DELETE(request: NextRequest) {
     // Read session cookie directly
     const sessionCookie = request.cookies.get('session')?.value
     if (!sessionCookie) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      console.error('DELETE /api/tiles: No session cookie')
+      return NextResponse.json({ error: 'Unauthorized - No session cookie' }, { status: 401 })
     }
 
     // Verify session and get userId
     const session = await verifySessionToken(sessionCookie)
     if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      console.error('DELETE /api/tiles: Invalid session token')
+      return NextResponse.json({ error: 'Unauthorized - Invalid session' }, { status: 401 })
     }
 
     const { slug, source, id } = await request.json()
 
     if (!slug || !source || !id || !['library', 'links'].includes(source)) {
+      console.error('DELETE /api/tiles: Missing or invalid params', { slug, source, id })
       return NextResponse.json({ error: 'slug, source (library|links), and id required' }, { status: 400 })
     }
+
+    console.log('DELETE /api/tiles:', { userId: session.userId, slug, source, id })
 
     const supabase = createServerSupabaseClient()
 
     // Verify ownership and get serial_number
     const serialNumber = await verifyOwnership(supabase, session.userId, slug)
     if (!serialNumber) {
-      return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
+      console.error('DELETE /api/tiles: Not authorized', { userId: session.userId, slug })
+      return NextResponse.json({ error: 'Not authorized - ownership verification failed' }, { status: 403 })
     }
 
+    console.log('DELETE /api/tiles: Ownership verified, serial_number:', serialNumber)
+
     // Delete from the correct table, ensuring serial_number matches
-    const { error } = await supabase
+    const { error, count } = await supabase
       .from(source)
-      .delete()
+      .delete({ count: 'exact' })
       .eq('id', id)
       .eq('serial_number', serialNumber)
 
     if (error) {
+      console.error('DELETE /api/tiles: Database error:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true })
+    console.log(`DELETE /api/tiles: Deleted ${count} row(s) from ${source}`)
+
+    return NextResponse.json({ success: true, deleted: count })
 
   } catch (error) {
-    console.error('Delete tile error:', error)
+    console.error('DELETE /api/tiles: Unexpected error:', error)
     return NextResponse.json({ error: 'Failed to delete tile' }, { status: 500 })
   }
 }
