@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { verifySessionToken } from '@/lib/auth'
 
+// Force dynamic rendering - never cache API responses
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/footprint/[slug]
  *
