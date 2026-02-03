@@ -149,7 +149,7 @@ export default function ContentCard({ content, editable, onDelete }: ContentCard
   // For "thought" - glass text notebook page
   if (content.type === 'thought') {
     return (
-      <div className="glass rounded-2xl overflow-hidden card-hover relative group p-8 backdrop-blur-xl">
+      <div className="rounded-2xl overflow-hidden card-hover relative group p-8 bg-white/[0.03] backdrop-blur-xl border border-white/10 hover:border-white/20 transition-all">
         {editable && (
           <button
             onClick={onDelete}
@@ -169,7 +169,7 @@ export default function ContentCard({ content, editable, onDelete }: ContentCard
   // For Twitter/X, Instagram, TikTok - social embeds
   if (['twitter', 'instagram', 'tiktok'].includes(content.type)) {
     return (
-      <div className="glass rounded-xl overflow-hidden card-hover relative group">
+      <div className="rounded-xl overflow-hidden card-hover relative group bg-white/[0.03] backdrop-blur-xl border border-white/10 hover:border-white/20 transition-all">
         {editable && (
           <button
             onClick={onDelete}
@@ -206,11 +206,11 @@ export default function ContentCard({ content, editable, onDelete }: ContentCard
 
   // Default: link card
   return (
-    <a 
-      href={content.url} 
-      target="_blank" 
+    <a
+      href={content.url}
+      target="_blank"
       rel="noopener noreferrer"
-      className="glass rounded-xl overflow-hidden card-hover relative group flex items-center gap-4 p-5"
+      className="rounded-xl overflow-hidden card-hover relative group flex items-center gap-4 p-5 bg-white/[0.03] backdrop-blur-xl border border-white/10 hover:border-white/20 transition-all"
     >
       {editable && (
         <button
