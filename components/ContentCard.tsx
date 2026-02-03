@@ -42,14 +42,41 @@ export default function ContentCard({ content, editable, onDelete }: ContentCard
     )
   }
 
-  // For embeddable content, show the embed
-  if (content.embed_html && ['spotify', 'applemusic', 'vimeo', 'soundcloud'].includes(content.type)) {
+  // Spotify - if no embed_html, render as beautiful gradient link card
+  if (content.type === 'spotify') {
+    if (content.embed_html) {
+      // Has proper embed - show it edge-to-edge
+      return (
+        <div
+          className="w-full min-h-[152px] rounded-2xl overflow-hidden"
+          dangerouslySetInnerHTML={{ __html: content.embed_html }}
+        />
+      )
+    }
+    // Fallback: beautiful link card with Spotify branding
+    return (
+      <a
+        href={content.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block rounded-2xl overflow-hidden p-6 transition-all"
+        style={{ background: 'linear-gradient(135deg, #1DB954, #191414)' }}
+      >
+        <div className="flex items-center gap-3 mb-3">
+          <div className="text-3xl">♫</div>
+          <p className="font-mono text-xs text-white/60 uppercase tracking-wider">Spotify</p>
+        </div>
+        <p className="text-white/90 text-sm">Listen on Spotify →</p>
+      </a>
+    )
+  }
+
+  // For other embeddable content, show the embed
+  if (content.embed_html && ['applemusic', 'vimeo', 'soundcloud'].includes(content.type)) {
     // Determine min-height based on type to prevent layout shift
     let minHeightClass = ''
-    if (content.type === 'youtube' || content.type === 'vimeo') {
+    if (content.type === 'vimeo') {
       minHeightClass = 'min-h-[200px]'
-    } else if (content.type === 'spotify') {
-      minHeightClass = 'min-h-[152px]'
     } else if (content.type === 'applemusic') {
       minHeightClass = 'min-h-[175px]'
     } else if (content.type === 'soundcloud') {
