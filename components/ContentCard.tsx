@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { getContentIcon, getContentBackground, ContentType } from '@/lib/parser'
 
 interface ContentCardProps {
@@ -18,27 +19,38 @@ interface ContentCardProps {
 
 /**
  * Content Card Component
- * 
+ *
  * Renders a piece of content beautifully based on its type.
  * This is what makes Footprint special - every URL looks gorgeous.
  */
 export default function ContentCard({ content, editable, onDelete }: ContentCardProps) {
   const icon = getContentIcon(content.type)
   const customBg = getContentBackground(content.type)
-  
+  const [isMuted, setIsMuted] = useState(true)
+
   // Get hostname for link display
   let hostname = 'Link'
   try {
     hostname = new URL(content.url).hostname.replace('www.', '')
   } catch {}
 
-  // YouTube - edge-to-edge beautiful, no wrapper
+  // YouTube - edge-to-edge beautiful, tap to unmute
   if (content.type === 'youtube' && content.embed_html) {
+    // Swap mute parameter in embed HTML
+    const embedWithSound = isMuted
+      ? content.embed_html
+      : content.embed_html.replace('mute=1', 'mute=0').replace('autoplay=1', 'autoplay=1')
+
     return (
       <div
-        className="w-full aspect-video min-h-[300px] rounded-2xl overflow-hidden"
-        dangerouslySetInnerHTML={{ __html: content.embed_html }}
-      />
+        className="w-full aspect-video min-h-[300px] rounded-2xl overflow-hidden cursor-pointer relative group"
+        onClick={() => setIsMuted(!isMuted)}
+      >
+        <div dangerouslySetInnerHTML={{ __html: embedWithSound }} />
+        {!isMuted && (
+          <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60"></div>
+        )}
+      </div>
     )
   }
 
