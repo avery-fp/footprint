@@ -1,20 +1,108 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { nanoid } from 'nanoid'
 import { parseURL } from '@/lib/parser'
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, sortableKeyboardCoordinates, useSortable, rectSortingStrategy } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { loadDraft, saveDraft, clearDraft, DraftFootprint, DraftContent } from '@/lib/draft-store'
 import ContentCard from '@/components/ContentCard'
 import { getTheme } from '@/lib/themes'
+import Link from 'next/link'
 
-// Extended content type that tracks source table for owners
+// Extended content type that tracks source table
 interface TileContent extends DraftContent {
   source?: 'library' | 'links'
 }
 
-export default function PublicEditPage() {
+// Sortable tile wrapper
+function SortableTile({ id, content, onDelete, deleting }: { id: string; content: any; onDelete: () => void; deleting: boolean }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : deleting ? 0.5 : 1,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="break-inside-avoid mb-3"
+      {...attributes}
+      {...listeners}
+    >
+      {content.type === 'image' ? (
+        content.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i) ? (
+          <div className="relative group">
+            <video
+              src={content.url}
+              className="w-full object-cover rounded-2xl"
+              autoPlay
+              muted
+              loop
+              playsInline
+            />
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete()
+              }}
+              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/70 text-white/80 hover:bg-red-500 hover:text-white opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center text-xl"
+            >
+              ×
+            </button>
+          </div>
+        ) : (
+          <div className="relative group">
+            <img
+              src={content.url}
+              className="w-full object-cover rounded-2xl"
+              alt=""
+              loading="lazy"
+            />
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete()
+              }}
+              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/70 text-white/80 hover:bg-red-500 hover:text-white opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center text-xl"
+            >
+              ×
+            </button>
+          </div>
+        )
+      ) : (
+        <div className="relative group">
+          <ContentCard content={content} />
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete()
+            }}
+            className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/70 text-white/80 hover:bg-red-500 hover:text-white opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center text-xl z-10"
+          >
+            ×
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function EditPage() {
   const params = useParams()
+  const router = useRouter()
   const slug = params.slug as string
 
   const [draft, setDraft] = useState<DraftFootprint | null>(null)
@@ -22,25 +110,27 @@ export default function PublicEditPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isAdding, setIsAdding] = useState(false)
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
-
-  // Context-awareness: track if user owns this slug
   const [isOwner, setIsOwner] = useState(false)
   const [isPublic, setIsPublic] = useState(true)
   const [isTogglingPublic, setIsTogglingPublic] = useState(false)
-
-  // Grid mode: 'public' (tight), 'edit' (medium), 'spaced' (generous)
-  const [gridMode, setGridMode] = useState<'public' | 'edit' | 'spaced'>('public')
-
-  // Track tile sources for owners (needed for delete)
+  const [gridMode, setGridMode] = useState<'public' | 'edit' | 'spaced'>('edit')
   const [tileSources, setTileSources] = useState<Record<string, 'library' | 'links'>>({})
+  const [rooms, setRooms] = useState<any[]>([])
+  const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Load data on mount - no auth, just load from DB
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
+
+  // Load data on mount
   useEffect(() => {
     async function loadData() {
       try {
-        // Fetch footprint data (no auth)
         const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
           cache: 'no-store',
           next: { revalidate: 0 },
@@ -48,15 +138,12 @@ export default function PublicEditPage() {
         const data = await res.json()
 
         if (data.footprint) {
-          // Always treat as owner - no auth
           setIsOwner(true)
           setIsPublic(data.footprint.published ?? true)
 
-          // Load grid mode
-          const mode = data.footprint.grid_mode || 'public'
+          const mode = data.footprint.grid_mode || 'edit'
           setGridMode(mode)
 
-          // Map tiles to draft format and track sources
           const sources: Record<string, 'library' | 'links'> = {}
           const content = (data.tiles || []).map((tile: any) => {
             sources[tile.id] = tile.source
@@ -84,8 +171,9 @@ export default function PublicEditPage() {
             content,
             updated_at: Date.now(),
           })
+
+          setActiveRoomId(data.footprint.id)
         } else {
-          // Footprint not found - create empty draft
           setIsOwner(true)
           setDraft({
             slug,
@@ -93,7 +181,7 @@ export default function PublicEditPage() {
             handle: '',
             bio: '',
             theme: 'midnight',
-            grid_mode: 'public',
+            grid_mode: 'edit',
             avatar_url: null,
             content: [],
             updated_at: Date.now(),
@@ -101,7 +189,6 @@ export default function PublicEditPage() {
         }
       } catch (error) {
         console.error('Failed to load footprint:', error)
-        // Create empty draft on error
         setIsOwner(true)
         setDraft({
           slug,
@@ -109,7 +196,7 @@ export default function PublicEditPage() {
           handle: '',
           bio: '',
           theme: 'midnight',
-          grid_mode: 'public',
+          grid_mode: 'edit',
           avatar_url: null,
           content: [],
           updated_at: Date.now(),
@@ -121,33 +208,25 @@ export default function PublicEditPage() {
     loadData()
   }, [slug])
 
-  // Save function - routes to DB or localStorage based on ownership
-  // Note: For owners, profile changes auto-save to DB. Tiles use /api/tiles.
   const saveData = useCallback(async (d: DraftFootprint) => {
-    if (!isOwner) {
-      // Save to localStorage for drafts
-      saveDraft(slug, d)
-    } else {
-      // Save owner profile to DB
-      try {
-        await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            display_name: d.display_name,
-            handle: d.handle,
-            bio: d.bio,
-            theme: d.theme,
-            grid_mode: d.grid_mode,
-          }),
-        })
-      } catch (error) {
-        console.error('Failed to save profile:', error)
-      }
+    if (!isOwner) return
+    try {
+      await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          display_name: d.display_name,
+          handle: d.handle,
+          bio: d.bio,
+          theme: d.theme,
+          grid_mode: d.grid_mode,
+        }),
+      })
+    } catch (error) {
+      console.error('Failed to save profile:', error)
     }
   }, [isOwner, slug])
 
-  // Debounced auto-save on profile changes
   useEffect(() => {
     if (draft && !isLoading) {
       if (saveTimeoutRef.current) {
@@ -164,67 +243,30 @@ export default function PublicEditPage() {
     }
   }, [draft, isLoading, saveData])
 
-  // Save before unload
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      if (draft && !isOwner) {
-        saveDraft(slug, draft)
-      }
-    }
-    window.addEventListener('beforeunload', handleBeforeUnload)
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [draft, slug, isOwner])
-
   async function handleAddContent() {
     if (!pasteUrl.trim() || !draft) return
     setIsAdding(true)
     try {
-      if (isOwner) {
-        // Add to DB via tiles API (server derives serial_number from slug)
-        const res = await fetch('/api/tiles', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            slug,
-            url: pasteUrl,
-          }),
-        })
-        const data = await res.json()
-        if (data.tile) {
-          // Track the source
-          setTileSources(prev => ({ ...prev, [data.tile.id]: data.tile.source }))
-
-          setDraft(prev => prev ? {
-            ...prev,
-            content: [...prev.content, {
-              id: data.tile.id,
-              url: data.tile.url,
-              type: data.tile.type,
-              title: data.tile.title,
-              description: data.tile.description,
-              thumbnail_url: data.tile.thumbnail_url,
-              embed_html: data.tile.embed_html,
-              position: data.tile.position,
-            }],
-            updated_at: Date.now(),
-          } : null)
-        }
-      } else {
-        // Add to draft (localStorage)
-        const parsed = await parseURL(pasteUrl)
-        const newContent: DraftContent = {
-          id: nanoid(),
-          url: parsed.url,
-          type: parsed.type,
-          title: parsed.title,
-          description: parsed.description,
-          thumbnail_url: parsed.thumbnail_url,
-          embed_html: parsed.embed_html,
-          position: 0,
-        }
+      const res = await fetch('/api/tiles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug, url: pasteUrl }),
+      })
+      const data = await res.json()
+      if (data.tile) {
+        setTileSources(prev => ({ ...prev, [data.tile.id]: data.tile.source }))
         setDraft(prev => prev ? {
           ...prev,
-          content: [newContent, ...prev.content.map((c, i) => ({ ...c, position: i + 1 }))],
+          content: [...prev.content, {
+            id: data.tile.id,
+            url: data.tile.url,
+            type: data.tile.type,
+            title: data.tile.title,
+            description: data.tile.description,
+            thumbnail_url: data.tile.thumbnail_url,
+            embed_html: data.tile.embed_html,
+            position: data.tile.position,
+          }],
           updated_at: Date.now(),
         } : null)
       }
@@ -237,61 +279,37 @@ export default function PublicEditPage() {
   }
 
   async function handleDelete(id: string) {
-    // Prevent duplicate deletes
     if (deletingIds.has(id)) return
-
     setDeletingIds(prev => new Set(prev).add(id))
 
     try {
-      if (isOwner) {
-        // Delete from DB via tiles API (server derives serial_number from slug)
-        const source = tileSources[id]
-        if (!source) {
-          console.error('Delete failed: Unknown tile source for id', id)
-          throw new Error('Unknown tile source')
-        }
+      const source = tileSources[id]
+      if (!source) throw new Error('Unknown tile source')
 
-        console.log('Deleting tile:', { id, source, slug })
+      const res = await fetch('/api/tiles', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug, source, id }),
+      })
 
-        const res = await fetch('/api/tiles', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ slug, source, id }),
-        })
-
-        if (!res.ok) {
-          const error = await res.json()
-          console.error('Delete API error:', error)
-          throw new Error(error.error || `Delete failed with status ${res.status}`)
-        }
-
-        const result = await res.json()
-        console.log('Delete successful:', result)
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || `Delete failed`)
       }
 
-      // Only update local state after successful server delete (or if draft mode)
       setDraft(prev => prev ? {
         ...prev,
         content: prev.content.filter(c => c.id !== id),
         updated_at: Date.now(),
       } : null)
 
-      // Clean up source tracking
       setTileSources(prev => {
         const next = { ...prev }
         delete next[id]
         return next
       })
-
     } catch (error) {
       console.error('Failed to delete tile:', error)
-      alert(`Delete failed: ${error instanceof Error ? error.message : 'Unknown error'}. Check console for details.`)
-      // Remove from deleting state so user can retry
-      setDeletingIds(prev => {
-        const next = new Set(prev)
-        next.delete(id)
-        return next
-      })
     } finally {
       setDeletingIds(prev => {
         const next = new Set(prev)
@@ -301,52 +319,24 @@ export default function PublicEditPage() {
     }
   }
 
-  function handleClearDraft() {
-    if (isOwner) {
-      // Owners can't clear - they edit their live page
-      alert('This is your live page. Delete individual items instead.')
-      return
-    }
-    if (confirm('Clear all draft content? This cannot be undone.')) {
-      clearDraft(slug)
-      setDraft({
-        slug,
-        display_name: '',
-        handle: '',
-        bio: '',
-        theme: 'midnight',
-        avatar_url: null,
-        content: [],
-        updated_at: Date.now(),
-      })
-    }
-  }
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id || !draft) return
 
-  async function handleTogglePublic() {
-    if (!isOwner || isTogglingPublic) return
+    const oldIndex = draft.content.findIndex(item => item.id === active.id)
+    const newIndex = draft.content.findIndex(item => item.id === over.id)
 
-    setIsTogglingPublic(true)
-    const newValue = !isPublic
+    if (oldIndex === -1 || newIndex === -1) return
 
-    try {
-      const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_public: newValue }),
-      })
+    const newContent = [...draft.content]
+    const [moved] = newContent.splice(oldIndex, 1)
+    newContent.splice(newIndex, 0, moved)
 
-      if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.error || 'Failed to update')
-      }
-
-      setIsPublic(newValue)
-    } catch (error) {
-      console.error('Failed to toggle public:', error)
-      alert(`Failed to update: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    } finally {
-      setIsTogglingPublic(false)
-    }
+    setDraft({
+      ...draft,
+      content: newContent.map((item, index) => ({ ...item, position: index })),
+      updated_at: Date.now(),
+    })
   }
 
   function handleGridModeChange(mode: 'public' | 'edit' | 'spaced') {
@@ -358,15 +348,6 @@ export default function PublicEditPage() {
     } : null)
   }
 
-  function handleGoLive() {
-    if (isOwner) {
-      // Already live - go to public page
-      window.location.href = `/${slug}`
-    } else {
-      window.location.href = `/checkout?slug=${encodeURIComponent(slug)}`
-    }
-  }
-
   if (isLoading || !draft) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#07080A]">
@@ -376,173 +357,148 @@ export default function PublicEditPage() {
   }
 
   const theme = getTheme(draft.theme)
+  const gapClass = gridMode === 'public' ? 'gap-2' : gridMode === 'edit' ? 'gap-3' : 'gap-4'
 
   return (
-    <div className="min-h-screen pb-32" style={{ background: theme.bg, color: theme.text }}>
-      {/* Mode indicator + Public/Private toggle */}
-      <div className="fixed top-4 right-4 z-50 flex items-center gap-3">
-        {isOwner && (
-          <button
-            onClick={handleTogglePublic}
-            disabled={isTogglingPublic}
-            className={`text-xs font-mono px-3 py-1.5 rounded-md transition ${
-              isPublic
-                ? 'bg-green-500/20 text-green-300 hover:bg-green-500/30'
-                : 'bg-white/10 text-white/50 hover:bg-white/20'
-            } disabled:opacity-50`}
-            title={isPublic ? 'Page is public - click to make private' : 'Page is private - click to make public'}
-          >
-            {isTogglingPublic ? '...' : isPublic ? 'Public' : 'Private'}
-          </button>
-        )}
-        <span className="text-xs text-white/40 font-mono">
-          {isOwner ? 'editing · live' : 'draft · local'}
-        </span>
-        {!isOwner && (
-          <button
-            onClick={handleClearDraft}
-            className="text-xs text-white/40 hover:text-white/60 font-mono underline"
-          >
-            clear
-          </button>
-        )}
-      </div>
-
-      <div className="max-w-2xl mx-auto px-4 py-12">
-        {/* Profile Section */}
-        <header className="mb-8 text-center">
-          <input
-            type="text"
-            placeholder="Your Name"
-            value={draft.display_name}
-            onChange={e => setDraft(prev => prev ? { ...prev, display_name: e.target.value, updated_at: Date.now() } : null)}
-            className="text-3xl font-light bg-transparent border-none text-center w-full outline-none placeholder:text-white/20"
-            style={{ color: theme.text }}
-          />
-          <input
-            type="text"
-            placeholder="@handle"
-            value={draft.handle}
-            onChange={e => setDraft(prev => prev ? { ...prev, handle: e.target.value, updated_at: Date.now() } : null)}
-            className="text-sm bg-transparent border-none text-center w-full outline-none mt-2 placeholder:text-white/20"
-            style={{ color: theme.muted }}
-          />
-          <textarea
-            placeholder="Bio..."
-            value={draft.bio}
-            onChange={e => setDraft(prev => prev ? { ...prev, bio: e.target.value, updated_at: Date.now() } : null)}
-            className="mt-4 bg-transparent border-none text-center w-full outline-none resize-none placeholder:text-white/20"
-            style={{ color: theme.muted }}
-            rows={2}
-          />
-        </header>
-
-        {/* Add Content */}
-        <div className="mb-8">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Paste any URL..."
-              value={pasteUrl}
-              onChange={e => setPasteUrl(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleAddContent()}
-              className="w-full px-6 py-5 pr-24 bg-white/5 border-2 border-dashed border-white/10 rounded-2xl font-mono text-sm focus:border-white/30 focus:border-solid focus:outline-none"
-              style={{ color: theme.text }}
-            />
-            <button
-              onClick={handleAddContent}
-              disabled={isAdding || !pasteUrl.trim()}
-              className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white py-2.5 px-5 rounded-lg font-mono text-xs disabled:opacity-50 transition"
-            >
-              {isAdding ? '...' : 'Add'}
-            </button>
-          </div>
-          <p className="font-mono text-xs text-white/30 text-center mt-3">
-            YouTube, Spotify, Twitter, images, articles — anything
-          </p>
-        </div>
-
-        {/* Grid Mode Selector */}
-        {draft.content.length > 0 && (
-          <div className="mb-6 flex items-center justify-center gap-2">
-            <span className="font-mono text-xs text-white/30 mr-2">Spacing:</span>
-            <button
-              onClick={() => handleGridModeChange('public')}
-              className={`font-mono text-xs px-3 py-1.5 rounded-md transition ${
-                gridMode === 'public'
-                  ? 'bg-white/20 text-white'
-                  : 'bg-white/5 text-white/40 hover:bg-white/10'
-              }`}
-            >
-              Tight
-            </button>
-            <button
-              onClick={() => handleGridModeChange('edit')}
-              className={`font-mono text-xs px-3 py-1.5 rounded-md transition ${
-                gridMode === 'edit'
-                  ? 'bg-white/20 text-white'
-                  : 'bg-white/5 text-white/40 hover:bg-white/10'
-              }`}
-            >
-              Medium
-            </button>
-            <button
-              onClick={() => handleGridModeChange('spaced')}
-              className={`font-mono text-xs px-3 py-1.5 rounded-md transition ${
-                gridMode === 'spaced'
-                  ? 'bg-white/20 text-white'
-                  : 'bg-white/5 text-white/40 hover:bg-white/10'
-              }`}
-            >
-              Generous
-            </button>
-          </div>
-        )}
-
-        {/* Content Grid */}
-        <div className={gridMode === 'public' ? 'space-y-4' : gridMode === 'edit' ? 'space-y-6' : 'space-y-10'}>
-          {draft.content.map(item => (
-            <div key={item.id} className="relative group">
-              <div className={deletingIds.has(item.id) ? 'opacity-50 pointer-events-none' : ''}>
-                <ContentCard
-                  content={item as any}
-                  editable
-                  onDelete={() => handleDelete(item.id)}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {draft.content.length === 0 && (
-          <p className="text-center py-12 text-white/30">
-            Paste a URL above to add your first tile
-          </p>
-        )}
-
-        {/* URL Preview */}
-        <div className="mt-12 text-center">
-          <p className="font-mono text-xs text-white/30">
-            {isOwner ? 'Your page is live at' : 'Your page will be live at'}
-          </p>
-          <p className="font-mono text-sm text-white/60 mt-1">
-            footprint.onl/{slug}
-          </p>
-        </div>
-      </div>
-
-      {/* Bottom Button */}
-      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40">
-        <button
-          onClick={handleGoLive}
-          className={`px-8 py-4 rounded-2xl font-medium shadow-lg transition transform hover:scale-105 ${
-            isOwner
-              ? 'bg-white/10 hover:bg-white/20 text-white'
-              : 'bg-green-500 hover:bg-green-400 text-white shadow-green-500/25'
-          }`}
+    <div
+      className="min-h-screen pb-32"
+      style={{
+        background: draft.avatar_url
+          ? `linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url(${draft.avatar_url}) center/cover`
+          : theme.bg,
+        color: theme.text
+      }}
+    >
+      {/* Back to view button - top left */}
+      <div className="fixed top-6 left-6 z-50">
+        <Link
+          href={`/${slug}`}
+          className="flex items-center gap-2 text-sm text-white/60 hover:text-white/90 transition font-mono"
         >
-          {isOwner ? 'View Live Page' : 'Go Live · $10'}
+          ← view
+        </Link>
+      </div>
+
+      {/* Public/Private toggle - top right */}
+      <div className="fixed top-6 right-6 z-50">
+        <button
+          onClick={async () => {
+            setIsTogglingPublic(true)
+            try {
+              await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ is_public: !isPublic }),
+              })
+              setIsPublic(!isPublic)
+            } catch (e) {
+              console.error(e)
+            } finally {
+              setIsTogglingPublic(false)
+            }
+          }}
+          disabled={isTogglingPublic}
+          className={`text-xs font-mono px-3 py-1.5 rounded-full glass transition ${
+            isPublic
+              ? 'bg-green-500/20 text-green-300 hover:bg-green-500/30'
+              : 'bg-white/10 text-white/50 hover:bg-white/20'
+          } disabled:opacity-50 border border-white/10`}
+        >
+          {isTogglingPublic ? '...' : isPublic ? 'Public' : 'Private'}
         </button>
+      </div>
+
+      {/* Spacing toggle - top center */}
+      {draft.content.length > 0 && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 glass rounded-full px-4 py-2 border border-white/10">
+          <button
+            onClick={() => handleGridModeChange('public')}
+            className={`font-mono text-xs px-3 py-1 rounded-full transition ${
+              gridMode === 'public'
+                ? 'bg-white/20 text-white'
+                : 'text-white/40 hover:text-white/60'
+            }`}
+          >
+            Tight
+          </button>
+          <button
+            onClick={() => handleGridModeChange('edit')}
+            className={`font-mono text-xs px-3 py-1 rounded-full transition ${
+              gridMode === 'edit'
+                ? 'bg-white/20 text-white'
+                : 'text-white/40 hover:text-white/60'
+            }`}
+          >
+            Medium
+          </button>
+          <button
+            onClick={() => handleGridModeChange('spaced')}
+            className={`font-mono text-xs px-3 py-1 rounded-full transition ${
+              gridMode === 'spaced'
+                ? 'bg-white/20 text-white'
+                : 'text-white/40 hover:text-white/60'
+            }`}
+          >
+            Generous
+          </button>
+        </div>
+      )}
+
+      {/* Main content */}
+      <div className="max-w-7xl mx-auto px-4 py-20">
+        {/* Masonry Grid */}
+        {draft.content.length > 0 ? (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={draft.content.map(item => item.id)}
+              strategy={rectSortingStrategy}
+            >
+              <div className={`columns-2 sm:columns-3 md:columns-4 lg:columns-5 ${gapClass}`}>
+                {draft.content.map(item => (
+                  <SortableTile
+                    key={item.id}
+                    id={item.id}
+                    content={item}
+                    onDelete={() => handleDelete(item.id)}
+                    deleting={deletingIds.has(item.id)}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        ) : (
+          <div className="text-center py-32">
+            <p className="text-white/30 text-lg mb-4">Empty room</p>
+            <p className="text-white/20 text-sm font-mono">Paste a URL below to add your first tile</p>
+          </div>
+        )}
+      </div>
+
+      {/* Floating bottom bar */}
+      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4">
+        {/* Add tile button - center */}
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Paste URL..."
+            value={pasteUrl}
+            onChange={e => setPasteUrl(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleAddContent()}
+            className="w-80 px-6 py-4 pr-14 bg-black/50 backdrop-blur-xl border border-white/20 rounded-full font-mono text-sm focus:border-white/40 focus:outline-none text-white placeholder:text-white/30"
+            style={{ backdropFilter: 'blur(20px)' }}
+          />
+          <button
+            onClick={handleAddContent}
+            disabled={isAdding || !pasteUrl.trim()}
+            className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white disabled:opacity-50 transition flex items-center justify-center text-2xl"
+          >
+            +
+          </button>
+        </div>
       </div>
     </div>
   )
