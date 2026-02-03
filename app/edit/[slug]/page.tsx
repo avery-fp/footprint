@@ -19,6 +19,9 @@ interface TileContent extends DraftContent {
 
 // Sortable tile wrapper
 function SortableTile({ id, content, onDelete, deleting }: { id: string; content: any; onDelete: () => void; deleting: boolean }) {
+  const [isMuted, setIsMuted] = useState(true)
+  const videoRef = useRef<HTMLVideoElement>(null)
+
   const {
     attributes,
     listeners,
@@ -34,6 +37,14 @@ function SortableTile({ id, content, onDelete, deleting }: { id: string; content
     opacity: isDragging ? 0.5 : deleting ? 0.5 : 1,
   }
 
+  const handleVideoClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (videoRef.current) {
+      videoRef.current.muted = !isMuted
+      setIsMuted(!isMuted)
+    }
+  }
+
   return (
     <div
       ref={setNodeRef}
@@ -46,12 +57,14 @@ function SortableTile({ id, content, onDelete, deleting }: { id: string; content
         content.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i) ? (
           <div className="relative group">
             <video
+              ref={videoRef}
               src={content.url}
-              className="w-full aspect-video object-cover rounded-2xl"
+              className="w-full aspect-video object-cover rounded-2xl cursor-pointer"
               autoPlay
               muted
               loop
               playsInline
+              onClick={handleVideoClick}
             />
             <button
               onClick={(e) => {
@@ -62,6 +75,11 @@ function SortableTile({ id, content, onDelete, deleting }: { id: string; content
             >
               ×
             </button>
+            {!isMuted && (
+              <div className="absolute bottom-3 right-3 text-white/60 text-xs font-mono bg-black/50 px-2 py-1 rounded">
+                🔊
+              </div>
+            )}
           </div>
         ) : (
           <div className="relative group">

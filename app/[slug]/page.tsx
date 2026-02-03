@@ -6,6 +6,7 @@ import { getTheme } from '@/lib/themes'
 import AnalyticsTracker from '@/components/AnalyticsTracker'
 import ContentCard from '@/components/ContentCard'
 import ShareButton from '@/components/ShareButton'
+import VideoTile from '@/components/VideoTile'
 
 // Force dynamic rendering - never statically generate user pages
 export const dynamic = 'force-dynamic'
@@ -124,14 +125,7 @@ export default async function FootprintPage({ params }: Props) {
             <div key={item.id} className="break-inside-avoid mb-3">
               {item.type === 'image' ? (
                 item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i) ? (
-                  <video
-                    src={item.url}
-                    className="w-full aspect-video object-cover rounded-2xl"
-                    autoPlay
-                    muted
-                    loop
-                    playsInline
-                  />
+                  <VideoTile src={item.url} />
                 ) : (
                   <img
                     src={item.url}
