@@ -18,7 +18,7 @@ export default function VideoTile({ src }: { src: string }) {
       <video
         ref={videoRef}
         src={src}
-        className="w-full aspect-video object-cover rounded-2xl cursor-pointer"
+        className="w-full aspect-video min-h-[300px] object-cover rounded-2xl cursor-pointer"
         autoPlay
         muted
         loop

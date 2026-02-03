@@ -423,12 +423,12 @@ export default function EditPage() {
     edit: { // FLOW / MEDIUM
       gap: 'gap-3',
       columns: 'columns-2 sm:columns-3 md:columns-4 lg:columns-5',
-      videoClass: 'aspect-video',
+      videoClass: 'aspect-video min-h-[300px]',
     },
     spaced: { // TUMBLR / SPACED
       gap: 'gap-6',
       columns: 'columns-1 sm:columns-2 md:columns-2 lg:columns-3',
-      videoClass: 'aspect-video',
+      videoClass: 'aspect-video min-h-[300px]',
     },
   }
 
