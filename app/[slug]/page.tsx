@@ -95,7 +95,7 @@ export default async function FootprintPage({ params }: Props) {
       {/* Share Button */}
       <ShareButton url={pageUrl} />
 
-      <div className="max-w-2xl mx-auto px-4 py-12">
+      <div className="max-w-6xl mx-auto px-4 py-12">
         {/* Header */}
         <header className="mb-12 text-center">
           {footprint.background_url && (
@@ -118,10 +118,32 @@ export default async function FootprintPage({ params }: Props) {
           )}
         </header>
 
-        {/* Content */}
-        <div className={gridSpacing}>
+        {/* Masonry Grid */}
+        <div className="columns-2 sm:columns-3 md:columns-4 lg:columns-5 gap-3 max-w-6xl mx-auto">
           {content.map((item: any) => (
-            <ContentCard key={item.id} content={item} />
+            <div key={item.id} className="break-inside-avoid mb-3">
+              {item.type === 'image' ? (
+                item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i) ? (
+                  <video
+                    src={item.url}
+                    className="w-full object-cover rounded-2xl"
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                  />
+                ) : (
+                  <img
+                    src={item.url}
+                    className="w-full object-cover rounded-2xl"
+                    alt=""
+                    loading="lazy"
+                  />
+                )
+              ) : (
+                <ContentCard content={item} />
+              )}
+            </div>
           ))}
         </div>
 
