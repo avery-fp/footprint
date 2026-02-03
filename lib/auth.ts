@@ -41,11 +41,14 @@ export async function generateMagicLink(email: string): Promise<string> {
     })
 
   if (error) {
-    throw new Error('Failed to create magic link')
+    console.error('Magic link DB insert error:', error)
+    throw new Error(`Failed to create magic link: ${error.message}`)
   }
 
-  // Build the magic link URL
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  // Build the magic link URL - hardcoded to production URL
+  const baseUrl = process.env.NODE_ENV === 'production'
+    ? 'https://www.footprint.onl'
+    : 'http://localhost:3000'
   return `${baseUrl}/auth/verify?token=${token}`
 }
 

@@ -68,9 +68,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true })
 
   } catch (error) {
-    console.error('Magic link error:', error)
+    // Log the full error object to see what's really happening
+    console.error('Magic link error - FULL DETAILS:', error)
+    console.error('Error type:', error instanceof Error ? error.constructor.name : typeof error)
+    if (error instanceof Error) {
+      console.error('Error message:', error.message)
+      console.error('Error stack:', error.stack)
+    }
+
+    // Return the specific error message instead of generic one
+    const errorMessage = error instanceof Error ? error.message : 'Failed to send magic link'
     return NextResponse.json(
-      { error: 'Failed to send magic link' },
+      { error: errorMessage },
       { status: 500 }
     )
   }
