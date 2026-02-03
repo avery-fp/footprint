@@ -8,14 +8,8 @@ export const dynamic = 'force-dynamic'
 /**
  * GET /api/footprint/[slug]
  *
- * Checks if authenticated user owns this footprint (by username).
- * If yes: returns footprint + tiles (merged from library + links)
- * If no: returns { owned: false } with NO data
- *
- * Ownership is determined by comparing serial numbers:
- * - Get user's serial_number from session
- * - Get footprint's serial_number
- * - Check if they match
+ * Returns footprint + tiles (merged from library + links)
+ * No auth - we're the only user
  */
 export async function GET(
   request: NextRequest,
@@ -23,43 +17,9 @@ export async function GET(
 ) {
   try {
     const username = params.slug
-    console.log('[Ownership Check] Starting for slug:', username)
-
-    // Read session cookie directly (don't rely on middleware)
-    const sessionCookie = request.cookies.get('session')?.value
-
-    // Not authenticated - can't own anything
-    if (!sessionCookie) {
-      console.log('[Ownership Check] No session cookie found')
-      return NextResponse.json({ owned: false })
-    }
-
-    console.log('[Ownership Check] Session cookie exists')
-
-    // Verify session and get userId
-    const session = await verifySessionToken(sessionCookie)
-    if (!session) {
-      console.log('[Ownership Check] Invalid session token')
-      return NextResponse.json({ owned: false })
-    }
-
-    console.log('[Ownership Check] Session valid, userId:', session.userId, 'email:', session.email)
+    console.log('[Footprint GET] Loading for slug:', username)
 
     const supabase = createServerSupabaseClient()
-
-    // Get user's email
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('email')
-      .eq('id', session.userId)
-      .single()
-
-    if (userError || !user) {
-      console.log('[Ownership Check] User not found in DB:', userError?.message)
-      return NextResponse.json({ owned: false })
-    }
-
-    console.log('[Ownership Check] User found, email:', user.email)
 
     // Get footprint by username
     const { data: footprint, error: footprintError } = await supabase
@@ -69,27 +29,11 @@ export async function GET(
       .single()
 
     if (footprintError || !footprint) {
-      console.log('[Ownership Check] Footprint not found:', footprintError?.message)
+      console.log('[Footprint GET] Footprint not found:', footprintError?.message)
       return NextResponse.json({ owned: false })
     }
 
-    console.log('[Ownership Check] Footprint found, serial_number:', footprint.serial_number)
-
-    // Check ownership - footprint must belong to this user
-    // Compare footprint.serial_number with user's serial_number from users table
-    const { data: userData } = await supabase
-      .from('users')
-      .select('serial_number')
-      .eq('id', session.userId)
-      .single()
-
-    if (!userData || userData.serial_number !== footprint.serial_number) {
-      console.log('[Ownership Check] User does not own this footprint')
-      console.log('[Ownership Check] User serial:', userData?.serial_number, 'Footprint serial:', footprint.serial_number)
-      return NextResponse.json({ owned: false })
-    }
-
-    console.log('[Ownership Check] Serial numbers match! User owns this footprint')
+    console.log('[Footprint GET] Footprint found, serial_number:', footprint.serial_number)
 
     // User owns this footprint - fetch tiles from library + links
     const [libraryResult, linksResult] = await Promise.all([
@@ -149,7 +93,7 @@ export async function GET(
  * PUT /api/footprint/[slug]
  *
  * Updates footprint settings (e.g., is_public).
- * Requires ownership.
+ * No auth - we're the only user.
  */
 export async function PUT(
   request: NextRequest,
@@ -157,18 +101,6 @@ export async function PUT(
 ) {
   try {
     const username = params.slug
-
-    // Read session cookie directly
-    const sessionCookie = request.cookies.get('session')?.value
-    if (!sessionCookie) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Verify session and get userId
-    const session = await verifySessionToken(sessionCookie)
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
 
     const body = await request.json()
     const { is_public, display_name, handle, bio, theme, grid_mode } = body
@@ -187,33 +119,6 @@ export async function PUT(
     }
 
     const supabase = createServerSupabaseClient()
-
-    // Get user's serial_number
-    const { data: user } = await supabase
-      .from('users')
-      .select('serial_number')
-      .eq('id', session.userId)
-      .single()
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
-
-    // Get footprint by username
-    const { data: footprint } = await supabase
-      .from('footprints')
-      .select('serial_number')
-      .eq('username', username)
-      .single()
-
-    if (!footprint) {
-      return NextResponse.json({ error: 'Footprint not found' }, { status: 404 })
-    }
-
-    // Verify ownership - compare serial numbers
-    if (user.serial_number !== footprint.serial_number) {
-      return NextResponse.json({ error: 'Not your footprint' }, { status: 403 })
-    }
 
     // Update footprint
     const { error: updateError } = await supabase

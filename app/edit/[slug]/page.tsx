@@ -36,20 +36,19 @@ export default function PublicEditPage() {
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Load data on mount - check ownership first
+  // Load data on mount - no auth, just load from DB
   useEffect(() => {
     async function loadData() {
       try {
-        // Check if user owns this slug - ALWAYS fetch fresh data
+        // Fetch footprint data (no auth)
         const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
           cache: 'no-store',
           next: { revalidate: 0 },
-          credentials: 'include',
         })
         const data = await res.json()
 
-        if (data.owned && data.footprint) {
-          // User owns this - load from DB
+        if (data.footprint) {
+          // Always treat as owner - no auth
           setIsOwner(true)
           setIsPublic(data.footprint.published ?? true)
 
@@ -86,35 +85,8 @@ export default function PublicEditPage() {
             updated_at: Date.now(),
           })
         } else {
-          // Not owner - use localStorage
-          setIsOwner(false)
-          const existingDraft = loadDraft(slug)
-          if (existingDraft) {
-            setDraft(existingDraft)
-            setGridMode(existingDraft.grid_mode || 'public')
-          } else {
-            setDraft({
-              slug,
-              display_name: '',
-              handle: '',
-              bio: '',
-              theme: 'midnight',
-              grid_mode: 'public',
-              avatar_url: null,
-              content: [],
-              updated_at: Date.now(),
-            })
-          }
-        }
-      } catch (error) {
-        // Network error - fallback to localStorage
-        console.error('Failed to check ownership:', error)
-        setIsOwner(false)
-        const existingDraft = loadDraft(slug)
-        if (existingDraft) {
-          setDraft(existingDraft)
-          setGridMode(existingDraft.grid_mode || 'public')
-        } else {
+          // Footprint not found - create empty draft
+          setIsOwner(true)
           setDraft({
             slug,
             display_name: '',
@@ -127,6 +99,21 @@ export default function PublicEditPage() {
             updated_at: Date.now(),
           })
         }
+      } catch (error) {
+        console.error('Failed to load footprint:', error)
+        // Create empty draft on error
+        setIsOwner(true)
+        setDraft({
+          slug,
+          display_name: '',
+          handle: '',
+          bio: '',
+          theme: 'midnight',
+          grid_mode: 'public',
+          avatar_url: null,
+          content: [],
+          updated_at: Date.now(),
+        })
       }
       setIsLoading(false)
     }
@@ -270,7 +257,6 @@ export default function PublicEditPage() {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ slug, source, id }),
-          credentials: 'include', // Ensure cookies are sent
         })
 
         if (!res.ok) {

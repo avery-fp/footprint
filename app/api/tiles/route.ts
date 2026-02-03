@@ -4,28 +4,13 @@ import { parseURL } from '@/lib/parser'
 import { verifySessionToken } from '@/lib/auth'
 
 /**
- * Verify ownership and get serial_number from slug
- * Returns serial_number if user owns the footprint, null otherwise
- *
- * Ownership is determined by comparing serial numbers:
- * - Get user's serial_number from users table
- * - Get footprint's serial_number
- * - Check if they match
+ * Get serial_number from slug
+ * No auth - we're the only user
  */
-async function verifyOwnership(
+async function getSerialNumber(
   supabase: ReturnType<typeof createServerSupabaseClient>,
-  userId: string,
   slug: string
 ): Promise<number | null> {
-  // Get user's serial_number
-  const { data: user } = await supabase
-    .from('users')
-    .select('serial_number')
-    .eq('id', userId)
-    .single()
-
-  if (!user) return null
-
   // Get footprint by username (slug)
   const { data: footprint } = await supabase
     .from('footprints')
@@ -34,11 +19,6 @@ async function verifyOwnership(
     .single()
 
   if (!footprint) return null
-
-  // Check ownership - compare serial numbers
-  if (user.serial_number !== footprint.serial_number) {
-    return null
-  }
 
   return footprint.serial_number
 }
@@ -53,18 +33,6 @@ async function verifyOwnership(
  */
 export async function POST(request: NextRequest) {
   try {
-    // Read session cookie directly
-    const sessionCookie = request.cookies.get('session')?.value
-    if (!sessionCookie) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Verify session and get userId
-    const session = await verifySessionToken(sessionCookie)
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const { slug, url } = await request.json()
 
     if (!slug || !url) {
@@ -73,10 +41,10 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
-    // Verify ownership and get serial_number
-    const serialNumber = await verifyOwnership(supabase, session.userId, slug)
+    // Get serial_number from slug (no auth)
+    const serialNumber = await getSerialNumber(supabase, slug)
     if (!serialNumber) {
-      return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
+      return NextResponse.json({ error: 'Footprint not found' }, { status: 404 })
     }
 
     // Parse the URL
@@ -131,20 +99,6 @@ export async function POST(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   try {
-    // Read session cookie directly
-    const sessionCookie = request.cookies.get('session')?.value
-    if (!sessionCookie) {
-      console.error('DELETE /api/tiles: No session cookie')
-      return NextResponse.json({ error: 'Unauthorized - No session cookie' }, { status: 401 })
-    }
-
-    // Verify session and get userId
-    const session = await verifySessionToken(sessionCookie)
-    if (!session) {
-      console.error('DELETE /api/tiles: Invalid session token')
-      return NextResponse.json({ error: 'Unauthorized - Invalid session' }, { status: 401 })
-    }
-
     const { slug, source, id } = await request.json()
 
     if (!slug || !source || !id || !['library', 'links'].includes(source)) {
@@ -152,18 +106,18 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'slug, source (library|links), and id required' }, { status: 400 })
     }
 
-    console.log('DELETE /api/tiles:', { userId: session.userId, slug, source, id })
+    console.log('DELETE /api/tiles:', { slug, source, id })
 
     const supabase = createServerSupabaseClient()
 
-    // Verify ownership and get serial_number
-    const serialNumber = await verifyOwnership(supabase, session.userId, slug)
+    // Get serial_number from slug (no auth)
+    const serialNumber = await getSerialNumber(supabase, slug)
     if (!serialNumber) {
-      console.error('DELETE /api/tiles: Not authorized', { userId: session.userId, slug })
-      return NextResponse.json({ error: 'Not authorized - ownership verification failed' }, { status: 403 })
+      console.error('DELETE /api/tiles: Footprint not found', { slug })
+      return NextResponse.json({ error: 'Footprint not found' }, { status: 404 })
     }
 
-    console.log('DELETE /api/tiles: Ownership verified, serial_number:', serialNumber)
+    console.log('DELETE /api/tiles: Found footprint, serial_number:', serialNumber)
 
     // Delete from the correct table, ensuring serial_number matches
     const { error, count } = await supabase
