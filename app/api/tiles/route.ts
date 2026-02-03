@@ -159,7 +159,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'slug, source (library|links), and id required' }, { status: 400 })
     }
 
-    console.log('DELETE /api/tiles:', { slug, source, id })
+    console.log('DELETE /api/tiles:', { slug, source, id, idType: typeof id })
 
     const supabase = createServerSupabaseClient()
 
@@ -171,6 +171,15 @@ export async function DELETE(request: NextRequest) {
     }
 
     console.log('DELETE /api/tiles: Found footprint, serial_number:', serialNumber)
+
+    // First, verify the tile exists
+    const { data: existing } = await supabase
+      .from(source)
+      .select('id, serial_number')
+      .eq('id', id)
+      .single()
+
+    console.log('DELETE /api/tiles: Existing tile check:', existing)
 
     // Delete from the correct table, ensuring serial_number matches
     const { error, count } = await supabase
@@ -184,7 +193,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    console.log(`DELETE /api/tiles: Deleted ${count} row(s) from ${source}`)
+    console.log(`DELETE /api/tiles: Deleted ${count} row(s) from ${source} table. Tile ID: ${id}`)
 
     return NextResponse.json({ success: true, deleted: count })
 
