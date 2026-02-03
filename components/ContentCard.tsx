@@ -113,7 +113,7 @@ export default function ContentCard({ content, editable, onDelete }: ContentCard
   }
 
   // For images
-  if (content.type === 'image' && content.thumbnail_url) {
+  if (content.type === 'image') {
     return (
       <div className="glass rounded-xl overflow-hidden card-hover relative group">
         {editable && (
@@ -127,7 +127,7 @@ export default function ContentCard({ content, editable, onDelete }: ContentCard
 
         <a href={content.url} target="_blank" rel="noopener noreferrer">
           <img
-            src={content.thumbnail_url}
+            src={content.url}
             alt={content.title || ''}
             className="w-full aspect-[4/3] object-cover"
             loading="lazy"
