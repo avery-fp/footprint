@@ -50,9 +50,13 @@ export async function POST(request: NextRequest) {
     // Parse the URL
     const parsed = await parseURL(url)
 
-    // Get max position from links table
+    // Determine which table to use based on type
+    const isImage = parsed.type === 'image'
+    const tableName = isImage ? 'library' : 'links'
+
+    // Get max position from the correct table
     const { data: maxPos } = await supabase
-      .from('links')
+      .from(tableName)
       .select('position')
       .eq('serial_number', serialNumber)
       .order('position', { ascending: false })
@@ -61,27 +65,53 @@ export async function POST(request: NextRequest) {
 
     const nextPosition = (maxPos?.position ?? -1) + 1
 
-    // Insert into links table
-    const { data: tile, error } = await supabase
-      .from('links')
-      .insert({
-        serial_number: serialNumber,
-        url: parsed.url,
-        type: parsed.type,
-        title: parsed.title,
-        description: parsed.description,
-        thumbnail_url: parsed.thumbnail_url,
-        embed_html: parsed.embed_html,
-        position: nextPosition,
-      })
-      .select()
-      .single()
+    // Insert into the correct table
+    let tile, error
+
+    if (isImage) {
+      // Insert into library table for images
+      const result = await supabase
+        .from('library')
+        .insert({
+          serial_number: serialNumber,
+          image_url: parsed.url,
+          title: parsed.title,
+          description: parsed.description,
+          position: nextPosition,
+        })
+        .select()
+        .single()
+
+      tile = result.data
+      error = result.error
+    } else {
+      // Insert into links table for everything else
+      const result = await supabase
+        .from('links')
+        .insert({
+          serial_number: serialNumber,
+          url: parsed.url,
+          platform: parsed.type,
+          title: parsed.title,
+          metadata: {
+            description: parsed.description,
+            embed_html: parsed.embed_html,
+          },
+          thumbnail: parsed.thumbnail_url,
+          position: nextPosition,
+        })
+        .select()
+        .single()
+
+      tile = result.data
+      error = result.error
+    }
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ tile: { ...tile, source: 'links' } })
+    return NextResponse.json({ tile: { ...tile, source: tableName } })
 
   } catch (error) {
     console.error('Add tile error:', error)
