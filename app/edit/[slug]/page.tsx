@@ -133,6 +133,9 @@ export default function EditPage() {
   const [tileSources, setTileSources] = useState<Record<string, 'library' | 'links'>>({})
   const [rooms, setRooms] = useState<any[]>([])
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
+  const [showWallpaperPicker, setShowWallpaperPicker] = useState(false)
+  const [wallpaperUrl, setWallpaperUrl] = useState('')
+  const [backgroundBlur, setBackgroundBlur] = useState(true)
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -159,6 +162,10 @@ export default function EditPage() {
 
           const mode = data.footprint.grid_mode || 'edit'
           setGridMode(mode)
+
+          // Load wallpaper settings
+          setWallpaperUrl(data.footprint.background_url || '')
+          setBackgroundBlur(data.footprint.background_blur ?? true)
 
           const sources: Record<string, 'library' | 'links'> = {}
           const content = (data.tiles || []).map((tile: any) => {
@@ -364,6 +371,35 @@ export default function EditPage() {
     } : null)
   }
 
+  async function handleSaveWallpaper(url: string) {
+    try {
+      await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ background_url: url }),
+      })
+      setWallpaperUrl(url)
+      setDraft(prev => prev ? { ...prev, avatar_url: url } : null)
+      setShowWallpaperPicker(false)
+    } catch (e) {
+      console.error('Failed to save wallpaper:', e)
+    }
+  }
+
+  async function handleToggleBlur() {
+    const newBlur = !backgroundBlur
+    try {
+      await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ background_blur: newBlur }),
+      })
+      setBackgroundBlur(newBlur)
+    } catch (e) {
+      console.error('Failed to toggle blur:', e)
+    }
+  }
+
   if (isLoading || !draft) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#07080A]">
@@ -375,24 +411,37 @@ export default function EditPage() {
   const theme = getTheme(draft.theme)
   const gapClass = gridMode === 'public' ? 'gap-2' : gridMode === 'edit' ? 'gap-3' : 'gap-4'
 
+  const backgroundStyle = wallpaperUrl
+    ? {
+        backgroundImage: backgroundBlur
+          ? `linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url(${wallpaperUrl})`
+          : `url(${wallpaperUrl})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        color: theme.text,
+      }
+    : {
+        background: theme.bg,
+        color: theme.text,
+      }
+
   return (
-    <div
-      className="min-h-screen pb-32"
-      style={{
-        background: draft.avatar_url
-          ? `linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url(${draft.avatar_url}) center/cover`
-          : theme.bg,
-        color: theme.text
-      }}
-    >
+    <div className="min-h-screen pb-32" style={backgroundStyle}>
       {/* Back to view button - top left */}
-      <div className="fixed top-6 left-6 z-50">
+      <div className="fixed top-6 left-6 z-50 flex items-center gap-3">
         <Link
           href={`/${slug}`}
           className="flex items-center gap-2 text-sm text-white/60 hover:text-white/90 transition font-mono"
         >
           ← view
         </Link>
+        <button
+          onClick={() => setShowWallpaperPicker(true)}
+          className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center text-white/60 hover:text-white/90 transition text-sm"
+          title="Wallpaper settings"
+        >
+          🖼
+        </button>
       </div>
 
       {/* Public/Private toggle - top right */}
@@ -516,6 +565,64 @@ export default function EditPage() {
           </button>
         </div>
       </div>
+
+      {/* Wallpaper Picker Modal */}
+      {showWallpaperPicker && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={() => setShowWallpaperPicker(false)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+          <div
+            className="relative bg-black/80 backdrop-blur-xl border border-white/20 rounded-2xl p-6 max-w-md w-full"
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-medium text-white/90 mb-4">Wallpaper Settings</h3>
+
+            <div className="space-y-4">
+              {/* URL Input */}
+              <div>
+                <label className="block text-xs text-white/60 mb-2 font-mono">Image URL</label>
+                <input
+                  type="text"
+                  value={wallpaperUrl}
+                  onChange={e => setWallpaperUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="w-full px-4 py-2 bg-white/5 border border-white/20 rounded-lg font-mono text-sm text-white placeholder:text-white/30 focus:border-white/40 focus:outline-none"
+                />
+              </div>
+
+              {/* Blur Toggle */}
+              <div className="flex items-center justify-between">
+                <label className="text-sm text-white/80">Background Blur</label>
+                <button
+                  onClick={handleToggleBlur}
+                  className={`relative w-12 h-6 rounded-full transition ${
+                    backgroundBlur ? 'bg-white/30' : 'bg-white/10'
+                  }`}
+                >
+                  <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                    backgroundBlur ? 'translate-x-6' : 'translate-x-0.5'
+                  }`}></div>
+                </button>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => handleSaveWallpaper(wallpaperUrl)}
+                  className="flex-1 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg font-mono text-sm transition"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => setShowWallpaperPicker(false)}
+                  className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white/60 hover:text-white rounded-lg font-mono text-sm transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

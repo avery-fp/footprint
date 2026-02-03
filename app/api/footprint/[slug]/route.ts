@@ -103,7 +103,7 @@ export async function PUT(
     const username = params.slug
 
     const body = await request.json()
-    const { is_public, display_name, handle, bio, theme, grid_mode } = body
+    const { is_public, display_name, handle, bio, theme, grid_mode, background_url, background_blur } = body
 
     // Build update object with only provided fields (map to real schema)
     const updates: any = {}
@@ -113,6 +113,8 @@ export async function PUT(
     if (typeof bio === 'string') updates.bio = bio
     if (typeof theme === 'string') updates.dimension = theme
     if (typeof grid_mode === 'string') updates.grid_mode = grid_mode
+    if (typeof background_url === 'string') updates.background_url = background_url
+    if (typeof background_blur === 'boolean') updates.background_blur = background_blur
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
