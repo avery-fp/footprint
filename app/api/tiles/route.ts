@@ -111,7 +111,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ tile: { ...tile, source: tableName } })
+    // Normalize response to match what edit page expects
+    const normalizedTile = isImage ? {
+      id: tile.id,
+      url: tile.image_url,  // Library uses image_url
+      type: 'image',
+      title: tile.title || null,
+      description: tile.description || null,
+      thumbnail_url: null,
+      embed_html: null,
+      position: tile.position,
+      source: tableName,
+    } : {
+      id: tile.id,
+      url: tile.url,
+      type: tile.platform,
+      title: tile.title,
+      description: tile.metadata?.description || null,
+      thumbnail_url: tile.thumbnail || null,
+      embed_html: tile.metadata?.embed_html || null,
+      position: tile.position,
+      source: tableName,
+    }
+
+    return NextResponse.json({ tile: normalizedTile })
 
   } catch (error) {
     console.error('Add tile error:', error)
