@@ -67,6 +67,7 @@ function SortableTile({ id, content, onDelete, deleting, videoClass }: { id: str
               onClick={handleVideoClick}
             />
             <button
+              onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation()
                 onDelete()
@@ -88,6 +89,7 @@ function SortableTile({ id, content, onDelete, deleting, videoClass }: { id: str
               loading="lazy"
             />
             <button
+              onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation()
                 onDelete()
@@ -102,6 +104,7 @@ function SortableTile({ id, content, onDelete, deleting, videoClass }: { id: str
         <div className="relative group">
           <ContentCard content={content} />
           <button
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation()
               onDelete()
