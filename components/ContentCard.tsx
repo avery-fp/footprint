@@ -32,8 +32,18 @@ export default function ContentCard({ content, editable, onDelete }: ContentCard
     hostname = new URL(content.url).hostname.replace('www.', '')
   } catch {}
 
+  // YouTube - edge-to-edge beautiful, no wrapper
+  if (content.type === 'youtube' && content.embed_html) {
+    return (
+      <div
+        className="w-full aspect-video min-h-[300px] rounded-2xl overflow-hidden"
+        dangerouslySetInnerHTML={{ __html: content.embed_html }}
+      />
+    )
+  }
+
   // For embeddable content, show the embed
-  if (content.embed_html && ['youtube', 'spotify', 'applemusic', 'vimeo', 'soundcloud'].includes(content.type)) {
+  if (content.embed_html && ['spotify', 'applemusic', 'vimeo', 'soundcloud'].includes(content.type)) {
     // Determine min-height based on type to prevent layout shift
     let minHeightClass = ''
     if (content.type === 'youtube' || content.type === 'vimeo') {
