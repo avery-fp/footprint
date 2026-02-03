@@ -37,18 +37,27 @@ export default function ContentCard({ content, editable, onDelete }: ContentCard
   // YouTube - edge-to-edge beautiful, tap to unmute
   if (content.type === 'youtube' && content.embed_html) {
     // Swap mute parameter in embed HTML
-    const embedWithSound = isMuted
+    let embedHtml = isMuted
       ? content.embed_html
-      : content.embed_html.replace('mute=1', 'mute=0').replace('autoplay=1', 'autoplay=1')
+      : content.embed_html.replace('mute=1', 'mute=0')
+
+    // Inject absolute positioning and full sizing into iframe
+    embedHtml = embedHtml.replace(
+      '<iframe',
+      '<iframe style="position:absolute;top:0;left:0;width:100%;height:100%"'
+    )
 
     return (
       <div
-        className="w-full aspect-video min-h-[300px] rounded-2xl overflow-hidden cursor-pointer relative group"
+        className="w-full aspect-video min-h-[300px] rounded-2xl overflow-hidden cursor-pointer relative"
         onClick={() => setIsMuted(!isMuted)}
       >
-        <div dangerouslySetInnerHTML={{ __html: embedWithSound }} />
+        <div
+          className="absolute inset-0"
+          dangerouslySetInnerHTML={{ __html: embedHtml }}
+        />
         {!isMuted && (
-          <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60"></div>
+          <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60 z-10"></div>
         )}
       </div>
     )
