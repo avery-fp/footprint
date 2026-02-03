@@ -18,7 +18,7 @@ interface TileContent extends DraftContent {
 }
 
 // Sortable tile wrapper
-function SortableTile({ id, content, onDelete, deleting }: { id: string; content: any; onDelete: () => void; deleting: boolean }) {
+function SortableTile({ id, content, onDelete, deleting, videoClass }: { id: string; content: any; onDelete: () => void; deleting: boolean; videoClass?: string }) {
   const [isMuted, setIsMuted] = useState(true)
   const videoRef = useRef<HTMLVideoElement>(null)
 
@@ -59,7 +59,7 @@ function SortableTile({ id, content, onDelete, deleting }: { id: string; content
             <video
               ref={videoRef}
               src={content.url}
-              className="w-full aspect-video object-cover rounded-2xl cursor-pointer"
+              className={`w-full object-cover rounded-2xl cursor-pointer ${videoClass || 'aspect-video'}`}
               autoPlay
               muted
               loop
@@ -409,7 +409,27 @@ export default function EditPage() {
   }
 
   const theme = getTheme(draft.theme)
-  const gapClass = gridMode === 'public' ? 'gap-2' : gridMode === 'edit' ? 'gap-3' : 'gap-4'
+
+  // Layout mode styles
+  const layoutStyles = {
+    public: { // TIGHT / TETRIS
+      gap: 'gap-1',
+      columns: 'columns-2 sm:columns-3 md:columns-4 lg:columns-5',
+      videoClass: 'aspect-[3/4] min-h-[300px]', // Taller, more prominent videos
+    },
+    edit: { // FLOW / MEDIUM
+      gap: 'gap-3',
+      columns: 'columns-2 sm:columns-3 md:columns-4 lg:columns-5',
+      videoClass: 'aspect-video',
+    },
+    spaced: { // TUMBLR / SPACED
+      gap: 'gap-6',
+      columns: 'columns-1 sm:columns-2 md:columns-2 lg:columns-3',
+      videoClass: 'aspect-video',
+    },
+  }
+
+  const currentLayout = layoutStyles[gridMode]
 
   const backgroundStyle = wallpaperUrl
     ? {
@@ -522,7 +542,7 @@ export default function EditPage() {
               items={draft.content.map(item => item.id)}
               strategy={rectSortingStrategy}
             >
-              <div className={`columns-2 sm:columns-3 md:columns-4 lg:columns-5 ${gapClass}`}>
+              <div className={`${currentLayout.columns} ${currentLayout.gap}`}>
                 {draft.content.map(item => (
                   <SortableTile
                     key={item.id}
@@ -530,6 +550,7 @@ export default function EditPage() {
                     content={item}
                     onDelete={() => handleDelete(item.id)}
                     deleting={deletingIds.has(item.id)}
+                    videoClass={currentLayout.videoClass}
                   />
                 ))}
               </div>
