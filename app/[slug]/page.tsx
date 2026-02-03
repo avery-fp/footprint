@@ -126,7 +126,7 @@ export default async function FootprintPage({ params }: Props) {
                 item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i) ? (
                   <video
                     src={item.url}
-                    className="w-full object-cover rounded-2xl"
+                    className="w-full aspect-video object-cover rounded-2xl"
                     autoPlay
                     muted
                     loop

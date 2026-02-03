@@ -47,7 +47,7 @@ function SortableTile({ id, content, onDelete, deleting }: { id: string; content
           <div className="relative group">
             <video
               src={content.url}
-              className="w-full object-cover rounded-2xl"
+              className="w-full aspect-video object-cover rounded-2xl"
               autoPlay
               muted
               loop
