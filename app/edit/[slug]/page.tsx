@@ -40,8 +40,12 @@ export default function PublicEditPage() {
   useEffect(() => {
     async function loadData() {
       try {
-        // Check if user owns this slug
-        const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}`)
+        // Check if user owns this slug - ALWAYS fetch fresh data
+        const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
+          cache: 'no-store',
+          next: { revalidate: 0 },
+          credentials: 'include',
+        })
         const data = await res.json()
 
         if (data.owned && data.footprint) {

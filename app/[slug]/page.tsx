@@ -9,6 +9,8 @@ import ShareButton from '@/components/ShareButton'
 
 // Force dynamic rendering - never statically generate user pages
 export const dynamic = 'force-dynamic'
+// Disable all caching and revalidation
+export const revalidate = 0
 
 interface Props {
   params: { slug: string }
