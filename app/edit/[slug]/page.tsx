@@ -76,9 +76,7 @@ function SortableTile({ id, content, onDelete, deleting }: { id: string; content
               ×
             </button>
             {!isMuted && (
-              <div className="absolute bottom-3 right-3 text-white/60 text-xs font-mono bg-black/50 px-2 py-1 rounded">
-                🔊
-              </div>
+              <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60"></div>
             )}
           </div>
         ) : (
