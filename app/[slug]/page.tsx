@@ -119,26 +119,32 @@ export default async function FootprintPage({ params }: Props) {
           )}
         </header>
 
-        {/* Masonry Grid */}
-        <div className="columns-2 sm:columns-3 md:columns-4 lg:columns-5 gap-3 max-w-6xl mx-auto">
-          {content.map((item: any) => (
-            <div key={item.id} className="break-inside-avoid mb-3">
-              {item.type === 'image' ? (
-                item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i) ? (
-                  <VideoTile src={item.url} />
+        {/* Tetris Grid - mix of wide and narrow tiles */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 max-w-6xl mx-auto auto-rows-min">
+          {content.map((item: any, index: number) => {
+            // Determine if this should be a wide tile (span 2 columns)
+            const isWide = item.type === 'youtube' || (item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i))
+            const spanClass = isWide ? 'col-span-2' : 'col-span-1'
+
+            return (
+              <div key={item.id} className={spanClass}>
+                {item.type === 'image' ? (
+                  item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i) ? (
+                    <VideoTile src={item.url} />
+                  ) : (
+                    <img
+                      src={item.url}
+                      className="w-full object-cover rounded-2xl"
+                      alt=""
+                      loading="lazy"
+                    />
+                  )
                 ) : (
-                  <img
-                    src={item.url}
-                    className="w-full object-cover rounded-2xl"
-                    alt=""
-                    loading="lazy"
-                  />
-                )
-              ) : (
-                <ContentCard content={item} />
-              )}
-            </div>
-          ))}
+                  <ContentCard content={item} />
+                )}
+              </div>
+            )
+          })}
         </div>
 
         {content.length === 0 && (

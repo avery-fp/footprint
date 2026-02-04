@@ -18,7 +18,7 @@ interface TileContent extends DraftContent {
 }
 
 // Sortable tile wrapper
-function SortableTile({ id, content, onDelete, deleting, videoClass }: { id: string; content: any; onDelete: () => void; deleting: boolean; videoClass?: string }) {
+function SortableTile({ id, content, onDelete, deleting, videoClass, spanClass }: { id: string; content: any; onDelete: () => void; deleting: boolean; videoClass?: string; spanClass?: string }) {
   const [isMuted, setIsMuted] = useState(true)
   const videoRef = useRef<HTMLVideoElement>(null)
 
@@ -49,7 +49,7 @@ function SortableTile({ id, content, onDelete, deleting, videoClass }: { id: str
     <div
       ref={setNodeRef}
       style={style}
-      className="break-inside-avoid mb-3"
+      className={spanClass || 'col-span-1'}
       {...attributes}
       {...listeners}
     >
@@ -413,21 +413,21 @@ export default function EditPage() {
 
   const theme = getTheme(draft.theme)
 
-  // Layout mode styles
+  // Layout mode styles - CSS Grid for tetris composition
   const layoutStyles = {
     public: { // TIGHT / TETRIS
       gap: 'gap-1',
-      columns: 'columns-2 sm:columns-3 md:columns-4 lg:columns-5',
+      grid: 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 auto-rows-min',
       videoClass: 'aspect-[3/4] min-h-[300px]', // Taller, more prominent videos
     },
     edit: { // FLOW / MEDIUM
       gap: 'gap-3',
-      columns: 'columns-2 sm:columns-3 md:columns-4 lg:columns-5',
+      grid: 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 auto-rows-min',
       videoClass: 'aspect-video min-h-[300px]',
     },
     spaced: { // TUMBLR / SPACED
       gap: 'gap-6',
-      columns: 'columns-1 sm:columns-2 md:columns-2 lg:columns-3',
+      grid: 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 auto-rows-min',
       videoClass: 'aspect-video min-h-[300px]',
     },
   }
@@ -534,7 +534,7 @@ export default function EditPage() {
 
       {/* Main content */}
       <div className="max-w-7xl mx-auto px-4 py-20">
-        {/* Masonry Grid */}
+        {/* Tetris Grid */}
         {draft.content.length > 0 ? (
           <DndContext
             sensors={sensors}
@@ -545,17 +545,24 @@ export default function EditPage() {
               items={draft.content.map(item => item.id)}
               strategy={rectSortingStrategy}
             >
-              <div className={`${currentLayout.columns} ${currentLayout.gap}`}>
-                {draft.content.map(item => (
-                  <SortableTile
-                    key={item.id}
-                    id={item.id}
-                    content={item}
-                    onDelete={() => handleDelete(item.id)}
-                    deleting={deletingIds.has(item.id)}
-                    videoClass={currentLayout.videoClass}
-                  />
-                ))}
+              <div className={`${currentLayout.grid} ${currentLayout.gap}`}>
+                {draft.content.map(item => {
+                  // Determine if this should be a wide tile (span 2 columns)
+                  const isWide = item.type === 'youtube' || (item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i))
+                  const spanClass = isWide ? 'col-span-2' : 'col-span-1'
+
+                  return (
+                    <SortableTile
+                      key={item.id}
+                      id={item.id}
+                      content={item}
+                      onDelete={() => handleDelete(item.id)}
+                      deleting={deletingIds.has(item.id)}
+                      videoClass={currentLayout.videoClass}
+                      spanClass={spanClass}
+                    />
+                  )
+                })}
               </div>
             </SortableContext>
           </DndContext>
