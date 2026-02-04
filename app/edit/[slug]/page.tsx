@@ -172,6 +172,11 @@ export default function EditPage() {
             updated_at: Date.now(),
           })
 
+          // Fetch rooms
+          if (data.rooms) {
+            setRooms(data.rooms)
+          }
+
           setActiveRoomId(data.footprint.id)
         } else {
           setIsOwner(true)
