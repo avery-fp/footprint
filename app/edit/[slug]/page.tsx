@@ -17,8 +17,8 @@ interface TileContent extends DraftContent {
   source?: 'library' | 'links'
 }
 
-// Sortable tile wrapper
-function SortableTile({ id, content, onDelete, deleting, videoClass, spanClass }: { id: string; content: any; onDelete: () => void; deleting: boolean; videoClass?: string; spanClass?: string }) {
+// Sortable tile wrapper - MASONRY STYLE
+function SortableTile({ id, content, onDelete, deleting }: { id: string; content: any; onDelete: () => void; deleting: boolean }) {
   const [isMuted, setIsMuted] = useState(true)
   const videoRef = useRef<HTMLVideoElement>(null)
 
@@ -49,72 +49,52 @@ function SortableTile({ id, content, onDelete, deleting, videoClass, spanClass }
     <div
       ref={setNodeRef}
       style={style}
-      className={spanClass || 'col-span-1'}
+      className="break-inside-avoid mb-2"
       {...attributes}
       {...listeners}
     >
-      {content.type === 'image' ? (
-        content.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i) ? (
-          <div className="relative group">
-            <video
-              ref={videoRef}
-              src={content.url}
-              className={`w-full object-cover rounded-2xl cursor-pointer ${videoClass || 'aspect-video'}`}
-              autoPlay
-              muted
-              loop
-              playsInline
-              onClick={handleVideoClick}
-            />
-            <button
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation()
-                onDelete()
-              }}
-              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/70 text-white/80 hover:bg-red-500 hover:text-white opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center text-xl"
-            >
-              ×
-            </button>
-            {!isMuted && (
-              <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60"></div>
-            )}
-          </div>
-        ) : (
-          <div className="relative group">
+      <div className="relative">
+        {/* Red dot delete - always visible */}
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete()
+          }}
+          className="absolute top-2 left-2 w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 z-10 transition-all"
+          title="Delete"
+        />
+
+        {/* Tile content */}
+        {content.type === 'image' ? (
+          content.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i) ? (
+            <div className="relative">
+              <video
+                ref={videoRef}
+                src={content.url}
+                className="w-full object-cover rounded-2xl cursor-pointer"
+                autoPlay
+                muted
+                loop
+                playsInline
+                onClick={handleVideoClick}
+              />
+              {!isMuted && (
+                <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60"></div>
+              )}
+            </div>
+          ) : (
             <img
               src={content.url}
               className="w-full object-cover rounded-2xl"
               alt=""
               loading="lazy"
             />
-            <button
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation()
-                onDelete()
-              }}
-              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/70 text-white/80 hover:bg-red-500 hover:text-white opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center text-xl"
-            >
-              ×
-            </button>
-          </div>
-        )
-      ) : (
-        <div className="relative group">
+          )
+        ) : (
           <ContentCard content={content} />
-          <button
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation()
-              onDelete()
-            }}
-            className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/70 text-white/80 hover:bg-red-500 hover:text-white opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center text-xl z-10"
-          >
-            ×
-          </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
@@ -130,15 +110,9 @@ export default function EditPage() {
   const [isAdding, setIsAdding] = useState(false)
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
   const [isOwner, setIsOwner] = useState(false)
-  const [isPublic, setIsPublic] = useState(true)
-  const [isTogglingPublic, setIsTogglingPublic] = useState(false)
-  const [gridMode, setGridMode] = useState<'public' | 'edit' | 'spaced'>('edit')
   const [tileSources, setTileSources] = useState<Record<string, 'library' | 'links'>>({})
   const [rooms, setRooms] = useState<any[]>([])
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
-  const [showWallpaperPicker, setShowWallpaperPicker] = useState(false)
-  const [wallpaperUrl, setWallpaperUrl] = useState('')
-  const [backgroundBlur, setBackgroundBlur] = useState(true)
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -161,14 +135,6 @@ export default function EditPage() {
 
         if (data.footprint) {
           setIsOwner(true)
-          setIsPublic(data.footprint.published ?? true)
-
-          const mode = data.footprint.grid_mode || 'edit'
-          setGridMode(mode)
-
-          // Load wallpaper settings
-          setWallpaperUrl(data.footprint.background_url || '')
-          setBackgroundBlur(data.footprint.background_blur ?? true)
 
           const sources: Record<string, 'library' | 'links'> = {}
           const content = (data.tiles || []).map((tile: any) => {
@@ -192,7 +158,7 @@ export default function EditPage() {
             handle: data.footprint.handle || '',
             bio: data.footprint.bio || '',
             theme: data.footprint.dimension || 'midnight',
-            grid_mode: mode,
+            grid_mode: 'edit',
             avatar_url: data.footprint.background_url || null,
             content,
             updated_at: Date.now(),
@@ -365,43 +331,6 @@ export default function EditPage() {
     })
   }
 
-  function handleGridModeChange(mode: 'public' | 'edit' | 'spaced') {
-    setGridMode(mode)
-    setDraft(prev => prev ? {
-      ...prev,
-      grid_mode: mode,
-      updated_at: Date.now(),
-    } : null)
-  }
-
-  async function handleSaveWallpaper(url: string) {
-    try {
-      await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ background_url: url }),
-      })
-      setWallpaperUrl(url)
-      setDraft(prev => prev ? { ...prev, avatar_url: url } : null)
-      setShowWallpaperPicker(false)
-    } catch (e) {
-      console.error('Failed to save wallpaper:', e)
-    }
-  }
-
-  async function handleToggleBlur() {
-    const newBlur = !backgroundBlur
-    try {
-      await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ background_blur: newBlur }),
-      })
-      setBackgroundBlur(newBlur)
-    } catch (e) {
-      console.error('Failed to toggle blur:', e)
-    }
-  }
 
   if (isLoading || !draft) {
     return (
@@ -413,143 +342,55 @@ export default function EditPage() {
 
   const theme = getTheme(draft.theme)
 
-  // Helper to determine tile spanning for tetris composition
-  const getTileSpan = (item: any) => {
-    // Wide tiles (landscape hero moments)
-    const isWide = item.type === 'youtube' ||
-      (item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i))
-
-    // Tall tiles (vertical moments) - embeds that are naturally tall
-    const isTall = ['spotify', 'soundcloud'].includes(item.type)
-
-    return {
-      col: isWide ? 'col-span-2' : 'col-span-1',
-      row: isTall ? 'row-span-2' : 'row-span-1',
-    }
-  }
-
-  // Layout mode styles - CSS Grid for tetris composition
-  const layoutStyles = {
-    public: { // TIGHT / TETRIS
-      gap: 'gap-1',
-      grid: 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 auto-rows-min',
-      videoClass: 'aspect-[3/4] min-h-[300px]', // Taller, more prominent videos
-    },
-    edit: { // FLOW / MEDIUM
-      gap: 'gap-3',
-      grid: 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 auto-rows-min',
-      videoClass: 'aspect-video min-h-[300px]',
-    },
-    spaced: { // GENEROUS / EDITORIAL
-      gap: 'gap-8',
-      grid: 'max-w-2xl mx-auto',
-      videoClass: 'aspect-video min-h-[300px]',
-    },
-  }
-
-  const currentLayout = layoutStyles[gridMode]
-
-  const backgroundStyle = wallpaperUrl
-    ? {
-        backgroundImage: backgroundBlur
-          ? `linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url(${wallpaperUrl})`
-          : `url(${wallpaperUrl})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        color: theme.text,
-      }
-    : {
-        background: theme.bg,
-        color: theme.text,
-      }
-
   return (
-    <div className="min-h-screen pb-32" style={backgroundStyle}>
-      {/* Back to view button - top left */}
-      <div className="fixed top-6 left-6 z-50 flex items-center gap-3">
+    <div className="min-h-screen pb-32" style={{ background: theme.bg, color: theme.text }}>
+      {/* Header - Left: view, Right: Done */}
+      <div className="fixed top-6 left-6 z-50">
         <Link
           href={`/${slug}`}
           className="flex items-center gap-2 text-sm text-white/60 hover:text-white/90 transition font-mono"
         >
           ← view
         </Link>
-        <button
-          onClick={() => setShowWallpaperPicker(true)}
-          className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center text-white/60 hover:text-white/90 transition text-sm"
-          title="Wallpaper settings"
-        >
-          🖼
-        </button>
       </div>
 
-      {/* Public/Private toggle - top right */}
       <div className="fixed top-6 right-6 z-50">
-        <button
-          onClick={async () => {
-            setIsTogglingPublic(true)
-            try {
-              await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ is_public: !isPublic }),
-              })
-              setIsPublic(!isPublic)
-            } catch (e) {
-              console.error(e)
-            } finally {
-              setIsTogglingPublic(false)
-            }
-          }}
-          disabled={isTogglingPublic}
-          className={`text-xs font-mono px-3 py-1.5 rounded-full glass transition ${
-            isPublic
-              ? 'bg-green-500/20 text-green-300 hover:bg-green-500/30'
-              : 'bg-white/10 text-white/50 hover:bg-white/20'
-          } disabled:opacity-50 border border-white/10`}
+        <Link
+          href={`/${slug}`}
+          className="text-sm font-medium text-white/90 hover:text-white transition px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
         >
-          {isTogglingPublic ? '...' : isPublic ? 'Public' : 'Private'}
-        </button>
+          Done
+        </Link>
       </div>
-
-      {/* Spacing toggle - top center */}
-      {draft.content.length > 0 && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 glass rounded-full px-4 py-2 border border-white/10">
-          <button
-            onClick={() => handleGridModeChange('public')}
-            className={`font-mono text-xs px-3 py-1 rounded-full transition ${
-              gridMode === 'public'
-                ? 'bg-white/20 text-white'
-                : 'text-white/40 hover:text-white/60'
-            }`}
-          >
-            Tight
-          </button>
-          <button
-            onClick={() => handleGridModeChange('edit')}
-            className={`font-mono text-xs px-3 py-1 rounded-full transition ${
-              gridMode === 'edit'
-                ? 'bg-white/20 text-white'
-                : 'text-white/40 hover:text-white/60'
-            }`}
-          >
-            Medium
-          </button>
-          <button
-            onClick={() => handleGridModeChange('spaced')}
-            className={`font-mono text-xs px-3 py-1 rounded-full transition ${
-              gridMode === 'spaced'
-                ? 'bg-white/20 text-white'
-                : 'text-white/40 hover:text-white/60'
-            }`}
-          >
-            Generous
-          </button>
-        </div>
-      )}
 
       {/* Main content */}
       <div className="max-w-7xl mx-auto px-4 py-20">
-        {/* Tetris Grid - intentional composition */}
+        {/* Room Tabs (if rooms exist) */}
+        {rooms.length > 0 && (
+          <div className="flex items-center justify-center gap-2 mb-8 flex-wrap">
+            {rooms.map((room) => (
+              <button
+                key={room.id}
+                onClick={() => setActiveRoomId(room.id)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all border ${
+                  activeRoomId === room.id
+                    ? 'bg-white text-black border-white'
+                    : 'bg-transparent text-white/70 border-white/20 hover:border-white/40'
+                }`}
+              >
+                {room.name}
+              </button>
+            ))}
+            <button
+              className="w-8 h-8 rounded-full border border-white/20 hover:border-white/40 text-white/70 hover:text-white flex items-center justify-center transition-all"
+              title="Add room"
+            >
+              +
+            </button>
+          </div>
+        )}
+
+        {/* Masonry Grid - Preview Build Style */}
         {draft.content.length > 0 ? (
           <DndContext
             sensors={sensors}
@@ -560,45 +401,17 @@ export default function EditPage() {
               items={draft.content.map(item => item.id)}
               strategy={rectSortingStrategy}
             >
-              {gridMode === 'spaced' ? (
-                // GENEROUS MODE - Editorial single column
-                <div className={`${currentLayout.grid} space-y-${currentLayout.gap.split('-')[1]}`}>
-                  {draft.content.map(item => (
-                    <SortableTile
-                      key={item.id}
-                      id={item.id}
-                      content={item}
-                      onDelete={() => handleDelete(item.id)}
-                      deleting={deletingIds.has(item.id)}
-                      videoClass={currentLayout.videoClass}
-                      spanClass="w-full"
-                    />
-                  ))}
-                </div>
-              ) : (
-                // TIGHT / MEDIUM MODE - Dense tetris grid
-                <div
-                  className={`${currentLayout.grid} ${currentLayout.gap}`}
-                  style={{ gridAutoFlow: 'dense' }}
-                >
-                  {draft.content.map(item => {
-                    const span = getTileSpan(item)
-                    const spanClass = `${span.col} ${span.row}`
-
-                    return (
-                      <SortableTile
-                        key={item.id}
-                        id={item.id}
-                        content={item}
-                        onDelete={() => handleDelete(item.id)}
-                        deleting={deletingIds.has(item.id)}
-                        videoClass={currentLayout.videoClass}
-                        spanClass={spanClass}
-                      />
-                    )
-                  })}
-                </div>
-              )}
+              <div className="columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6 gap-2">
+                {draft.content.map(item => (
+                  <SortableTile
+                    key={item.id}
+                    id={item.id}
+                    content={item}
+                    onDelete={() => handleDelete(item.id)}
+                    deleting={deletingIds.has(item.id)}
+                  />
+                ))}
+              </div>
             </SortableContext>
           </DndContext>
         ) : (
@@ -631,64 +444,6 @@ export default function EditPage() {
           </button>
         </div>
       </div>
-
-      {/* Wallpaper Picker Modal */}
-      {showWallpaperPicker && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={() => setShowWallpaperPicker(false)}>
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
-          <div
-            className="relative bg-black/80 backdrop-blur-xl border border-white/20 rounded-2xl p-6 max-w-md w-full"
-            onClick={e => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-medium text-white/90 mb-4">Wallpaper Settings</h3>
-
-            <div className="space-y-4">
-              {/* URL Input */}
-              <div>
-                <label className="block text-xs text-white/60 mb-2 font-mono">Image URL</label>
-                <input
-                  type="text"
-                  value={wallpaperUrl}
-                  onChange={e => setWallpaperUrl(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full px-4 py-2 bg-white/5 border border-white/20 rounded-lg font-mono text-sm text-white placeholder:text-white/30 focus:border-white/40 focus:outline-none"
-                />
-              </div>
-
-              {/* Blur Toggle */}
-              <div className="flex items-center justify-between">
-                <label className="text-sm text-white/80">Background Blur</label>
-                <button
-                  onClick={handleToggleBlur}
-                  className={`relative w-12 h-6 rounded-full transition ${
-                    backgroundBlur ? 'bg-white/30' : 'bg-white/10'
-                  }`}
-                >
-                  <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
-                    backgroundBlur ? 'translate-x-6' : 'translate-x-0.5'
-                  }`}></div>
-                </button>
-              </div>
-
-              {/* Buttons */}
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={() => handleSaveWallpaper(wallpaperUrl)}
-                  className="flex-1 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg font-mono text-sm transition"
-                >
-                  Save
-                </button>
-                <button
-                  onClick={() => setShowWallpaperPicker(false)}
-                  className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white/60 hover:text-white rounded-lg font-mono text-sm transition"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
