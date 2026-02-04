@@ -224,41 +224,64 @@ export default function ContentCard({ content, editable, onDelete }: ContentCard
     )
   }
 
-  // For Twitter/X, Instagram, TikTok - social embeds
+  // For Twitter/X, Instagram, TikTok - visual-only social tiles
   if (['twitter', 'instagram', 'tiktok'].includes(content.type)) {
-    return (
-      <div className="rounded-xl overflow-hidden card-hover relative group bg-white/[0.03] backdrop-blur-xl border border-white/10 hover:border-white/20 transition-all">
-        {editable && (
-          <button
-            onClick={onDelete}
-            className="absolute top-3 right-3 z-10 w-8 h-8 rounded-lg bg-black/70 text-white/80 hover:bg-red-500 hover:text-white opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-all flex items-center justify-center"
-          >
-            ×
-          </button>
-        )}
-
+    // If has thumbnail, show it as visual tile
+    if (content.thumbnail_url) {
+      return (
         <a
           href={content.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="block p-6"
+          className="block rounded-2xl overflow-hidden relative group"
         >
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-lg">
-              {icon}
-            </div>
-            <div>
-              <p className="font-mono text-xs text-white/40 uppercase tracking-wider">
-                {content.type}
-              </p>
-            </div>
+          {editable && (
+            <button
+              onClick={(e) => {
+                e.preventDefault()
+                onDelete?.()
+              }}
+              className="absolute top-2 right-2 z-10 w-6 h-6 rounded-full bg-black/70 text-white/80 hover:bg-red-500 hover:text-white opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-all flex items-center justify-center text-xs"
+            >
+              ×
+            </button>
+          )}
+          <img
+            src={content.thumbnail_url}
+            alt=""
+            className="w-full aspect-square object-cover"
+            loading="lazy"
+          />
+          <div className="absolute bottom-2 left-2 text-2xl opacity-80">
+            {icon}
           </div>
-
-          <p className="text-sm text-white/70 line-clamp-3">
-            {content.title || 'View on ' + content.type}
-          </p>
         </a>
-      </div>
+      )
+    }
+
+    // No thumbnail: minimal icon tile
+    return (
+      <a
+        href={content.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block rounded-2xl overflow-hidden aspect-square bg-white/[0.03] backdrop-blur-xl border border-white/10 hover:border-white/20 transition-all flex items-center justify-center relative group"
+      >
+        {editable && (
+          <button
+            onClick={(e) => {
+              e.preventDefault()
+              onDelete?.()
+            }}
+            className="absolute top-2 right-2 z-10 w-6 h-6 rounded-full bg-black/70 text-white/80 hover:bg-red-500 hover:text-white opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-all flex items-center justify-center text-xs"
+          >
+            ×
+          </button>
+        )}
+        <div className="text-4xl opacity-40">
+          {icon}
+        </div>
+      </a>
     )
   }
 
