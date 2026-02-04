@@ -172,12 +172,7 @@ export default function EditPage() {
             updated_at: Date.now(),
           })
 
-          // Fetch rooms
-          if (data.rooms) {
-            setRooms(data.rooms)
-          }
-
-          setActiveRoomId(null)
+          setActiveRoomId(data.footprint.id)
         } else {
           setIsOwner(true)
           setDraft({
@@ -468,16 +463,6 @@ export default function EditPage() {
         {/* Room Tabs (if rooms exist) */}
         {rooms.length > 0 && (
           <div className="flex items-center justify-center gap-2 mb-8 flex-wrap">
-            <button
-              onClick={() => setActiveRoomId(null)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all border ${
-                activeRoomId === null
-                  ? 'bg-white text-black border-white'
-                  : 'bg-transparent text-white/70 border-white/20 hover:border-white/40'
-              }`}
-            >
-              all
-            </button>
             {rooms.map((room) => (
               <button
                 key={room.id}

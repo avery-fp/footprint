@@ -1,42 +1,9 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import ContentCard from '@/components/ContentCard'
 import VideoTile from '@/components/VideoTile'
-
-// Component to detect widescreen images
-function ImageTile({ src }: { src: string }) {
-  const [isWidescreen, setIsWidescreen] = useState(false)
-  const imgRef = useRef<HTMLImageElement>(null)
-
-  useEffect(() => {
-    if (imgRef.current && imgRef.current.complete) {
-      checkAspectRatio()
-    }
-  }, [])
-
-  const checkAspectRatio = () => {
-    if (imgRef.current) {
-      const aspectRatio = imgRef.current.naturalWidth / imgRef.current.naturalHeight
-      // Ultra-wide: aspect ratio > 2.0 (like panoramas)
-      setIsWidescreen(aspectRatio > 2.0)
-    }
-  }
-
-  return (
-    <div className={isWidescreen ? 'widescreen' : ''}>
-      <img
-        ref={imgRef}
-        src={src}
-        className="w-full object-cover rounded-2xl"
-        alt=""
-        loading="lazy"
-        onLoad={checkAspectRatio}
-      />
-    </div>
-  )
-}
 
 interface Room {
   id: string
@@ -126,7 +93,12 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                   item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i) ? (
                     <VideoTile src={item.url} />
                   ) : (
-                    <ImageTile src={item.url} />
+                    <img
+                      src={item.url}
+                      className="w-full object-cover rounded-2xl"
+                      alt=""
+                      loading="lazy"
+                    />
                   )
                 ) : (
                   <ContentCard content={item} />
@@ -179,7 +151,12 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                           <VideoTile src={item.url} />
                         </div>
                       ) : (
-                        <ImageTile src={item.url} />
+                        <img
+                          src={item.url}
+                          className="w-full object-cover"
+                          alt=""
+                          loading="lazy"
+                        />
                       )
                     ) : (
                       <ContentCard content={item} />
