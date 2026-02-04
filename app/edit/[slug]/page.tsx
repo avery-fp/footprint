@@ -17,7 +17,7 @@ interface TileContent extends DraftContent {
   source?: 'library' | 'links'
 }
 
-// Sortable tile wrapper - MASONRY STYLE
+// Sortable tile wrapper - CSS GRID STYLE
 function SortableTile({ id, content, onDelete, deleting }: { id: string; content: any; onDelete: () => void; deleting: boolean }) {
   const [isMuted, setIsMuted] = useState(true)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -49,7 +49,7 @@ function SortableTile({ id, content, onDelete, deleting }: { id: string; content
     <div
       ref={setNodeRef}
       style={style}
-      className="break-inside-avoid mb-2"
+      className="relative"
       {...attributes}
       {...listeners}
     >
@@ -116,7 +116,6 @@ export default function EditPage() {
   const [showWallpaperPicker, setShowWallpaperPicker] = useState(false)
   const [wallpaperUrl, setWallpaperUrl] = useState('')
   const [backgroundBlur, setBackgroundBlur] = useState(true)
-  const [layoutMode, setLayoutMode] = useState<'tight' | 'medium' | 'generous'>('medium')
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -379,13 +378,6 @@ export default function EditPage() {
 
   const theme = getTheme(draft.theme)
 
-  // Layout configuration
-  const layoutConfig = {
-    tight: { columns: 'columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6', gap: 'gap-1' },
-    medium: { columns: 'columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6', gap: 'gap-2' },
-    generous: { columns: 'columns-2 sm:columns-3 md:columns-4 lg:columns-5', gap: 'gap-4' },
-  }
-
   const backgroundStyle = wallpaperUrl
     ? {
         backgroundImage: backgroundBlur
@@ -402,60 +394,20 @@ export default function EditPage() {
 
   return (
     <div className="min-h-screen pb-32" style={backgroundStyle}>
-      {/* Header - Left: view + wallpaper, Center: layout toggle, Right: Done */}
-      <div className="fixed top-6 left-6 z-50 flex items-center gap-3">
+      {/* Header - Left: view, Right: Edit */}
+      <div className="fixed top-6 left-6 z-50">
         <Link
           href={`/${slug}`}
-          className="flex items-center gap-2 text-sm text-white/60 hover:text-white/90 transition font-mono"
+          className="text-sm text-white/60 hover:text-white/90 transition font-mono"
         >
           ← view
         </Link>
-        <button
-          onClick={() => setShowWallpaperPicker(true)}
-          className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center text-white/60 hover:text-white/90 transition text-sm"
-          title="Wallpaper"
-        >
-          🖼
-        </button>
       </div>
 
-      {/* Layout Toggle - Center */}
-      {draft.content.length > 0 && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-black/50 backdrop-blur-xl rounded-full px-4 py-2 border border-white/10">
-          <button
-            onClick={() => setLayoutMode('tight')}
-            className={`font-mono text-xs px-3 py-1 rounded-full transition ${
-              layoutMode === 'tight' ? 'bg-white/20 text-white' : 'text-white/40 hover:text-white/60'
-            }`}
-          >
-            Tight
-          </button>
-          <button
-            onClick={() => setLayoutMode('medium')}
-            className={`font-mono text-xs px-3 py-1 rounded-full transition ${
-              layoutMode === 'medium' ? 'bg-white/20 text-white' : 'text-white/40 hover:text-white/60'
-            }`}
-          >
-            Medium
-          </button>
-          <button
-            onClick={() => setLayoutMode('generous')}
-            className={`font-mono text-xs px-3 py-1 rounded-full transition ${
-              layoutMode === 'generous' ? 'bg-white/20 text-white' : 'text-white/40 hover:text-white/60'
-            }`}
-          >
-            Generous
-          </button>
-        </div>
-      )}
-
       <div className="fixed top-6 right-6 z-50">
-        <Link
-          href={`/${slug}`}
-          className="text-sm font-medium text-white/90 hover:text-white transition px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
-        >
-          Done
-        </Link>
+        <span className="text-sm font-medium text-white/90">
+          Edit
+        </span>
       </div>
 
       {/* Main content */}
@@ -485,7 +437,7 @@ export default function EditPage() {
           </div>
         )}
 
-        {/* Masonry Grid - Preview Build Style */}
+        {/* CSS Grid - Golden Build Style */}
         {draft.content.length > 0 ? (
           <DndContext
             sensors={sensors}
@@ -496,7 +448,7 @@ export default function EditPage() {
               items={draft.content.map(item => item.id)}
               strategy={rectSortingStrategy}
             >
-              <div className={`${layoutConfig[layoutMode].columns} ${layoutConfig[layoutMode].gap}`}>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
                 {draft.content.map(item => (
                   <SortableTile
                     key={item.id}
