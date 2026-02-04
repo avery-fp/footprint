@@ -87,7 +87,21 @@ export default async function FootprintPage({ params }: Props) {
   const theme = getTheme(footprint.dimension || 'midnight')
   const pageUrl = `https://footprint.onl/${params.slug}`
   const gridMode = footprint.grid_mode || 'public'
-  const gridSpacing = gridMode === 'public' ? 'space-y-4' : gridMode === 'edit' ? 'space-y-6' : 'space-y-10'
+
+  // Helper to determine tile spanning for tetris composition
+  const getTileSpan = (item: any) => {
+    // Wide tiles (landscape hero moments)
+    const isWide = item.type === 'youtube' ||
+      (item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i))
+
+    // Tall tiles (vertical moments) - embeds that are naturally tall
+    const isTall = ['spotify', 'soundcloud'].includes(item.type)
+
+    return {
+      col: isWide ? 'col-span-2' : 'col-span-1',
+      row: isTall ? 'row-span-2' : 'row-span-1',
+    }
+  }
 
   return (
     <div className="min-h-screen" style={{ background: theme.bg, color: theme.text }}>
@@ -119,15 +133,12 @@ export default async function FootprintPage({ params }: Props) {
           )}
         </header>
 
-        {/* Tetris Grid - mix of wide and narrow tiles */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 max-w-6xl mx-auto auto-rows-min">
-          {content.map((item: any, index: number) => {
-            // Determine if this should be a wide tile (span 2 columns)
-            const isWide = item.type === 'youtube' || (item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i))
-            const spanClass = isWide ? 'col-span-2' : 'col-span-1'
-
-            return (
-              <div key={item.id} className={spanClass}>
+        {/* Tetris Grid - intentional composition */}
+        {gridMode === 'spaced' ? (
+          // GENEROUS MODE - Editorial single column
+          <div className="max-w-2xl mx-auto space-y-8">
+            {content.map((item: any) => (
+              <div key={item.id}>
                 {item.type === 'image' ? (
                   item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i) ? (
                     <VideoTile src={item.url} />
@@ -143,9 +154,41 @@ export default async function FootprintPage({ params }: Props) {
                   <ContentCard content={item} />
                 )}
               </div>
-            )
-          })}
-        </div>
+            ))}
+          </div>
+        ) : (
+          // TIGHT / MEDIUM MODE - Dense tetris grid
+          <div
+            className={`grid auto-rows-min max-w-6xl mx-auto ${
+              gridMode === 'public'
+                ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-1'
+                : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3'
+            }`}
+            style={{ gridAutoFlow: 'dense' }}
+          >
+            {content.map((item: any) => {
+              const span = getTileSpan(item)
+              return (
+                <div key={item.id} className={`${span.col} ${span.row}`}>
+                  {item.type === 'image' ? (
+                    item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i) ? (
+                      <VideoTile src={item.url} />
+                    ) : (
+                      <img
+                        src={item.url}
+                        className="w-full h-full object-cover rounded-2xl"
+                        alt=""
+                        loading="lazy"
+                      />
+                    )
+                  ) : (
+                    <ContentCard content={item} />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
 
         {content.length === 0 && (
           <p className="text-center" style={{ color: theme.muted }}>

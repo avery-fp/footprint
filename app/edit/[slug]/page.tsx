@@ -413,6 +413,21 @@ export default function EditPage() {
 
   const theme = getTheme(draft.theme)
 
+  // Helper to determine tile spanning for tetris composition
+  const getTileSpan = (item: any) => {
+    // Wide tiles (landscape hero moments)
+    const isWide = item.type === 'youtube' ||
+      (item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i))
+
+    // Tall tiles (vertical moments) - embeds that are naturally tall
+    const isTall = ['spotify', 'soundcloud'].includes(item.type)
+
+    return {
+      col: isWide ? 'col-span-2' : 'col-span-1',
+      row: isTall ? 'row-span-2' : 'row-span-1',
+    }
+  }
+
   // Layout mode styles - CSS Grid for tetris composition
   const layoutStyles = {
     public: { // TIGHT / TETRIS
@@ -425,9 +440,9 @@ export default function EditPage() {
       grid: 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 auto-rows-min',
       videoClass: 'aspect-video min-h-[300px]',
     },
-    spaced: { // TUMBLR / SPACED
-      gap: 'gap-6',
-      grid: 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 auto-rows-min',
+    spaced: { // GENEROUS / EDITORIAL
+      gap: 'gap-8',
+      grid: 'max-w-2xl mx-auto',
       videoClass: 'aspect-video min-h-[300px]',
     },
   }
@@ -534,7 +549,7 @@ export default function EditPage() {
 
       {/* Main content */}
       <div className="max-w-7xl mx-auto px-4 py-20">
-        {/* Tetris Grid */}
+        {/* Tetris Grid - intentional composition */}
         {draft.content.length > 0 ? (
           <DndContext
             sensors={sensors}
@@ -545,13 +560,10 @@ export default function EditPage() {
               items={draft.content.map(item => item.id)}
               strategy={rectSortingStrategy}
             >
-              <div className={`${currentLayout.grid} ${currentLayout.gap}`}>
-                {draft.content.map(item => {
-                  // Determine if this should be a wide tile (span 2 columns)
-                  const isWide = item.type === 'youtube' || (item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i))
-                  const spanClass = isWide ? 'col-span-2' : 'col-span-1'
-
-                  return (
+              {gridMode === 'spaced' ? (
+                // GENEROUS MODE - Editorial single column
+                <div className={`${currentLayout.grid} space-y-${currentLayout.gap.split('-')[1]}`}>
+                  {draft.content.map(item => (
                     <SortableTile
                       key={item.id}
                       id={item.id}
@@ -559,11 +571,34 @@ export default function EditPage() {
                       onDelete={() => handleDelete(item.id)}
                       deleting={deletingIds.has(item.id)}
                       videoClass={currentLayout.videoClass}
-                      spanClass={spanClass}
+                      spanClass="w-full"
                     />
-                  )
-                })}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                // TIGHT / MEDIUM MODE - Dense tetris grid
+                <div
+                  className={`${currentLayout.grid} ${currentLayout.gap}`}
+                  style={{ gridAutoFlow: 'dense' }}
+                >
+                  {draft.content.map(item => {
+                    const span = getTileSpan(item)
+                    const spanClass = `${span.col} ${span.row}`
+
+                    return (
+                      <SortableTile
+                        key={item.id}
+                        id={item.id}
+                        content={item}
+                        onDelete={() => handleDelete(item.id)}
+                        deleting={deletingIds.has(item.id)}
+                        videoClass={currentLayout.videoClass}
+                        spanClass={spanClass}
+                      />
+                    )
+                  })}
+                </div>
+              )}
             </SortableContext>
           </DndContext>
         ) : (
