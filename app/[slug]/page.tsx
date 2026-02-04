@@ -1,12 +1,10 @@
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { notFound } from 'next/navigation'
 import { Metadata } from 'next'
-import Link from 'next/link'
 import { getTheme } from '@/lib/themes'
 import AnalyticsTracker from '@/components/AnalyticsTracker'
-import ContentCard from '@/components/ContentCard'
 import ShareButton from '@/components/ShareButton'
-import VideoTile from '@/components/VideoTile'
+import PublicPage from './PublicPage'
 
 // Force dynamic rendering - never statically generate user pages
 export const dynamic = 'force-dynamic'
@@ -70,6 +68,7 @@ export default async function FootprintPage({ params }: Props) {
       type: 'image',
       url: img.image_url,
       position: img.position,
+      room_id: img.room_id,
     })),
     ...(links || []).map((link: any) => ({
       id: link.id,
@@ -80,139 +79,40 @@ export default async function FootprintPage({ params }: Props) {
       embed_html: link.metadata?.embed_html,
       description: link.metadata?.description,
       position: link.position,
+      room_id: link.room_id,
     })),
   ].sort((a, b) => a.position - b.position)
 
-  const serial = footprint.serial_number || 0
+  // Fetch rooms if they exist
+  const { data: roomsData } = await supabase
+    .from('rooms')
+    .select('*')
+    .eq('footprint_id', footprint.id)
+    .order('position')
+
+  // Group content by rooms
+  const rooms = (roomsData || []).map((room: any) => ({
+    id: room.id,
+    name: room.name,
+    content: content.filter(item => item.room_id === room.id),
+  }))
+
+  const serial = footprint.serial_number.toString().padStart(4, '0')
   const theme = getTheme(footprint.dimension || 'midnight')
   const pageUrl = `https://footprint.onl/${params.slug}`
-  const gridMode = footprint.grid_mode || 'public'
-
-  // Helper to determine tile spanning for tetris composition
-  const getTileSpan = (item: any) => {
-    // Wide tiles (landscape hero moments)
-    const isWide = item.type === 'youtube' ||
-      (item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i))
-
-    // Tall tiles (vertical moments) - embeds that are naturally tall
-    const isTall = ['spotify', 'soundcloud'].includes(item.type)
-
-    return {
-      col: isWide ? 'col-span-2' : 'col-span-1',
-      row: isTall ? 'row-span-2' : 'row-span-1',
-    }
-  }
 
   return (
-    <div className="min-h-screen" style={{ background: theme.bg, color: theme.text }}>
+    <>
       <AnalyticsTracker footprintId={footprint.id} />
-
-      {/* Share Button */}
       <ShareButton url={pageUrl} />
-
-      <div className="max-w-6xl mx-auto px-4 py-12">
-        {/* Header */}
-        <header className="mb-12 text-center">
-          {footprint.background_url && (
-            <img
-              src={footprint.background_url}
-              alt=""
-              className="w-24 h-24 rounded-full mx-auto mb-4 object-cover"
-            />
-          )}
-          <h1 className="text-3xl font-light mb-2">
-            {footprint.display_name || `Footprint #${serial}`}
-          </h1>
-          {footprint.handle && (
-            <p style={{ color: theme.muted }}>@{footprint.handle}</p>
-          )}
-          {footprint.bio && (
-            <p className="mt-4 max-w-md mx-auto" style={{ color: theme.muted }}>
-              {footprint.bio}
-            </p>
-          )}
-        </header>
-
-        {/* Tetris Grid - intentional composition */}
-        {gridMode === 'spaced' ? (
-          // GENEROUS MODE - Editorial single column
-          <div className="max-w-2xl mx-auto space-y-8">
-            {content.map((item: any) => (
-              <div key={item.id}>
-                {item.type === 'image' ? (
-                  item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i) ? (
-                    <VideoTile src={item.url} />
-                  ) : (
-                    <img
-                      src={item.url}
-                      className="w-full object-cover rounded-2xl"
-                      alt=""
-                      loading="lazy"
-                    />
-                  )
-                ) : (
-                  <ContentCard content={item} />
-                )}
-              </div>
-            ))}
-          </div>
-        ) : (
-          // TIGHT / MEDIUM MODE - Dense tetris grid
-          <div
-            className={`grid auto-rows-min max-w-6xl mx-auto ${
-              gridMode === 'public'
-                ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-1'
-                : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3'
-            }`}
-            style={{ gridAutoFlow: 'dense' }}
-          >
-            {content.map((item: any) => {
-              const span = getTileSpan(item)
-              return (
-                <div key={item.id} className={`${span.col} ${span.row}`}>
-                  {item.type === 'image' ? (
-                    item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i) ? (
-                      <VideoTile src={item.url} />
-                    ) : (
-                      <img
-                        src={item.url}
-                        className="w-full h-full object-cover rounded-2xl"
-                        alt=""
-                        loading="lazy"
-                      />
-                    )
-                  ) : (
-                    <ContentCard content={item} />
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        )}
-
-        {content.length === 0 && (
-          <p className="text-center" style={{ color: theme.muted }}>
-            Nothing here yet.
-          </p>
-        )}
-
-        {/* Footer */}
-        <footer className="mt-16 pt-8 text-center text-sm" style={{ 
-          borderTop: `1px solid ${theme.border}`,
-          color: theme.muted 
-        }}>
-          <p>Footprint #{serial}</p>
-          <p className="mt-2">
-            <Link 
-              href="/" 
-              className="hover:underline"
-              style={{ color: theme.accent }}
-            >
-              Get your own Footprint · $10 forever
-            </Link>
-          </p>
-        </footer>
-      </div>
-    </div>
+      <PublicPage
+        footprint={footprint}
+        content={content}
+        rooms={rooms}
+        theme={theme}
+        serial={serial}
+        pageUrl={pageUrl}
+      />
+    </>
   )
 }
