@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { getContentIcon, getContentBackground, ContentType } from '@/lib/parser'
+import { audioManager } from '@/lib/audio-manager'
 
 interface ContentCardProps {
   content: {
@@ -36,6 +37,25 @@ export default function ContentCard({ content, editable, onDelete }: ContentCard
 
   // YouTube - edge-to-edge beautiful, tap to unmute
   if (content.type === 'youtube' && content.embed_html) {
+    // Register with audio manager
+    useEffect(() => {
+      audioManager.register(content.id, () => setIsMuted(true))
+      return () => audioManager.unregister(content.id)
+    }, [content.id])
+
+    // Handle tap to unmute
+    const handleYouTubeClick = () => {
+      if (isMuted) {
+        // Unmute this, mute all others
+        audioManager.play(content.id)
+        setIsMuted(false)
+      } else {
+        // Mute this
+        audioManager.mute(content.id)
+        setIsMuted(true)
+      }
+    }
+
     // Swap mute parameter in embed HTML
     let embedHtml = isMuted
       ? content.embed_html
@@ -50,7 +70,7 @@ export default function ContentCard({ content, editable, onDelete }: ContentCard
     return (
       <div
         className="w-full aspect-video min-h-[300px] rounded-2xl overflow-hidden cursor-pointer relative"
-        onClick={() => setIsMuted(!isMuted)}
+        onClick={handleYouTubeClick}
       >
         <div
           className="absolute inset-0"
