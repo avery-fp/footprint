@@ -251,16 +251,29 @@ export default function EditPage() {
   }, [draft, isLoading, saveData])
 
   async function handleAddContent() {
-    if (!pasteUrl.trim() || !draft) return
+    console.log('🚀 handleAddContent called', { pasteUrl, slug, hasDraft: !!draft })
+
+    if (!pasteUrl.trim() || !draft) {
+      console.log('❌ Early return', { urlEmpty: !pasteUrl.trim(), noDraft: !draft })
+      return
+    }
+
     setIsAdding(true)
+    console.log('📡 Calling POST /api/tiles', { slug, url: pasteUrl.trim() })
+
     try {
       const res = await fetch('/api/tiles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug, url: pasteUrl }),
+        body: JSON.stringify({ slug, url: pasteUrl.trim() }),
       })
+
+      console.log('📥 Response status:', res.status)
       const data = await res.json()
+      console.log('📦 Response data:', data)
+
       if (data.tile) {
+        console.log('✅ Tile added successfully', data.tile)
         setTileSources(prev => ({ ...prev, [data.tile.id]: data.tile.source }))
         setDraft(prev => prev ? {
           ...prev,
@@ -276,12 +289,15 @@ export default function EditPage() {
           }],
           updated_at: Date.now(),
         } : null)
+      } else {
+        console.error('⚠️ No tile in response', data)
       }
       setPasteUrl('')
     } catch (e) {
-      console.error('Failed to add content:', e)
+      console.error('💥 Failed to add content:', e)
     } finally {
       setIsAdding(false)
+      console.log('✨ handleAddContent complete')
     }
   }
 
