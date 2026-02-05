@@ -17,7 +17,7 @@ interface TileContent extends DraftContent {
   source?: 'library' | 'links'
 }
 
-// Sortable tile wrapper - CSS GRID STYLE
+// Sortable tile wrapper - MASONRY STYLE
 function SortableTile({ id, content, onDelete, deleting }: { id: string; content: any; onDelete: () => void; deleting: boolean }) {
   const [isMuted, setIsMuted] = useState(true)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -49,7 +49,7 @@ function SortableTile({ id, content, onDelete, deleting }: { id: string; content
     <div
       ref={setNodeRef}
       style={style}
-      className="relative"
+      className="break-inside-avoid mb-2"
       {...attributes}
       {...listeners}
     >
@@ -116,7 +116,7 @@ export default function EditPage() {
   const [showWallpaperPicker, setShowWallpaperPicker] = useState(false)
   const [wallpaperUrl, setWallpaperUrl] = useState('')
   const [backgroundBlur, setBackgroundBlur] = useState(true)
-  const [showPasteInput, setShowPasteInput] = useState(false)
+  const [layoutMode, setLayoutMode] = useState<'tight' | 'medium' | 'generous'>('medium')
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -145,27 +145,20 @@ export default function EditPage() {
           setBackgroundBlur(data.footprint.background_blur ?? true)
 
           const sources: Record<string, 'library' | 'links'> = {}
-          const content = (data.tiles || [])
-            .filter((tile: any) => tile && tile.id && tile.url) // Filter out null/undefined items
-            .map((tile: any) => {
-              sources[tile.id] = tile.source
-              return {
-                id: tile.id,
-                url: tile.url,
-                type: tile.type,
-                title: tile.title,
-                description: tile.description,
-                thumbnail_url: tile.thumbnail_url,
-                embed_html: tile.embed_html,
-                position: tile.position,
-              }
-            })
+          const content = (data.tiles || []).map((tile: any) => {
+            sources[tile.id] = tile.source
+            return {
+              id: tile.id,
+              url: tile.url,
+              type: tile.type,
+              title: tile.title,
+              description: tile.description,
+              thumbnail_url: tile.thumbnail_url,
+              embed_html: tile.embed_html,
+              position: tile.position,
+            }
+          })
           setTileSources(sources)
-
-          // Load rooms from API
-          if (data.rooms && data.rooms.length > 0) {
-            setRooms(data.rooms)
-          }
 
           setDraft({
             slug,
@@ -251,29 +244,16 @@ export default function EditPage() {
   }, [draft, isLoading, saveData])
 
   async function handleAddContent() {
-    console.log('🚀 handleAddContent called', { pasteUrl, slug, hasDraft: !!draft })
-
-    if (!pasteUrl.trim() || !draft) {
-      console.log('❌ Early return', { urlEmpty: !pasteUrl.trim(), noDraft: !draft })
-      return
-    }
-
+    if (!pasteUrl.trim() || !draft) return
     setIsAdding(true)
-    console.log('📡 Calling POST /api/tiles', { slug, url: pasteUrl.trim() })
-
     try {
       const res = await fetch('/api/tiles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug, url: pasteUrl.trim() }),
+        body: JSON.stringify({ slug, url: pasteUrl }),
       })
-
-      console.log('📥 Response status:', res.status)
       const data = await res.json()
-      console.log('📦 Response data:', data)
-
       if (data.tile) {
-        console.log('✅ Tile added successfully', data.tile)
         setTileSources(prev => ({ ...prev, [data.tile.id]: data.tile.source }))
         setDraft(prev => prev ? {
           ...prev,
@@ -289,15 +269,12 @@ export default function EditPage() {
           }],
           updated_at: Date.now(),
         } : null)
-      } else {
-        console.error('⚠️ No tile in response', data)
       }
       setPasteUrl('')
     } catch (e) {
-      console.error('💥 Failed to add content:', e)
+      console.error('Failed to add content:', e)
     } finally {
       setIsAdding(false)
-      console.log('✨ handleAddContent complete')
     }
   }
 
@@ -402,6 +379,13 @@ export default function EditPage() {
 
   const theme = getTheme(draft.theme)
 
+  // Layout configuration
+  const layoutConfig = {
+    tight: { columns: 'columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6', gap: 'gap-1' },
+    medium: { columns: 'columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6', gap: 'gap-2' },
+    generous: { columns: 'columns-2 sm:columns-3 md:columns-4 lg:columns-5', gap: 'gap-4' },
+  }
+
   const backgroundStyle = wallpaperUrl
     ? {
         backgroundImage: backgroundBlur
@@ -418,48 +402,90 @@ export default function EditPage() {
 
   return (
     <div className="min-h-screen pb-32" style={backgroundStyle}>
-      {/* Header - Left: view, Right: Edit */}
-      <div className="fixed top-6 left-6 z-50">
+      {/* Header - Left: view + wallpaper, Center: layout toggle, Right: Done */}
+      <div className="fixed top-6 left-6 z-50 flex items-center gap-3">
         <Link
           href={`/${slug}`}
-          className="text-sm text-white/60 hover:text-white/90 transition font-mono"
+          className="flex items-center gap-2 text-sm text-white/60 hover:text-white/90 transition font-mono"
         >
           ← view
         </Link>
+        <button
+          onClick={() => setShowWallpaperPicker(true)}
+          className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center text-white/60 hover:text-white/90 transition text-sm"
+          title="Wallpaper"
+        >
+          🖼
+        </button>
       </div>
 
-      <div className="fixed top-6 right-6 z-50">
-        <span className="text-sm font-medium text-white/90">
-          Edit
-        </span>
-      </div>
-
-      {/* Room Tabs - Fixed at top-14 */}
-      {rooms.length > 0 && (
-        <div className="fixed top-14 left-0 right-0 z-40 flex items-center justify-center gap-2 py-2 px-4 bg-gradient-to-b from-black/60 to-transparent overflow-x-auto">
-          {rooms.map((room) => (
-            <button
-              key={room.id}
-              onClick={() => setActiveRoomId(room.id)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition whitespace-nowrap ${
-                activeRoomId === room.id
-                  ? 'bg-white/20 text-white'
-                  : 'bg-transparent border border-white/20 text-white/60 hover:text-white'
-              }`}
-            >
-              {room.name}
-            </button>
-          ))}
-          <button className="px-3 py-1.5 rounded-full border border-white/20 text-white/60 hover:text-white">
-            +
+      {/* Layout Toggle - Center */}
+      {draft.content.length > 0 && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-black/50 backdrop-blur-xl rounded-full px-4 py-2 border border-white/10">
+          <button
+            onClick={() => setLayoutMode('tight')}
+            className={`font-mono text-xs px-3 py-1 rounded-full transition ${
+              layoutMode === 'tight' ? 'bg-white/20 text-white' : 'text-white/40 hover:text-white/60'
+            }`}
+          >
+            Tight
+          </button>
+          <button
+            onClick={() => setLayoutMode('medium')}
+            className={`font-mono text-xs px-3 py-1 rounded-full transition ${
+              layoutMode === 'medium' ? 'bg-white/20 text-white' : 'text-white/40 hover:text-white/60'
+            }`}
+          >
+            Medium
+          </button>
+          <button
+            onClick={() => setLayoutMode('generous')}
+            className={`font-mono text-xs px-3 py-1 rounded-full transition ${
+              layoutMode === 'generous' ? 'bg-white/20 text-white' : 'text-white/40 hover:text-white/60'
+            }`}
+          >
+            Generous
           </button>
         </div>
       )}
 
+      <div className="fixed top-6 right-6 z-50">
+        <Link
+          href={`/${slug}`}
+          className="text-sm font-medium text-white/90 hover:text-white transition px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
+        >
+          Done
+        </Link>
+      </div>
+
       {/* Main content */}
       <div className="max-w-7xl mx-auto px-4 py-20">
+        {/* Room Tabs (if rooms exist) */}
+        {rooms.length > 0 && (
+          <div className="flex items-center justify-center gap-2 mb-8 flex-wrap">
+            {rooms.map((room) => (
+              <button
+                key={room.id}
+                onClick={() => setActiveRoomId(room.id)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all border ${
+                  activeRoomId === room.id
+                    ? 'bg-white text-black border-white'
+                    : 'bg-transparent text-white/70 border-white/20 hover:border-white/40'
+                }`}
+              >
+                {room.name}
+              </button>
+            ))}
+            <button
+              className="w-8 h-8 rounded-full border border-white/20 hover:border-white/40 text-white/70 hover:text-white flex items-center justify-center transition-all"
+              title="Add room"
+            >
+              +
+            </button>
+          </div>
+        )}
 
-        {/* CSS Grid - Golden Build Style */}
+        {/* Masonry Grid - Preview Build Style */}
         {draft.content.length > 0 ? (
           <DndContext
             sensors={sensors}
@@ -470,18 +496,16 @@ export default function EditPage() {
               items={draft.content.map(item => item.id)}
               strategy={rectSortingStrategy}
             >
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
-                {draft.content
-                  .filter(item => item && item.id && item.url) // Extra safety: filter null items
-                  .map(item => (
-                    <SortableTile
-                      key={item.id}
-                      id={item.id}
-                      content={item}
-                      onDelete={() => handleDelete(item.id)}
-                      deleting={deletingIds.has(item.id)}
-                    />
-                  ))}
+              <div className={`${layoutConfig[layoutMode].columns} ${layoutConfig[layoutMode].gap}`}>
+                {draft.content.map(item => (
+                  <SortableTile
+                    key={item.id}
+                    id={item.id}
+                    content={item}
+                    onDelete={() => handleDelete(item.id)}
+                    deleting={deletingIds.has(item.id)}
+                  />
+                ))}
               </div>
             </SortableContext>
           </DndContext>
@@ -493,64 +517,27 @@ export default function EditPage() {
         )}
       </div>
 
-      {/* Glass Pill Bottom Bar */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
-        {showPasteInput ? (
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Paste URL..."
-              value={pasteUrl}
-              onChange={e => setPasteUrl(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter') {
-                  handleAddContent()
-                  setShowPasteInput(false)
-                } else if (e.key === 'Escape') {
-                  setShowPasteInput(false)
-                  setPasteUrl('')
-                }
-              }}
-              onBlur={() => {
-                if (!pasteUrl.trim()) setShowPasteInput(false)
-              }}
-              autoFocus
-              className="w-80 px-6 py-3 pr-14 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full font-mono text-sm focus:border-white/40 focus:outline-none text-white placeholder:text-white/30"
-            />
-            <button
-              onClick={() => {
-                handleAddContent()
-                setShowPasteInput(false)
-              }}
-              disabled={isAdding || !pasteUrl.trim()}
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white disabled:opacity-50 transition flex items-center justify-center text-xl"
-            >
-              +
-            </button>
-          </div>
-        ) : (
-          <div className="flex items-center gap-4 bg-black/50 backdrop-blur-xl rounded-full px-6 py-3 border border-white/10">
-            <button
-              onClick={() => setShowPasteInput(true)}
-              className="text-white/80 hover:text-white transition text-xl"
-              title="Add content"
-            >
-              +
-            </button>
-            <button
-              className="text-white/80 hover:text-white transition text-xl"
-              title="Add link"
-            >
-              🔗
-            </button>
-            <button
-              className="text-white/80 hover:text-white transition text-xl"
-              title="Add thought"
-            >
-              💬
-            </button>
-          </div>
-        )}
+      {/* Floating bottom bar */}
+      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4">
+        {/* Add tile button - center */}
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Paste URL..."
+            value={pasteUrl}
+            onChange={e => setPasteUrl(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleAddContent()}
+            className="w-80 px-6 py-4 pr-14 bg-black/50 backdrop-blur-xl border border-white/20 rounded-full font-mono text-sm focus:border-white/40 focus:outline-none text-white placeholder:text-white/30"
+            style={{ backdropFilter: 'blur(20px)' }}
+          />
+          <button
+            onClick={handleAddContent}
+            disabled={isAdding || !pasteUrl.trim()}
+            className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white disabled:opacity-50 transition flex items-center justify-center text-2xl"
+          >
+            +
+          </button>
+        </div>
       </div>
 
       {/* Wallpaper Picker Modal */}
