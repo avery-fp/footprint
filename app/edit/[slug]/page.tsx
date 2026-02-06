@@ -9,6 +9,7 @@ import { SortableContext, sortableKeyboardCoordinates, useSortable, rectSortingS
 import { CSS } from '@dnd-kit/utilities'
 import { loadDraft, saveDraft, clearDraft, DraftFootprint, DraftContent } from '@/lib/draft-store'
 import ContentCard from '@/components/ContentCard'
+import { audioManager } from '@/lib/audio-manager'
 import { getTheme } from '@/lib/themes'
 import Link from 'next/link'
 
@@ -17,10 +18,31 @@ interface TileContent extends DraftContent {
   source?: 'library' | 'links'
 }
 
-// Sortable tile wrapper - MASONRY STYLE
-function SortableTile({ id, content, onDelete, deleting }: { id: string; content: any; onDelete: () => void; deleting: boolean }) {
+// Determine if a content type is inherently widescreen
+function isWidescreenType(type: string, url?: string): boolean {
+  if (['youtube', 'vimeo', 'video'].includes(type)) return true
+  // Videos stored as 'image' type in library table
+  if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return true
+  return false
+}
+
+// ═══════════════════════════════════════════
+// Sortable Tile — with Vapor Box + Materialization + AudioManager
+// ═══════════════════════════════════════════
+function SortableTile({
+  id, content, onDelete, deleting, isWidescreen, onWidescreen,
+}: {
+  id: string
+  content: any
+  onDelete: () => void
+  deleting: boolean
+  isWidescreen: boolean
+  onWidescreen: (id: string) => void
+}) {
   const [isMuted, setIsMuted] = useState(true)
+  const [isLoaded, setIsLoaded] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
+  const audioIdRef = useRef(`edit-${id}`)
 
   const {
     attributes,
@@ -37,11 +59,32 @@ function SortableTile({ id, content, onDelete, deleting }: { id: string; content
     opacity: isDragging ? 0.5 : deleting ? 0.5 : 1,
   }
 
+  const isVideo = content.type === 'image' && content.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
+
+  // Register native videos with AudioManager
+  useEffect(() => {
+    if (!isVideo) return
+    audioManager.register(audioIdRef.current, () => {
+      if (videoRef.current) {
+        videoRef.current.muted = true
+        setIsMuted(true)
+      }
+    })
+    return () => audioManager.unregister(audioIdRef.current)
+  }, [id, isVideo])
+
   const handleVideoClick = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (videoRef.current) {
-      videoRef.current.muted = !isMuted
-      setIsMuted(!isMuted)
+      if (isMuted) {
+        audioManager.play(audioIdRef.current)
+        videoRef.current.muted = false
+        setIsMuted(false)
+      } else {
+        audioManager.mute(audioIdRef.current)
+        videoRef.current.muted = true
+        setIsMuted(true)
+      }
     }
   }
 
@@ -49,7 +92,7 @@ function SortableTile({ id, content, onDelete, deleting }: { id: string; content
     <div
       ref={setNodeRef}
       style={style}
-      className="break-inside-avoid mb-2"
+      className={isWidescreen ? 'col-span-2' : 'col-span-1'}
       {...attributes}
       {...listeners}
     >
@@ -67,45 +110,69 @@ function SortableTile({ id, content, onDelete, deleting }: { id: string; content
 
         {/* Tile content */}
         {content.type === 'image' ? (
-          content.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i) ? (
-            <div className="relative">
+          isVideo ? (
+            <div className="relative rounded-2xl overflow-hidden">
+              {/* Vapor Box */}
+              <div
+                className={`absolute inset-0 vapor-box rounded-2xl ${isLoaded ? 'opacity-0' : ''} transition-opacity duration-500`}
+                style={{ aspectRatio: '16/9' }}
+              />
               <video
                 ref={videoRef}
                 src={content.url}
-                className="w-full object-cover rounded-2xl cursor-pointer"
+                className={`w-full object-cover rounded-2xl cursor-pointer transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
                 autoPlay
                 muted
                 loop
                 playsInline
                 onClick={handleVideoClick}
+                onLoadedData={() => setIsLoaded(true)}
               />
               {!isMuted && (
-                <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60"></div>
+                <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60" />
               )}
             </div>
           ) : (
-            <img
-              src={content.url}
-              className="w-full object-cover rounded-2xl"
-              alt=""
-              loading="lazy"
-            />
+            <div className="relative rounded-2xl overflow-hidden">
+              {/* Vapor Box */}
+              <div
+                className={`absolute inset-0 vapor-box rounded-2xl ${isLoaded ? 'opacity-0' : ''} transition-opacity duration-500`}
+              />
+              <img
+                src={content.url}
+                className={`w-full object-cover rounded-2xl transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+                alt=""
+                loading="lazy"
+                onLoad={(e) => {
+                  setIsLoaded(true)
+                  const img = e.currentTarget
+                  if (img.naturalWidth > img.naturalHeight * 1.3) {
+                    onWidescreen(id)
+                  }
+                }}
+              />
+            </div>
           )
         ) : (
-          <ContentCard content={content} />
+          <ContentCard
+            content={content}
+            onWidescreen={() => onWidescreen(id)}
+          />
         )}
       </div>
     </div>
   )
 }
 
+// ═══════════════════════════════════════════
+// EDIT PAGE — Quantum Sovereignty Build
+// ═══════════════════════════════════════════
 export default function EditPage() {
   const params = useParams()
   const router = useRouter()
   const slug = params.slug as string
 
   const [draft, setDraft] = useState<DraftFootprint | null>(null)
-  const [pasteUrl, setPasteUrl] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isAdding, setIsAdding] = useState(false)
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
@@ -116,7 +183,14 @@ export default function EditPage() {
   const [showWallpaperPicker, setShowWallpaperPicker] = useState(false)
   const [wallpaperUrl, setWallpaperUrl] = useState('')
   const [backgroundBlur, setBackgroundBlur] = useState(true)
-  const [layoutMode, setLayoutMode] = useState<'tight' | 'medium' | 'generous'>('medium')
+  const [widescreenIds, setWidescreenIds] = useState<Set<string>>(new Set())
+
+  // Bottom Glass Pill state
+  const [pillMode, setPillMode] = useState<'idle' | 'url' | 'thought'>('idle')
+  const [pasteUrl, setPasteUrl] = useState('')
+  const [thoughtText, setThoughtText] = useState('')
+  const urlInputRef = useRef<HTMLInputElement>(null)
+  const thoughtInputRef = useRef<HTMLTextAreaElement>(null)
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -126,6 +200,16 @@ export default function EditPage() {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   )
+
+  // Track widescreen tiles
+  const handleWidescreen = useCallback((id: string) => {
+    setWidescreenIds(prev => {
+      if (prev.has(id)) return prev
+      const next = new Set(prev)
+      next.add(id)
+      return next
+    })
+  }, [])
 
   // Load data on mount
   useEffect(() => {
@@ -145,8 +229,12 @@ export default function EditPage() {
           setBackgroundBlur(data.footprint.background_blur ?? true)
 
           const sources: Record<string, 'library' | 'links'> = {}
+          const initialWidescreen = new Set<string>()
           const content = (data.tiles || []).map((tile: any) => {
             sources[tile.id] = tile.source
+            if (isWidescreenType(tile.type, tile.url)) {
+              initialWidescreen.add(tile.id)
+            }
             return {
               id: tile.id,
               url: tile.url,
@@ -159,6 +247,7 @@ export default function EditPage() {
             }
           })
           setTileSources(sources)
+          setWidescreenIds(initialWidescreen)
 
           setDraft({
             slug,
@@ -243,6 +332,15 @@ export default function EditPage() {
     }
   }, [draft, isLoading, saveData])
 
+  // Focus input when pill mode changes
+  useEffect(() => {
+    if (pillMode === 'url') {
+      setTimeout(() => urlInputRef.current?.focus(), 100)
+    } else if (pillMode === 'thought') {
+      setTimeout(() => thoughtInputRef.current?.focus(), 100)
+    }
+  }, [pillMode])
+
   async function handleAddContent() {
     if (!pasteUrl.trim() || !draft) return
     setIsAdding(true)
@@ -251,6 +349,45 @@ export default function EditPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ slug, url: pasteUrl }),
+      })
+      const data = await res.json()
+      if (data.tile) {
+        setTileSources(prev => ({ ...prev, [data.tile.id]: data.tile.source }))
+        if (isWidescreenType(data.tile.type, data.tile.url)) {
+          setWidescreenIds(prev => new Set(prev).add(data.tile.id))
+        }
+        setDraft(prev => prev ? {
+          ...prev,
+          content: [...prev.content, {
+            id: data.tile.id,
+            url: data.tile.url,
+            type: data.tile.type,
+            title: data.tile.title,
+            description: data.tile.description,
+            thumbnail_url: data.tile.thumbnail_url,
+            embed_html: data.tile.embed_html,
+            position: data.tile.position,
+          }],
+          updated_at: Date.now(),
+        } : null)
+      }
+      setPasteUrl('')
+      setPillMode('idle')
+    } catch (e) {
+      console.error('Failed to add content:', e)
+    } finally {
+      setIsAdding(false)
+    }
+  }
+
+  async function handleAddThought() {
+    if (!thoughtText.trim() || !draft) return
+    setIsAdding(true)
+    try {
+      const res = await fetch('/api/tiles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug, thought: thoughtText }),
       })
       const data = await res.json()
       if (data.tile) {
@@ -270,9 +407,10 @@ export default function EditPage() {
           updated_at: Date.now(),
         } : null)
       }
-      setPasteUrl('')
+      setThoughtText('')
+      setPillMode('idle')
     } catch (e) {
-      console.error('Failed to add content:', e)
+      console.error('Failed to add thought:', e)
     } finally {
       setIsAdding(false)
     }
@@ -306,6 +444,13 @@ export default function EditPage() {
       setTileSources(prev => {
         const next = { ...prev }
         delete next[id]
+        return next
+      })
+
+      setWidescreenIds(prev => {
+        if (!prev.has(id)) return prev
+        const next = new Set(prev)
+        next.delete(id)
         return next
       })
     } catch (error) {
@@ -368,6 +513,10 @@ export default function EditPage() {
     }
   }
 
+  function handleCopyLink() {
+    navigator.clipboard.writeText(`${window.location.origin}/${slug}`)
+  }
+
 
   if (isLoading || !draft) {
     return (
@@ -379,13 +528,6 @@ export default function EditPage() {
 
   const theme = getTheme(draft.theme)
 
-  // Layout configuration
-  const layoutConfig = {
-    tight: { columns: 'columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6', gap: 'gap-1' },
-    medium: { columns: 'columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6', gap: 'gap-2' },
-    generous: { columns: 'columns-2 sm:columns-3 md:columns-4 lg:columns-5', gap: 'gap-4' },
-  }
-
   const backgroundStyle = wallpaperUrl
     ? {
         backgroundImage: backgroundBlur
@@ -393,16 +535,17 @@ export default function EditPage() {
           : `url(${wallpaperUrl})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
-        color: theme.text,
+        color: theme.colors.text,
       }
     : {
-        background: theme.bg,
-        color: theme.text,
+        background: theme.colors.background,
+        color: theme.colors.text,
       }
 
   return (
     <div className="min-h-screen pb-32" style={backgroundStyle}>
-      {/* Header - Left: view + wallpaper, Center: layout toggle, Right: Done */}
+      {/* ═══ HEADER ═══ */}
+      {/* Left: view + wallpaper */}
       <div className="fixed top-6 left-6 z-50 flex items-center gap-3">
         <Link
           href={`/${slug}`}
@@ -419,36 +562,32 @@ export default function EditPage() {
         </button>
       </div>
 
-      {/* Layout Toggle - Center */}
-      {draft.content.length > 0 && (
+      {/* Center: Room Tabs (pills) */}
+      {rooms.length > 0 && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-black/50 backdrop-blur-xl rounded-full px-4 py-2 border border-white/10">
+          {rooms.map((room) => (
+            <button
+              key={room.id}
+              onClick={() => setActiveRoomId(room.id)}
+              className={`font-mono text-xs px-3 py-1 rounded-full transition ${
+                activeRoomId === room.id
+                  ? 'bg-white/20 text-white'
+                  : 'text-white/40 hover:text-white/60'
+              }`}
+            >
+              {room.name}
+            </button>
+          ))}
           <button
-            onClick={() => setLayoutMode('tight')}
-            className={`font-mono text-xs px-3 py-1 rounded-full transition ${
-              layoutMode === 'tight' ? 'bg-white/20 text-white' : 'text-white/40 hover:text-white/60'
-            }`}
+            className="font-mono text-xs px-2 py-1 rounded-full text-white/30 hover:text-white/60 transition"
+            title="Add room"
           >
-            Tight
-          </button>
-          <button
-            onClick={() => setLayoutMode('medium')}
-            className={`font-mono text-xs px-3 py-1 rounded-full transition ${
-              layoutMode === 'medium' ? 'bg-white/20 text-white' : 'text-white/40 hover:text-white/60'
-            }`}
-          >
-            Medium
-          </button>
-          <button
-            onClick={() => setLayoutMode('generous')}
-            className={`font-mono text-xs px-3 py-1 rounded-full transition ${
-              layoutMode === 'generous' ? 'bg-white/20 text-white' : 'text-white/40 hover:text-white/60'
-            }`}
-          >
-            Generous
+            +
           </button>
         </div>
       )}
 
+      {/* Right: Done */}
       <div className="fixed top-6 right-6 z-50">
         <Link
           href={`/${slug}`}
@@ -458,34 +597,15 @@ export default function EditPage() {
         </Link>
       </div>
 
-      {/* Main content */}
-      <div className="max-w-7xl mx-auto px-4 py-20">
-        {/* Room Tabs (if rooms exist) */}
-        {rooms.length > 0 && (
-          <div className="flex items-center justify-center gap-2 mb-8 flex-wrap">
-            {rooms.map((room) => (
-              <button
-                key={room.id}
-                onClick={() => setActiveRoomId(room.id)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all border ${
-                  activeRoomId === room.id
-                    ? 'bg-white text-black border-white'
-                    : 'bg-transparent text-white/70 border-white/20 hover:border-white/40'
-                }`}
-              >
-                {room.name}
-              </button>
-            ))}
-            <button
-              className="w-8 h-8 rounded-full border border-white/20 hover:border-white/40 text-white/70 hover:text-white flex items-center justify-center transition-all"
-              title="Add room"
-            >
-              +
-            </button>
-          </div>
-        )}
+      {/* ═══ MASTHEAD — æ Signature ═══ */}
+      <div className="pt-20 pb-8 text-center">
+        <h1 className="text-7xl sm:text-8xl font-black tracking-tighter text-white/90 leading-none">
+          {draft.display_name || 'æ'}
+        </h1>
+      </div>
 
-        {/* Masonry Grid - Preview Build Style */}
+      {/* ═══ DENSE MASONRY GRID ═══ */}
+      <div className="max-w-7xl mx-auto px-2">
         {draft.content.length > 0 ? (
           <DndContext
             sensors={sensors}
@@ -496,7 +616,10 @@ export default function EditPage() {
               items={draft.content.map(item => item.id)}
               strategy={rectSortingStrategy}
             >
-              <div className={`${layoutConfig[layoutMode].columns} ${layoutConfig[layoutMode].gap}`}>
+              <div
+                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-1"
+                style={{ gridAutoFlow: 'dense' }}
+              >
                 {draft.content.map(item => (
                   <SortableTile
                     key={item.id}
@@ -504,6 +627,8 @@ export default function EditPage() {
                     content={item}
                     onDelete={() => handleDelete(item.id)}
                     deleting={deletingIds.has(item.id)}
+                    isWidescreen={widescreenIds.has(item.id)}
+                    onWidescreen={handleWidescreen}
                   />
                 ))}
               </div>
@@ -512,35 +637,111 @@ export default function EditPage() {
         ) : (
           <div className="text-center py-32">
             <p className="text-white/30 text-lg mb-4">Empty room</p>
-            <p className="text-white/20 text-sm font-mono">Paste a URL below to add your first tile</p>
+            <p className="text-white/20 text-sm font-mono">Tap + below to add your first tile</p>
           </div>
         )}
       </div>
 
-      {/* Floating bottom bar */}
-      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4">
-        {/* Add tile button - center */}
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Paste URL..."
-            value={pasteUrl}
-            onChange={e => setPasteUrl(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleAddContent()}
-            className="w-80 px-6 py-4 pr-14 bg-black/50 backdrop-blur-xl border border-white/20 rounded-full font-mono text-sm focus:border-white/40 focus:outline-none text-white placeholder:text-white/30"
-            style={{ backdropFilter: 'blur(20px)' }}
-          />
+      {/* ═══ BOTTOM GLASS PILL ═══ */}
+      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-3">
+        {/* Expanded input area */}
+        {pillMode === 'url' && (
+          <div className="w-80 bg-black/60 backdrop-blur-xl border border-white/20 rounded-2xl p-3 materialize">
+            <input
+              ref={urlInputRef}
+              type="text"
+              placeholder="Paste URL..."
+              value={pasteUrl}
+              onChange={e => setPasteUrl(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') handleAddContent()
+                if (e.key === 'Escape') setPillMode('idle')
+              }}
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl font-mono text-sm focus:border-white/30 focus:outline-none text-white placeholder:text-white/30"
+            />
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={handleAddContent}
+                disabled={isAdding || !pasteUrl.trim()}
+                className="flex-1 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl font-mono text-xs transition disabled:opacity-50"
+              >
+                {isAdding ? 'Adding...' : 'Add'}
+              </button>
+              <button
+                onClick={() => { setPillMode('idle'); setPasteUrl('') }}
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white/60 rounded-xl font-mono text-xs transition"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        )}
+
+        {pillMode === 'thought' && (
+          <div className="w-80 bg-black/60 backdrop-blur-xl border border-white/20 rounded-2xl p-3 materialize">
+            <textarea
+              ref={thoughtInputRef}
+              placeholder="Write a thought..."
+              value={thoughtText}
+              onChange={e => setThoughtText(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && e.metaKey) handleAddThought()
+                if (e.key === 'Escape') setPillMode('idle')
+              }}
+              rows={3}
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl font-mono text-sm focus:border-white/30 focus:outline-none text-white placeholder:text-white/30 resize-none"
+            />
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={handleAddThought}
+                disabled={isAdding || !thoughtText.trim()}
+                className="flex-1 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl font-mono text-xs transition disabled:opacity-50"
+              >
+                {isAdding ? 'Adding...' : 'Add thought'}
+              </button>
+              <button
+                onClick={() => { setPillMode('idle'); setThoughtText('') }}
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white/60 rounded-xl font-mono text-xs transition"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* The Glass Pill:  +  |  🔗  |  💬  */}
+        <div className="flex items-center gap-0 bg-black/50 backdrop-blur-xl rounded-full border border-white/20 overflow-hidden">
           <button
-            onClick={handleAddContent}
-            disabled={isAdding || !pasteUrl.trim()}
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white disabled:opacity-50 transition flex items-center justify-center text-2xl"
+            onClick={() => setPillMode(pillMode === 'url' ? 'idle' : 'url')}
+            className={`w-12 h-12 flex items-center justify-center text-lg transition-all ${
+              pillMode === 'url' ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white hover:bg-white/10'
+            }`}
+            title="Add content"
           >
             +
+          </button>
+          <div className="w-px h-6 bg-white/10" />
+          <button
+            onClick={handleCopyLink}
+            className="w-12 h-12 flex items-center justify-center text-lg text-white/60 hover:text-white hover:bg-white/10 transition-all active:scale-90"
+            title="Copy link"
+          >
+            🔗
+          </button>
+          <div className="w-px h-6 bg-white/10" />
+          <button
+            onClick={() => setPillMode(pillMode === 'thought' ? 'idle' : 'thought')}
+            className={`w-12 h-12 flex items-center justify-center text-lg transition-all ${
+              pillMode === 'thought' ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white hover:bg-white/10'
+            }`}
+            title="Add thought"
+          >
+            💬
           </button>
         </div>
       </div>
 
-      {/* Wallpaper Picker Modal */}
+      {/* ═══ WALLPAPER PICKER MODAL ═══ */}
       {showWallpaperPicker && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={() => setShowWallpaperPicker(false)}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
@@ -551,7 +752,6 @@ export default function EditPage() {
             <h3 className="text-lg font-medium text-white/90 mb-4">Wallpaper Settings</h3>
 
             <div className="space-y-4">
-              {/* URL Input */}
               <div>
                 <label className="block text-xs text-white/60 mb-2 font-mono">Image URL</label>
                 <input
@@ -563,7 +763,6 @@ export default function EditPage() {
                 />
               </div>
 
-              {/* Blur Toggle */}
               <div className="flex items-center justify-between">
                 <label className="text-sm text-white/80">Background Blur</label>
                 <button
@@ -578,7 +777,6 @@ export default function EditPage() {
                 </button>
               </div>
 
-              {/* Buttons */}
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={() => handleSaveWallpaper(wallpaperUrl)}

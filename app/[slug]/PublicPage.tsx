@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import Link from 'next/link'
 import ContentCard from '@/components/ContentCard'
 import VideoTile from '@/components/VideoTile'
@@ -20,21 +20,46 @@ interface PublicPageProps {
   pageUrl: string
 }
 
+// Determine if content type is inherently widescreen
+function isWidescreenType(type: string, url?: string): boolean {
+  if (['youtube', 'vimeo', 'video'].includes(type)) return true
+  if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return true
+  return false
+}
+
 export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'grid' | 'editorial'>('grid')
+  const [widescreenIds, setWidescreenIds] = useState<Set<string>>(() => {
+    const initial = new Set<string>()
+    allContent.forEach(item => {
+      if (isWidescreenType(item.type, item.url)) {
+        initial.add(item.id)
+      }
+    })
+    return initial
+  })
 
   // If no rooms, show all content
   const content = activeRoomId
     ? rooms.find(r => r.id === activeRoomId)?.content || []
     : allContent
 
+  const handleWidescreen = useCallback((id: string) => {
+    setWidescreenIds(prev => {
+      if (prev.has(id)) return prev
+      const next = new Set(prev)
+      next.add(id)
+      return next
+    })
+  }, [])
+
   return (
     <div className="min-h-screen" style={{ background: theme.bg, color: theme.text }}>
       {/* GRID MODE */}
       {viewMode === 'grid' ? (
-        <div className="max-w-7xl mx-auto px-4 py-12">
-          {/* Header */}
+        <div className="max-w-7xl mx-auto px-2 py-12">
+          {/* Header — æ Masthead (doubled) */}
           <header className="mb-8 text-center">
             {footprint.background_url && (
               <img
@@ -43,7 +68,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 className="w-20 h-20 rounded-full mx-auto mb-4 object-cover"
               />
             )}
-            <h1 className="text-4xl font-light mb-2">
+            <h1 className="text-7xl sm:text-8xl font-black tracking-tighter leading-none mb-2">
               {footprint.display_name || 'æ'}
             </h1>
             <span className="font-mono text-xs" style={{ color: theme.muted }}>
@@ -85,23 +110,42 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             </div>
           )}
 
-          {/* Masonry Grid - Preview Build Style */}
-          <div className="columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6 gap-2">
+          {/* Dense Masonry Grid with Widescreen Rule */}
+          <div
+            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-1"
+            style={{ gridAutoFlow: 'dense' }}
+          >
             {content.map((item: any) => (
-              <div key={item.id} className="break-inside-avoid mb-2">
+              <div
+                key={item.id}
+                className={widescreenIds.has(item.id) ? 'col-span-2' : 'col-span-1'}
+              >
                 {item.type === 'image' ? (
                   item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i) ? (
                     <VideoTile src={item.url} />
                   ) : (
-                    <img
-                      src={item.url}
-                      className="w-full object-cover rounded-2xl"
-                      alt=""
-                      loading="lazy"
-                    />
+                    <div className="relative rounded-2xl overflow-hidden">
+                      <img
+                        src={item.url}
+                        className="w-full object-cover rounded-2xl opacity-0 transition-opacity duration-[800ms]"
+                        alt=""
+                        loading="lazy"
+                        onLoad={(e) => {
+                          e.currentTarget.classList.remove('opacity-0')
+                          e.currentTarget.classList.add('opacity-100')
+                          const img = e.currentTarget
+                          if (img.naturalWidth > img.naturalHeight * 1.3) {
+                            handleWidescreen(item.id)
+                          }
+                        }}
+                      />
+                    </div>
                   )
                 ) : (
-                  <ContentCard content={item} />
+                  <ContentCard
+                    content={item}
+                    onWidescreen={() => handleWidescreen(item.id)}
+                  />
                 )}
               </div>
             ))}
@@ -130,9 +174,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       ) : (
         // EDITORIAL MODE - Tumblr aesthetic
         <>
-          {/* Fixed Masthead */}
+          {/* Fixed Masthead — doubled */}
           <div className="fixed top-8 left-8 z-50">
-            <h1 className="text-4xl font-black tracking-tight" style={{ color: theme.text }}>
+            <h1 className="text-7xl sm:text-8xl font-black tracking-tighter" style={{ color: theme.text }}>
               {footprint.display_name || footprint.username}
             </h1>
           </div>
@@ -153,9 +197,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                       ) : (
                         <img
                           src={item.url}
-                          className="w-full object-cover"
+                          className="w-full object-cover opacity-0 transition-opacity duration-[800ms]"
                           alt=""
                           loading="lazy"
+                          onLoad={(e) => {
+                            e.currentTarget.classList.remove('opacity-0')
+                            e.currentTarget.classList.add('opacity-100')
+                          }}
                         />
                       )
                     ) : (

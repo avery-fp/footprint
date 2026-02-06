@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { getContentIcon, getContentBackground, ContentType } from '@/lib/parser'
+import { audioManager } from '@/lib/audio-manager'
 
 interface ContentCardProps {
   content: {
@@ -13,141 +14,222 @@ interface ContentCardProps {
     thumbnail_url: string | null
     embed_html: string | null
   }
-  editable?: boolean
-  onDelete?: () => void
+  onWidescreen?: () => void
 }
 
 /**
- * Content Card Component
+ * Content Card - Quantum Performance Edition
  *
- * Renders a piece of content beautifully based on its type.
- * This is what makes Footprint special - every URL looks gorgeous.
+ * FACADE 2.0: Thumbnails first, iframes on click
+ * Vapor Boxes: Skeleton placeholders with aspect-ratio
+ * 800ms Materialization: Fade-in on media load
+ * One Sound Policy: AudioManager integration
  */
-export default function ContentCard({ content, editable, onDelete }: ContentCardProps) {
+export default function ContentCard({ content, onWidescreen }: ContentCardProps) {
   const icon = getContentIcon(content.type)
   const customBg = getContentBackground(content.type)
-  const [isMuted, setIsMuted] = useState(true)
+  const [isActivated, setIsActivated] = useState(false)
+  const [isLoaded, setIsLoaded] = useState(false)
+  const audioIdRef = useRef(`card-${content.id}`)
 
-  // Get hostname for link display
   let hostname = 'Link'
   try {
     hostname = new URL(content.url).hostname.replace('www.', '')
   } catch {}
 
-  // YouTube - edge-to-edge beautiful, tap to unmute
-  if (content.type === 'youtube' && content.embed_html) {
-    // Swap mute parameter in embed HTML
-    let embedHtml = isMuted
-      ? content.embed_html
-      : content.embed_html.replace('mute=1', 'mute=0')
+  // Register audio-producing types with AudioManager
+  useEffect(() => {
+    const isAudioType = ['youtube', 'soundcloud'].includes(content.type)
+    if (!isAudioType) return
+    audioManager.register(audioIdRef.current, () => {
+      setIsActivated(false)
+    })
+    return () => audioManager.unregister(audioIdRef.current)
+  }, [content.type, content.id])
 
-    // Inject absolute positioning and full sizing into iframe
-    embedHtml = embedHtml.replace(
-      '<iframe',
-      '<iframe style="position:absolute;top:0;left:0;width:100%;height:100%"'
-    )
+  // Notify parent about inherently widescreen content
+  useEffect(() => {
+    if (['youtube', 'vimeo', 'video'].includes(content.type)) {
+      onWidescreen?.()
+    }
+  }, [content.type])
 
-    return (
-      <div
-        className="w-full aspect-video min-h-[300px] rounded-2xl overflow-hidden cursor-pointer relative"
-        onClick={() => setIsMuted(!isMuted)}
-      >
-        <div
-          className="absolute inset-0"
-          dangerouslySetInnerHTML={{ __html: embedHtml }}
-        />
-        {!isMuted && (
-          <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60 z-10"></div>
-        )}
-      </div>
-    )
+  const handleActivate = () => {
+    if (['youtube', 'soundcloud'].includes(content.type)) {
+      audioManager.play(audioIdRef.current)
+    }
+    setIsActivated(true)
   }
 
-  // Spotify - if no embed_html, render as beautiful gradient link card
-  if (content.type === 'spotify') {
-    if (content.embed_html) {
-      // Has proper embed - show it edge-to-edge
+  // ════════════════════════════════════════
+  // YOUTUBE — FACADE 2.0
+  // Thumbnail first. Click swaps to iframe.
+  // ════════════════════════════════════════
+  if (content.type === 'youtube') {
+    if (!isActivated && content.thumbnail_url) {
       return (
         <div
-          className="w-full min-h-[152px] rounded-2xl overflow-hidden"
+          className="w-full aspect-video rounded-2xl overflow-hidden cursor-pointer relative group"
+          onClick={handleActivate}
+        >
+          {/* Vapor Box */}
+          <div
+            className={`absolute inset-0 vapor-box rounded-2xl ${isLoaded ? 'opacity-0' : ''} transition-opacity duration-500`}
+            style={{ aspectRatio: '16/9' }}
+          />
+          {/* Thumbnail */}
+          <img
+            src={content.thumbnail_url}
+            alt=""
+            className={`w-full h-full object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+            onLoad={() => setIsLoaded(true)}
+          />
+          {/* Play overlay */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-16 h-16 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center group-hover:scale-110 transition-transform">
+              <span className="text-white text-2xl ml-1">▶</span>
+            </div>
+          </div>
+        </div>
+      )
+    }
+    // Activated — live iframe (unmuted)
+    if (content.embed_html) {
+      let embedHtml = content.embed_html.replace('mute=1', 'mute=0')
+      embedHtml = embedHtml.replace(
+        '<iframe',
+        '<iframe style="position:absolute;top:0;left:0;width:100%;height:100%"'
+      )
+      return (
+        <div className="w-full aspect-video rounded-2xl overflow-hidden relative materialize">
+          <div className="absolute inset-0" dangerouslySetInnerHTML={{ __html: embedHtml }} />
+          <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60 z-10" />
+        </div>
+      )
+    }
+  }
+
+  // ════════════════════════════════════════
+  // SPOTIFY — FACADE 2.0
+  // Gradient card first. Click loads embed.
+  // ════════════════════════════════════════
+  if (content.type === 'spotify') {
+    if (!isActivated) {
+      return (
+        <div
+          className="rounded-2xl overflow-hidden p-6 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]"
+          style={{ background: 'linear-gradient(135deg, #1DB954, #191414)' }}
+          onClick={() => setIsActivated(true)}
+        >
+          <div className="flex items-center gap-3 mb-3">
+            <div className="text-3xl">♫</div>
+            <p className="font-mono text-xs text-white/60 uppercase tracking-wider">Spotify</p>
+          </div>
+          <p className="text-white/90 text-sm truncate">{content.title || 'Listen on Spotify'}</p>
+          <div className="mt-3 flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+              <span className="text-white text-sm ml-0.5">▶</span>
+            </div>
+            <span className="text-white/40 text-xs font-mono">Tap to play</span>
+          </div>
+        </div>
+      )
+    }
+    if (content.embed_html) {
+      return (
+        <div
+          className="w-full min-h-[152px] rounded-2xl overflow-hidden materialize"
           dangerouslySetInnerHTML={{ __html: content.embed_html }}
         />
       )
     }
-    // Fallback: beautiful link card with Spotify branding
     return (
       <a
         href={content.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="block rounded-2xl overflow-hidden p-6 transition-all"
+        className="block rounded-2xl overflow-hidden p-6"
         style={{ background: 'linear-gradient(135deg, #1DB954, #191414)' }}
       >
-        <div className="flex items-center gap-3 mb-3">
-          <div className="text-3xl">♫</div>
-          <p className="font-mono text-xs text-white/60 uppercase tracking-wider">Spotify</p>
-        </div>
         <p className="text-white/90 text-sm">Listen on Spotify →</p>
       </a>
     )
   }
 
-  // For other embeddable content, show the embed
-  if (content.embed_html && ['applemusic', 'vimeo', 'soundcloud'].includes(content.type)) {
-    // Determine min-height based on type to prevent layout shift
-    let minHeightClass = ''
-    if (content.type === 'vimeo') {
-      minHeightClass = 'min-h-[200px]'
-    } else if (content.type === 'applemusic') {
-      minHeightClass = 'min-h-[175px]'
-    } else if (content.type === 'soundcloud') {
-      minHeightClass = 'min-h-[166px]'
-    }
-
-    return (
-      <div className="glass rounded-xl overflow-hidden card-hover relative group">
-        {/* Delete button when editable */}
-        {editable && (
-          <button
-            onClick={onDelete}
-            className="absolute top-3 right-3 z-10 w-8 h-8 rounded-lg bg-black/70 text-white/80 hover:bg-red-500 hover:text-white opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-all flex items-center justify-center"
-          >
-            ×
-          </button>
-        )}
-
-        {/* Embed */}
+  // ════════════════════════════════════════
+  // SOUNDCLOUD — FACADE 2.0
+  // Gradient card first. Click loads embed.
+  // ════════════════════════════════════════
+  if (content.type === 'soundcloud') {
+    if (!isActivated) {
+      return (
         <div
-          className={`w-full ${minHeightClass}`}
+          className="rounded-2xl overflow-hidden p-6 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]"
+          style={{ background: 'linear-gradient(135deg, #ff5500, #ff7700)' }}
+          onClick={handleActivate}
+        >
+          <div className="flex items-center gap-3 mb-3">
+            <div className="text-3xl">♫</div>
+            <p className="font-mono text-xs text-white/60 uppercase tracking-wider">SoundCloud</p>
+          </div>
+          <p className="text-white/90 text-sm truncate">{content.title || 'Listen on SoundCloud'}</p>
+          <div className="mt-3 flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+              <span className="text-white text-sm ml-0.5">▶</span>
+            </div>
+            <span className="text-white/40 text-xs font-mono">Tap to play</span>
+          </div>
+        </div>
+      )
+    }
+    if (content.embed_html) {
+      return (
+        <div
+          className="w-full min-h-[166px] rounded-2xl overflow-hidden materialize"
           dangerouslySetInnerHTML={{ __html: content.embed_html }}
         />
+      )
+    }
+  }
 
-        {/* Info */}
-        <div className="p-4">
-          <p className="font-mono text-xs text-white/40 uppercase tracking-wider mb-1">
-            {content.type}
-          </p>
-          <p className="text-sm font-medium truncate">
-            {content.title || 'Untitled'}
-          </p>
-        </div>
+  // ════════════════════════════════════════
+  // APPLE MUSIC — embed with materialization
+  // ════════════════════════════════════════
+  if (content.type === 'applemusic' && content.embed_html) {
+    return (
+      <div className="rounded-2xl overflow-hidden relative materialize">
+        <div
+          className="w-full min-h-[175px]"
+          dangerouslySetInnerHTML={{ __html: content.embed_html }}
+        />
       </div>
     )
   }
 
-  // For videos (native video files)
+  // ════════════════════════════════════════
+  // VIMEO — embed with materialization
+  // ════════════════════════════════════════
+  if (content.type === 'vimeo' && content.embed_html) {
+    return (
+      <div className="rounded-2xl overflow-hidden relative materialize">
+        <div
+          className="w-full min-h-[200px]"
+          dangerouslySetInnerHTML={{ __html: content.embed_html }}
+        />
+      </div>
+    )
+  }
+
+  // ════════════════════════════════════════
+  // VIDEO (native) — with vapor box
+  // ════════════════════════════════════════
   if (content.type === 'video') {
     return (
-      <div className="glass rounded-xl overflow-hidden card-hover relative group">
-        {editable && (
-          <button
-            onClick={onDelete}
-            className="absolute top-3 right-3 z-10 w-8 h-8 rounded-lg bg-black/70 text-white/80 hover:bg-red-500 hover:text-white opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-all flex items-center justify-center"
-          >
-            ×
-          </button>
-        )}
-
+      <div className="rounded-2xl overflow-hidden relative">
+        <div
+          className={`absolute inset-0 vapor-box rounded-2xl ${isLoaded ? 'opacity-0' : ''} transition-opacity duration-500`}
+          style={{ aspectRatio: '16/9' }}
+        />
         <video
           src={content.url}
           autoPlay
@@ -155,68 +237,47 @@ export default function ContentCard({ content, editable, onDelete }: ContentCard
           loop
           playsInline
           controls
-          className="w-full aspect-video object-cover"
+          className={`w-full aspect-video object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+          onLoadedData={() => setIsLoaded(true)}
         />
-
-        <div className="p-4">
-          <p className="font-mono text-xs text-white/40 uppercase tracking-wider mb-1">
-            Video
-          </p>
-          <p className="text-sm font-medium truncate">
-            {content.title || 'Video'}
-          </p>
-        </div>
       </div>
     )
   }
 
-  // For images
+  // ════════════════════════════════════════
+  // IMAGE — vapor box + 800ms materialization
+  // ════════════════════════════════════════
   if (content.type === 'image') {
     return (
-      <div className="glass rounded-xl overflow-hidden card-hover relative group">
-        {editable && (
-          <button
-            onClick={onDelete}
-            className="absolute top-3 right-3 z-10 w-8 h-8 rounded-lg bg-black/70 text-white/80 hover:bg-red-500 hover:text-white opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-all flex items-center justify-center"
-          >
-            ×
-          </button>
-        )}
-
+      <div className="rounded-2xl overflow-hidden relative">
+        <div
+          className={`absolute inset-0 vapor-box rounded-2xl ${isLoaded ? 'opacity-0' : ''} transition-opacity duration-500`}
+        />
         <a href={content.url} target="_blank" rel="noopener noreferrer">
           <img
             src={content.url}
             alt={content.title || ''}
-            className="w-full aspect-[4/3] object-cover"
+            className={`w-full object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
             loading="lazy"
+            onLoad={(e) => {
+              setIsLoaded(true)
+              const img = e.currentTarget
+              if (img.naturalWidth > img.naturalHeight * 1.3) {
+                onWidescreen?.()
+              }
+            }}
           />
         </a>
-
-        <div className="p-4">
-          <p className="font-mono text-xs text-white/40 uppercase tracking-wider mb-1">
-            Image
-          </p>
-          <p className="text-sm font-medium truncate">
-            {content.title || 'Image'}
-          </p>
-        </div>
       </div>
     )
   }
 
-  // For "thought" - glass text notebook page
+  // ════════════════════════════════════════
+  // THOUGHT — glass text card
+  // ════════════════════════════════════════
   if (content.type === 'thought') {
     return (
-      <div className="rounded-2xl overflow-hidden card-hover relative group p-8 bg-white/[0.03] backdrop-blur-xl border border-white/10 hover:border-white/20 transition-all">
-        {editable && (
-          <button
-            onClick={onDelete}
-            className="absolute top-3 right-3 z-10 w-8 h-8 rounded-lg bg-black/70 text-white/80 hover:bg-red-500 hover:text-white opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-all flex items-center justify-center"
-          >
-            ×
-          </button>
-        )}
-
+      <div className="rounded-2xl overflow-hidden p-8 bg-white/[0.03] backdrop-blur-xl border border-white/10 hover:border-white/20 transition-all">
         <p className="text-base leading-relaxed whitespace-pre-wrap text-white/90">
           {content.title || content.description || ''}
         </p>
@@ -224,33 +285,28 @@ export default function ContentCard({ content, editable, onDelete }: ContentCard
     )
   }
 
-  // For Twitter/X, Instagram, TikTok - visual-only social tiles
+  // ════════════════════════════════════════
+  // SOCIAL — Twitter, Instagram, TikTok
+  // ════════════════════════════════════════
   if (['twitter', 'instagram', 'tiktok'].includes(content.type)) {
-    // If has thumbnail, show it as visual tile
     if (content.thumbnail_url) {
       return (
         <a
           href={content.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="block rounded-2xl overflow-hidden relative group"
+          className="block rounded-2xl overflow-hidden relative"
         >
-          {editable && (
-            <button
-              onClick={(e) => {
-                e.preventDefault()
-                onDelete?.()
-              }}
-              className="absolute top-2 right-2 z-10 w-6 h-6 rounded-full bg-black/70 text-white/80 hover:bg-red-500 hover:text-white opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-all flex items-center justify-center text-xs"
-            >
-              ×
-            </button>
-          )}
+          <div
+            className={`absolute inset-0 vapor-box rounded-2xl ${isLoaded ? 'opacity-0' : ''} transition-opacity duration-500`}
+            style={{ aspectRatio: '1/1' }}
+          />
           <img
             src={content.thumbnail_url}
             alt=""
-            className="w-full aspect-square object-cover"
+            className={`w-full aspect-square object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
             loading="lazy"
+            onLoad={() => setIsLoaded(true)}
           />
           <div className="absolute bottom-2 left-2 text-2xl opacity-80">
             {icon}
@@ -258,26 +314,13 @@ export default function ContentCard({ content, editable, onDelete }: ContentCard
         </a>
       )
     }
-
-    // No thumbnail: minimal icon tile
     return (
       <a
         href={content.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="block rounded-2xl overflow-hidden aspect-square bg-white/[0.03] backdrop-blur-xl border border-white/10 hover:border-white/20 transition-all flex items-center justify-center relative group"
+        className="block rounded-2xl overflow-hidden aspect-square bg-white/[0.03] backdrop-blur-xl border border-white/10 hover:border-white/20 transition-all flex items-center justify-center"
       >
-        {editable && (
-          <button
-            onClick={(e) => {
-              e.preventDefault()
-              onDelete?.()
-            }}
-            className="absolute top-2 right-2 z-10 w-6 h-6 rounded-full bg-black/70 text-white/80 hover:bg-red-500 hover:text-white opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-all flex items-center justify-center text-xs"
-          >
-            ×
-          </button>
-        )}
         <div className="text-4xl opacity-40">
           {icon}
         </div>
@@ -285,43 +328,30 @@ export default function ContentCard({ content, editable, onDelete }: ContentCard
     )
   }
 
-  // Default: link card
+  // ════════════════════════════════════════
+  // DEFAULT LINK — glass card
+  // ════════════════════════════════════════
   return (
     <a
       href={content.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="rounded-xl overflow-hidden card-hover relative group flex items-center gap-4 p-5 bg-white/[0.03] backdrop-blur-xl border border-white/10 hover:border-white/20 transition-all"
+      className="rounded-2xl overflow-hidden flex items-center gap-4 p-5 bg-white/[0.03] backdrop-blur-xl border border-white/10 hover:border-white/20 transition-all"
     >
-      {editable && (
-        <button
-          onClick={(e) => {
-            e.preventDefault()
-            onDelete?.()
-          }}
-          className="absolute top-3 right-3 z-10 w-8 h-8 rounded-lg bg-black/70 text-white/80 hover:bg-red-500 hover:text-white opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-all flex items-center justify-center"
-        >
-          ×
-        </button>
-      )}
-      
-      {/* Icon */}
-      <div 
+      <div
         className="w-12 h-12 rounded-lg flex items-center justify-center text-xl flex-shrink-0"
         style={{ background: customBg || 'rgba(255,255,255,0.1)' }}
       >
         {content.thumbnail_url ? (
-          <img 
-            src={content.thumbnail_url} 
-            alt="" 
+          <img
+            src={content.thumbnail_url}
+            alt=""
             className="w-full h-full rounded-lg object-cover"
           />
         ) : (
           icon
         )}
       </div>
-      
-      {/* Text */}
       <div className="flex-1 min-w-0">
         <p className="font-medium truncate">
           {content.title || hostname}
@@ -330,11 +360,7 @@ export default function ContentCard({ content, editable, onDelete }: ContentCard
           {hostname}
         </p>
       </div>
-      
-      {/* Arrow */}
-      <span className="text-white/30 text-lg flex-shrink-0 group-hover:translate-x-1 transition-transform">
-        →
-      </span>
+      <span className="text-white/30 text-lg flex-shrink-0">→</span>
     </a>
   )
 }
