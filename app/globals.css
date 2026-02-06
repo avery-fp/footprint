@@ -118,29 +118,20 @@ body::before {
   -webkit-touch-callout: none;
 }
 
-/* 800ms Materialization - Quantum fade-in */
+/* 800ms Materialization - fade-in only, no layout-triggering transform */
 @keyframes materialize {
-  from { opacity: 0; transform: scale(0.98); }
-  to { opacity: 1; transform: scale(1); }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .materialize {
   opacity: 0;
-  animation: materialize 800ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: materialize 800ms ease-out forwards;
 }
 
-/* Vapor Box skeleton shimmer */
-@keyframes vapor-shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
+/* Vapor Box skeleton - lightweight, no backdrop-filter */
 .vapor-box {
-  background: linear-gradient(90deg, rgba(255,255,255,0.02) 25%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.02) 75%);
-  background-size: 200% 100%;
-  animation: vapor-shimmer 2s ease-in-out infinite;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 /* Card hover effect */

@@ -182,6 +182,7 @@ export default function EditPage() {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
   const [showWallpaperPicker, setShowWallpaperPicker] = useState(false)
   const [wallpaperUrl, setWallpaperUrl] = useState('')
+  const [wallpaperInput, setWallpaperInput] = useState('')
   const [backgroundBlur, setBackgroundBlur] = useState(true)
   const [widescreenIds, setWidescreenIds] = useState<Set<string>>(new Set())
 
@@ -554,11 +555,11 @@ export default function EditPage() {
           ← view
         </Link>
         <button
-          onClick={() => setShowWallpaperPicker(true)}
+          onClick={() => { setWallpaperInput(wallpaperUrl); setShowWallpaperPicker(true) }}
           className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center text-white/60 hover:text-white/90 transition text-sm"
           title="Wallpaper"
         >
-          🖼
+          <span className="font-mono text-[10px]">bg</span>
         </button>
       </div>
 
@@ -709,11 +710,11 @@ export default function EditPage() {
           </div>
         )}
 
-        {/* The Glass Pill:  +  |  🔗  |  💬  */}
+        {/* The Glass Pill:  +  |  ◎  |  ◇  */}
         <div className="flex items-center gap-0 bg-black/50 backdrop-blur-xl rounded-full border border-white/20 overflow-hidden">
           <button
             onClick={() => setPillMode(pillMode === 'url' ? 'idle' : 'url')}
-            className={`w-12 h-12 flex items-center justify-center text-lg transition-all ${
+            className={`w-12 h-12 flex items-center justify-center text-xl font-light transition-all ${
               pillMode === 'url' ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white hover:bg-white/10'
             }`}
             title="Add content"
@@ -723,20 +724,20 @@ export default function EditPage() {
           <div className="w-px h-6 bg-white/10" />
           <button
             onClick={handleCopyLink}
-            className="w-12 h-12 flex items-center justify-center text-lg text-white/60 hover:text-white hover:bg-white/10 transition-all active:scale-90"
+            className="w-12 h-12 flex items-center justify-center text-sm text-white/60 hover:text-white hover:bg-white/10 transition-all active:scale-90"
             title="Copy link"
           >
-            🔗
+            <span className="font-mono">◎</span>
           </button>
           <div className="w-px h-6 bg-white/10" />
           <button
             onClick={() => setPillMode(pillMode === 'thought' ? 'idle' : 'thought')}
-            className={`w-12 h-12 flex items-center justify-center text-lg transition-all ${
+            className={`w-12 h-12 flex items-center justify-center text-sm transition-all ${
               pillMode === 'thought' ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white hover:bg-white/10'
             }`}
             title="Add thought"
           >
-            💬
+            <span className="font-mono">◇</span>
           </button>
         </div>
       </div>
@@ -756,8 +757,8 @@ export default function EditPage() {
                 <label className="block text-xs text-white/60 mb-2 font-mono">Image URL</label>
                 <input
                   type="text"
-                  value={wallpaperUrl}
-                  onChange={e => setWallpaperUrl(e.target.value)}
+                  value={wallpaperInput}
+                  onChange={e => setWallpaperInput(e.target.value)}
                   placeholder="https://..."
                   className="w-full px-4 py-2 bg-white/5 border border-white/20 rounded-lg font-mono text-sm text-white placeholder:text-white/30 focus:border-white/40 focus:outline-none"
                 />
@@ -777,13 +778,21 @@ export default function EditPage() {
                 </button>
               </div>
 
-              <div className="flex gap-3 pt-2">
+              <div className="flex gap-2 pt-2">
                 <button
-                  onClick={() => handleSaveWallpaper(wallpaperUrl)}
+                  onClick={() => handleSaveWallpaper(wallpaperInput)}
                   className="flex-1 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg font-mono text-sm transition"
                 >
                   Save
                 </button>
+                {wallpaperUrl && (
+                  <button
+                    onClick={() => handleSaveWallpaper('')}
+                    className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-lg font-mono text-sm transition"
+                  >
+                    Clear
+                  </button>
+                )}
                 <button
                   onClick={() => setShowWallpaperPicker(false)}
                   className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white/60 hover:text-white rounded-lg font-mono text-sm transition"
