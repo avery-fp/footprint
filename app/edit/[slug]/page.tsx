@@ -775,34 +775,34 @@ export default function EditPage() {
             </button>
           </div>
         ) : (
-          /* DEFAULT PILL: + | ◎ | ◇ */
+          /* DEFAULT PILL: + | link | chat */
           <div className="flex items-center gap-0 bg-black/50 backdrop-blur-xl rounded-full border border-white/20 overflow-hidden">
             <button
               onClick={() => setPillMode(pillMode === 'url' ? 'idle' : 'url')}
-              className={`w-12 h-12 flex items-center justify-center text-xl font-light transition-all ${
-                pillMode === 'url' ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white hover:bg-white/10'
+              className={`w-14 h-14 flex items-center justify-center transition-all ${
+                pillMode === 'url' ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'
               }`}
               title="Add content"
             >
-              +
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             </button>
             <div className="w-px h-6 bg-white/10" />
             <button
               onClick={handleCopyLink}
-              className="w-12 h-12 flex items-center justify-center text-sm text-white/60 hover:text-white hover:bg-white/10 transition-all active:scale-90"
+              className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all active:scale-90"
               title="Copy link"
             >
-              <span className="font-mono">◎</span>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
             </button>
             <div className="w-px h-6 bg-white/10" />
             <button
               onClick={() => setPillMode(pillMode === 'thought' ? 'idle' : 'thought')}
-              className={`w-12 h-12 flex items-center justify-center text-sm transition-all ${
-                pillMode === 'thought' ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white hover:bg-white/10'
+              className={`w-14 h-14 flex items-center justify-center transition-all ${
+                pillMode === 'thought' ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'
               }`}
               title="Add thought"
             >
-              <span className="font-mono">◇</span>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             </button>
           </div>
         )}
