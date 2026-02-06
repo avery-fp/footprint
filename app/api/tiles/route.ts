@@ -29,14 +29,14 @@ async function getSerialNumber(
  * Add a tile (link/embed) to the links table.
  * Server derives serial_number from slug via ownership check.
  *
- * Body: { slug, url }
+ * Body: { slug, url } or { slug, thought: "text" }
  */
 export async function POST(request: NextRequest) {
   try {
-    const { slug, url } = await request.json()
+    const { slug, url, thought } = await request.json()
 
-    if (!slug || !url) {
-      return NextResponse.json({ error: 'slug and url required' }, { status: 400 })
+    if (!slug || (!url && !thought)) {
+      return NextResponse.json({ error: 'slug and (url or thought) required' }, { status: 400 })
     }
 
     const supabase = createServerSupabaseClient()
@@ -47,8 +47,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Footprint not found' }, { status: 404 })
     }
 
-    // Parse the URL
-    const parsed = await parseURL(url)
+    // Parse the URL or create a thought
+    let parsed
+    if (thought) {
+      parsed = {
+        type: 'thought' as const,
+        url: `thought://${Date.now()}`,
+        external_id: null,
+        title: thought,
+        description: null,
+        thumbnail_url: null,
+        embed_html: null,
+      }
+    } else {
+      parsed = await parseURL(url)
+    }
 
     // Determine which table to use based on type
     const isImage = parsed.type === 'image'
