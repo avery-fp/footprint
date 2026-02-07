@@ -112,10 +112,9 @@ function SortableTile({
                 ref={videoRef}
                 src={content.url}
                 className={`absolute inset-0 w-full h-full object-cover cursor-pointer transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
-                autoPlay
                 muted
-                loop
                 playsInline
+                preload="metadata"
                 onClick={handleVideoClick}
                 onLoadedData={() => setIsLoaded(true)}
               />
@@ -556,7 +555,7 @@ export default function EditPage() {
 
       {/* Center: Room Tabs */}
       {rooms.length > 0 && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-black/50 backdrop-blur-xl rounded-full px-4 py-2 border border-white/10">
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-black/50 backdrop-blur-sm rounded-full px-4 py-2 border border-white/10">
           {rooms.map((room) => (
             <button
               key={room.id}
@@ -626,7 +625,7 @@ export default function EditPage() {
 
         {/* Expanded URL input */}
         {pillMode === 'url' && !selectedTileId && (
-          <div className="w-80 bg-black/60 backdrop-blur-xl border border-white/20 rounded-2xl p-3 materialize">
+          <div className="w-80 bg-black/60 backdrop-blur-sm border border-white/20 rounded-2xl p-3 materialize">
             <input
               ref={urlInputRef}
               type="text"
@@ -659,7 +658,7 @@ export default function EditPage() {
 
         {/* Expanded thought input */}
         {pillMode === 'thought' && !selectedTileId && (
-          <div className="w-80 bg-black/60 backdrop-blur-xl border border-white/20 rounded-2xl p-3 materialize">
+          <div className="w-80 bg-black/60 backdrop-blur-sm border border-white/20 rounded-2xl p-3 materialize">
             <textarea
               ref={thoughtInputRef}
               placeholder="Write a thought..."
@@ -692,7 +691,7 @@ export default function EditPage() {
 
         {/* CONTEXTUAL BAR: when a tile is selected → Wallpaper | Delete */}
         {selectedTileId ? (
-          <div className="flex items-center gap-4 bg-black/60 backdrop-blur-xl rounded-full border border-white/20 px-6 py-3">
+          <div className="flex items-center gap-4 bg-black/60 backdrop-blur-sm rounded-full border border-white/20 px-6 py-3">
             {(selectedIsImage || selectedHasThumbnail) && (
               <button
                 onClick={handleSetWallpaper}
@@ -716,7 +715,7 @@ export default function EditPage() {
           </div>
         ) : (
           /* DEFAULT PILL: + | link | chat */
-          <div className="flex items-center gap-0 bg-black/50 backdrop-blur-xl rounded-full border border-white/20 overflow-hidden">
+          <div className="flex items-center gap-0 bg-black/50 backdrop-blur-sm rounded-full border border-white/20 overflow-hidden">
             <button
               onClick={() => setPillMode(pillMode === 'url' ? 'idle' : 'url')}
               className={`w-14 h-14 flex items-center justify-center transition-all ${

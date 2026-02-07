@@ -40,10 +40,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         />
       )}
       <div className="max-w-7xl mx-auto px-2 pt-6 pb-12 relative z-10">
-        {/* æ Masthead — glass-backed identity card */}
-        <header className="mb-4 relative">
-          <div className="absolute inset-0 bg-black/20 backdrop-blur-md rounded-b-3xl" />
-          <div className="relative z-10 flex flex-col items-center pt-8 pb-4">
+        {/* æ Masthead */}
+        <header className="mb-4 flex flex-col items-center pt-8 pb-4">
             {footprint.background_url && (
               <img
                 src={footprint.background_url}
@@ -53,25 +51,24 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             )}
             <h1
               className="text-7xl sm:text-8xl font-black tracking-tighter leading-none mb-1"
-              style={{ textShadow: '0 1px 8px rgba(0,0,0,0.5)' }}
+              style={{ textShadow: '0 2px 12px rgba(0,0,0,0.8), 0 0px 4px rgba(0,0,0,0.4)' }}
             >
               {footprint.display_name || 'æ'}
             </h1>
             <span
               className="font-mono text-xs"
-              style={{ color: theme.colors.textMuted, textShadow: '0 1px 8px rgba(0,0,0,0.5)' }}
+              style={{ color: theme.colors.textMuted, textShadow: '0 2px 12px rgba(0,0,0,0.8), 0 0px 4px rgba(0,0,0,0.4)' }}
             >
               #{serial}
             </span>
             {footprint.bio && (
               <p
                 className="mt-2 text-sm max-w-md text-center"
-                style={{ color: theme.colors.textMuted, textShadow: '0 1px 8px rgba(0,0,0,0.5)' }}
+                style={{ color: theme.colors.textMuted, textShadow: '0 2px 12px rgba(0,0,0,0.8), 0 0px 4px rgba(0,0,0,0.4)' }}
               >
                 {footprint.bio}
               </p>
             )}
-          </div>
         </header>
 
         {/* Room Tabs */}
