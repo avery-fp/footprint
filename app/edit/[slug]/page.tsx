@@ -11,6 +11,7 @@ import { audioManager } from '@/lib/audio-manager'
 import { getTheme } from '@/lib/themes'
 import Link from 'next/link'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
+import { transformImageUrl } from '@/lib/image'
 
 interface TileContent extends DraftContent {
   source?: 'library' | 'links'
@@ -125,7 +126,7 @@ function SortableTile({
             </>
           ) : (
             <img
-              src={content.url}
+              src={transformImageUrl(content.url)}
               className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
               alt=""
               loading="lazy"
@@ -135,7 +136,7 @@ function SortableTile({
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/[0.05] p-2">
             {content.thumbnail_url ? (
-              <img src={content.thumbnail_url} alt="" className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+              <img src={transformImageUrl(content.thumbnail_url)} alt="" className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
             ) : (
               <>
                 <div className="text-2xl mb-1 opacity-60">

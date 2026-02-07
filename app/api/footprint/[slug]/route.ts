@@ -17,7 +17,9 @@ export async function GET(
 ) {
   try {
     const username = params.slug
-    console.log('[Footprint GET] Loading for slug:', username)
+    const { searchParams } = new URL(request.url)
+    const offset = parseInt(searchParams.get('offset') || '0')
+    const limit = parseInt(searchParams.get('limit') || '24')
 
     const supabase = createServerSupabaseClient()
 
@@ -75,14 +77,18 @@ export async function GET(
       room_id: item.room_id || null,
     }))
 
-    const tiles = [...libraryTiles, ...linkTiles].sort((a, b) =>
+    const allTiles = [...libraryTiles, ...linkTiles].sort((a, b) =>
       (a.position ?? 0) - (b.position ?? 0)
     )
+
+    const totalCount = allTiles.length
+    const tiles = allTiles.slice(offset, offset + limit)
 
     return NextResponse.json({
       owned: true,
       footprint,
       tiles,
+      totalCount,
     })
 
   } catch (error) {

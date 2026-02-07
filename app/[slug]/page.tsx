@@ -55,10 +55,12 @@ export default async function FootprintPage({ params }: Props) {
 
   if (!footprint) notFound()
 
-  // Fetch tiles from library (images) + links (embeds/urls)
-  const [{ data: images }, { data: links }] = await Promise.all([
+  // Fetch tiles from library (images) + links (embeds/urls) + counts for pagination
+  const [{ data: images }, { data: links }, { count: imageCount }, { count: linkCount }] = await Promise.all([
     supabase.from('library').select('*').eq('serial_number', footprint.serial_number).order('position'),
     supabase.from('links').select('*').eq('serial_number', footprint.serial_number).order('position'),
+    supabase.from('library').select('*', { count: 'exact', head: true }).eq('serial_number', footprint.serial_number),
+    supabase.from('links').select('*', { count: 'exact', head: true }).eq('serial_number', footprint.serial_number),
   ])
 
   // Merge and sort by position
@@ -82,6 +84,9 @@ export default async function FootprintPage({ params }: Props) {
       room_id: link.room_id,
     })),
   ].sort((a, b) => a.position - b.position)
+
+  const totalCount = (imageCount || 0) + (linkCount || 0)
+  const initialContent = content.slice(0, 24)
 
   // Fetch rooms if they exist
   const { data: roomsData } = await supabase
@@ -107,11 +112,12 @@ export default async function FootprintPage({ params }: Props) {
       <ShareButton url={pageUrl} />
       <PublicPage
         footprint={footprint}
-        content={content}
+        content={initialContent}
         rooms={rooms}
         theme={theme}
         serial={serial}
         pageUrl={pageUrl}
+        totalCount={totalCount}
       />
     </>
   )
