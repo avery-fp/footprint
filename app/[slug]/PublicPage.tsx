@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import ContentCard from '@/components/ContentCard'
 import VideoTile from '@/components/VideoTile'
 import WeatherEffect from '@/components/WeatherEffect'
+import { transformImageUrl } from '@/lib/image'
 
 interface Room {
   id: string
@@ -18,16 +19,22 @@ interface PublicPageProps {
   theme: any
   serial: string
   pageUrl: string
+  totalCount: number
 }
 
-export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl }: PublicPageProps) {
+export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl, totalCount }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
   const [wallpaperLoaded, setWallpaperLoaded] = useState(false)
   const [showToast, setShowToast] = useState(false)
+  const [loadedContent, setLoadedContent] = useState(allContent)
+  const [loading, setLoading] = useState(false)
+  const sentinelRef = useRef<HTMLDivElement>(null)
+
+  const hasMore = !activeRoomId && loadedContent.length < totalCount
 
   const content = activeRoomId
     ? rooms.find(r => r.id === activeRoomId)?.content || []
-    : allContent
+    : loadedContent
 
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href)
@@ -39,6 +46,33 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     const t = setTimeout(() => setShowToast(false), 2000)
     return () => clearTimeout(t)
   }, [showToast])
+
+  // Infinite scroll — load next batch of tiles
+  const loadMore = useCallback(async () => {
+    if (loading || !hasMore) return
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/footprint/${footprint.username}?offset=${loadedContent.length}&limit=24`)
+      const json = await res.json()
+      if (json.tiles?.length) {
+        setLoadedContent(prev => [...prev, ...json.tiles])
+      }
+    } catch (e) {
+      console.error('Load more failed:', e)
+    }
+    setLoading(false)
+  }, [loading, hasMore, loadedContent.length, footprint.username])
+
+  useEffect(() => {
+    const el = sentinelRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) loadMore() },
+      { rootMargin: '400px' }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [loadMore])
 
   return (
     <div className="min-h-screen relative" style={{ background: theme.colors.background, color: theme.colors.text }}>
@@ -154,7 +188,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                       ) : (
                         <div className="rounded-xl overflow-hidden border border-white/[0.06]">
                           <img
-                            src={item.url}
+                            src={transformImageUrl(item.url)}
                             className="w-full object-cover opacity-0 transition-opacity duration-[800ms]"
                             alt=""
                             loading="lazy"
@@ -175,6 +209,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               )
             })}
           </div>
+          {/* Infinite scroll sentinel */}
+          {hasMore && <div ref={sentinelRef} className="h-8" />}
         </div>
 
         {content.length === 0 && (

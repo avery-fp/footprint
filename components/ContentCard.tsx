@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { getContentIcon, getContentBackground, ContentType } from '@/lib/parser'
 import { audioManager } from '@/lib/audio-manager'
+import { transformImageUrl } from '@/lib/image'
 
 function extractYouTubeId(url: string): string | null {
   const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/)
@@ -102,7 +103,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
           onClick={handleActivate}
         >
           <img
-            src={isInView ? thumbnailUrl : undefined}
+            src={isInView ? transformImageUrl(thumbnailUrl) : undefined}
             alt=""
             className={`w-full h-full object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
             loading="lazy"
@@ -267,7 +268,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
         />
         <a href={content.url} target="_blank" rel="noopener noreferrer">
           <img
-            src={isInView ? content.url : undefined}
+            src={isInView ? transformImageUrl(content.url) : undefined}
             alt={content.title || ''}
             className={`w-full object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
             loading="lazy"
@@ -317,7 +318,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
             style={{ aspectRatio: '1/1' }}
           />
           <img
-            src={isInView ? content.thumbnail_url : undefined}
+            src={isInView ? transformImageUrl(content.thumbnail_url) : undefined}
             alt=""
             className={`w-full aspect-square object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
             loading="lazy"
@@ -360,7 +361,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
       >
         {content.thumbnail_url ? (
           <img
-            src={isInView ? content.thumbnail_url : undefined}
+            src={isInView ? transformImageUrl(content.thumbnail_url) : undefined}
             alt=""
             className="w-full h-full rounded-lg object-cover"
             loading="lazy"
