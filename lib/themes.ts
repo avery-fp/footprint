@@ -56,7 +56,7 @@ export const themes: Record<string, Theme> = {
     description: 'The original. Dark, minimal, timeless.',
     preview: 'linear-gradient(135deg, #07080A, #0B0D10)',
     colors: {
-      background: '#07080A',
+      background: 'radial-gradient(ellipse at 50% 0%, rgba(15,10,40,1) 0%, rgba(5,5,15,1) 70%, rgba(0,0,0,1) 100%)',
       backgroundAlt: '#0B0D10',
       text: '#F5F5F5',
       textMuted: 'rgba(255,255,255,0.5)',
