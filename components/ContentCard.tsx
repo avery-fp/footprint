@@ -283,7 +283,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
   if (content.type === 'thought') {
     return (
       <div
-        className="rounded-xl overflow-hidden p-8 backdrop-blur-xl border border-white/[0.08] hover:border-white/15 transition-all"
+        className="rounded-xl overflow-hidden p-8 border border-white/[0.08] hover:border-white/15 transition-all"
         style={{ background: 'rgba(15, 15, 20, 0.75)' }}
       >
         <p className="text-base leading-relaxed whitespace-pre-wrap text-white/90">
@@ -327,7 +327,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
         href={content.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="block rounded-xl overflow-hidden aspect-square backdrop-blur-xl border border-white/[0.08] hover:border-white/15 transition-all flex items-center justify-center"
+        className="block rounded-xl overflow-hidden aspect-square border border-white/[0.08] hover:border-white/15 transition-all flex items-center justify-center"
         style={{ background: 'rgba(15, 15, 20, 0.75)' }}
       >
         <div className="text-4xl opacity-40">
@@ -345,7 +345,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
       href={content.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="rounded-xl overflow-hidden flex items-center gap-4 p-5 backdrop-blur-xl border border-white/[0.08] hover:border-white/15 transition-all"
+      className="rounded-xl overflow-hidden flex items-center gap-4 p-5 border border-white/[0.08] hover:border-white/15 transition-all"
       style={{ background: 'rgba(15, 15, 20, 0.75)' }}
     >
       <div

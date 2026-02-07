@@ -112,10 +112,9 @@ function SortableTile({
                 ref={videoRef}
                 src={content.url}
                 className={`absolute inset-0 w-full h-full object-cover cursor-pointer transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
-                autoPlay
                 muted
-                loop
                 playsInline
+                preload="metadata"
                 onClick={handleVideoClick}
                 onLoadedData={() => setIsLoaded(true)}
               />
@@ -134,12 +133,18 @@ function SortableTile({
           )
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/[0.05] p-2">
-            <div className="text-2xl mb-1 opacity-60">
-              {content.type === 'youtube' ? '▶' : content.type === 'spotify' ? '♫' : content.type === 'soundcloud' ? '♫' : content.type === 'thought' ? '💭' : '🔗'}
-            </div>
-            <p className="text-[10px] text-white/50 text-center truncate w-full font-mono">
-              {content.title || content.type}
-            </p>
+            {content.thumbnail_url ? (
+              <img src={content.thumbnail_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            ) : (
+              <>
+                <div className="text-2xl mb-1 opacity-60">
+                  {content.type === 'youtube' ? '▶' : content.type === 'spotify' ? '♫' : content.type === 'soundcloud' ? '♫' : content.type === 'thought' ? '💭' : content.type ? '🔗' : '?'}
+                </div>
+                <p className="text-[10px] text-white/50 text-center truncate w-full font-mono">
+                  {content.title || content.type || '?'}
+                </p>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -518,8 +523,8 @@ export default function EditPage() {
           className="fixed inset-0 z-0 bg-cover bg-center"
           style={{
             backgroundImage: `url(${wallpaperUrl})`,
-            filter: backgroundBlur ? 'blur(20px) brightness(0.7)' : 'none',
-            transform: 'scale(1.1)',
+            filter: backgroundBlur ? 'blur(12px) brightness(0.7)' : 'none',
+            transform: backgroundBlur ? 'scale(1.05)' : 'none',
           }}
         />
       )}
@@ -556,7 +561,7 @@ export default function EditPage() {
 
       {/* Center: Room Tabs */}
       {rooms.length > 0 && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-black/50 backdrop-blur-xl rounded-full px-4 py-2 border border-white/10">
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-black/50 backdrop-blur-sm rounded-full px-4 py-2 border border-white/10">
           {rooms.map((room) => (
             <button
               key={room.id}
@@ -598,7 +603,7 @@ export default function EditPage() {
               items={draft.content.map(item => item.id)}
               strategy={rectSortingStrategy}
             >
-              <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2 px-1">
                 {draft.content.map(item => (
                   <SortableTile
                     key={item.id}
@@ -626,7 +631,7 @@ export default function EditPage() {
 
         {/* Expanded URL input */}
         {pillMode === 'url' && !selectedTileId && (
-          <div className="w-80 bg-black/60 backdrop-blur-xl border border-white/20 rounded-2xl p-3 materialize">
+          <div className="w-80 bg-black/60 backdrop-blur-sm border border-white/20 rounded-2xl p-3 materialize">
             <input
               ref={urlInputRef}
               type="text"
@@ -659,7 +664,7 @@ export default function EditPage() {
 
         {/* Expanded thought input */}
         {pillMode === 'thought' && !selectedTileId && (
-          <div className="w-80 bg-black/60 backdrop-blur-xl border border-white/20 rounded-2xl p-3 materialize">
+          <div className="w-80 bg-black/60 backdrop-blur-sm border border-white/20 rounded-2xl p-3 materialize">
             <textarea
               ref={thoughtInputRef}
               placeholder="Write a thought..."
@@ -692,7 +697,7 @@ export default function EditPage() {
 
         {/* CONTEXTUAL BAR: when a tile is selected → Wallpaper | Delete */}
         {selectedTileId ? (
-          <div className="flex items-center gap-4 bg-black/60 backdrop-blur-xl rounded-full border border-white/20 px-6 py-3">
+          <div className="flex items-center gap-4 bg-black/60 backdrop-blur-sm rounded-full border border-white/20 px-6 py-3">
             {(selectedIsImage || selectedHasThumbnail) && (
               <button
                 onClick={handleSetWallpaper}
@@ -716,7 +721,7 @@ export default function EditPage() {
           </div>
         ) : (
           /* DEFAULT PILL: + | link | chat */
-          <div className="flex items-center gap-0 bg-black/50 backdrop-blur-xl rounded-full border border-white/20 overflow-hidden">
+          <div className="flex items-center gap-0 bg-black/50 backdrop-blur-sm rounded-full border border-white/20 overflow-hidden">
             <button
               onClick={() => setPillMode(pillMode === 'url' ? 'idle' : 'url')}
               className={`w-14 h-14 flex items-center justify-center transition-all ${
