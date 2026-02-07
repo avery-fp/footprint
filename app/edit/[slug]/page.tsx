@@ -95,7 +95,7 @@ function SortableTile({
       {...listeners}
       onClick={onSelect}
     >
-      <div className={`relative rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-green-400' : ''}`}>
+      <div className={`relative rounded-xl overflow-hidden ${selected ? 'ring-2 ring-green-400' : ''}`}>
         {/* Red dot delete */}
         <button
           onPointerDown={(e) => e.stopPropagation()}
@@ -642,7 +642,7 @@ export default function EditPage() {
       </div>
 
       {/* ═══ DENSE MASONRY GRID ═══ */}
-      <div className="max-w-7xl mx-auto px-2 pt-16">
+      <div className="max-w-7xl mx-auto px-2 pt-14">
         {draft.content.length > 0 ? (
           <DndContext
             sensors={sensors}

@@ -69,12 +69,12 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
     if (!isActivated && content.thumbnail_url) {
       return (
         <div
-          className="w-full aspect-video rounded-2xl overflow-hidden cursor-pointer relative group"
+          className="w-full aspect-video rounded-xl overflow-hidden cursor-pointer relative group"
           onClick={handleActivate}
         >
           {/* Vapor Box */}
           <div
-            className={`absolute inset-0 vapor-box rounded-2xl ${isLoaded ? 'opacity-0' : ''} transition-opacity duration-500`}
+            className={`absolute inset-0 vapor-box rounded-xl ${isLoaded ? 'opacity-0' : ''} transition-opacity duration-500`}
             style={{ aspectRatio: '16/9' }}
           />
           {/* Thumbnail */}
@@ -101,7 +101,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
         '<iframe style="position:absolute;top:0;left:0;width:100%;height:100%"'
       )
       return (
-        <div className="w-full aspect-video rounded-2xl overflow-hidden relative materialize">
+        <div className="w-full aspect-video rounded-xl overflow-hidden relative materialize">
           <div className="absolute inset-0" dangerouslySetInnerHTML={{ __html: embedHtml }} />
           <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60 z-10" />
         </div>
@@ -117,7 +117,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
     if (!isActivated) {
       return (
         <div
-          className="rounded-2xl overflow-hidden p-6 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]"
+          className="rounded-xl overflow-hidden p-6 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]"
           style={{ background: 'linear-gradient(135deg, #1DB954, #191414)' }}
           onClick={() => setIsActivated(true)}
         >
@@ -138,7 +138,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
     if (content.embed_html) {
       return (
         <div
-          className="w-full min-h-[152px] rounded-2xl overflow-hidden materialize"
+          className="w-full min-h-[152px] rounded-xl overflow-hidden materialize"
           dangerouslySetInnerHTML={{ __html: content.embed_html }}
         />
       )
@@ -148,7 +148,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
         href={content.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="block rounded-2xl overflow-hidden p-6"
+        className="block rounded-xl overflow-hidden p-6"
         style={{ background: 'linear-gradient(135deg, #1DB954, #191414)' }}
       >
         <p className="text-white/90 text-sm">Listen on Spotify →</p>
@@ -164,7 +164,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
     if (!isActivated) {
       return (
         <div
-          className="rounded-2xl overflow-hidden p-6 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]"
+          className="rounded-xl overflow-hidden p-6 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]"
           style={{ background: 'linear-gradient(135deg, #ff5500, #ff7700)' }}
           onClick={handleActivate}
         >
@@ -185,7 +185,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
     if (content.embed_html) {
       return (
         <div
-          className="w-full min-h-[166px] rounded-2xl overflow-hidden materialize"
+          className="w-full min-h-[166px] rounded-xl overflow-hidden materialize"
           dangerouslySetInnerHTML={{ __html: content.embed_html }}
         />
       )
@@ -197,7 +197,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
   // ════════════════════════════════════════
   if (content.type === 'applemusic' && content.embed_html) {
     return (
-      <div className="rounded-2xl overflow-hidden relative materialize">
+      <div className="rounded-xl overflow-hidden relative materialize">
         <div
           className="w-full min-h-[175px]"
           dangerouslySetInnerHTML={{ __html: content.embed_html }}
@@ -211,7 +211,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
   // ════════════════════════════════════════
   if (content.type === 'vimeo' && content.embed_html) {
     return (
-      <div className="rounded-2xl overflow-hidden relative materialize">
+      <div className="rounded-xl overflow-hidden relative materialize">
         <div
           className="w-full min-h-[200px]"
           dangerouslySetInnerHTML={{ __html: content.embed_html }}
@@ -225,9 +225,9 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
   // ════════════════════════════════════════
   if (content.type === 'video') {
     return (
-      <div className="rounded-2xl overflow-hidden relative">
+      <div className="rounded-xl overflow-hidden relative">
         <div
-          className={`absolute inset-0 vapor-box rounded-2xl ${isLoaded ? 'opacity-0' : ''} transition-opacity duration-500`}
+          className={`absolute inset-0 vapor-box rounded-xl ${isLoaded ? 'opacity-0' : ''} transition-opacity duration-500`}
           style={{ aspectRatio: '16/9' }}
         />
         <video
@@ -249,9 +249,9 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
   // ════════════════════════════════════════
   if (content.type === 'image') {
     return (
-      <div className="rounded-2xl overflow-hidden relative">
+      <div className="rounded-xl overflow-hidden relative">
         <div
-          className={`absolute inset-0 vapor-box rounded-2xl ${isLoaded ? 'opacity-0' : ''} transition-opacity duration-500`}
+          className={`absolute inset-0 vapor-box rounded-xl ${isLoaded ? 'opacity-0' : ''} transition-opacity duration-500`}
         />
         <a href={content.url} target="_blank" rel="noopener noreferrer">
           <img
@@ -277,7 +277,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
   // ════════════════════════════════════════
   if (content.type === 'thought') {
     return (
-      <div className="rounded-2xl overflow-hidden p-8 bg-white/[0.03] backdrop-blur-xl border border-white/10 hover:border-white/20 transition-all">
+      <div className="rounded-xl overflow-hidden p-8 bg-white/[0.05] backdrop-blur-sm border border-white/[0.08] hover:border-white/15 transition-all">
         <p className="text-base leading-relaxed whitespace-pre-wrap text-white/90">
           {content.title || content.description || ''}
         </p>
@@ -295,10 +295,10 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
           href={content.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="block rounded-2xl overflow-hidden relative"
+          className="block rounded-xl overflow-hidden relative"
         >
           <div
-            className={`absolute inset-0 vapor-box rounded-2xl ${isLoaded ? 'opacity-0' : ''} transition-opacity duration-500`}
+            className={`absolute inset-0 vapor-box rounded-xl ${isLoaded ? 'opacity-0' : ''} transition-opacity duration-500`}
             style={{ aspectRatio: '1/1' }}
           />
           <img
@@ -319,7 +319,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
         href={content.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="block rounded-2xl overflow-hidden aspect-square bg-white/[0.03] backdrop-blur-xl border border-white/10 hover:border-white/20 transition-all flex items-center justify-center"
+        className="block rounded-xl overflow-hidden aspect-square bg-white/[0.05] backdrop-blur-sm border border-white/[0.08] hover:border-white/15 transition-all flex items-center justify-center"
       >
         <div className="text-4xl opacity-40">
           {icon}
@@ -336,7 +336,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
       href={content.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="rounded-2xl overflow-hidden flex items-center gap-4 p-5 bg-white/[0.03] backdrop-blur-xl border border-white/10 hover:border-white/20 transition-all"
+      className="rounded-xl overflow-hidden flex items-center gap-4 p-5 bg-white/[0.05] backdrop-blur-sm border border-white/[0.08] hover:border-white/15 transition-all"
     >
       <div
         className="w-12 h-12 rounded-lg flex items-center justify-center text-xl flex-shrink-0"
