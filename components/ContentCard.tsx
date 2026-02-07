@@ -283,8 +283,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
   if (content.type === 'thought') {
     return (
       <div
-        className="rounded-xl overflow-hidden p-8 border border-white/[0.08] hover:border-white/15 transition-all"
-        style={{ background: 'rgba(15, 15, 20, 0.75)' }}
+        className="rounded-xl overflow-hidden p-8 border border-white/[0.08] hover:border-white/15 transition-all bg-white/[0.08]"
       >
         <p className="text-base leading-relaxed whitespace-pre-wrap text-white/90">
           {content.title || content.description || ''}
@@ -327,8 +326,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
         href={content.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="block rounded-xl overflow-hidden aspect-square border border-white/[0.08] hover:border-white/15 transition-all flex items-center justify-center"
-        style={{ background: 'rgba(15, 15, 20, 0.75)' }}
+        className="block rounded-xl overflow-hidden aspect-square border border-white/[0.08] hover:border-white/15 transition-all flex items-center justify-center bg-white/[0.08]"
       >
         <div className="text-4xl opacity-40">
           {icon}
@@ -345,8 +343,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
       href={content.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="rounded-xl overflow-hidden flex items-center gap-4 p-5 border border-white/[0.08] hover:border-white/15 transition-all"
-      style={{ background: 'rgba(15, 15, 20, 0.75)' }}
+      className="rounded-xl overflow-hidden flex items-center gap-4 p-5 border border-white/[0.08] hover:border-white/15 transition-all bg-white/[0.08]"
     >
       <div
         className="w-12 h-12 rounded-lg flex items-center justify-center text-xl flex-shrink-0"

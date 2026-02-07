@@ -54,7 +54,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             <h1
               style={{
                 fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
-                fontWeight: 200,
+                fontWeight: 400,
                 fontSize: '5rem',
                 letterSpacing: '-0.03em',
                 lineHeight: 1,
