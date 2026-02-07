@@ -2,8 +2,6 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { nanoid } from 'nanoid'
-import { parseURL } from '@/lib/parser'
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, sortableKeyboardCoordinates, useSortable, rectSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -17,17 +15,11 @@ interface TileContent extends DraftContent {
   source?: 'library' | 'links'
 }
 
-function isWidescreenType(type: string, url?: string): boolean {
-  if (['youtube', 'vimeo', 'video'].includes(type)) return true
-  if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return true
-  return false
-}
-
 // ═══════════════════════════════════════════
 // Sortable Tile
 // ═══════════════════════════════════════════
 function SortableTile({
-  id, content, onDelete, onSelect, deleting, selected, isWidescreen, onWidescreen,
+  id, content, onDelete, onSelect, deleting, selected,
 }: {
   id: string
   content: any
@@ -35,8 +27,6 @@ function SortableTile({
   onSelect: () => void
   deleting: boolean
   selected: boolean
-  isWidescreen: boolean
-  onWidescreen: (id: string) => void
 }) {
   const [isMuted, setIsMuted] = useState(true)
   const [isLoaded, setIsLoaded] = useState(false)
@@ -90,12 +80,12 @@ function SortableTile({
     <div
       ref={setNodeRef}
       style={style}
-      className={isWidescreen ? 'col-span-2' : 'col-span-1'}
+      className="aspect-square"
       {...attributes}
       {...listeners}
       onClick={onSelect}
     >
-      <div className={`relative rounded-xl overflow-hidden ${selected ? 'ring-2 ring-green-400' : ''}`}>
+      <div className={`relative rounded-xl overflow-hidden w-full h-full ${selected ? 'ring-2 ring-green-400' : ''}`}>
         {/* Red dot delete */}
         <button
           onPointerDown={(e) => e.stopPropagation()}
@@ -125,7 +115,7 @@ function SortableTile({
               <video
                 ref={videoRef}
                 src={content.url}
-                className={`w-full object-cover cursor-pointer transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+                className={`w-full h-full object-cover cursor-pointer transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
                 autoPlay
                 muted
                 loop
@@ -144,24 +134,15 @@ function SortableTile({
               />
               <img
                 src={content.url}
-                className={`w-full object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+                className={`w-full h-full object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
                 alt=""
                 loading="lazy"
-                onLoad={(e) => {
-                  setIsLoaded(true)
-                  const img = e.currentTarget
-                  if (img.naturalWidth > img.naturalHeight * 1.3) {
-                    onWidescreen(id)
-                  }
-                }}
+                onLoad={() => setIsLoaded(true)}
               />
             </div>
           )
         ) : (
-          <ContentCard
-            content={content}
-            onWidescreen={() => onWidescreen(id)}
-          />
+          <ContentCard content={content} />
         )}
       </div>
     </div>
@@ -186,8 +167,6 @@ export default function EditPage() {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
   const [wallpaperUrl, setWallpaperUrl] = useState('')
   const [backgroundBlur, setBackgroundBlur] = useState(true)
-  const [widescreenIds, setWidescreenIds] = useState<Set<string>>(new Set())
-
   // Selection state
   const [selectedTileId, setSelectedTileId] = useState<string | null>(null)
 
@@ -208,15 +187,6 @@ export default function EditPage() {
     })
   )
 
-  const handleWidescreen = useCallback((id: string) => {
-    setWidescreenIds(prev => {
-      if (prev.has(id)) return prev
-      const next = new Set(prev)
-      next.add(id)
-      return next
-    })
-  }, [])
-
   // Load data
   useEffect(() => {
     async function loadData() {
@@ -233,12 +203,8 @@ export default function EditPage() {
           setBackgroundBlur(data.footprint.background_blur ?? true)
 
           const sources: Record<string, 'library' | 'links'> = {}
-          const initialWidescreen = new Set<string>()
           const content = (data.tiles || []).map((tile: any) => {
             sources[tile.id] = tile.source
-            if (isWidescreenType(tile.type, tile.url)) {
-              initialWidescreen.add(tile.id)
-            }
             return {
               id: tile.id,
               url: tile.url,
@@ -251,7 +217,6 @@ export default function EditPage() {
             }
           })
           setTileSources(sources)
-          setWidescreenIds(initialWidescreen)
 
           setDraft({
             slug,
@@ -352,9 +317,6 @@ export default function EditPage() {
       const data = await res.json()
       if (data.tile) {
         setTileSources(prev => ({ ...prev, [data.tile.id]: data.tile.source }))
-        if (isWidescreenType(data.tile.type, data.tile.url)) {
-          setWidescreenIds(prev => new Set(prev).add(data.tile.id))
-        }
         setDraft(prev => prev ? {
           ...prev,
           content: [...prev.content, {
@@ -446,13 +408,6 @@ export default function EditPage() {
         delete next[id]
         return next
       })
-
-      setWidescreenIds(prev => {
-        if (!prev.has(id)) return prev
-        const next = new Set(prev)
-        next.delete(id)
-        return next
-      })
     } catch (error) {
       console.error('Failed to delete tile:', error)
     } finally {
@@ -534,10 +489,6 @@ export default function EditPage() {
     }
   }
 
-  function handleCopyLink() {
-    navigator.clipboard.writeText(`${window.location.origin}/${slug}`)
-  }
-
   // ── Selection helpers ──
 
   function handleSelect(id: string) {
@@ -561,23 +512,19 @@ export default function EditPage() {
 
   const theme = getTheme(draft.theme)
 
-  const backgroundStyle = wallpaperUrl
-    ? {
-        backgroundImage: backgroundBlur
-          ? `linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url(${wallpaperUrl})`
-          : `url(${wallpaperUrl})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundAttachment: 'fixed' as const,
-        color: theme.colors.text,
-      }
-    : {
-        background: theme.colors.background,
-        color: theme.colors.text,
-      }
-
   return (
-    <div className="min-h-screen pb-32" style={backgroundStyle}>
+    <div className="min-h-screen pb-32 relative" style={{ background: theme.colors.background, color: theme.colors.text }}>
+      {/* Wallpaper layer — real blur via filter */}
+      {wallpaperUrl && (
+        <div
+          className="fixed inset-0 z-0 bg-cover bg-center"
+          style={{
+            backgroundImage: `url(${wallpaperUrl})`,
+            filter: backgroundBlur ? 'blur(20px) brightness(0.7)' : 'none',
+            transform: 'scale(1.1)',
+          }}
+        />
+      )}
       {/* ═══ HEADER ═══ */}
       <div className="fixed top-6 left-6 z-50 flex items-center gap-3">
         <Link
@@ -642,7 +589,7 @@ export default function EditPage() {
       </div>
 
       {/* ═══ DENSE MASONRY GRID ═══ */}
-      <div className="max-w-7xl mx-auto px-2 pt-14">
+      <div className="max-w-7xl mx-auto px-2 pt-14 relative z-10">
         {draft.content.length > 0 ? (
           <DndContext
             sensors={sensors}
@@ -653,10 +600,7 @@ export default function EditPage() {
               items={draft.content.map(item => item.id)}
               strategy={rectSortingStrategy}
             >
-              <div
-                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-1"
-                style={{ gridAutoFlow: 'dense' }}
-              >
+              <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
                 {draft.content.map(item => (
                   <SortableTile
                     key={item.id}
@@ -666,8 +610,6 @@ export default function EditPage() {
                     onSelect={() => handleSelect(item.id)}
                     deleting={deletingIds.has(item.id)}
                     selected={selectedTileId === item.id}
-                    isWidescreen={widescreenIds.has(item.id)}
-                    onWidescreen={handleWidescreen}
                   />
                 ))}
               </div>
@@ -785,14 +727,6 @@ export default function EditPage() {
               title="Add content"
             >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            </button>
-            <div className="w-px h-6 bg-white/10" />
-            <button
-              onClick={handleCopyLink}
-              className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all active:scale-90"
-              title="Copy link"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
             </button>
             <div className="w-px h-6 bg-white/10" />
             <button
