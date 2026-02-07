@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import ContentCard from '@/components/ContentCard'
 import VideoTile from '@/components/VideoTile'
 import WeatherEffect from '@/components/WeatherEffect'
@@ -23,10 +23,22 @@ interface PublicPageProps {
 export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
   const [wallpaperLoaded, setWallpaperLoaded] = useState(false)
+  const [showToast, setShowToast] = useState(false)
 
   const content = activeRoomId
     ? rooms.find(r => r.id === activeRoomId)?.content || []
     : allContent
+
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.href)
+    setShowToast(true)
+  }
+
+  useEffect(() => {
+    if (!showToast) return
+    const t = setTimeout(() => setShowToast(false), 2000)
+    return () => clearTimeout(t)
+  }, [showToast])
 
   return (
     <div className="min-h-screen relative" style={{ background: theme.colors.background, color: theme.colors.text }}>
@@ -50,28 +62,20 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </>
       )}
       <WeatherEffect type={footprint.weather_effect || null} />
-      <div className="max-w-7xl mx-auto px-2 pt-6 pb-12 relative z-10">
-        {/* æ Masthead */}
-        <header className="mb-4 flex flex-col items-center pt-8 pb-4">
-            {footprint.background_url && (
-              <img
-                src={footprint.background_url}
-                alt=""
-                className="w-20 h-20 rounded-full mb-3 object-cover border border-white/[0.08]"
-              />
-            )}
+      <div className="relative z-10">
+        {/* æ Masthead — no avatar, just text */}
+        <header className="mb-12 md:mb-16 flex flex-col items-center pt-24 md:pt-32">
             <h1
-              className="text-3xl md:text-4xl tracking-[0.15em]"
+              className="text-4xl md:text-6xl tracking-[0.15em] font-normal text-white/90"
               style={{
                 fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
-                fontWeight: 400,
                 lineHeight: 1,
                 textShadow: '0 2px 16px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.5)',
               }}
             >
               {footprint.display_name || 'æ'}
             </h1>
-            <span className="text-white/30 tracking-[0.3em] uppercase text-[10px] font-light mt-1"
+            <span className="text-white/30 tracking-[0.3em] uppercase text-[10px] font-light mt-2"
               style={{
                 textShadow: '0 2px 16px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.5)',
               }}
@@ -80,7 +84,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             </span>
             {footprint.bio && (
               <p
-                className="mt-2 text-sm max-w-md text-center"
+                className="mt-3 text-sm max-w-md text-center"
                 style={{
                   fontFamily: '"Helvetica Neue", system-ui, sans-serif',
                   fontWeight: 300,
@@ -91,11 +95,18 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 {footprint.bio}
               </p>
             )}
+            {/* Share button */}
+            <button
+              onClick={handleShare}
+              className="mt-4 bg-white/[0.06] backdrop-blur-sm border border-white/[0.06] text-white/40 rounded-full px-4 py-1.5 text-xs tracking-wider hover:bg-white/[0.1] transition-all duration-200"
+            >
+              share
+            </button>
         </header>
 
         {/* Room Tabs */}
         {rooms.length > 0 && (
-          <div className="flex items-center justify-center gap-2 mb-4 flex-wrap relative z-20">
+          <div className="flex items-center justify-center gap-2 mb-6 flex-wrap relative z-20 max-w-6xl mx-auto px-4 md:px-8">
             <button
               onClick={() => setActiveRoomId(null)}
               className={`px-4 py-1.5 rounded-full text-sm transition-all backdrop-blur-sm border-0 ${
@@ -123,41 +134,47 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         )}
 
         {/* CSS Columns Masonry */}
-        <div className="columns-2 md:columns-3 lg:columns-4" style={{ columnGap: '8px' }}>
-          {content.map((item: any, index: number) => {
-            const isVideo = item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
+        <div className="max-w-6xl mx-auto px-4 md:px-8">
+          <div className="columns-2 md:columns-3 lg:columns-4" style={{ columnGap: '8px' }}>
+            {content.map((item: any, index: number) => {
+              const isVideo = item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
 
-            return (
-              <div
-                key={item.id}
-                className="break-inside-avoid mb-2 group tile-enter"
-                style={{ animationDelay: `${index * 60}ms` }}
-              >
-                <div className="group-hover:scale-[1.02] transition-transform duration-300">
-                  {item.type === 'image' ? (
-                    isVideo ? (
-                      <VideoTile src={item.url} />
+              return (
+                <div
+                  key={item.id}
+                  className="break-inside-avoid mb-2 group tile-enter"
+                  style={{ animationDelay: `${index * 60}ms` }}
+                >
+                  <div className="group-hover:scale-[1.02] transition-transform duration-300 will-change-transform group-hover:shadow-lg group-hover:shadow-black/20 rounded-xl">
+                    {item.type === 'image' ? (
+                      isVideo ? (
+                        <div className="rounded-xl overflow-hidden border border-white/[0.06]">
+                          <VideoTile src={item.url} />
+                        </div>
+                      ) : (
+                        <div className="rounded-xl overflow-hidden border border-white/[0.06]">
+                          <img
+                            src={item.url}
+                            className="w-full object-cover opacity-0 transition-opacity duration-[800ms]"
+                            alt=""
+                            loading="lazy"
+                            onLoad={(e) => {
+                              e.currentTarget.classList.remove('opacity-0')
+                              e.currentTarget.classList.add('opacity-100')
+                            }}
+                          />
+                        </div>
+                      )
                     ) : (
-                      <div className="rounded-xl overflow-hidden">
-                        <img
-                          src={item.url}
-                          className="w-full object-cover opacity-0 transition-opacity duration-[800ms]"
-                          alt=""
-                          loading="lazy"
-                          onLoad={(e) => {
-                            e.currentTarget.classList.remove('opacity-0')
-                            e.currentTarget.classList.add('opacity-100')
-                          }}
-                        />
+                      <div className="rounded-xl overflow-hidden border border-white/[0.06]">
+                        <ContentCard content={item} />
                       </div>
-                    )
-                  ) : (
-                    <ContentCard content={item} />
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
 
         {content.length === 0 && (
@@ -166,13 +183,20 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </p>
         )}
 
-        {/* Footer — growth loop */}
-        <div className="text-center py-12 opacity-40 hover:opacity-70 transition-opacity">
-          <a href="https://footprint.onl" className="text-sm text-white/60 hover:text-white/90 transition">
+        {/* Footer — whisper */}
+        <div className="mt-24 mb-12 text-center">
+          <a href="https://footprint.onl" className="text-white/[0.08] text-xs tracking-[0.3em] hover:text-white/20 transition-colors">
             footprint.onl
           </a>
         </div>
       </div>
+
+      {/* Copied toast */}
+      {showToast && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 bg-white/[0.08] backdrop-blur-sm rounded-full px-5 py-2 text-white/60 text-sm materialize">
+          Copied to clipboard
+        </div>
+      )}
     </div>
   )
 }
