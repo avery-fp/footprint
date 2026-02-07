@@ -9,6 +9,11 @@ function extractYouTubeId(url: string): string | null {
   return match ? match[1] : null
 }
 
+function extractSpotifyInfo(url: string): { type: string; id: string } | null {
+  const match = url.match(/open\.spotify\.com\/(track|album|playlist)\/([a-zA-Z0-9]+)/)
+  return match ? { type: match[1], id: match[2] } : null
+}
+
 interface ContentCardProps {
   content: {
     id: string
@@ -105,8 +110,8 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
           />
           {/* Play button */}
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-16 h-16 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center group-hover:scale-110 transition-transform">
-              <svg className="w-7 h-7 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
+            <div className="w-14 h-14 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center group-hover:scale-110 transition-transform">
+              <svg className="w-6 h-6 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M8 5v14l11-7z"/>
               </svg>
             </div>
@@ -131,37 +136,23 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
   }
 
   // ════════════════════════════════════════
-  // SPOTIFY — FACADE 2.0
-  // Gradient card first. Click loads embed.
+  // SPOTIFY — direct iframe embed
   // ════════════════════════════════════════
   if (content.type === 'spotify') {
-    if (!isActivated) {
+    const spotifyInfo = extractSpotifyInfo(content.url)
+    if (spotifyInfo) {
       return (
-        <div
-          className="rounded-xl overflow-hidden p-6 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]"
-          style={{ background: 'linear-gradient(135deg, #1DB954, #191414)' }}
-          onClick={handleActivate}
-        >
-          <div className="flex items-center gap-3 mb-3">
-            <div className="text-3xl">♫</div>
-            <p className="font-mono text-xs text-white/60 uppercase tracking-wider">Spotify</p>
-          </div>
-          <p className="text-white/90 text-sm truncate">{content.title || 'Listen on Spotify'}</p>
-          <div className="mt-3 flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-              <span className="text-white text-sm ml-0.5">▶</span>
-            </div>
-            <span className="text-white/40 text-xs font-mono">Tap to play</span>
-          </div>
+        <div className="rounded-xl overflow-hidden">
+          <iframe
+            style={{ borderRadius: 12 }}
+            src={`https://open.spotify.com/embed/${spotifyInfo.type}/${spotifyInfo.id}?theme=0`}
+            width="100%"
+            height="80"
+            frameBorder="0"
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+            loading="lazy"
+          />
         </div>
-      )
-    }
-    if (content.embed_html) {
-      return (
-        <div
-          className="w-full min-h-[152px] rounded-xl overflow-hidden materialize"
-          dangerouslySetInnerHTML={{ __html: content.embed_html }}
-        />
       )
     }
     return (

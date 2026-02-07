@@ -655,13 +655,13 @@ export default function EditPage() {
       {/* ═══ DENSE MASONRY GRID ═══ */}
       <div className="max-w-7xl mx-auto px-2 pt-14 relative z-10">
         {/* Inline Room Tabs */}
-        <div className="flex items-center gap-2 mb-3 px-1 overflow-x-auto">
+        <div className="flex items-center gap-2 mb-3 px-1 overflow-x-auto hide-scrollbar">
           <button
             onClick={() => setActiveRoomId(null)}
-            className={`font-mono text-xs px-3 py-1.5 rounded-full transition whitespace-nowrap border ${
+            className={`text-xs px-3 py-1 rounded-full transition-all whitespace-nowrap backdrop-blur-sm border-0 ${
               activeRoomId === null
-                ? 'bg-white/20 text-white border-white/30'
-                : 'text-white/40 hover:text-white/60 border-transparent'
+                ? 'bg-white/[0.12] text-white/90'
+                : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70'
             }`}
           >
             all
@@ -670,10 +670,10 @@ export default function EditPage() {
             <button
               key={room.id}
               onClick={() => setActiveRoomId(room.id)}
-              className={`font-mono text-xs px-3 py-1.5 rounded-full transition whitespace-nowrap border ${
+              className={`text-xs px-3 py-1 rounded-full transition-all whitespace-nowrap backdrop-blur-sm border-0 ${
                 activeRoomId === room.id
-                  ? 'bg-white/20 text-white border-white/30'
-                  : 'text-white/40 hover:text-white/60 border-transparent'
+                  ? 'bg-white/[0.12] text-white/90'
+                  : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70'
               }`}
             >
               {room.name}
@@ -681,7 +681,7 @@ export default function EditPage() {
           ))}
           <button
             onClick={handleCreateRoom}
-            className="font-mono text-xs px-2 py-1.5 rounded-full text-white/30 hover:text-white/60 transition"
+            className="text-xs px-3 py-1 rounded-full bg-white/[0.06] text-white/30 hover:text-white/60 hover:bg-white/[0.10] backdrop-blur-sm transition-all border-0"
           >
             +
           </button>
@@ -730,7 +730,7 @@ export default function EditPage() {
       />
 
       {/* ═══ BOTTOM BAR ═══ */}
-      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-3">
+      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-3 pb-[env(safe-area-inset-bottom)]">
 
         {/* Expanded URL input */}
         {pillMode === 'url' && !selectedTileId && (
