@@ -89,7 +89,6 @@ export async function POST(request: NextRequest) {
           serial_number: serialNumber,
           image_url: parsed.url,
           title: parsed.title,
-          description: parsed.description,
           position: nextPosition,
           room_id: room_id || null,
         })
@@ -132,7 +131,7 @@ export async function POST(request: NextRequest) {
       url: tile.image_url,  // Library uses image_url
       type: 'image',
       title: tile.title || null,
-      description: tile.description || null,
+      description: null,
       thumbnail_url: null,
       embed_html: null,
       position: tile.position,

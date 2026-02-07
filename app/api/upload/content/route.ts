@@ -83,7 +83,6 @@ export async function POST(request: NextRequest) {
         serial_number: serialNumber,
         image_url: publicUrl,
         title: file.name,
-        description: null,
         position: nextPosition,
         room_id: room_id || null,
       })

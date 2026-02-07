@@ -95,7 +95,7 @@ export default async function FootprintPage({ params }: Props) {
     thumbnail_url: 'thumbnail_url' in item ? (transformImageUrl(item.thumbnail_url) ?? item.thumbnail_url) : undefined,
   }))
 
-  const initialContent = transformContent(content.slice(0, 24))
+  const initialContent = transformContent(content.slice(0, 12))
 
   // Fetch rooms if they exist
   const { data: roomsData } = await supabase
