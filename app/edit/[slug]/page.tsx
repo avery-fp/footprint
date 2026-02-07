@@ -104,18 +104,14 @@ function SortableTile({
           </div>
         )}
 
-        {/* Tile content */}
+        {/* Tile content — absolute fill to enforce square */}
         {content.type === 'image' ? (
           isVideo ? (
-            <div className="relative">
-              <div
-                className={`absolute inset-0 vapor-box ${isLoaded ? 'opacity-0' : ''} transition-opacity duration-500`}
-                style={{ aspectRatio: '16/9' }}
-              />
+            <>
               <video
                 ref={videoRef}
                 src={content.url}
-                className={`w-full h-full object-cover cursor-pointer transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+                className={`absolute inset-0 w-full h-full object-cover cursor-pointer transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
                 autoPlay
                 muted
                 loop
@@ -124,25 +120,27 @@ function SortableTile({
                 onLoadedData={() => setIsLoaded(true)}
               />
               {!isMuted && (
-                <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60" />
+                <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60 z-10" />
               )}
-            </div>
+            </>
           ) : (
-            <div className="relative">
-              <div
-                className={`absolute inset-0 vapor-box ${isLoaded ? 'opacity-0' : ''} transition-opacity duration-500`}
-              />
-              <img
-                src={content.url}
-                className={`w-full h-full object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
-                alt=""
-                loading="lazy"
-                onLoad={() => setIsLoaded(true)}
-              />
-            </div>
+            <img
+              src={content.url}
+              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+              alt=""
+              loading="lazy"
+              onLoad={() => setIsLoaded(true)}
+            />
           )
         ) : (
-          <ContentCard content={content} />
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/[0.05] p-2">
+            <div className="text-2xl mb-1 opacity-60">
+              {content.type === 'youtube' ? '▶' : content.type === 'spotify' ? '♫' : content.type === 'soundcloud' ? '♫' : content.type === 'thought' ? '💭' : '🔗'}
+            </div>
+            <p className="text-[10px] text-white/50 text-center truncate w-full font-mono">
+              {content.title || content.type}
+            </p>
+          </div>
         )}
       </div>
     </div>

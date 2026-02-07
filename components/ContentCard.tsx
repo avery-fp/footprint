@@ -4,6 +4,11 @@ import { useState, useRef, useEffect } from 'react'
 import { getContentIcon, getContentBackground, ContentType } from '@/lib/parser'
 import { audioManager } from '@/lib/audio-manager'
 
+function extractYouTubeId(url: string): string | null {
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/)
+  return match ? match[1] : null
+}
+
 interface ContentCardProps {
   content: {
     id: string
@@ -39,7 +44,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
 
   // Register audio-producing types with AudioManager
   useEffect(() => {
-    const isAudioType = ['youtube', 'soundcloud'].includes(content.type)
+    const isAudioType = ['youtube', 'soundcloud', 'spotify'].includes(content.type)
     if (!isAudioType) return
     audioManager.register(audioIdRef.current, () => {
       setIsActivated(false)
@@ -55,7 +60,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
   }, [content.type])
 
   const handleActivate = () => {
-    if (['youtube', 'soundcloud'].includes(content.type)) {
+    if (['youtube', 'soundcloud', 'spotify'].includes(content.type)) {
       audioManager.play(audioIdRef.current)
     }
     setIsActivated(true)
@@ -63,46 +68,46 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
 
   // ════════════════════════════════════════
   // YOUTUBE — FACADE 2.0
-  // Thumbnail first. Click swaps to iframe.
+  // Thumbnail first. Click swaps to clean iframe.
+  // Zero iframes on page load.
   // ════════════════════════════════════════
   if (content.type === 'youtube') {
-    if (!isActivated && content.thumbnail_url) {
+    const videoId = extractYouTubeId(content.url)
+    const thumbnailUrl = content.thumbnail_url || (videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : null)
+
+    if (!isActivated && thumbnailUrl) {
       return (
         <div
           className="w-full aspect-video rounded-xl overflow-hidden cursor-pointer relative group"
           onClick={handleActivate}
         >
-          {/* Vapor Box */}
-          <div
-            className={`absolute inset-0 vapor-box rounded-xl ${isLoaded ? 'opacity-0' : ''} transition-opacity duration-500`}
-            style={{ aspectRatio: '16/9' }}
-          />
-          {/* Thumbnail */}
           <img
-            src={content.thumbnail_url}
+            src={thumbnailUrl}
             alt=""
             className={`w-full h-full object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
             onLoad={() => setIsLoaded(true)}
           />
-          {/* Play overlay */}
+          {/* Play button */}
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="w-16 h-16 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center group-hover:scale-110 transition-transform">
-              <span className="text-white text-2xl ml-1">▶</span>
+              <svg className="w-7 h-7 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
             </div>
           </div>
         </div>
       )
     }
-    // Activated — live iframe (unmuted)
-    if (content.embed_html) {
-      let embedHtml = content.embed_html.replace('mute=1', 'mute=0')
-      embedHtml = embedHtml.replace(
-        '<iframe',
-        '<iframe style="position:absolute;top:0;left:0;width:100%;height:100%"'
-      )
+    // Activated — clean iframe with autoplay
+    if (videoId) {
       return (
         <div className="w-full aspect-video rounded-xl overflow-hidden relative materialize">
-          <div className="absolute inset-0" dangerouslySetInnerHTML={{ __html: embedHtml }} />
+          <iframe
+            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`}
+            className="absolute inset-0 w-full h-full"
+            allow="autoplay; encrypted-media"
+            allowFullScreen
+          />
           <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60 z-10" />
         </div>
       )
@@ -119,7 +124,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
         <div
           className="rounded-xl overflow-hidden p-6 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]"
           style={{ background: 'linear-gradient(135deg, #1DB954, #191414)' }}
-          onClick={() => setIsActivated(true)}
+          onClick={handleActivate}
         >
           <div className="flex items-center gap-3 mb-3">
             <div className="text-3xl">♫</div>
@@ -277,7 +282,10 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
   // ════════════════════════════════════════
   if (content.type === 'thought') {
     return (
-      <div className="rounded-xl overflow-hidden p-8 bg-white/[0.05] backdrop-blur-sm border border-white/[0.08] hover:border-white/15 transition-all">
+      <div
+        className="rounded-xl overflow-hidden p-8 backdrop-blur-xl border border-white/[0.08] hover:border-white/15 transition-all"
+        style={{ background: 'rgba(15, 15, 20, 0.75)' }}
+      >
         <p className="text-base leading-relaxed whitespace-pre-wrap text-white/90">
           {content.title || content.description || ''}
         </p>
@@ -319,7 +327,8 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
         href={content.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="block rounded-xl overflow-hidden aspect-square bg-white/[0.05] backdrop-blur-sm border border-white/[0.08] hover:border-white/15 transition-all flex items-center justify-center"
+        className="block rounded-xl overflow-hidden aspect-square backdrop-blur-xl border border-white/[0.08] hover:border-white/15 transition-all flex items-center justify-center"
+        style={{ background: 'rgba(15, 15, 20, 0.75)' }}
       >
         <div className="text-4xl opacity-40">
           {icon}
@@ -336,7 +345,8 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
       href={content.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="rounded-xl overflow-hidden flex items-center gap-4 p-5 bg-white/[0.05] backdrop-blur-sm border border-white/[0.08] hover:border-white/15 transition-all"
+      className="rounded-xl overflow-hidden flex items-center gap-4 p-5 backdrop-blur-xl border border-white/[0.08] hover:border-white/15 transition-all"
+      style={{ background: 'rgba(15, 15, 20, 0.75)' }}
     >
       <div
         className="w-12 h-12 rounded-lg flex items-center justify-center text-xl flex-shrink-0"

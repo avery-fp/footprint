@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import ContentCard from '@/components/ContentCard'
 import VideoTile from '@/components/VideoTile'
 
@@ -41,26 +40,38 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         />
       )}
       <div className="max-w-7xl mx-auto px-2 pt-6 pb-12 relative z-10">
-        {/* æ Masthead */}
-        <header className="mb-4 text-center">
-          {footprint.background_url && (
-            <img
-              src={footprint.background_url}
-              alt=""
-              className="w-20 h-20 rounded-full mx-auto mb-3 object-cover border border-white/[0.08]"
-            />
-          )}
-          <h1 className="text-7xl sm:text-8xl font-black tracking-tighter leading-none mb-1">
-            {footprint.display_name || 'æ'}
-          </h1>
-          <span className="font-mono text-xs" style={{ color: theme.colors.textMuted }}>
-            #{serial}
-          </span>
-          {footprint.bio && (
-            <p className="mt-2 text-sm max-w-md mx-auto" style={{ color: theme.colors.textMuted }}>
-              {footprint.bio}
-            </p>
-          )}
+        {/* æ Masthead — glass-backed identity card */}
+        <header className="mb-4 relative">
+          <div className="absolute inset-0 bg-black/20 backdrop-blur-md rounded-b-3xl" />
+          <div className="relative z-10 flex flex-col items-center pt-8 pb-4">
+            {footprint.background_url && (
+              <img
+                src={footprint.background_url}
+                alt=""
+                className="w-20 h-20 rounded-full mb-3 object-cover border border-white/[0.08]"
+              />
+            )}
+            <h1
+              className="text-7xl sm:text-8xl font-black tracking-tighter leading-none mb-1"
+              style={{ textShadow: '0 1px 8px rgba(0,0,0,0.5)' }}
+            >
+              {footprint.display_name || 'æ'}
+            </h1>
+            <span
+              className="font-mono text-xs"
+              style={{ color: theme.colors.textMuted, textShadow: '0 1px 8px rgba(0,0,0,0.5)' }}
+            >
+              #{serial}
+            </span>
+            {footprint.bio && (
+              <p
+                className="mt-2 text-sm max-w-md text-center"
+                style={{ color: theme.colors.textMuted, textShadow: '0 1px 8px rgba(0,0,0,0.5)' }}
+              >
+                {footprint.bio}
+              </p>
+            )}
+          </div>
         </header>
 
         {/* Room Tabs */}
@@ -132,19 +143,12 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </p>
         )}
 
-        {/* Footer */}
-        <footer className="mt-12 pt-6 text-center">
-          <Link
-            href="/"
-            className="inline-block px-6 py-3 rounded-full bg-white/10 hover:bg-white/20 transition-all text-sm font-medium"
-            style={{ color: theme.colors.accent }}
-          >
-            GET YOURS
-          </Link>
-          <p className="mt-3 text-xs font-mono" style={{ color: theme.colors.textMuted }}>
-            Footprint #{serial}
-          </p>
-        </footer>
+        {/* Footer — growth loop */}
+        <div className="text-center py-12 opacity-40 hover:opacity-70 transition-opacity">
+          <a href="https://footprint.onl" className="text-sm text-white/60 hover:text-white/90 transition">
+            footprint.onl
+          </a>
+        </div>
       </div>
     </div>
   )
