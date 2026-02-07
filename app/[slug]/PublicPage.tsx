@@ -22,6 +22,7 @@ interface PublicPageProps {
 
 export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
+  const [wallpaperLoaded, setWallpaperLoaded] = useState(false)
 
   const content = activeRoomId
     ? rooms.find(r => r.id === activeRoomId)?.content || []
@@ -31,14 +32,22 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     <div className="min-h-screen relative" style={{ background: theme.colors.background, color: theme.colors.text }}>
       {/* Wallpaper layer — real blur via filter */}
       {footprint.background_url && (
-        <div
-          className="fixed inset-0 z-0 bg-cover bg-center"
-          style={{
-            backgroundImage: `url(${footprint.background_url})`,
-            filter: footprint.background_blur !== false ? 'blur(12px) brightness(0.7)' : 'none',
-            transform: footprint.background_blur !== false ? 'scale(1.05)' : 'none',
-          }}
-        />
+        <>
+          <img
+            src={footprint.background_url}
+            alt=""
+            className="hidden"
+            onLoad={() => setWallpaperLoaded(true)}
+          />
+          <div
+            className={`fixed inset-0 z-0 bg-cover bg-center transition-opacity duration-700 ${wallpaperLoaded ? 'opacity-100' : 'opacity-0'}`}
+            style={{
+              backgroundImage: `url(${footprint.background_url})`,
+              filter: footprint.background_blur !== false ? 'blur(12px) brightness(0.7)' : 'none',
+              transform: footprint.background_blur !== false ? 'scale(1.05)' : 'none',
+            }}
+          />
+        </>
       )}
       <WeatherEffect type={footprint.weather_effect || null} />
       <div className="max-w-7xl mx-auto px-2 pt-6 pb-12 relative z-10">
@@ -52,25 +61,18 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               />
             )}
             <h1
+              className="text-3xl md:text-4xl tracking-[0.15em]"
               style={{
                 fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
                 fontWeight: 400,
-                fontSize: '5rem',
-                letterSpacing: '-0.03em',
                 lineHeight: 1,
                 textShadow: '0 2px 16px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.5)',
               }}
             >
               {footprint.display_name || 'æ'}
             </h1>
-            <span
+            <span className="text-white/30 tracking-[0.3em] uppercase text-[10px] font-light mt-1"
               style={{
-                fontFamily: '"Helvetica Neue", system-ui, sans-serif',
-                fontWeight: 300,
-                fontSize: '0.75rem',
-                letterSpacing: '0.15em',
-                textTransform: 'uppercase' as const,
-                opacity: 0.6,
                 textShadow: '0 2px 16px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.5)',
               }}
             >
@@ -96,12 +98,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           <div className="flex items-center justify-center gap-2 mb-4 flex-wrap relative z-20">
             <button
               onClick={() => setActiveRoomId(null)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all border ${
+              className={`px-4 py-1.5 rounded-full text-sm transition-all backdrop-blur-sm border-0 ${
                 activeRoomId === null
-                  ? 'bg-white text-black border-white'
-                  : 'bg-transparent border-white/20 hover:border-white/40'
+                  ? 'bg-white/[0.12] text-white/90'
+                  : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70'
               }`}
-              style={activeRoomId !== null ? { color: theme.colors.textMuted } : undefined}
             >
               all
             </button>
@@ -109,12 +110,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               <button
                 key={room.id}
                 onClick={() => setActiveRoomId(room.id)}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all border ${
+                className={`px-4 py-1.5 rounded-full text-sm transition-all backdrop-blur-sm border-0 ${
                   activeRoomId === room.id
-                    ? 'bg-white text-black border-white'
-                    : 'bg-transparent border-white/20 hover:border-white/40'
+                    ? 'bg-white/[0.12] text-white/90'
+                    : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70'
                 }`}
-                style={activeRoomId !== room.id ? { color: theme.colors.textMuted } : undefined}
               >
                 {room.name}
               </button>
@@ -123,32 +123,38 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         )}
 
         {/* CSS Columns Masonry */}
-        <div className="columns-2 md:columns-3 xl:columns-4" style={{ columnGap: '4px' }}>
-          {content.map((item: any) => {
+        <div className="columns-2 md:columns-3 lg:columns-4" style={{ columnGap: '8px' }}>
+          {content.map((item: any, index: number) => {
             const isVideo = item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
 
             return (
-              <div key={item.id} className="break-inside-avoid mb-1">
-                {item.type === 'image' ? (
-                  isVideo ? (
-                    <VideoTile src={item.url} />
+              <div
+                key={item.id}
+                className="break-inside-avoid mb-2 group tile-enter"
+                style={{ animationDelay: `${index * 60}ms` }}
+              >
+                <div className="group-hover:scale-[1.02] transition-transform duration-300">
+                  {item.type === 'image' ? (
+                    isVideo ? (
+                      <VideoTile src={item.url} />
+                    ) : (
+                      <div className="rounded-xl overflow-hidden">
+                        <img
+                          src={item.url}
+                          className="w-full object-cover opacity-0 transition-opacity duration-[800ms]"
+                          alt=""
+                          loading="lazy"
+                          onLoad={(e) => {
+                            e.currentTarget.classList.remove('opacity-0')
+                            e.currentTarget.classList.add('opacity-100')
+                          }}
+                        />
+                      </div>
+                    )
                   ) : (
-                    <div className="rounded-xl overflow-hidden">
-                      <img
-                        src={item.url}
-                        className="w-full object-cover opacity-0 transition-opacity duration-[800ms]"
-                        alt=""
-                        loading="lazy"
-                        onLoad={(e) => {
-                          e.currentTarget.classList.remove('opacity-0')
-                          e.currentTarget.classList.add('opacity-100')
-                        }}
-                      />
-                    </div>
-                  )
-                ) : (
-                  <ContentCard content={item} />
-                )}
+                    <ContentCard content={item} />
+                  )}
+                </div>
               </div>
             )
           })}

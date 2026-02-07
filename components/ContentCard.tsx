@@ -299,7 +299,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
   if (content.type === 'thought') {
     return (
       <div
-        className="rounded-xl overflow-hidden p-8 border border-white/[0.08] hover:border-white/15 transition-all bg-white/[0.08]"
+        className="rounded-xl overflow-hidden p-8 border border-white/[0.06] hover:border-white/15 transition-all bg-white/[0.08] backdrop-blur-md"
       >
         <p className="text-base leading-relaxed whitespace-pre-wrap text-white/90">
           {content.title || content.description || ''}
