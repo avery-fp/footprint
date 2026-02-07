@@ -10,6 +10,7 @@ import ContentCard from '@/components/ContentCard'
 import { audioManager } from '@/lib/audio-manager'
 import { getTheme } from '@/lib/themes'
 import Link from 'next/link'
+import { createBrowserSupabaseClient } from '@/lib/supabase'
 
 interface TileContent extends DraftContent {
   source?: 'library' | 'links'
@@ -170,6 +171,7 @@ export default function EditPage() {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
   const [wallpaperUrl, setWallpaperUrl] = useState('')
   const [backgroundBlur, setBackgroundBlur] = useState(true)
+  const [serialNumber, setSerialNumber] = useState<number | null>(null)
   // Selection state
   const [selectedTileId, setSelectedTileId] = useState<string | null>(null)
 
@@ -179,6 +181,7 @@ export default function EditPage() {
   const [thoughtText, setThoughtText] = useState('')
   const urlInputRef = useRef<HTMLInputElement>(null)
   const thoughtInputRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -217,6 +220,7 @@ export default function EditPage() {
               thumbnail_url: tile.thumbnail_url,
               embed_html: tile.embed_html,
               position: tile.position,
+              room_id: tile.room_id || null,
             }
           })
           setTileSources(sources)
@@ -233,7 +237,19 @@ export default function EditPage() {
             updated_at: Date.now(),
           })
 
-          setActiveRoomId(data.footprint.id)
+          setSerialNumber(data.footprint.serial_number)
+          setActiveRoomId(null)
+
+          // Fetch rooms
+          const supabase = createBrowserSupabaseClient()
+          const { data: roomsData } = await supabase
+            .from('rooms')
+            .select('*')
+            .eq('serial_number', data.footprint.serial_number)
+            .order('position')
+          if (roomsData && roomsData.length > 0) {
+            setRooms(roomsData)
+          }
         } else {
           setIsOwner(true)
           setDraft({
@@ -315,7 +331,7 @@ export default function EditPage() {
       const res = await fetch('/api/tiles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug, url: pasteUrl }),
+        body: JSON.stringify({ slug, url: pasteUrl, room_id: activeRoomId }),
       })
       const data = await res.json()
       if (data.tile) {
@@ -331,6 +347,7 @@ export default function EditPage() {
             thumbnail_url: data.tile.thumbnail_url,
             embed_html: data.tile.embed_html,
             position: data.tile.position,
+            room_id: data.tile.room_id || null,
           }],
           updated_at: Date.now(),
         } : null)
@@ -351,7 +368,7 @@ export default function EditPage() {
       const res = await fetch('/api/tiles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug, thought: thoughtText }),
+        body: JSON.stringify({ slug, thought: thoughtText, room_id: activeRoomId }),
       })
       const data = await res.json()
       if (data.tile) {
@@ -367,6 +384,7 @@ export default function EditPage() {
             thumbnail_url: data.tile.thumbnail_url,
             embed_html: data.tile.embed_html,
             position: data.tile.position,
+            room_id: data.tile.room_id || null,
           }],
           updated_at: Date.now(),
         } : null)
@@ -492,6 +510,66 @@ export default function EditPage() {
     }
   }
 
+  // ── Room creation ──
+
+  async function handleCreateRoom() {
+    if (!draft || !serialNumber) return
+    const name = prompt('Room name:')
+    if (!name?.trim()) return
+    try {
+      const supabase = createBrowserSupabaseClient()
+      const { data: newRoom, error } = await supabase
+        .from('rooms')
+        .insert({ serial_number: serialNumber, name: name.trim(), position: rooms.length })
+        .select()
+        .single()
+      if (!error && newRoom) setRooms(prev => [...prev, newRoom])
+    } catch (e) {
+      console.error('Failed to create room:', e)
+    }
+  }
+
+  // ── File upload ──
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !draft) return
+    setIsAdding(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('slug', slug)
+      if (activeRoomId) formData.append('room_id', activeRoomId)
+      const res = await fetch('/api/upload/content', { method: 'POST', body: formData })
+      const data = await res.json()
+      if (data.tile) {
+        setTileSources(prev => ({ ...prev, [data.tile.id]: data.tile.source }))
+        setDraft(prev => prev ? {
+          ...prev,
+          content: [...prev.content, {
+            id: data.tile.id,
+            url: data.tile.url,
+            type: data.tile.type,
+            title: data.tile.title,
+            description: data.tile.description,
+            thumbnail_url: data.tile.thumbnail_url,
+            embed_html: data.tile.embed_html,
+            position: data.tile.position,
+            room_id: data.tile.room_id || null,
+          }],
+          updated_at: Date.now(),
+        } : null)
+      } else if (data.error) {
+        alert(data.error)
+      }
+    } catch (err) {
+      console.error('Upload failed:', err)
+    } finally {
+      setIsAdding(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
   // ── Selection helpers ──
 
   function handleSelect(id: string) {
@@ -512,6 +590,10 @@ export default function EditPage() {
       </div>
     )
   }
+
+  const filteredContent = activeRoomId
+    ? draft.content.filter(item => item.room_id === activeRoomId)
+    : draft.content
 
   const theme = getTheme(draft.theme)
 
@@ -559,28 +641,6 @@ export default function EditPage() {
         )}
       </div>
 
-      {/* Center: Room Tabs */}
-      {rooms.length > 0 && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-black/50 backdrop-blur-sm rounded-full px-4 py-2 border border-white/10">
-          {rooms.map((room) => (
-            <button
-              key={room.id}
-              onClick={() => setActiveRoomId(room.id)}
-              className={`font-mono text-xs px-3 py-1 rounded-full transition ${
-                activeRoomId === room.id
-                  ? 'bg-white/20 text-white'
-                  : 'text-white/40 hover:text-white/60'
-              }`}
-            >
-              {room.name}
-            </button>
-          ))}
-          <button className="font-mono text-xs px-2 py-1 rounded-full text-white/30 hover:text-white/60 transition">
-            +
-          </button>
-        </div>
-      )}
-
       {/* Right: Done */}
       <div className="fixed top-6 right-6 z-50">
         <Link
@@ -593,18 +653,51 @@ export default function EditPage() {
 
       {/* ═══ DENSE MASONRY GRID ═══ */}
       <div className="max-w-7xl mx-auto px-2 pt-14 relative z-10">
-        {draft.content.length > 0 ? (
+        {/* Inline Room Tabs */}
+        <div className="flex items-center gap-2 mb-3 px-1 overflow-x-auto">
+          <button
+            onClick={() => setActiveRoomId(null)}
+            className={`font-mono text-xs px-3 py-1.5 rounded-full transition whitespace-nowrap border ${
+              activeRoomId === null
+                ? 'bg-white/20 text-white border-white/30'
+                : 'text-white/40 hover:text-white/60 border-transparent'
+            }`}
+          >
+            all
+          </button>
+          {rooms.map((room) => (
+            <button
+              key={room.id}
+              onClick={() => setActiveRoomId(room.id)}
+              className={`font-mono text-xs px-3 py-1.5 rounded-full transition whitespace-nowrap border ${
+                activeRoomId === room.id
+                  ? 'bg-white/20 text-white border-white/30'
+                  : 'text-white/40 hover:text-white/60 border-transparent'
+              }`}
+            >
+              {room.name}
+            </button>
+          ))}
+          <button
+            onClick={handleCreateRoom}
+            className="font-mono text-xs px-2 py-1.5 rounded-full text-white/30 hover:text-white/60 transition"
+          >
+            +
+          </button>
+        </div>
+
+        {filteredContent.length > 0 ? (
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
             onDragEnd={handleDragEnd}
           >
             <SortableContext
-              items={draft.content.map(item => item.id)}
+              items={filteredContent.map(item => item.id)}
               strategy={rectSortingStrategy}
             >
               <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2 px-1">
-                {draft.content.map(item => (
+                {filteredContent.map(item => (
                   <SortableTile
                     key={item.id}
                     id={item.id}
@@ -625,6 +718,15 @@ export default function EditPage() {
           </div>
         )}
       </div>
+
+      {/* Hidden file input for uploads */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/gif,image/webp,image/heic,video/mp4,video/quicktime,video/webm,video/x-m4v"
+        className="hidden"
+        onChange={handleFileUpload}
+      />
 
       {/* ═══ BOTTOM BAR ═══ */}
       <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-3">
@@ -709,6 +811,38 @@ export default function EditPage() {
             {(selectedIsImage || selectedHasThumbnail) && (
               <div className="w-px h-4 bg-white/20" />
             )}
+            {rooms.length > 0 && (
+              <>
+                <select
+                  value={draft?.content.find(c => c.id === selectedTileId)?.room_id || ''}
+                  onChange={async (e) => {
+                    const newRoomId = e.target.value || null
+                    const source = tileSources[selectedTileId!]
+                    if (!source) return
+                    try {
+                      const supabase = createBrowserSupabaseClient()
+                      await supabase.from(source).update({ room_id: newRoomId }).eq('id', selectedTileId)
+                      setDraft(prev => prev ? {
+                        ...prev,
+                        content: prev.content.map(c =>
+                          c.id === selectedTileId ? { ...c, room_id: newRoomId } : c
+                        ),
+                        updated_at: Date.now(),
+                      } : null)
+                    } catch (err) {
+                      console.error('Failed to assign room:', err)
+                    }
+                  }}
+                  className="bg-white/10 text-white text-xs font-mono rounded-lg px-2 py-1 border border-white/20 outline-none"
+                >
+                  <option value="">No room</option>
+                  {rooms.map(r => (
+                    <option key={r.id} value={r.id}>{r.name}</option>
+                  ))}
+                </select>
+                <div className="w-px h-4 bg-white/20" />
+              </>
+            )}
             <button
               onClick={() => {
                 handleDelete(selectedTileId)
@@ -720,8 +854,19 @@ export default function EditPage() {
             </button>
           </div>
         ) : (
-          /* DEFAULT PILL: + | link | chat */
+          /* DEFAULT PILL: camera | + | chat */
           <div className="flex items-center gap-0 bg-black/50 backdrop-blur-sm rounded-full border border-white/20 overflow-hidden">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all"
+              title="Upload file"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+            </button>
+            <div className="w-px h-6 bg-white/10" />
             <button
               onClick={() => setPillMode(pillMode === 'url' ? 'idle' : 'url')}
               className={`w-14 h-14 flex items-center justify-center transition-all ${

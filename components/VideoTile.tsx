@@ -69,7 +69,7 @@ export default function VideoTile({ src }: { src: string }) {
           )}
         </>
       ) : (
-        <div className="w-full aspect-video bg-white/5 rounded-xl" />
+        <div className="w-full aspect-video rounded-xl" />
       )}
     </div>
   )

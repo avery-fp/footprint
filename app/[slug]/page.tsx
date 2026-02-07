@@ -87,7 +87,7 @@ export default async function FootprintPage({ params }: Props) {
   const { data: roomsData } = await supabase
     .from('rooms')
     .select('*')
-    .eq('footprint_id', footprint.id)
+    .eq('serial_number', footprint.serial_number)
     .order('position')
 
   // Group content by rooms

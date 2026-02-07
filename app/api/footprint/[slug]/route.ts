@@ -60,6 +60,7 @@ export async function GET(
       embed_html: null,
       position: item.position,
       source: 'library' as const,
+      room_id: item.room_id || null,
     }))
     const linkTiles = (linksResult.data || []).map(item => ({
       id: item.id,
@@ -71,6 +72,7 @@ export async function GET(
       embed_html: item.metadata?.embed_html || null,
       position: item.position,
       source: 'links' as const,
+      room_id: item.room_id || null,
     }))
 
     const tiles = [...libraryTiles, ...linkTiles].sort((a, b) =>

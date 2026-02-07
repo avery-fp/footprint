@@ -33,7 +33,7 @@ async function getSerialNumber(
  */
 export async function POST(request: NextRequest) {
   try {
-    const { slug, url, thought } = await request.json()
+    const { slug, url, thought, room_id } = await request.json()
 
     if (!slug || (!url && !thought)) {
       return NextResponse.json({ error: 'slug and (url or thought) required' }, { status: 400 })
@@ -91,6 +91,7 @@ export async function POST(request: NextRequest) {
           title: parsed.title,
           description: parsed.description,
           position: nextPosition,
+          room_id: room_id || null,
         })
         .select()
         .single()
@@ -112,6 +113,7 @@ export async function POST(request: NextRequest) {
           },
           thumbnail: parsed.thumbnail_url,
           position: nextPosition,
+          room_id: room_id || null,
         })
         .select()
         .single()
@@ -135,6 +137,7 @@ export async function POST(request: NextRequest) {
       embed_html: null,
       position: tile.position,
       source: tableName,
+      room_id: tile.room_id || null,
     } : {
       id: tile.id,
       url: tile.url,
@@ -145,6 +148,7 @@ export async function POST(request: NextRequest) {
       embed_html: tile.metadata?.embed_html || null,
       position: tile.position,
       source: tableName,
+      room_id: tile.room_id || null,
     }
 
     return NextResponse.json({ tile: normalizedTile })
