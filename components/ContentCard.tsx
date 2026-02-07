@@ -35,7 +35,21 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
   const customBg = getContentBackground(content.type)
   const [isActivated, setIsActivated] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
+  const [isInView, setIsInView] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
   const audioIdRef = useRef(`card-${content.id}`)
+
+  // IntersectionObserver — only load images when near viewport
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setIsInView(true) },
+      { rootMargin: '200px' }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   let hostname = 'Link'
   try {
@@ -78,13 +92,15 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
     if (!isActivated && thumbnailUrl) {
       return (
         <div
+          ref={containerRef}
           className="w-full aspect-video rounded-xl overflow-hidden cursor-pointer relative group"
           onClick={handleActivate}
         >
           <img
-            src={thumbnailUrl}
+            src={isInView ? thumbnailUrl : undefined}
             alt=""
             className={`w-full h-full object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+            loading="lazy"
             onLoad={() => setIsLoaded(true)}
           />
           {/* Play button */}
@@ -254,13 +270,13 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
   // ════════════════════════════════════════
   if (content.type === 'image') {
     return (
-      <div className="rounded-xl overflow-hidden relative">
+      <div ref={containerRef} className="rounded-xl overflow-hidden relative">
         <div
           className={`absolute inset-0 vapor-box rounded-xl ${isLoaded ? 'opacity-0' : ''} transition-opacity duration-500`}
         />
         <a href={content.url} target="_blank" rel="noopener noreferrer">
           <img
-            src={content.url}
+            src={isInView ? content.url : undefined}
             alt={content.title || ''}
             className={`w-full object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
             loading="lazy"
@@ -302,6 +318,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
           href={content.url}
           target="_blank"
           rel="noopener noreferrer"
+          ref={containerRef as any}
           className="block rounded-xl overflow-hidden relative"
         >
           <div
@@ -309,7 +326,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
             style={{ aspectRatio: '1/1' }}
           />
           <img
-            src={content.thumbnail_url}
+            src={isInView ? content.thumbnail_url : undefined}
             alt=""
             className={`w-full aspect-square object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
             loading="lazy"
@@ -343,6 +360,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
       href={content.url}
       target="_blank"
       rel="noopener noreferrer"
+      ref={containerRef as any}
       className="rounded-xl overflow-hidden flex items-center gap-4 p-5 border border-white/[0.08] hover:border-white/15 transition-all bg-white/[0.08]"
     >
       <div
@@ -351,9 +369,10 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
       >
         {content.thumbnail_url ? (
           <img
-            src={content.thumbnail_url}
+            src={isInView ? content.thumbnail_url : undefined}
             alt=""
             className="w-full h-full rounded-lg object-cover"
+            loading="lazy"
           />
         ) : (
           icon
