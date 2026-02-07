@@ -27,25 +27,20 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     ? rooms.find(r => r.id === activeRoomId)?.content || []
     : allContent
 
-  // Background: wallpaper takes priority, then theme
-  const backgroundStyle = footprint.background_url
-    ? {
-        backgroundImage: footprint.background_blur !== false
-          ? `linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url(${footprint.background_url})`
-          : `url(${footprint.background_url})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundAttachment: 'fixed' as const,
-        color: theme.colors.text,
-      }
-    : {
-        background: theme.colors.background,
-        color: theme.colors.text,
-      }
-
   return (
-    <div className="min-h-screen" style={backgroundStyle}>
-      <div className="max-w-7xl mx-auto px-2 pt-6 pb-12">
+    <div className="min-h-screen relative" style={{ background: theme.colors.background, color: theme.colors.text }}>
+      {/* Wallpaper layer — real blur via filter */}
+      {footprint.background_url && (
+        <div
+          className="fixed inset-0 z-0 bg-cover bg-center"
+          style={{
+            backgroundImage: `url(${footprint.background_url})`,
+            filter: footprint.background_blur !== false ? 'blur(20px) brightness(0.7)' : 'none',
+            transform: 'scale(1.1)',
+          }}
+        />
+      )}
+      <div className="max-w-7xl mx-auto px-2 pt-6 pb-12 relative z-10">
         {/* æ Masthead */}
         <header className="mb-4 text-center">
           {footprint.background_url && (
