@@ -133,12 +133,18 @@ function SortableTile({
           )
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/[0.05] p-2">
-            <div className="text-2xl mb-1 opacity-60">
-              {content.type === 'youtube' ? '▶' : content.type === 'spotify' ? '♫' : content.type === 'soundcloud' ? '♫' : content.type === 'thought' ? '💭' : '🔗'}
-            </div>
-            <p className="text-[10px] text-white/50 text-center truncate w-full font-mono">
-              {content.title || content.type}
-            </p>
+            {content.thumbnail_url ? (
+              <img src={content.thumbnail_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            ) : (
+              <>
+                <div className="text-2xl mb-1 opacity-60">
+                  {content.type === 'youtube' ? '▶' : content.type === 'spotify' ? '♫' : content.type === 'soundcloud' ? '♫' : content.type === 'thought' ? '💭' : content.type ? '🔗' : '?'}
+                </div>
+                <p className="text-[10px] text-white/50 text-center truncate w-full font-mono">
+                  {content.title || content.type || '?'}
+                </p>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -517,8 +523,8 @@ export default function EditPage() {
           className="fixed inset-0 z-0 bg-cover bg-center"
           style={{
             backgroundImage: `url(${wallpaperUrl})`,
-            filter: backgroundBlur ? 'blur(20px) brightness(0.7)' : 'none',
-            transform: 'scale(1.1)',
+            filter: backgroundBlur ? 'blur(12px) brightness(0.7)' : 'none',
+            transform: backgroundBlur ? 'scale(1.05)' : 'none',
           }}
         />
       )}
@@ -597,7 +603,7 @@ export default function EditPage() {
               items={draft.content.map(item => item.id)}
               strategy={rectSortingStrategy}
             >
-              <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2 px-1">
                 {draft.content.map(item => (
                   <SortableTile
                     key={item.id}

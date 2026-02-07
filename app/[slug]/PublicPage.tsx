@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import ContentCard from '@/components/ContentCard'
 import VideoTile from '@/components/VideoTile'
+import WeatherEffect from '@/components/WeatherEffect'
 
 interface Room {
   id: string
@@ -34,11 +35,12 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           className="fixed inset-0 z-0 bg-cover bg-center"
           style={{
             backgroundImage: `url(${footprint.background_url})`,
-            filter: footprint.background_blur !== false ? 'blur(20px) brightness(0.7)' : 'none',
-            transform: 'scale(1.1)',
+            filter: footprint.background_blur !== false ? 'blur(12px) brightness(0.7)' : 'none',
+            transform: footprint.background_blur !== false ? 'scale(1.05)' : 'none',
           }}
         />
       )}
+      <WeatherEffect type={footprint.weather_effect || null} />
       <div className="max-w-7xl mx-auto px-2 pt-6 pb-12 relative z-10">
         {/* æ Masthead */}
         <header className="mb-4 flex flex-col items-center pt-8 pb-4">
@@ -50,21 +52,39 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               />
             )}
             <h1
-              className="text-7xl sm:text-8xl font-black tracking-tighter leading-none mb-1"
-              style={{ textShadow: '0 2px 12px rgba(0,0,0,0.8), 0 0px 4px rgba(0,0,0,0.4)' }}
+              style={{
+                fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+                fontWeight: 200,
+                fontSize: '5rem',
+                letterSpacing: '-0.03em',
+                lineHeight: 1,
+                textShadow: '0 2px 16px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.5)',
+              }}
             >
               {footprint.display_name || 'æ'}
             </h1>
             <span
-              className="font-mono text-xs"
-              style={{ color: theme.colors.textMuted, textShadow: '0 2px 12px rgba(0,0,0,0.8), 0 0px 4px rgba(0,0,0,0.4)' }}
+              style={{
+                fontFamily: '"Helvetica Neue", system-ui, sans-serif',
+                fontWeight: 300,
+                fontSize: '0.75rem',
+                letterSpacing: '0.15em',
+                textTransform: 'uppercase' as const,
+                opacity: 0.6,
+                textShadow: '0 2px 16px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.5)',
+              }}
             >
               #{serial}
             </span>
             {footprint.bio && (
               <p
                 className="mt-2 text-sm max-w-md text-center"
-                style={{ color: theme.colors.textMuted, textShadow: '0 2px 12px rgba(0,0,0,0.8), 0 0px 4px rgba(0,0,0,0.4)' }}
+                style={{
+                  fontFamily: '"Helvetica Neue", system-ui, sans-serif',
+                  fontWeight: 300,
+                  color: theme.colors.textMuted,
+                  textShadow: '0 2px 16px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.5)',
+                }}
               >
                 {footprint.bio}
               </p>
@@ -73,7 +93,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
         {/* Room Tabs */}
         {rooms.length > 0 && (
-          <div className="flex items-center justify-center gap-2 mb-4 flex-wrap">
+          <div className="flex items-center justify-center gap-2 mb-4 flex-wrap relative z-20">
             <button
               onClick={() => setActiveRoomId(null)}
               className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all border ${
