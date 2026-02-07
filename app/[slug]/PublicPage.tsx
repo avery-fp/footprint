@@ -52,7 +52,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     if (loading || !hasMore) return
     setLoading(true)
     try {
-      const res = await fetch(`/api/footprint/${footprint.username}?offset=${loadedContent.length}&limit=24`)
+      const res = await fetch(`/api/footprint/${footprint.username}?offset=${loadedContent.length}&limit=12`)
       const json = await res.json()
       if (json.tiles?.length) {
         setLoadedContent(prev => [...prev, ...json.tiles])
@@ -76,24 +76,21 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
   return (
     <div className="min-h-screen relative" style={{ background: theme.colors.background, color: theme.colors.text }}>
-      {/* Wallpaper layer — real blur via filter */}
+      {/* Wallpaper layer — fixed full-viewport, img with object-cover */}
       {footprint.background_url && (
-        <>
+        <div className="fixed inset-0 z-0">
           <img
             src={footprint.background_url}
             alt=""
-            className="hidden"
-            onLoad={() => setWallpaperLoaded(true)}
-          />
-          <div
-            className={`fixed inset-0 z-0 bg-cover bg-center transition-opacity duration-700 ${wallpaperLoaded ? 'opacity-100' : 'opacity-0'}`}
+            className={`w-full h-full object-cover transition-opacity duration-700 ${wallpaperLoaded ? 'opacity-100' : 'opacity-0'}`}
             style={{
-              backgroundImage: `url(${footprint.background_url})`,
-              filter: footprint.background_blur !== false ? 'blur(12px) brightness(0.7)' : 'none',
+              filter: footprint.background_blur !== false ? 'blur(12px)' : 'none',
               transform: footprint.background_blur !== false ? 'scale(1.05)' : 'none',
             }}
+            onLoad={() => setWallpaperLoaded(true)}
           />
-        </>
+          <div className="absolute inset-0 bg-black/60" />
+        </div>
       )}
       <WeatherEffect type={footprint.weather_effect || null} />
       <div className="relative z-10">

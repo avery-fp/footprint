@@ -19,7 +19,7 @@ export async function GET(
     const username = params.slug
     const { searchParams } = new URL(request.url)
     const offset = parseInt(searchParams.get('offset') || '0')
-    const limit = parseInt(searchParams.get('limit') || '24')
+    const limit = parseInt(searchParams.get('limit') || '12')
 
     const supabase = createServerSupabaseClient()
 
@@ -57,7 +57,7 @@ export async function GET(
       url: item.image_url,
       type: 'image',
       title: item.title || null,
-      description: item.description || null,
+      description: null,
       thumbnail_url: null,
       embed_html: null,
       position: item.position,
