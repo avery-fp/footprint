@@ -135,7 +135,7 @@ function SortableTile({
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/[0.05] p-2">
             {content.thumbnail_url ? (
-              <img src={content.thumbnail_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+              <img src={content.thumbnail_url} alt="" className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
             ) : (
               <>
                 <div className="text-2xl mb-1 opacity-60">
@@ -240,15 +240,11 @@ export default function EditPage() {
           setSerialNumber(data.footprint.serial_number)
           setActiveRoomId(null)
 
-          // Fetch rooms
-          const supabase = createBrowserSupabaseClient()
-          const { data: roomsData } = await supabase
-            .from('rooms')
-            .select('*')
-            .eq('serial_number', data.footprint.serial_number)
-            .order('position')
-          if (roomsData && roomsData.length > 0) {
-            setRooms(roomsData)
+          // Fetch rooms via server API (bypasses RLS)
+          const roomsRes = await fetch(`/api/rooms?serial_number=${data.footprint.serial_number}`)
+          const roomsJson = await roomsRes.json()
+          if (roomsJson.rooms?.length > 0) {
+            setRooms(roomsJson.rooms)
           }
         } else {
           setIsOwner(true)
@@ -517,15 +513,20 @@ export default function EditPage() {
     const name = prompt('Room name:')
     if (!name?.trim()) return
     try {
-      const supabase = createBrowserSupabaseClient()
-      const { data: newRoom, error } = await supabase
-        .from('rooms')
-        .insert({ serial_number: serialNumber, name: name.trim(), position: rooms.length })
-        .select()
-        .single()
-      if (!error && newRoom) setRooms(prev => [...prev, newRoom])
+      const res = await fetch('/api/rooms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ serial_number: serialNumber, name: name.trim(), position: rooms.length }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        alert(json.error || 'Failed to create room')
+        return
+      }
+      if (json.room) setRooms(prev => [...prev, json.room])
     } catch (e) {
       console.error('Failed to create room:', e)
+      alert('Failed to create room')
     }
   }
 
@@ -861,10 +862,7 @@ export default function EditPage() {
               className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all"
               title="Upload file"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                <circle cx="12" cy="13" r="4"/>
-              </svg>
+              <span className="text-white/60 text-sm font-bold">↑</span>
             </button>
             <div className="w-px h-6 bg-white/10" />
             <button
@@ -874,7 +872,7 @@ export default function EditPage() {
               }`}
               title="Add content"
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-white/60"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
             </button>
             <div className="w-px h-6 bg-white/10" />
             <button
@@ -884,7 +882,7 @@ export default function EditPage() {
               }`}
               title="Add thought"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              <span className="text-white/60 text-sm font-medium">Aa</span>
             </button>
           </div>
         )}
