@@ -17,9 +17,6 @@ export async function GET(
 ) {
   try {
     const username = params.slug
-    const { searchParams } = new URL(request.url)
-    const offset = parseInt(searchParams.get('offset') || '0')
-    const limit = parseInt(searchParams.get('limit') || '12')
 
     const supabase = createServerSupabaseClient()
 
@@ -81,14 +78,10 @@ export async function GET(
       (a.position ?? 0) - (b.position ?? 0)
     )
 
-    const totalCount = allTiles.length
-    const tiles = allTiles.slice(offset, offset + limit)
-
     return NextResponse.json({
       owned: true,
       footprint,
-      tiles,
-      totalCount,
+      tiles: allTiles,
     })
 
   } catch (error) {
