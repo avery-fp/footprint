@@ -2,15 +2,12 @@ import { createServerSupabaseClient } from '@/lib/supabase'
 import { notFound } from 'next/navigation'
 import { Metadata } from 'next'
 import { getTheme } from '@/lib/themes'
-import { transformImageUrl } from '@/lib/image'
 import AnalyticsTracker from '@/components/AnalyticsTracker'
 import ShareButton from '@/components/ShareButton'
 import PublicPage from './PublicPage'
 
-// Force dynamic rendering - never statically generate user pages
-export const dynamic = 'force-dynamic'
-// Disable all caching and revalidation
-export const revalidate = 0
+// ISR — cache page at the edge, revalidate every 60 seconds
+export const revalidate = 60
 
 interface Props {
   params: { slug: string }
@@ -84,15 +81,6 @@ export default async function FootprintPage({ params }: Props) {
     })),
   ].sort((a, b) => a.position - b.position)
 
-  // Transform image URLs server-side so SSR HTML has optimized URLs
-  const transformContent = (items: typeof content) => items.map(item => ({
-    ...item,
-    url: transformImageUrl(item.url) ?? item.url,
-    thumbnail_url: 'thumbnail_url' in item ? (transformImageUrl(item.thumbnail_url) ?? item.thumbnail_url) : undefined,
-  }))
-
-  const transformedContent = transformContent(content)
-
   // Fetch rooms if they exist
   const { data: roomsData } = await supabase
     .from('rooms')
@@ -100,11 +88,11 @@ export default async function FootprintPage({ params }: Props) {
     .eq('serial_number', footprint.serial_number)
     .order('position')
 
-  // Group content by rooms (with transformed URLs)
+  // Group content by rooms
   const rooms = (roomsData || []).map((room: any) => ({
     id: room.id,
     name: room.name,
-    content: transformContent(content.filter(item => item.room_id === room.id)),
+    content: content.filter(item => item.room_id === room.id),
   }))
 
   const serial = footprint.serial_number.toString().padStart(4, '0')
@@ -117,7 +105,7 @@ export default async function FootprintPage({ params }: Props) {
       <ShareButton url={pageUrl} />
       <PublicPage
         footprint={footprint}
-        content={transformedContent}
+        content={content}
         rooms={rooms}
         theme={theme}
         serial={serial}

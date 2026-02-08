@@ -10,8 +10,8 @@ import ContentCard from '@/components/ContentCard'
 import { audioManager } from '@/lib/audio-manager'
 import { getTheme } from '@/lib/themes'
 import Link from 'next/link'
+import Image from 'next/image'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
-import { transformImageUrl } from '@/lib/image'
 
 interface TileContent extends DraftContent {
   source?: 'library' | 'links'
@@ -125,18 +125,23 @@ function SortableTile({
               )}
             </>
           ) : (
-            <img
-              src={transformImageUrl(content.url)}
-              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+            <Image
+              src={content.url}
               alt=""
+              width={200}
+              height={200}
+              sizes="(max-width: 640px) 33vw, 20vw"
+              className="absolute inset-0 w-full h-full object-cover transition-opacity duration-[800ms]"
+              style={{ opacity: isLoaded ? 1 : 0 }}
               loading="lazy"
+              quality={75}
               onLoad={() => setIsLoaded(true)}
             />
           )
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/[0.05] p-2">
             {content.thumbnail_url ? (
-              <img src={transformImageUrl(content.thumbnail_url)} alt="" className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+              <Image src={content.thumbnail_url} alt="" width={200} height={200} sizes="(max-width: 640px) 33vw, 20vw" className="absolute inset-0 w-full h-full object-cover" loading="lazy" quality={75} />
             ) : (
               <>
                 <div className="text-2xl mb-1 opacity-60">

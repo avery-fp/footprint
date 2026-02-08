@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import ContentCard from '@/components/ContentCard'
 import VideoTile from '@/components/VideoTile'
 import WeatherEffect from '@/components/WeatherEffect'
-import { transformImageUrl } from '@/lib/image'
 
 interface Room {
   id: string
@@ -43,13 +43,17 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
   return (
     <div className="min-h-screen relative" style={{ background: theme.colors.background, color: theme.colors.text }}>
-      {/* Wallpaper layer — fixed full-viewport, img with object-cover */}
+      {/* Wallpaper layer — fixed full-viewport, Image with object-cover */}
       {footprint.background_url && (
         <div className="fixed inset-0 z-0">
-          <img
+          <Image
             src={footprint.background_url}
             alt=""
-            className={`w-full h-full object-cover transition-opacity duration-700 ${wallpaperLoaded ? 'opacity-100' : 'opacity-0'}`}
+            fill
+            priority
+            quality={60}
+            sizes="100vw"
+            className={`object-cover transition-opacity duration-700 ${wallpaperLoaded ? 'opacity-100' : 'opacity-0'}`}
             style={{
               filter: footprint.background_blur !== false ? 'blur(12px)' : 'none',
               transform: footprint.background_blur !== false ? 'scale(1.05)' : 'none',
@@ -140,7 +144,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               return (
                 <div
                   key={item.id}
-                  className="break-inside-avoid mb-2 group tile-enter"
+                  className="break-inside-avoid mb-2 group tile-enter tile-container"
                   style={{ animationDelay: `${index * 60}ms` }}
                 >
                   <div className="group-hover:scale-[1.02] transition-transform duration-300 will-change-transform group-hover:shadow-lg group-hover:shadow-black/20 rounded-xl">
@@ -151,15 +155,15 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                         </div>
                       ) : (
                         <div className="rounded-xl overflow-hidden border border-white/[0.06]">
-                          <img
-                            src={transformImageUrl(item.url)}
-                            className="w-full object-cover opacity-0 transition-opacity duration-[800ms]"
-                            alt=""
+                          <Image
+                            src={item.url}
+                            alt={item.title || ''}
+                            width={600}
+                            height={800}
+                            sizes="(max-width: 768px) 50vw, 25vw"
+                            className="w-full h-auto rounded-xl"
                             loading="lazy"
-                            onLoad={(e) => {
-                              e.currentTarget.classList.remove('opacity-0')
-                              e.currentTarget.classList.add('opacity-100')
-                            }}
+                            quality={75}
                           />
                         </div>
                       )

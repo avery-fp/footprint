@@ -145,6 +145,12 @@ body::before {
   background: rgba(255, 255, 255, 0.04);
 }
 
+/* Content-visibility — skip rendering off-screen tiles */
+.tile-container {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 300px;
+}
+
 /* Card hover effect */
 .card-hover {
   transition: all 0.3s ease;
