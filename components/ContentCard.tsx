@@ -244,7 +244,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
     return (
       <div className="rounded-xl overflow-hidden relative">
         <div
-          className={`absolute inset-0 vapor-box rounded-xl ${isLoaded ? 'opacity-0' : ''} transition-opacity duration-500`}
+          className={`absolute inset-0 rounded-xl ${isLoaded ? 'opacity-0' : ''} transition-opacity duration-500`}
           style={{ aspectRatio: '1/1' }}
         />
         <video
@@ -299,7 +299,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
   if (content.type === 'thought') {
     return (
       <div
-        className="rounded-xl overflow-hidden p-8 border border-white/[0.06] hover:border-white/15 transition-all bg-white/[0.08] backdrop-blur-md"
+        className="rounded-xl overflow-hidden p-8 border border-white/[0.06] hover:border-white/15 transition-all bg-white/[0.08] backdrop-blur-xl"
       >
         <p className="text-base leading-relaxed whitespace-pre-wrap text-white/90">
           {content.title || content.description || ''}

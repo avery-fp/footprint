@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Image from 'next/image'
 import ContentCard from '@/components/ContentCard'
 import VideoTile from '@/components/VideoTile'
@@ -23,12 +23,18 @@ interface PublicPageProps {
 
 // Wallpaper filter per room — derived from room index
 const ROOM_FILTERS = [
-  'blur(12px) brightness(0.42) saturate(0.85) hue-rotate(-8deg)',
-  'blur(12px) brightness(0.48) saturate(1.15) hue-rotate(8deg)',
-  'blur(16px) brightness(0.35) saturate(1.3) hue-rotate(-15deg)',
-  'blur(12px) brightness(0.45) saturate(0.6) hue-rotate(0deg)',
-  'blur(10px) brightness(0.5) saturate(1.4) hue-rotate(12deg)',
-  'blur(14px) brightness(0.38) saturate(0.3) hue-rotate(0deg)',
+  // Room 0: cool, moderate blur
+  'blur(8px) brightness(0.45) saturate(0.85) hue-rotate(-8deg)',
+  // Room 1: warm, bright, low blur — wallpaper almost legible
+  'blur(4px) brightness(0.65) saturate(1.4) hue-rotate(25deg)',
+  // Room 2: deep, hyper-saturated, max blur
+  'blur(16px) brightness(0.3) saturate(1.6) hue-rotate(-35deg)',
+  // Room 3: sharp editorial — zero blur, desaturated
+  'blur(0px) brightness(0.55) saturate(0.2) hue-rotate(0deg)',
+  // Room 4: vivid, bright, warm shift
+  'blur(10px) brightness(0.7) saturate(1.2) hue-rotate(35deg)',
+  // Room 5: noir — dark, muted, heavy blur
+  'blur(14px) brightness(0.35) saturate(0.4) hue-rotate(-20deg)',
 ]
 const DEFAULT_FILTER = 'blur(12px)'
 
@@ -47,7 +53,17 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [wallpaperLoaded, setWallpaperLoaded] = useState(false)
   const [showToast, setShowToast] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [widescreenIds, setWidescreenIds] = useState<Set<string>>(new Set())
   const swipeRef = useRef<HTMLDivElement>(null)
+
+  const markWidescreen = useCallback((id: string) => {
+    setWidescreenIds(prev => {
+      if (prev.has(id)) return prev
+      const next = new Set(prev)
+      next.add(id)
+      return next
+    })
+  }, [])
 
   const content = activeRoomId
     ? rooms.find(r => r.id === activeRoomId)?.content || []
@@ -119,17 +135,22 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     return () => clearTimeout(t)
   }, [showToast])
 
-  // Reusable tile renderer
+  // Reusable tile renderer — widescreen heroes get column-span: all
   const renderTile = (item: any, index: number) => {
     const isVideo = item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
+    const isHero = widescreenIds.has(item.id)
     return (
-      <div key={item.id} className="break-inside-avoid mb-2 group tile-enter tile-container"
-        style={{ animationDelay: `${index * 60}ms` }}>
+      <div key={item.id}
+        className={`${isHero ? '' : 'break-inside-avoid'} mb-2 group tile-enter tile-container`}
+        style={{
+          animationDelay: `${index * 60}ms`,
+          ...(isHero ? { columnSpan: 'all' as any } : {}),
+        }}>
         <div className="group-hover:scale-[1.02] transition-transform duration-300 will-change-transform rounded-xl">
           {item.type === 'image' ? (
             isVideo ? (
               <div className="rounded-xl overflow-hidden border border-white/[0.06]">
-                <VideoTile src={item.url} />
+                <VideoTile src={item.url} onWidescreen={() => markWidescreen(item.id)} />
               </div>
             ) : (
               <div className="rounded-xl overflow-hidden border border-white/[0.06]">
@@ -140,7 +161,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             )
           ) : (
             <div className="rounded-xl overflow-hidden border border-white/[0.06]">
-              <ContentCard content={item} />
+              <ContentCard content={item} onWidescreen={() => markWidescreen(item.id)} />
             </div>
           )}
         </div>

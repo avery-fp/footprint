@@ -95,9 +95,11 @@ function SortableTile({
             e.stopPropagation()
             onDelete()
           }}
-          className="absolute top-2 left-2 w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 z-10 transition-all"
+          className="absolute top-0 left-0 w-11 h-11 z-10 flex items-center justify-center"
           title="Delete"
-        />
+        >
+          <span className="w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 transition-all" />
+        </button>
 
         {/* Green checkmark when selected */}
         {selected && (
@@ -703,7 +705,7 @@ export default function EditPage() {
               items={filteredContent.map(item => item.id)}
               strategy={rectSortingStrategy}
             >
-              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2 px-1">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-1.5 px-1">
                 {filteredContent.map(item => (
                   <SortableTile
                     key={item.id}
@@ -730,7 +732,7 @@ export default function EditPage() {
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/jpeg,image/png,image/gif,image/webp,image/heic,video/mp4,video/quicktime,video/webm,video/x-m4v"
+        accept="image/*,video/*"
         className="hidden"
         onChange={handleFileUpload}
       />

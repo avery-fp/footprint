@@ -3,9 +3,10 @@
 import { useState, useRef, useEffect } from 'react'
 import { audioManager } from '@/lib/audio-manager'
 
-export default function VideoTile({ src }: { src: string }) {
+export default function VideoTile({ src, onWidescreen }: { src: string; onWidescreen?: () => void }) {
   const [isMuted, setIsMuted] = useState(true)
   const [isInView, setIsInView] = useState(false)
+  const [isWide, setIsWide] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const videoId = useRef(`video-${src}-${Math.random()}`).current
@@ -55,14 +56,19 @@ export default function VideoTile({ src }: { src: string }) {
           <video
             ref={videoRef}
             src={src}
-            className="w-full aspect-square object-cover rounded-xl cursor-pointer"
+            className={`w-full ${isWide ? 'aspect-video' : 'aspect-square'} object-cover rounded-xl cursor-pointer`}
+            autoPlay
             muted
             loop
             playsInline
-            preload="metadata"
             onClick={handleClick}
-            onMouseEnter={(e) => e.currentTarget.play()}
-            onMouseLeave={(e) => { e.currentTarget.pause(); e.currentTarget.currentTime = 0 }}
+            onLoadedMetadata={(e) => {
+              const v = e.currentTarget
+              if (v.videoWidth > v.videoHeight * 1.3) {
+                setIsWide(true)
+                onWidescreen?.()
+              }
+            }}
           />
           {!isMuted && (
             <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60" />
