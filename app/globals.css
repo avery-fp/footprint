@@ -183,3 +183,12 @@ body::before {
 .input-field::placeholder {
   @apply text-white/30;
 }
+
+/* Mobile swipe container — hide scrollbar */
+.swipe-container::-webkit-scrollbar {
+  display: none;
+}
+.swipe-container {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

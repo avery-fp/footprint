@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import ContentCard from '@/components/ContentCard'
 import VideoTile from '@/components/VideoTile'
@@ -21,18 +21,96 @@ interface PublicPageProps {
   pageUrl: string
 }
 
+// Wallpaper filter per room — derived from room index
+const ROOM_FILTERS = [
+  'blur(12px) brightness(0.42) saturate(0.85) hue-rotate(-8deg)',
+  'blur(12px) brightness(0.48) saturate(1.15) hue-rotate(8deg)',
+  'blur(16px) brightness(0.35) saturate(1.3) hue-rotate(-15deg)',
+  'blur(12px) brightness(0.45) saturate(0.6) hue-rotate(0deg)',
+  'blur(10px) brightness(0.5) saturate(1.4) hue-rotate(12deg)',
+  'blur(14px) brightness(0.38) saturate(0.3) hue-rotate(0deg)',
+]
+const DEFAULT_FILTER = 'blur(12px)'
+
+const ROOM_OVERLAYS = [
+  'rgba(0,0,0,0.58)',
+  'rgba(0,0,0,0.55)',
+  'rgba(0,0,0,0.68)',
+  'rgba(0,0,0,0.62)',
+  'rgba(0,0,0,0.52)',
+  'rgba(0,0,0,0.72)',
+]
+const DEFAULT_OVERLAY = 'rgba(0,0,0,0.6)'
+
 export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
   const [wallpaperLoaded, setWallpaperLoaded] = useState(false)
   const [showToast, setShowToast] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+  const swipeRef = useRef<HTMLDivElement>(null)
 
   const content = activeRoomId
     ? rooms.find(r => r.id === activeRoomId)?.content || []
     : allContent
 
+  // Wallpaper filter derived from active room
+  const activeRoomIndex = activeRoomId ? rooms.findIndex(r => r.id === activeRoomId) : -1
+  const wallpaperFilter = activeRoomIndex >= 0
+    ? ROOM_FILTERS[activeRoomIndex % ROOM_FILTERS.length]
+    : DEFAULT_FILTER
+  const overlayColor = activeRoomIndex >= 0
+    ? ROOM_OVERLAYS[activeRoomIndex % ROOM_OVERLAYS.length]
+    : DEFAULT_OVERLAY
+
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href)
     setShowToast(true)
+  }
+
+  // Mobile detection
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
+  // Sync swipe with room state on mobile
+  useEffect(() => {
+    if (!isMobile || !swipeRef.current) return
+    const container = swipeRef.current
+    let timeout: NodeJS.Timeout
+
+    const handleScroll = () => {
+      clearTimeout(timeout)
+      timeout = setTimeout(() => {
+        const idx = Math.round(container.scrollLeft / container.offsetWidth)
+        if (rooms.length === 0) return
+        if (idx === 0) {
+          setActiveRoomId(null)
+        } else {
+          setActiveRoomId(rooms[idx - 1]?.id || null)
+        }
+      }, 80)
+    }
+
+    container.addEventListener('scroll', handleScroll, { passive: true })
+    return () => {
+      container.removeEventListener('scroll', handleScroll)
+      clearTimeout(timeout)
+    }
+  }, [isMobile, rooms])
+
+  // Navigate to room (scrolls on mobile)
+  const goToRoom = (roomId: string | null) => {
+    setActiveRoomId(roomId)
+    if (isMobile && swipeRef.current) {
+      const idx = roomId ? rooms.findIndex(r => r.id === roomId) + 1 : 0
+      swipeRef.current.scrollTo({
+        left: idx * swipeRef.current.offsetWidth,
+        behavior: 'smooth'
+      })
+    }
   }
 
   useEffect(() => {
@@ -40,6 +118,35 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     const t = setTimeout(() => setShowToast(false), 2000)
     return () => clearTimeout(t)
   }, [showToast])
+
+  // Reusable tile renderer
+  const renderTile = (item: any, index: number) => {
+    const isVideo = item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
+    return (
+      <div key={item.id} className="break-inside-avoid mb-2 group tile-enter tile-container"
+        style={{ animationDelay: `${index * 60}ms` }}>
+        <div className="group-hover:scale-[1.02] transition-transform duration-300 will-change-transform rounded-xl">
+          {item.type === 'image' ? (
+            isVideo ? (
+              <div className="rounded-xl overflow-hidden border border-white/[0.06]">
+                <VideoTile src={item.url} />
+              </div>
+            ) : (
+              <div className="rounded-xl overflow-hidden border border-white/[0.06]">
+                <Image src={item.url} alt={item.title || ''} width={600} height={800}
+                  sizes={isMobile ? "50vw" : "(max-width: 768px) 50vw, 25vw"}
+                  className="w-full h-auto rounded-xl" loading="lazy" quality={75} />
+              </div>
+            )
+          ) : (
+            <div className="rounded-xl overflow-hidden border border-white/[0.06]">
+              <ContentCard content={item} />
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen relative" style={{ background: theme.colors.background, color: theme.colors.text }}>
@@ -55,12 +162,16 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             sizes="100vw"
             className={`object-cover transition-opacity duration-700 ${wallpaperLoaded ? 'opacity-100' : 'opacity-0'}`}
             style={{
-              filter: footprint.background_blur !== false ? 'blur(12px)' : 'none',
+              filter: footprint.background_blur !== false ? wallpaperFilter : 'none',
               transform: footprint.background_blur !== false ? 'scale(1.05)' : 'none',
+              transition: 'filter 0.8s ease',
             }}
             onLoad={() => setWallpaperLoaded(true)}
           />
-          <div className="absolute inset-0 bg-black/60" />
+          <div
+            className="absolute inset-0 transition-colors duration-800"
+            style={{ backgroundColor: overlayColor }}
+          />
         </div>
       )}
       <WeatherEffect type={footprint.weather_effect || null} />
@@ -110,7 +221,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         {rooms.length > 1 && (
           <div className="flex items-center justify-center gap-2 mb-6 flex-wrap relative z-20 max-w-6xl mx-auto px-4 md:px-8">
             <button
-              onClick={() => setActiveRoomId(null)}
+              onClick={() => goToRoom(null)}
               className={`px-4 py-1.5 rounded-full text-sm transition-all backdrop-blur-sm border-0 ${
                 activeRoomId === null
                   ? 'bg-white/[0.12] text-white/90'
@@ -122,7 +233,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             {rooms.map((room) => (
               <button
                 key={room.id}
-                onClick={() => setActiveRoomId(room.id)}
+                onClick={() => goToRoom(room.id)}
                 className={`px-4 py-1.5 rounded-full text-sm transition-all backdrop-blur-sm border-0 ${
                   activeRoomId === room.id
                     ? 'bg-white/[0.12] text-white/90'
@@ -137,52 +248,65 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
         {/* CSS Columns Masonry */}
         <div className="max-w-6xl mx-auto px-4 md:px-8">
-          <div className="columns-2 md:columns-3 lg:columns-4" style={{ columnGap: '8px' }}>
-            {content.map((item: any, index: number) => {
-              const isVideo = item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
-
-              return (
-                <div
-                  key={item.id}
-                  className="break-inside-avoid mb-2 group tile-enter tile-container"
-                  style={{ animationDelay: `${index * 60}ms` }}
-                >
-                  <div className="group-hover:scale-[1.02] transition-transform duration-300 will-change-transform group-hover:shadow-lg group-hover:shadow-black/20 rounded-xl">
-                    {item.type === 'image' ? (
-                      isVideo ? (
-                        <div className="rounded-xl overflow-hidden border border-white/[0.06]">
-                          <VideoTile src={item.url} />
-                        </div>
-                      ) : (
-                        <div className="rounded-xl overflow-hidden border border-white/[0.06]">
-                          <Image
-                            src={item.url}
-                            alt={item.title || ''}
-                            width={600}
-                            height={800}
-                            sizes="(max-width: 768px) 50vw, 25vw"
-                            className="w-full h-auto rounded-xl"
-                            loading="lazy"
-                            quality={75}
-                          />
-                        </div>
-                      )
-                    ) : (
-                      <div className="rounded-xl overflow-hidden border border-white/[0.06]">
-                        <ContentCard content={item} />
-                      </div>
-                    )}
+          {isMobile && rooms.length > 1 ? (
+            /* MOBILE SWIPE */
+            <div
+              ref={swipeRef}
+              className="flex swipe-container"
+              style={{
+                overflowX: 'auto',
+                overflowY: 'hidden',
+                scrollSnapType: 'x mandatory',
+                WebkitOverflowScrolling: 'touch',
+              }}
+            >
+              {/* "All" panel */}
+              <div className="w-full min-w-full flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
+                <div className="columns-2" style={{ columnGap: '8px' }}>
+                  {allContent.map((item, idx) => renderTile(item, idx))}
+                </div>
+              </div>
+              {/* Room panels */}
+              {rooms.map((room) => (
+                <div key={room.id} className="w-full min-w-full flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
+                  <div className="columns-2" style={{ columnGap: '8px' }}>
+                    {room.content.map((item, idx) => renderTile(item, idx))}
                   </div>
                 </div>
-              )
-            })}
-          </div>
+              ))}
+            </div>
+          ) : (
+            /* DESKTOP — existing grid, unchanged */
+            <div className="columns-2 md:columns-3 lg:columns-4" style={{ columnGap: '8px' }}>
+              {content.map((item, idx) => renderTile(item, idx))}
+            </div>
+          )}
         </div>
 
         {content.length === 0 && (
           <p className="text-center py-16" style={{ color: theme.colors.textMuted }}>
             Nothing here yet.
           </p>
+        )}
+
+        {/* Mobile page dots */}
+        {isMobile && rooms.length > 1 && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5
+            bg-black/20 backdrop-blur-xl rounded-full px-3 py-1.5 border border-white/[0.04]">
+            {[null, ...rooms.map(r => r.id)].map((id, i) => {
+              const isActive = id === activeRoomId || (id === null && activeRoomId === null)
+              return (
+                <div key={i} className="transition-all duration-300"
+                  style={{
+                    width: isActive ? 18 : 4,
+                    height: 3,
+                    borderRadius: 2,
+                    background: isActive ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.15)',
+                  }}
+                />
+              )
+            })}
+          </div>
         )}
 
         {/* Footer — whisper */}
