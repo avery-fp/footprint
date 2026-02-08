@@ -55,7 +55,7 @@ export default function VideoTile({ src }: { src: string }) {
           <video
             ref={videoRef}
             src={src}
-            className="w-full aspect-video object-cover rounded-xl cursor-pointer"
+            className="w-full aspect-square object-cover rounded-xl cursor-pointer"
             muted
             loop
             playsInline
@@ -69,7 +69,7 @@ export default function VideoTile({ src }: { src: string }) {
           )}
         </>
       ) : (
-        <div className="w-full aspect-video rounded-xl" />
+        <div className="w-full aspect-square rounded-xl" />
       )}
     </div>
   )
