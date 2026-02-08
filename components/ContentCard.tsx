@@ -99,7 +99,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
       return (
         <div
           ref={containerRef}
-          className="w-full aspect-video rounded-xl overflow-hidden cursor-pointer relative group"
+          className="w-full aspect-square rounded-xl overflow-hidden cursor-pointer relative group"
           onClick={handleActivate}
         >
           <img
@@ -123,7 +123,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
     // Activated — clean iframe with autoplay
     if (videoId) {
       return (
-        <div className="w-full aspect-video rounded-xl overflow-hidden relative materialize">
+        <div className="w-full aspect-square rounded-xl overflow-hidden relative materialize">
           <iframe
             src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`}
             className="absolute inset-0 w-full h-full"
@@ -241,7 +241,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
       <div className="rounded-xl overflow-hidden relative">
         <div
           className={`absolute inset-0 vapor-box rounded-xl ${isLoaded ? 'opacity-0' : ''} transition-opacity duration-500`}
-          style={{ aspectRatio: '16/9' }}
+          style={{ aspectRatio: '1/1' }}
         />
         <video
           src={content.url}
@@ -250,7 +250,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
           loop
           playsInline
           controls
-          className={`w-full aspect-video object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+          className={`w-full aspect-square object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
           onLoadedData={() => setIsLoaded(true)}
         />
       </div>
