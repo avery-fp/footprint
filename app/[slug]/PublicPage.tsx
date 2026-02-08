@@ -23,7 +23,11 @@ interface PublicPageProps {
 }
 
 export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl, totalCount }: PublicPageProps) {
-  const [activeRoomId, setActiveRoomId] = useState<string | null>(rooms.length > 0 ? rooms[0].id : null)
+  const [activeRoomId, setActiveRoomId] = useState<string | null>(() => {
+    if (rooms.length === 0) return null
+    const sorted = [...rooms].sort((a, b) => (b.content?.length || 0) - (a.content?.length || 0))
+    return sorted[0].id
+  })
   const [wallpaperLoaded, setWallpaperLoaded] = useState(false)
   const [showToast, setShowToast] = useState(false)
   const [loadedContent, setLoadedContent] = useState(allContent)
