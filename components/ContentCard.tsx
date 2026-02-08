@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import Image from 'next/image'
 import { getContentIcon, getContentBackground, ContentType } from '@/lib/parser'
 import { audioManager } from '@/lib/audio-manager'
-import { transformImageUrl } from '@/lib/image'
 
 function extractYouTubeId(url: string): string | null {
   const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/)
@@ -102,11 +102,15 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
           className="w-full aspect-video rounded-xl overflow-hidden cursor-pointer relative group"
           onClick={handleActivate}
         >
-          <img
-            src={isInView ? transformImageUrl(thumbnailUrl) : undefined}
+          <Image
+            src={isInView ? thumbnailUrl : ''}
             alt=""
+            width={480}
+            height={270}
+            sizes="(max-width: 768px) 50vw, 25vw"
             className={`w-full h-full object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
             loading="lazy"
+            quality={75}
             onLoad={() => setIsLoaded(true)}
           />
           {/* Play button */}
@@ -267,14 +271,18 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
           className={`absolute inset-0 vapor-box rounded-xl ${isLoaded ? 'opacity-0' : ''} transition-opacity duration-500`}
         />
         <a href={content.url} target="_blank" rel="noopener noreferrer">
-          <img
-            src={isInView ? transformImageUrl(content.url) : undefined}
+          <Image
+            src={isInView ? content.url : ''}
             alt={content.title || ''}
-            className={`w-full object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+            width={600}
+            height={800}
+            sizes="(max-width: 768px) 50vw, 25vw"
+            className={`w-full h-auto object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
             loading="lazy"
+            quality={75}
             onLoad={(e) => {
               setIsLoaded(true)
-              const img = e.currentTarget
+              const img = e.currentTarget as HTMLImageElement
               if (img.naturalWidth > img.naturalHeight * 1.3) {
                 onWidescreen?.()
               }
@@ -317,11 +325,15 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
             className={`absolute inset-0 vapor-box rounded-xl ${isLoaded ? 'opacity-0' : ''} transition-opacity duration-500`}
             style={{ aspectRatio: '1/1' }}
           />
-          <img
-            src={isInView ? transformImageUrl(content.thumbnail_url) : undefined}
+          <Image
+            src={isInView ? content.thumbnail_url : ''}
             alt=""
+            width={400}
+            height={400}
+            sizes="(max-width: 768px) 50vw, 25vw"
             className={`w-full aspect-square object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
             loading="lazy"
+            quality={75}
             onLoad={() => setIsLoaded(true)}
           />
           <div className="absolute bottom-2 left-2 text-2xl opacity-80">
@@ -360,11 +372,15 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
         style={{ background: customBg || 'rgba(255,255,255,0.1)' }}
       >
         {content.thumbnail_url ? (
-          <img
-            src={isInView ? transformImageUrl(content.thumbnail_url) : undefined}
+          <Image
+            src={isInView ? content.thumbnail_url : ''}
             alt=""
+            width={48}
+            height={48}
+            sizes="48px"
             className="w-full h-full rounded-lg object-cover"
             loading="lazy"
+            quality={75}
           />
         ) : (
           icon
