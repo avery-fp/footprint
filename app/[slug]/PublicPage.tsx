@@ -23,7 +23,7 @@ interface PublicPageProps {
 }
 
 export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl, totalCount }: PublicPageProps) {
-  const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
+  const [activeRoomId, setActiveRoomId] = useState<string | null>(rooms.length > 0 ? rooms[0].id : null)
   const [wallpaperLoaded, setWallpaperLoaded] = useState(false)
   const [showToast, setShowToast] = useState(false)
   const [loadedContent, setLoadedContent] = useState(allContent)
@@ -135,8 +135,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             </button>
         </header>
 
-        {/* Room Tabs */}
-        {rooms.length > 0 && (
+        {/* Room Tabs — only show when multiple rooms exist */}
+        {rooms.length > 1 && (
           <div className="flex items-center justify-center gap-2 mb-6 flex-wrap relative z-20 max-w-6xl mx-auto px-4 md:px-8">
             <button
               onClick={() => setActiveRoomId(null)}
