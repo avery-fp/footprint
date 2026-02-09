@@ -182,6 +182,8 @@ export default function EditPage() {
   const [serialNumber, setSerialNumber] = useState<number | null>(null)
   // Selection state
   const [selectedTileId, setSelectedTileId] = useState<string | null>(null)
+  // Upload progress
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null)
 
   // Bottom pill input state
   const [pillMode, setPillMode] = useState<'idle' | 'url' | 'thought'>('idle')
@@ -540,43 +542,89 @@ export default function EditPage() {
 
   // ── File upload ──
 
+  const VIDEO_MIME = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v']
+
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || [])
     if (files.length === 0 || !draft) return
     setIsAdding(true)
     try {
-      for (const file of files) {
-        const formData = new FormData()
-        formData.append('file', file)
-        formData.append('slug', slug)
-        if (activeRoomId) formData.append('room_id', activeRoomId)
-        const res = await fetch('/api/upload/content', { method: 'POST', body: formData })
-        const data = await res.json()
-        if (data.tile) {
-          setTileSources(prev => ({ ...prev, [data.tile.id]: data.tile.source }))
-          setDraft(prev => prev ? {
-            ...prev,
-            content: [...prev.content, {
-              id: data.tile.id,
-              url: data.tile.url,
-              type: data.tile.type,
-              title: data.tile.title,
-              description: data.tile.description,
-              thumbnail_url: data.tile.thumbnail_url,
-              embed_html: data.tile.embed_html,
-              position: data.tile.position,
-              room_id: data.tile.room_id || null,
-            }],
-            updated_at: Date.now(),
-          } : null)
-        } else if (data.error) {
-          console.error(`Upload failed for ${file.name}: ${data.error}`)
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+        setUploadStatus(`Uploading ${i + 1} of ${files.length}...`)
+
+        try {
+          const isVideo = VIDEO_MIME.includes(file.type)
+
+          let data: any
+
+          if (isVideo && serialNumber) {
+            // Direct upload to Supabase Storage from client — bypasses Vercel 4.5MB body limit
+            const supabase = createBrowserSupabaseClient()
+            const ext = file.name.split('.').pop() || 'mp4'
+            const filename = `${serialNumber}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+
+            const { error: storageError } = await supabase.storage
+              .from('content')
+              .upload(filename, file, { contentType: file.type, upsert: false })
+
+            if (storageError) {
+              console.error(`Storage upload failed for ${file.name}:`, storageError)
+              setUploadStatus(`Failed: ${file.name}`)
+              await new Promise(r => setTimeout(r, 1500))
+              continue
+            }
+
+            const { data: urlData } = supabase.storage.from('content').getPublicUrl(filename)
+
+            // Register the DB record via lightweight API
+            const res = await fetch('/api/upload/register', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ slug, url: urlData.publicUrl, room_id: activeRoomId }),
+            })
+            data = await res.json()
+          } else {
+            // Images go through the API route (under 4.5MB limit)
+            const formData = new FormData()
+            formData.append('file', file)
+            formData.append('slug', slug)
+            if (activeRoomId) formData.append('room_id', activeRoomId)
+            const res = await fetch('/api/upload/content', { method: 'POST', body: formData })
+            data = await res.json()
+          }
+
+          if (data.tile) {
+            setTileSources(prev => ({ ...prev, [data.tile.id]: data.tile.source }))
+            setDraft(prev => prev ? {
+              ...prev,
+              content: [...prev.content, {
+                id: data.tile.id,
+                url: data.tile.url,
+                type: data.tile.type,
+                title: data.tile.title,
+                description: data.tile.description,
+                thumbnail_url: data.tile.thumbnail_url,
+                embed_html: data.tile.embed_html,
+                position: data.tile.position,
+                room_id: data.tile.room_id || null,
+              }],
+              updated_at: Date.now(),
+            } : null)
+          } else if (data.error) {
+            console.error(`Upload failed for ${file.name}: ${data.error}`)
+            setUploadStatus(`Failed: ${file.name}`)
+            await new Promise(r => setTimeout(r, 1500))
+          }
+        } catch (err) {
+          console.error(`Upload failed for ${file.name}:`, err)
+          setUploadStatus(`Failed: ${file.name}`)
+          await new Promise(r => setTimeout(r, 1500))
         }
       }
-    } catch (err) {
-      console.error('Upload failed:', err)
     } finally {
       setIsAdding(false)
+      setUploadStatus(null)
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
@@ -739,6 +787,13 @@ export default function EditPage() {
         className="hidden"
         onChange={handleFileUpload}
       />
+
+      {/* Upload status pill */}
+      {uploadStatus && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-black/80 backdrop-blur-sm text-white/70 text-xs font-mono px-4 py-2 rounded-full border border-white/10">
+          {uploadStatus}
+        </div>
+      )}
 
       {/* ═══ BOTTOM BAR ═══ */}
       <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-3 pb-[env(safe-area-inset-bottom)]">
