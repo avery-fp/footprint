@@ -70,14 +70,18 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     (item.type === 'thought' && item.title) || (item.url && item.url !== '')
 
   const validContent = allContent.filter(isValidTile)
-  const validRooms = rooms.map(r => ({ ...r, content: r.content.filter(isValidTile) }))
+
+  // Filter orphan rooms (empty names, single-char junk)
+  const visibleRooms = rooms
+    .filter(r => r.name && r.name.length > 1)
+    .map(r => ({ ...r, content: r.content.filter(isValidTile) }))
 
   const content = activeRoomId
-    ? validRooms.find(r => r.id === activeRoomId)?.content || []
+    ? visibleRooms.find(r => r.id === activeRoomId)?.content || []
     : validContent
 
   // Wallpaper filter derived from active room
-  const activeRoomIndex = activeRoomId ? rooms.findIndex(r => r.id === activeRoomId) : -1
+  const activeRoomIndex = activeRoomId ? visibleRooms.findIndex(r => r.id === activeRoomId) : -1
   const wallpaperFilter = activeRoomIndex >= 0
     ? ROOM_FILTERS[activeRoomIndex % ROOM_FILTERS.length]
     : DEFAULT_FILTER
@@ -108,11 +112,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       clearTimeout(timeout)
       timeout = setTimeout(() => {
         const idx = Math.round(container.scrollLeft / container.offsetWidth)
-        if (rooms.length === 0) return
+        if (visibleRooms.length === 0) return
         if (idx === 0) {
           setActiveRoomId(null)
         } else {
-          setActiveRoomId(rooms[idx - 1]?.id || null)
+          setActiveRoomId(visibleRooms[idx - 1]?.id || null)
         }
       }, 80)
     }
@@ -122,13 +126,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       container.removeEventListener('scroll', handleScroll)
       clearTimeout(timeout)
     }
-  }, [isMobile, rooms])
+  }, [isMobile, visibleRooms])
 
   // Navigate to room (scrolls on mobile)
   const goToRoom = (roomId: string | null) => {
     setActiveRoomId(roomId)
     if (isMobile && swipeRef.current) {
-      const idx = roomId ? rooms.findIndex(r => r.id === roomId) + 1 : 0
+      const idx = roomId ? visibleRooms.findIndex(r => r.id === roomId) + 1 : 0
       swipeRef.current.scrollTo({
         left: idx * swipeRef.current.offsetWidth,
         behavior: 'smooth'
@@ -163,7 +167,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               <div className="rounded-xl overflow-hidden border border-white/[0.06]">
                 <Image src={item.url} alt={item.title || ''} width={600} height={800}
                   sizes={isMobile ? "50vw" : "(max-width: 768px) 50vw, 25vw"}
-                  className="w-full h-auto rounded-xl" loading="lazy" quality={75} />
+                  className="w-full h-auto rounded-xl" loading={index < 4 ? "eager" : "lazy"}
+                  priority={index < 4} quality={75} />
               </div>
             )
           ) : (
@@ -193,6 +198,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               filter: footprint.background_blur !== false ? wallpaperFilter : 'none',
               transform: footprint.background_blur !== false ? 'scale(1.05)' : 'none',
               transition: 'filter 0.8s ease',
+              willChange: 'transform',
             }}
             onLoad={() => setWallpaperLoaded(true)}
           />
@@ -225,11 +231,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             </span>
             {footprint.bio && (
               <p
-                className="mt-3 text-sm max-w-md text-center"
+                className="mt-3 text-white/30 text-xs tracking-[0.15em] lowercase max-w-md text-center"
                 style={{
                   fontFamily: '"Helvetica Neue", system-ui, sans-serif',
                   fontWeight: 300,
-                  color: theme.colors.textMuted,
                   textShadow: '0 2px 16px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.5)',
                 }}
               >
@@ -239,14 +244,15 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             {/* CTA */}
             <a
               href="https://footprint.onl"
-              className="mt-4 bg-white/[0.06] backdrop-blur-sm border border-white/[0.06] text-white/40 rounded-full px-4 py-1.5 text-xs tracking-wider hover:bg-white/[0.1] hover:text-white/60 transition-all duration-200"
+              className="mt-5 inline-flex items-center gap-2 text-[10px] tracking-[0.3em] uppercase text-white/25 hover:text-white/50 transition-all duration-700"
             >
-              get yours →
+              Own Your Footprint
+              <span className="w-[3px] h-[3px] rounded-full bg-white/20" />
             </a>
         </header>
 
         {/* Room Tabs — only show when multiple rooms exist */}
-        {rooms.length > 1 && (
+        {visibleRooms.length > 1 && (
           <div className="flex items-center justify-center gap-2 mb-6 flex-wrap relative z-20 max-w-7xl mx-auto px-3 md:px-5">
             <button
               onClick={() => goToRoom(null)}
@@ -258,7 +264,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             >
               all
             </button>
-            {rooms.map((room) => (
+            {visibleRooms.map((room) => (
               <button
                 key={room.id}
                 onClick={() => goToRoom(room.id)}
@@ -276,7 +282,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
         {/* CSS Columns Masonry */}
         <div className="max-w-7xl mx-auto px-3 md:px-5">
-          {isMobile && rooms.length > 1 ? (
+          {isMobile && visibleRooms.length > 1 ? (
             /* MOBILE SWIPE */
             <div
               ref={swipeRef}
@@ -295,7 +301,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 </div>
               </div>
               {/* Room panels */}
-              {rooms.map((room) => (
+              {visibleRooms.map((room) => (
                 <div key={room.id} className="w-full min-w-full flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
                   <div className="columns-2" style={{ columnGap: '8px' }}>
                     {room.content.map((item, idx) => renderTile(item, idx))}
@@ -318,10 +324,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         )}
 
         {/* Mobile page dots */}
-        {isMobile && rooms.length > 1 && (
+        {isMobile && visibleRooms.length > 1 && (
           <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5
             bg-black/20 backdrop-blur-xl rounded-full px-3 py-1.5 border border-white/[0.04]">
-            {[null, ...rooms.map(r => r.id)].map((id, i) => {
+            {[null, ...visibleRooms.map(r => r.id)].map((id, i) => {
               const isActive = id === activeRoomId || (id === null && activeRoomId === null)
               return (
                 <div key={i} className="transition-all duration-300"

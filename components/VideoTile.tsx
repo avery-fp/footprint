@@ -61,6 +61,7 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
             muted
             loop
             playsInline
+            preload="none"
             onClick={handleClick}
             onLoadedMetadata={(e) => {
               const v = e.currentTarget
@@ -75,7 +76,7 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
           )}
         </>
       ) : (
-        <div className="w-full aspect-square rounded-xl" />
+        <div className="w-full aspect-square rounded-xl bg-white/[0.03]" />
       )}
     </div>
   )
