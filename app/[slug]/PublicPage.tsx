@@ -65,9 +65,16 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     })
   }, [])
 
+  // Filter out ghost tiles (empty URLs with no title/content)
+  const isValidTile = (item: any) =>
+    (item.type === 'thought' && item.title) || (item.url && item.url !== '')
+
+  const validContent = allContent.filter(isValidTile)
+  const validRooms = rooms.map(r => ({ ...r, content: r.content.filter(isValidTile) }))
+
   const content = activeRoomId
-    ? rooms.find(r => r.id === activeRoomId)?.content || []
-    : allContent
+    ? validRooms.find(r => r.id === activeRoomId)?.content || []
+    : validContent
 
   // Wallpaper filter derived from active room
   const activeRoomIndex = activeRoomId ? rooms.findIndex(r => r.id === activeRoomId) : -1
@@ -149,7 +156,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         <div className="group-hover:scale-[1.02] transition-transform duration-300 will-change-transform rounded-xl">
           {item.type === 'image' ? (
             isVideo ? (
-              <div className="rounded-xl overflow-hidden border border-white/[0.06]">
+              <div className="rounded-xl overflow-hidden border border-white/[0.06] max-h-[300px]">
                 <VideoTile src={item.url} onWidescreen={() => markWidescreen(item.id)} />
               </div>
             ) : (
@@ -240,7 +247,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
         {/* Room Tabs — only show when multiple rooms exist */}
         {rooms.length > 1 && (
-          <div className="flex items-center justify-center gap-2 mb-6 flex-wrap relative z-20 max-w-6xl mx-auto px-4 md:px-8">
+          <div className="flex items-center justify-center gap-2 mb-6 flex-wrap relative z-20 max-w-7xl mx-auto px-3 md:px-5">
             <button
               onClick={() => goToRoom(null)}
               className={`px-4 py-1.5 rounded-full text-sm transition-all backdrop-blur-sm border-0 ${
@@ -268,7 +275,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         )}
 
         {/* CSS Columns Masonry */}
-        <div className="max-w-6xl mx-auto px-4 md:px-8">
+        <div className="max-w-7xl mx-auto px-3 md:px-5">
           {isMobile && rooms.length > 1 ? (
             /* MOBILE SWIPE */
             <div
@@ -284,7 +291,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               {/* "All" panel */}
               <div className="w-full min-w-full flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
                 <div className="columns-2" style={{ columnGap: '8px' }}>
-                  {allContent.map((item, idx) => renderTile(item, idx))}
+                  {validContent.map((item, idx) => renderTile(item, idx))}
                 </div>
               </div>
               {/* Room panels */}

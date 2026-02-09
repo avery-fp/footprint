@@ -5,8 +5,8 @@ import { getTheme } from '@/lib/themes'
 import AnalyticsTracker from '@/components/AnalyticsTracker'
 import PublicPage from './PublicPage'
 
-// ISR — cache page at the edge, revalidate every 60 seconds
-export const revalidate = 60
+// ISR — cache page at the edge, revalidate every 10 seconds
+export const revalidate = 10
 
 interface Props {
   params: { slug: string }

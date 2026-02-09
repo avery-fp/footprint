@@ -541,35 +541,37 @@ export default function EditPage() {
   // ── File upload ──
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file || !draft) return
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0 || !draft) return
     setIsAdding(true)
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('slug', slug)
-      if (activeRoomId) formData.append('room_id', activeRoomId)
-      const res = await fetch('/api/upload/content', { method: 'POST', body: formData })
-      const data = await res.json()
-      if (data.tile) {
-        setTileSources(prev => ({ ...prev, [data.tile.id]: data.tile.source }))
-        setDraft(prev => prev ? {
-          ...prev,
-          content: [...prev.content, {
-            id: data.tile.id,
-            url: data.tile.url,
-            type: data.tile.type,
-            title: data.tile.title,
-            description: data.tile.description,
-            thumbnail_url: data.tile.thumbnail_url,
-            embed_html: data.tile.embed_html,
-            position: data.tile.position,
-            room_id: data.tile.room_id || null,
-          }],
-          updated_at: Date.now(),
-        } : null)
-      } else if (data.error) {
-        alert(data.error)
+      for (const file of files) {
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('slug', slug)
+        if (activeRoomId) formData.append('room_id', activeRoomId)
+        const res = await fetch('/api/upload/content', { method: 'POST', body: formData })
+        const data = await res.json()
+        if (data.tile) {
+          setTileSources(prev => ({ ...prev, [data.tile.id]: data.tile.source }))
+          setDraft(prev => prev ? {
+            ...prev,
+            content: [...prev.content, {
+              id: data.tile.id,
+              url: data.tile.url,
+              type: data.tile.type,
+              title: data.tile.title,
+              description: data.tile.description,
+              thumbnail_url: data.tile.thumbnail_url,
+              embed_html: data.tile.embed_html,
+              position: data.tile.position,
+              room_id: data.tile.room_id || null,
+            }],
+            updated_at: Date.now(),
+          } : null)
+        } else if (data.error) {
+          console.error(`Upload failed for ${file.name}: ${data.error}`)
+        }
       }
     } catch (err) {
       console.error('Upload failed:', err)
@@ -733,6 +735,7 @@ export default function EditPage() {
         ref={fileInputRef}
         type="file"
         accept="image/*,video/*"
+        multiple
         className="hidden"
         onChange={handleFileUpload}
       />
