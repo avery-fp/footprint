@@ -229,13 +229,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 {footprint.bio}
               </p>
             )}
-            {/* Share button */}
-            <button
-              onClick={handleShare}
-              className="mt-4 bg-white/[0.06] backdrop-blur-sm border border-white/[0.06] text-white/40 rounded-full px-4 py-1.5 text-xs tracking-wider hover:bg-white/[0.1] transition-all duration-200"
+            {/* CTA */}
+            <a
+              href="https://footprint.onl"
+              className="mt-4 bg-white/[0.06] backdrop-blur-sm border border-white/[0.06] text-white/40 rounded-full px-4 py-1.5 text-xs tracking-wider hover:bg-white/[0.1] hover:text-white/60 transition-all duration-200"
             >
-              share
-            </button>
+              get yours →
+            </a>
         </header>
 
         {/* Room Tabs — only show when multiple rooms exist */}
@@ -331,10 +331,19 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         )}
 
         {/* Footer — whisper */}
-        <div className="mt-24 mb-12 text-center">
+        <div className="mt-24 mb-12 flex items-center justify-center gap-3">
           <a href="https://footprint.onl" className="text-white/[0.08] text-xs tracking-[0.3em] hover:text-white/20 transition-colors">
             footprint.onl
           </a>
+          <button
+            onClick={handleShare}
+            className="text-white/[0.08] hover:text-white/20 transition-colors"
+            title="Copy link"
+          >
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+            </svg>
+          </button>
         </div>
       </div>
 
