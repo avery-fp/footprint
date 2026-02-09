@@ -82,7 +82,6 @@ export async function POST(request: NextRequest) {
       .insert({
         serial_number: serialNumber,
         image_url: publicUrl,
-        title: file.name,
         position: nextPosition,
         room_id: room_id || null,
       })
@@ -98,7 +97,7 @@ export async function POST(request: NextRequest) {
         id: tile.id,
         url: tile.image_url,
         type: 'image',
-        title: tile.title,
+        title: null,
         description: null,
         thumbnail_url: null,
         embed_html: null,
