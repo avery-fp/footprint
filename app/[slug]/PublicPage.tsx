@@ -168,7 +168,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 <Image src={item.url} alt={item.title || ''} width={600} height={800}
                   sizes={isMobile ? "50vw" : "(max-width: 768px) 50vw, 25vw"}
                   className="w-full h-auto rounded-xl" loading={index < 4 ? "eager" : "lazy"}
-                  priority={index < 4} quality={75} />
+                  priority={index < 4} quality={75}
+                  onError={(e) => { (e.target as HTMLElement).parentElement!.style.display = 'none' }} />
               </div>
             )
           ) : (
@@ -229,7 +230,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             >
               #{serial}
             </span>
-            {footprint.bio && (
+            {footprint.bio && footprint.bio !== 'personal internet' && (
               <p
                 className="mt-3 text-white/30 text-xs tracking-[0.15em] lowercase max-w-md text-center"
                 style={{

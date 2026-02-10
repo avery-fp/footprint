@@ -63,6 +63,7 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
             playsInline
             preload="none"
             onClick={handleClick}
+            onError={(e) => { (e.target as HTMLElement).parentElement!.style.display = 'none' }}
             onLoadedMetadata={(e) => {
               const v = e.currentTarget
               if (v.videoWidth > v.videoHeight * 1.3) {
