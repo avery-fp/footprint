@@ -126,6 +126,8 @@ function SortableTile({
                 <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60 z-10" />
               )}
             </>
+          ) : content.url?.startsWith('data:') ? (
+            <img src={content.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
           ) : (
             <Image
               src={content.url}
@@ -544,6 +546,65 @@ export default function EditPage() {
 
   const VIDEO_MIME = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v']
 
+  // XHR upload to Supabase Storage with progress events
+  function uploadWithProgress(
+    file: File,
+    path: string,
+    onProgress: (pct: number) => void
+  ): Promise<string> {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100))
+      }
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          const url = `${supabaseUrl}/storage/v1/object/public/content/${path}`
+          resolve(url)
+        } else reject(new Error(`Upload failed: ${xhr.status}`))
+      }
+      xhr.onerror = () => reject(new Error('Upload failed'))
+
+      xhr.open('POST', `${supabaseUrl}/storage/v1/object/content/${path}`)
+      xhr.setRequestHeader('Authorization', `Bearer ${supabaseKey}`)
+      xhr.setRequestHeader('apikey', supabaseKey)
+      xhr.setRequestHeader('Content-Type', file.type)
+      xhr.setRequestHeader('x-upsert', 'true')
+      xhr.send(file)
+    })
+  }
+
+  // Extract first frame from video as JPEG data URL
+  function getVideoThumbnail(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement('video')
+      video.muted = true
+      video.playsInline = true
+      video.preload = 'metadata'
+      video.src = URL.createObjectURL(file)
+      const cleanup = () => URL.revokeObjectURL(video.src)
+      video.onloadeddata = () => { video.currentTime = 1 }
+      video.onseeked = () => {
+        try {
+          const canvas = document.createElement('canvas')
+          canvas.width = video.videoWidth
+          canvas.height = video.videoHeight
+          canvas.getContext('2d')!.drawImage(video, 0, 0)
+          cleanup()
+          resolve(canvas.toDataURL('image/jpeg', 0.7))
+        } catch (e) {
+          cleanup()
+          reject(e)
+        }
+      }
+      video.onerror = () => { cleanup(); reject(new Error('Could not load video')) }
+      setTimeout(() => { cleanup(); reject(new Error('Thumbnail timeout')) }, 10000)
+    })
+  }
+
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || [])
     if (files.length === 0 || !draft) return
@@ -551,70 +612,123 @@ export default function EditPage() {
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
-        setUploadStatus(`Uploading ${i + 1} of ${files.length}...`)
+        const isVideo = VIDEO_MIME.includes(file.type)
+        const countLabel = files.length > 1 ? `${i + 1} of ${files.length}` : ''
 
         try {
-          const isVideo = VIDEO_MIME.includes(file.type)
-
-          let data: any
-
           if (isVideo && serialNumber) {
-            // Direct upload to Supabase Storage from client — bypasses Vercel 4.5MB body limit
-            const supabase = createBrowserSupabaseClient()
+            // Extract thumbnail instantly — show in grid before upload starts
+            let thumbnailDataUrl: string | null = null
+            try {
+              thumbnailDataUrl = await getVideoThumbnail(file)
+            } catch { /* silent — grid will show dark placeholder */ }
+
+            // Add temp tile to grid immediately
+            const tempId = `temp-${Date.now()}-${i}`
+            setDraft(prev => prev ? {
+              ...prev,
+              content: [...prev.content, {
+                id: tempId,
+                url: thumbnailDataUrl || '',
+                type: 'image',
+                title: null,
+                description: null,
+                thumbnail_url: null,
+                embed_html: null,
+                position: prev.content.length,
+                room_id: activeRoomId || null,
+              }],
+              updated_at: Date.now(),
+            } : null)
+
+            // Smart size label
+            const sizeMB = file.size / (1024 * 1024)
+            const sizeLabel = sizeMB > 100
+              ? 'This might take a minute'
+              : sizeMB > 20
+                ? 'Large file — uploading'
+                : 'Uploading video'
+
+            // Upload via XHR with real progress
             const ext = file.name.split('.').pop() || 'mp4'
             const filename = `${serialNumber}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
 
-            const { error: storageError } = await supabase.storage
-              .from('content')
-              .upload(filename, file, { contentType: file.type, upsert: false })
+            try {
+              const publicUrl = await uploadWithProgress(file, filename, (pct) => {
+                const suffix = countLabel ? ` (${countLabel})` : ''
+                setUploadStatus(`${sizeLabel}... ${pct}%${suffix}`)
+              })
 
-            if (storageError) {
-              console.error(`Storage upload failed for ${file.name}:`, storageError)
+              // Register DB record
+              const res = await fetch('/api/upload/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ slug, url: publicUrl, room_id: activeRoomId }),
+              })
+              const data = await res.json()
+
+              if (data.tile) {
+                // Replace temp tile with real tile
+                setTileSources(prev => ({ ...prev, [data.tile.id]: data.tile.source }))
+                setDraft(prev => prev ? {
+                  ...prev,
+                  content: prev.content.map(c => c.id === tempId ? {
+                    id: data.tile.id,
+                    url: data.tile.url,
+                    type: data.tile.type,
+                    title: data.tile.title,
+                    description: data.tile.description,
+                    thumbnail_url: data.tile.thumbnail_url,
+                    embed_html: data.tile.embed_html,
+                    position: data.tile.position,
+                    room_id: data.tile.room_id || null,
+                  } : c),
+                  updated_at: Date.now(),
+                } : null)
+              }
+            } catch (uploadErr) {
+              // Remove temp tile on failure
+              setDraft(prev => prev ? {
+                ...prev,
+                content: prev.content.filter(c => c.id !== tempId),
+                updated_at: Date.now(),
+              } : null)
+              console.error(`Upload failed for ${file.name}:`, uploadErr)
               setUploadStatus(`Failed: ${file.name}`)
               await new Promise(r => setTimeout(r, 1500))
-              continue
             }
-
-            const { data: urlData } = supabase.storage.from('content').getPublicUrl(filename)
-
-            // Register the DB record via lightweight API
-            const res = await fetch('/api/upload/register', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ slug, url: urlData.publicUrl, room_id: activeRoomId }),
-            })
-            data = await res.json()
           } else {
-            // Images go through the API route (under 4.5MB limit)
+            // Images go through the API route
+            setUploadStatus(countLabel ? `Uploading ${countLabel}...` : 'Uploading...')
             const formData = new FormData()
             formData.append('file', file)
             formData.append('slug', slug)
             if (activeRoomId) formData.append('room_id', activeRoomId)
             const res = await fetch('/api/upload/content', { method: 'POST', body: formData })
-            data = await res.json()
-          }
+            const data = await res.json()
 
-          if (data.tile) {
-            setTileSources(prev => ({ ...prev, [data.tile.id]: data.tile.source }))
-            setDraft(prev => prev ? {
-              ...prev,
-              content: [...prev.content, {
-                id: data.tile.id,
-                url: data.tile.url,
-                type: data.tile.type,
-                title: data.tile.title,
-                description: data.tile.description,
-                thumbnail_url: data.tile.thumbnail_url,
-                embed_html: data.tile.embed_html,
-                position: data.tile.position,
-                room_id: data.tile.room_id || null,
-              }],
-              updated_at: Date.now(),
-            } : null)
-          } else if (data.error) {
-            console.error(`Upload failed for ${file.name}: ${data.error}`)
-            setUploadStatus(`Failed: ${file.name}`)
-            await new Promise(r => setTimeout(r, 1500))
+            if (data.tile) {
+              setTileSources(prev => ({ ...prev, [data.tile.id]: data.tile.source }))
+              setDraft(prev => prev ? {
+                ...prev,
+                content: [...prev.content, {
+                  id: data.tile.id,
+                  url: data.tile.url,
+                  type: data.tile.type,
+                  title: data.tile.title,
+                  description: data.tile.description,
+                  thumbnail_url: data.tile.thumbnail_url,
+                  embed_html: data.tile.embed_html,
+                  position: data.tile.position,
+                  room_id: data.tile.room_id || null,
+                }],
+                updated_at: Date.now(),
+              } : null)
+            } else if (data.error) {
+              console.error(`Upload failed for ${file.name}: ${data.error}`)
+              setUploadStatus(`Failed: ${file.name}`)
+              await new Promise(r => setTimeout(r, 1500))
+            }
           }
         } catch (err) {
           console.error(`Upload failed for ${file.name}:`, err)
