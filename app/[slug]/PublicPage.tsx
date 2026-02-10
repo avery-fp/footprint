@@ -155,9 +155,12 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         className={`${isHero ? '' : 'break-inside-avoid'} mb-2 group tile-enter tile-container`}
         style={{
           animationDelay: `${index * 60}ms`,
+          contentVisibility: 'auto',
+          containIntrinsicSize: '250px',
           ...(isHero ? { columnSpan: 'all' as any } : {}),
         }}>
-        <div className="group-hover:scale-[1.02] transition-transform duration-300 will-change-transform rounded-xl">
+        <div className="group-hover:scale-[1.02] transition-transform duration-300 will-change-transform rounded-xl overflow-hidden bg-white/[0.02]"
+          style={{ minHeight: '120px' }}>
           {item.type === 'image' ? (
             isVideo ? (
               <div className="rounded-xl overflow-hidden border border-white/[0.06] max-h-[300px]">
@@ -167,8 +170,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               <div className="rounded-xl overflow-hidden border border-white/[0.06]">
                 <Image src={item.url} alt={item.title || ''} width={600} height={800}
                   sizes={isMobile ? "50vw" : "(max-width: 768px) 50vw, 25vw"}
-                  className="w-full h-auto rounded-xl" loading={index < 4 ? "eager" : "lazy"}
+                  className="w-full h-auto rounded-xl opacity-0 transition-opacity duration-500" loading={index < 4 ? "eager" : "lazy"}
                   priority={index < 4} quality={75}
+                  onLoad={(e) => (e.target as HTMLElement).classList.remove('opacity-0')}
                   onError={(e) => { (e.target as HTMLElement).parentElement!.style.display = 'none' }} />
               </div>
             )

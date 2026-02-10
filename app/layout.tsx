@@ -6,16 +6,19 @@ export const dynamic = 'force-dynamic'
 
 export const metadata = {
   title: 'Footprint',
-  description: '$10. One page. Paste anything. Yours forever.',
+  description: 'Own Your Footprint · $10 · yours forever',
   openGraph: {
     title: 'Footprint',
-    description: '$10. One page. Paste anything. Yours forever.',
-    type: 'website',
+    description: 'Own Your Footprint · $10 · yours forever',
+    url: 'https://footprint.onl',
+    siteName: 'Footprint',
+    images: [{ url: '/og-image.png', width: 1200, height: 630 }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Footprint',
-    description: '$10. One page. Paste anything. Yours forever.',
+    description: 'Own Your Footprint · $10 · yours forever',
+    images: ['/og-image.png'],
   },
 }
 
