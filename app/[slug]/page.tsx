@@ -66,6 +66,7 @@ export default async function FootprintPage({ params }: Props) {
       url: img.image_url,
       position: img.position,
       room_id: img.room_id,
+      size: img.size || 1,
     })),
     ...(links || []).map((link: any) => ({
       id: link.id,
@@ -77,6 +78,7 @@ export default async function FootprintPage({ params }: Props) {
       description: link.metadata?.description,
       position: link.position,
       room_id: link.room_id,
+      size: link.size || 1,
     })),
   ].sort((a, b) => a.position - b.position)
 

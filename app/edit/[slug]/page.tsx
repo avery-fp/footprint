@@ -21,14 +21,16 @@ interface TileContent extends DraftContent {
 // Sortable Tile
 // ═══════════════════════════════════════════
 function SortableTile({
-  id, content, onDelete, onSelect, deleting, selected,
+  id, content, onDelete, onSelect, onDoubleClick, deleting, selected, size,
 }: {
   id: string
   content: any
   onDelete: () => void
   onSelect: () => void
+  onDoubleClick: () => void
   deleting: boolean
   selected: boolean
+  size: number
 }) {
   const [isMuted, setIsMuted] = useState(true)
   const [isLoaded, setIsLoaded] = useState(false)
@@ -78,14 +80,17 @@ function SortableTile({
     }
   }
 
+  const sizeClass = size === 4 ? 'col-span-2 md:col-span-4 aspect-[3/1]' : size === 2 ? 'col-span-2 aspect-[2/1]' : 'aspect-square'
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="aspect-square"
+      className={sizeClass}
       {...attributes}
       {...listeners}
       onClick={onSelect}
+      onDoubleClick={(e) => { e.stopPropagation(); onDoubleClick() }}
     >
       <div className={`relative rounded-xl overflow-hidden w-full h-full ${selected ? 'ring-2 ring-green-400' : ''}`}>
         {/* Red dot delete */}
@@ -233,6 +238,7 @@ export default function EditPage() {
               embed_html: tile.embed_html,
               position: tile.position,
               room_id: tile.room_id || null,
+              size: tile.size || 1,
             }
           })
           setTileSources(sources)
@@ -750,6 +756,40 @@ export default function EditPage() {
     setPillMode('idle')
   }
 
+  async function cycleSize(id: string) {
+    if (!draft) return
+    const tile = draft.content.find(c => c.id === id)
+    if (!tile) return
+    const source = tileSources[id]
+    if (!source) return
+
+    const currentSize = tile.size || 1
+    const newSize = currentSize === 1 ? 2 : currentSize === 2 ? 4 : 1
+
+    // Optimistic update
+    setDraft(prev => prev ? {
+      ...prev,
+      content: prev.content.map(c => c.id === id ? { ...c, size: newSize } : c),
+      updated_at: Date.now(),
+    } : null)
+
+    try {
+      await fetch('/api/tiles', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, source, slug, size: newSize }),
+      })
+    } catch (e) {
+      console.error('Failed to update tile size:', e)
+      // Revert on failure
+      setDraft(prev => prev ? {
+        ...prev,
+        content: prev.content.map(c => c.id === id ? { ...c, size: currentSize } : c),
+        updated_at: Date.now(),
+      } : null)
+    }
+  }
+
   const selectedTile = draft?.content.find(c => c.id === selectedTileId)
   const selectedIsImage = selectedTile?.type === 'image' && !selectedTile?.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
   const selectedHasThumbnail = selectedTile?.thumbnail_url
@@ -869,7 +909,7 @@ export default function EditPage() {
               items={filteredContent.map(item => item.id)}
               strategy={rectSortingStrategy}
             >
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-1.5 px-1">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 px-1">
                 {filteredContent.map(item => (
                   <SortableTile
                     key={item.id}
@@ -877,8 +917,10 @@ export default function EditPage() {
                     content={item}
                     onDelete={() => handleDelete(item.id)}
                     onSelect={() => handleSelect(item.id)}
+                    onDoubleClick={() => cycleSize(item.id)}
                     deleting={deletingIds.has(item.id)}
                     selected={selectedTileId === item.id}
+                    size={item.size || 1}
                   />
                 ))}
               </div>

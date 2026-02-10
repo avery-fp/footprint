@@ -217,3 +217,40 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to delete tile' }, { status: 500 })
   }
 }
+
+/**
+ * PATCH /api/tiles
+ *
+ * Update a tile's size (1, 2, or 4).
+ * Body: { id, source, slug, size }
+ */
+export async function PATCH(request: NextRequest) {
+  try {
+    const { id, source, slug, size } = await request.json()
+
+    if (!id || !source || !slug || ![1, 2, 4].includes(size) || !['library', 'links'].includes(source)) {
+      return NextResponse.json({ error: 'id, source, slug, and size (1|2|4) required' }, { status: 400 })
+    }
+
+    const supabase = createServerSupabaseClient()
+    const serialNumber = await getSerialNumber(supabase, slug)
+    if (!serialNumber) {
+      return NextResponse.json({ error: 'Footprint not found' }, { status: 404 })
+    }
+
+    const { error } = await supabase
+      .from(source)
+      .update({ size })
+      .eq('id', id)
+      .eq('serial_number', serialNumber)
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Update tile size error:', error)
+    return NextResponse.json({ error: 'Failed to update size' }, { status: 500 })
+  }
+}

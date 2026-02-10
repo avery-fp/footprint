@@ -146,18 +146,22 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     return () => clearTimeout(t)
   }, [showToast])
 
-  // Reusable tile renderer — widescreen heroes get column-span: all
+  // Reusable tile renderer — size-aware col-span in CSS Grid
   const renderTile = (item: any, index: number) => {
     const isVideo = item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
     const isHero = widescreenIds.has(item.id)
+    const tileSize = item.size || 1
+    const colSpan = tileSize === 4 ? 'col-span-2 md:col-span-4'
+      : tileSize === 2 ? 'col-span-2'
+      : isHero ? 'col-span-2 md:col-span-4'
+      : ''
     return (
       <div key={item.id}
-        className={`${isHero ? '' : 'break-inside-avoid'} mb-2 group tile-enter tile-container`}
+        className={`${colSpan} group tile-enter tile-container`}
         style={{
           animationDelay: `${index * 60}ms`,
           contentVisibility: 'auto',
           containIntrinsicSize: '250px',
-          ...(isHero ? { columnSpan: 'all' as any } : {}),
         }}>
         <div className="group-hover:scale-[1.02] transition-transform duration-300 will-change-transform rounded-xl overflow-hidden bg-white/[0.02]"
           style={{ minHeight: '120px' }}>
@@ -301,22 +305,22 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             >
               {/* "All" panel */}
               <div className="w-full min-w-full flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
-                <div className="columns-2" style={{ columnGap: '8px' }}>
+                <div className="grid grid-cols-2 gap-2">
                   {validContent.map((item, idx) => renderTile(item, idx))}
                 </div>
               </div>
               {/* Room panels */}
               {visibleRooms.map((room) => (
                 <div key={room.id} className="w-full min-w-full flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
-                  <div className="columns-2" style={{ columnGap: '8px' }}>
+                  <div className="grid grid-cols-2 gap-2">
                     {room.content.map((item, idx) => renderTile(item, idx))}
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            /* DESKTOP — existing grid, unchanged */
-            <div className="columns-2 md:columns-3 lg:columns-4" style={{ columnGap: '8px' }}>
+            /* DESKTOP — CSS Grid with size-aware spans */
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               {content.map((item, idx) => renderTile(item, idx))}
             </div>
           )}

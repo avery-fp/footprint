@@ -60,6 +60,7 @@ export async function GET(
       position: item.position,
       source: 'library' as const,
       room_id: item.room_id || null,
+      size: item.size || 1,
     }))
     const linkTiles = (linksResult.data || []).map(item => ({
       id: item.id,
@@ -72,6 +73,7 @@ export async function GET(
       position: item.position,
       source: 'links' as const,
       room_id: item.room_id || null,
+      size: item.size || 1,
     }))
 
     const allTiles = [...libraryTiles, ...linkTiles].sort((a, b) =>
