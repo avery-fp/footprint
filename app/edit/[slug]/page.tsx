@@ -131,7 +131,7 @@ function SortableTile({
       onPointerCancel={handleLongPressEnd}
       onPointerLeave={handleLongPressEnd}
     >
-      <div className={`relative rounded-xl overflow-hidden w-full h-full ${selected ? 'ring-2 ring-green-400' : ''}`}>
+      <div className={`relative rounded-xl overflow-hidden w-full h-full ${selected ? 'ring-2 ring-green-400' : ''} ${id.toString().startsWith('temp-') ? 'animate-pulse opacity-70' : ''}`}>
         {/* Red dot delete */}
         <button
           onPointerDown={(e) => e.stopPropagation()}
@@ -201,7 +201,7 @@ function SortableTile({
                 <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60 z-10" />
               )}
             </>
-          ) : content.url?.startsWith('data:') ? (
+          ) : content.url?.startsWith('data:') || content.url?.startsWith('blob:') ? (
             <img src={content.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
           ) : (
             <Image
@@ -263,7 +263,8 @@ export default function EditPage() {
   // Caption editing
   const [captionTileId, setCaptionTileId] = useState<string | null>(null)
   // Upload progress
-  const [uploadStatus, setUploadStatus] = useState<string | null>(null)
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null)
+  const [uploadLabel, setUploadLabel] = useState<string | null>(null)
 
   // Bottom pill input state
   const [pillMode, setPillMode] = useState<'idle' | 'url' | 'thought'>('idle')
@@ -685,102 +686,199 @@ export default function EditPage() {
     })
   }
 
+  // Client-side video compression via canvas + MediaRecorder
+  function compressVideo(file: File): Promise<File> {
+    return new Promise((resolve, reject) => {
+      if (file.size <= 10 * 1024 * 1024) { resolve(file); return }
+
+      const video = document.createElement('video')
+      video.muted = true
+      video.playsInline = true
+      video.src = URL.createObjectURL(file)
+      const cleanup = () => URL.revokeObjectURL(video.src)
+
+      video.onloadedmetadata = () => {
+        // Scale to max 720p width
+        const scale = Math.min(1, 720 / video.videoWidth)
+        const w = Math.round(video.videoWidth * scale)
+        const h = Math.round(video.videoHeight * scale)
+        const duration = Math.min(video.duration, 30) // cap 30s
+
+        const canvas = document.createElement('canvas')
+        canvas.width = w
+        canvas.height = h
+        const ctx = canvas.getContext('2d')!
+
+        const stream = canvas.captureStream(24)
+        // Try to get audio track from video
+        try {
+          const audioCtx = new AudioContext()
+          const source = audioCtx.createMediaElementSource(video)
+          const dest = audioCtx.createMediaStreamDestination()
+          source.connect(dest)
+          dest.stream.getAudioTracks().forEach(t => stream.addTrack(t))
+        } catch { /* no audio — fine */ }
+
+        const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+          ? 'video/webm;codecs=vp9'
+          : 'video/webm;codecs=vp8'
+
+        const recorder = new MediaRecorder(stream, {
+          mimeType,
+          videoBitsPerSecond: 1_500_000,
+        })
+        const chunks: Blob[] = []
+        recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data) }
+        recorder.onstop = () => {
+          cleanup()
+          const blob = new Blob(chunks, { type: 'video/webm' })
+          const compressed = new File([blob], file.name.replace(/\.[^.]+$/, '.webm'), { type: 'video/webm' })
+          resolve(compressed)
+        }
+        recorder.onerror = () => { cleanup(); reject(new Error('Compression failed')) }
+
+        video.currentTime = 0
+        video.play()
+        recorder.start()
+
+        const draw = () => {
+          if (video.currentTime >= duration || video.ended) {
+            recorder.stop()
+            video.pause()
+            return
+          }
+          ctx.drawImage(video, 0, 0, w, h)
+          requestAnimationFrame(draw)
+        }
+        requestAnimationFrame(draw)
+      }
+
+      video.onerror = () => { cleanup(); reject(new Error('Could not load video for compression')) }
+      // Timeout: 2min max for compression
+      setTimeout(() => { cleanup(); reject(new Error('Compression timeout')) }, 120_000)
+    })
+  }
+
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || [])
     if (files.length === 0 || !draft || !serialNumber) return
     setIsAdding(true)
-    try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i]
-        const isVideo = VIDEO_MIME.includes(file.type) || /\.(mp4|mov|webm|m4v)$/i.test(file.name)
-        const countLabel = files.length > 1 ? `${i + 1} of ${files.length}` : ''
 
-        try {
-          // Extract thumbnail for videos
-          let thumbnailDataUrl: string | null = null
-          if (isVideo) {
-            try {
-              thumbnailDataUrl = await getVideoThumbnail(file)
-            } catch { /* silent — grid will show dark placeholder */ }
-          }
+    // Track aggregate progress across all files
+    const fileSizes = files.map(f => f.size)
+    const totalSize = fileSizes.reduce((a, b) => a + b, 0)
+    const loaded: number[] = new Array(files.length).fill(0)
+    const updateProgress = () => {
+      const totalLoaded = loaded.reduce((a, b) => a + b, 0)
+      setUploadProgress(Math.round((totalLoaded / totalSize) * 100))
+    }
 
-          // Add temp tile to grid immediately
-          const tempId = `temp-${Date.now()}-${i}`
+    // Create temp tiles immediately for all files
+    const tempIds = files.map((_, i) => `temp-${Date.now()}-${i}`)
+
+    // Build temp tiles with instant thumbnails
+    const tempTiles = await Promise.all(files.map(async (file, i) => {
+      const isVideo = VIDEO_MIME.includes(file.type) || /\.(mp4|mov|webm|m4v)$/i.test(file.name)
+      let thumbUrl = ''
+      if (isVideo) {
+        try { thumbUrl = await getVideoThumbnail(file) } catch { /* dark placeholder */ }
+      } else {
+        thumbUrl = URL.createObjectURL(file)
+      }
+      return {
+        id: tempIds[i],
+        url: thumbUrl,
+        type: 'image' as const,
+        title: null,
+        description: null,
+        thumbnail_url: null,
+        embed_html: null,
+        position: (draft?.content.length || 0) + i,
+        room_id: activeRoomId || null,
+        _temp: true,
+      }
+    }))
+
+    setDraft(prev => prev ? {
+      ...prev,
+      content: [...prev.content, ...tempTiles],
+      updated_at: Date.now(),
+    } : null)
+
+    setUploadProgress(0)
+    setUploadLabel(null)
+
+    // Upload all files in parallel
+    const uploadOne = async (file: File, idx: number) => {
+      const isVideo = VIDEO_MIME.includes(file.type) || /\.(mp4|mov|webm|m4v)$/i.test(file.name)
+      const tempId = tempIds[idx]
+
+      try {
+        // Compress large videos client-side
+        let uploadFile = file
+        if (isVideo && file.size > 10 * 1024 * 1024) {
+          setUploadLabel('compressing...')
+          try { uploadFile = await compressVideo(file) } catch { uploadFile = file }
+          setUploadLabel(null)
+        }
+
+        const ext = uploadFile.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg')
+        const filename = `${serialNumber}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+
+        const publicUrl = await uploadWithProgress(uploadFile, filename, (pct) => {
+          loaded[idx] = (pct / 100) * uploadFile.size
+          updateProgress()
+        })
+
+        // Register DB record
+        const res = await fetch('/api/upload/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slug, url: publicUrl, room_id: activeRoomId }),
+        })
+        const data = await res.json()
+
+        if (data.tile) {
+          setTileSources(prev => ({ ...prev, [data.tile.id]: data.tile.source }))
           setDraft(prev => prev ? {
             ...prev,
-            content: [...prev.content, {
-              id: tempId,
-              url: thumbnailDataUrl || '',
-              type: 'image',
-              title: null,
-              description: null,
-              thumbnail_url: null,
-              embed_html: null,
-              position: prev.content.length,
-              room_id: activeRoomId || null,
-            }],
+            content: prev.content.map(c => c.id === tempId ? {
+              id: data.tile.id,
+              url: data.tile.url,
+              type: data.tile.type,
+              title: data.tile.title,
+              description: data.tile.description,
+              thumbnail_url: data.tile.thumbnail_url,
+              embed_html: data.tile.embed_html,
+              position: data.tile.position,
+              room_id: data.tile.room_id || null,
+            } : c),
             updated_at: Date.now(),
           } : null)
-
-          // Upload via XHR with real progress
-          const ext = file.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg')
-          const filename = `${serialNumber}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
-
-          try {
-            const publicUrl = await uploadWithProgress(file, filename, (pct) => {
-              const suffix = countLabel ? ` (${countLabel})` : ''
-              setUploadStatus(`Uploading... ${pct}%${suffix}`)
-            })
-
-            // Register DB record
-            const res = await fetch('/api/upload/register', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ slug, url: publicUrl, room_id: activeRoomId }),
-            })
-            const data = await res.json()
-
-            if (data.tile) {
-              // Replace temp tile with real tile
-              setTileSources(prev => ({ ...prev, [data.tile.id]: data.tile.source }))
-              setDraft(prev => prev ? {
-                ...prev,
-                content: prev.content.map(c => c.id === tempId ? {
-                  id: data.tile.id,
-                  url: data.tile.url,
-                  type: data.tile.type,
-                  title: data.tile.title,
-                  description: data.tile.description,
-                  thumbnail_url: data.tile.thumbnail_url,
-                  embed_html: data.tile.embed_html,
-                  position: data.tile.position,
-                  room_id: data.tile.room_id || null,
-                } : c),
-                updated_at: Date.now(),
-              } : null)
-            }
-          } catch (uploadErr) {
-            // Remove temp tile on failure
-            setDraft(prev => prev ? {
-              ...prev,
-              content: prev.content.filter(c => c.id !== tempId),
-              updated_at: Date.now(),
-            } : null)
-            console.error(`Upload failed for ${file.name}:`, uploadErr)
-            setUploadStatus(`Failed: ${(uploadErr as Error).message || file.name}`)
-            await new Promise(r => setTimeout(r, 1500))
-          }
-        } catch (err) {
-          console.error(`Upload failed for ${file.name}:`, err)
-          setUploadStatus(`Failed: ${(err as Error).message || file.name}`)
-          await new Promise(r => setTimeout(r, 1500))
         }
+
+        // Revoke blob URL for images
+        if (!isVideo) {
+          const thumb = tempTiles[idx]?.url
+          if (thumb?.startsWith('blob:')) URL.revokeObjectURL(thumb)
+        }
+      } catch (err) {
+        // Remove temp tile on failure
+        setDraft(prev => prev ? {
+          ...prev,
+          content: prev.content.filter(c => c.id !== tempId),
+          updated_at: Date.now(),
+        } : null)
+        console.error(`Upload failed for ${file.name}:`, err)
       }
-    } finally {
-      setIsAdding(false)
-      setUploadStatus(null)
-      if (fileInputRef.current) fileInputRef.current.value = ''
     }
+
+    await Promise.allSettled(files.map((file, idx) => uploadOne(file, idx)))
+
+    setIsAdding(false)
+    setUploadProgress(null)
+    setUploadLabel(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   // ── Selection helpers ──
@@ -976,11 +1074,21 @@ export default function EditPage() {
         onChange={handleFileUpload}
       />
 
-      {/* Upload status pill */}
-      {uploadStatus && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] bg-black/90 backdrop-blur-sm text-white/70 text-xs px-4 py-2 rounded-full border border-white/10 font-mono">
-          {uploadStatus}
-        </div>
+      {/* Upload progress bar — 2px at top */}
+      {uploadProgress !== null && (
+        <>
+          <div className="fixed top-0 left-0 right-0 z-[200] h-[2px] bg-white/10">
+            <div
+              className="h-full bg-white/90 transition-all duration-150 ease-out"
+              style={{ width: `${uploadProgress}%` }}
+            />
+          </div>
+          <div className="fixed top-[3px] right-3 z-[200]">
+            <span className="text-[10px] font-mono text-white/50 tracking-widest">
+              {uploadLabel || `${uploadProgress}%`}
+            </span>
+          </div>
+        </>
       )}
 
       {/* ═══ BOTTOM BAR ═══ */}
