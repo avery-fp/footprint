@@ -264,7 +264,6 @@ export default function EditPage() {
   const [captionTileId, setCaptionTileId] = useState<string | null>(null)
   // Upload progress
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
-  const [uploadLabel, setUploadLabel] = useState<string | null>(null)
 
   // Bottom pill input state
   const [pillMode, setPillMode] = useState<'idle' | 'url' | 'thought'>('idle')
@@ -686,79 +685,6 @@ export default function EditPage() {
     })
   }
 
-  // Client-side video compression via canvas + MediaRecorder
-  function compressVideo(file: File): Promise<File> {
-    return new Promise((resolve, reject) => {
-      if (file.size <= 10 * 1024 * 1024) { resolve(file); return }
-
-      const video = document.createElement('video')
-      video.muted = true
-      video.playsInline = true
-      video.src = URL.createObjectURL(file)
-      const cleanup = () => URL.revokeObjectURL(video.src)
-
-      video.onloadedmetadata = () => {
-        // Scale to max 720p width
-        const scale = Math.min(1, 720 / video.videoWidth)
-        const w = Math.round(video.videoWidth * scale)
-        const h = Math.round(video.videoHeight * scale)
-        const duration = Math.min(video.duration, 30) // cap 30s
-
-        const canvas = document.createElement('canvas')
-        canvas.width = w
-        canvas.height = h
-        const ctx = canvas.getContext('2d')!
-
-        const stream = canvas.captureStream(24)
-        // Try to get audio track from video
-        try {
-          const audioCtx = new AudioContext()
-          const source = audioCtx.createMediaElementSource(video)
-          const dest = audioCtx.createMediaStreamDestination()
-          source.connect(dest)
-          dest.stream.getAudioTracks().forEach(t => stream.addTrack(t))
-        } catch { /* no audio — fine */ }
-
-        const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-          ? 'video/webm;codecs=vp9'
-          : 'video/webm;codecs=vp8'
-
-        const recorder = new MediaRecorder(stream, {
-          mimeType,
-          videoBitsPerSecond: 1_500_000,
-        })
-        const chunks: Blob[] = []
-        recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data) }
-        recorder.onstop = () => {
-          cleanup()
-          const blob = new Blob(chunks, { type: 'video/webm' })
-          const compressed = new File([blob], file.name.replace(/\.[^.]+$/, '.webm'), { type: 'video/webm' })
-          resolve(compressed)
-        }
-        recorder.onerror = () => { cleanup(); reject(new Error('Compression failed')) }
-
-        video.currentTime = 0
-        video.play()
-        recorder.start()
-
-        const draw = () => {
-          if (video.currentTime >= duration || video.ended) {
-            recorder.stop()
-            video.pause()
-            return
-          }
-          ctx.drawImage(video, 0, 0, w, h)
-          requestAnimationFrame(draw)
-        }
-        requestAnimationFrame(draw)
-      }
-
-      video.onerror = () => { cleanup(); reject(new Error('Could not load video for compression')) }
-      // Timeout: 2min max for compression
-      setTimeout(() => { cleanup(); reject(new Error('Compression timeout')) }, 120_000)
-    })
-  }
-
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || [])
     if (files.length === 0 || !draft || !serialNumber) return
@@ -806,7 +732,6 @@ export default function EditPage() {
     } : null)
 
     setUploadProgress(0)
-    setUploadLabel(null)
 
     // Upload all files in parallel
     const uploadOne = async (file: File, idx: number) => {
@@ -814,19 +739,11 @@ export default function EditPage() {
       const tempId = tempIds[idx]
 
       try {
-        // Compress large videos client-side
-        let uploadFile = file
-        if (isVideo && file.size > 10 * 1024 * 1024) {
-          setUploadLabel('compressing...')
-          try { uploadFile = await compressVideo(file) } catch { uploadFile = file }
-          setUploadLabel(null)
-        }
-
-        const ext = uploadFile.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg')
+        const ext = file.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg')
         const filename = `${serialNumber}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
 
-        const publicUrl = await uploadWithProgress(uploadFile, filename, (pct) => {
-          loaded[idx] = (pct / 100) * uploadFile.size
+        const publicUrl = await uploadWithProgress(file, filename, (pct) => {
+          loaded[idx] = (pct / 100) * file.size
           updateProgress()
         })
 
@@ -877,7 +794,6 @@ export default function EditPage() {
 
     setIsAdding(false)
     setUploadProgress(null)
-    setUploadLabel(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -1074,18 +990,18 @@ export default function EditPage() {
         onChange={handleFileUpload}
       />
 
-      {/* Upload progress bar — 2px at top */}
+      {/* Upload progress bar — 4px at top */}
       {uploadProgress !== null && (
         <>
-          <div className="fixed top-0 left-0 right-0 z-[200] h-[2px] bg-white/10">
+          <div className="fixed top-0 left-0 right-0 h-1 bg-white/20 z-[200]">
             <div
-              className="h-full bg-white/90 transition-all duration-150 ease-out"
+              className="h-full bg-white transition-all duration-150 ease-out"
               style={{ width: `${uploadProgress}%` }}
             />
           </div>
-          <div className="fixed top-[3px] right-3 z-[200]">
-            <span className="text-[10px] font-mono text-white/50 tracking-widest">
-              {uploadLabel || `${uploadProgress}%`}
+          <div className="fixed top-3 left-1/2 -translate-x-1/2 z-[200]">
+            <span className="text-[11px] font-mono text-white/60">
+              {uploadProgress}%
             </span>
           </div>
         </>
