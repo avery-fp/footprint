@@ -118,12 +118,12 @@ function SortableTile({
 
   // Polaroid reveal — tile develops from frosted to crystal clear
   const isTemp = id.toString().startsWith('temp-')
-  const progress = (content as any)._progress || 0
-  const revealStyle: React.CSSProperties = isTemp ? {
-    filter: `blur(${(1 - progress / 100) * 8}px) saturate(${0.3 + (progress / 100) * 0.7}) brightness(${0.5 + (progress / 100) * 0.5})`,
+  const progress = (content as any)?._progress ?? 0
+  const revealStyle: React.CSSProperties | undefined = isTemp ? {
+    filter: `blur(${Math.round((1 - progress / 100) * 8)}px)`,
     opacity: 0.4 + (progress / 100) * 0.6,
-    transition: 'filter 0.3s ease-out, opacity 0.3s ease-out',
-  } : {}
+    transition: 'filter 0.4s ease-out, opacity 0.4s ease-out',
+  } : undefined
 
   return (
     <div
@@ -691,6 +691,34 @@ export default function EditPage() {
     })
   }
 
+  // Resize images client-side before upload (12MB → ~150KB)
+  async function resizeImage(file: File, maxWidth = 1600): Promise<File> {
+    if (file.size < 300 * 1024) return file
+
+    return new Promise((resolve) => {
+      const img = document.createElement('img')
+      img.onload = () => {
+        if (img.width <= maxWidth) {
+          URL.revokeObjectURL(img.src)
+          resolve(file)
+          return
+        }
+        const scale = maxWidth / img.width
+        const canvas = document.createElement('canvas')
+        canvas.width = Math.round(img.width * scale)
+        canvas.height = Math.round(img.height * scale)
+        canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+        URL.revokeObjectURL(img.src)
+        canvas.toBlob(blob => {
+          resolve(new File([blob!],
+            file.name.replace(/\.[^.]+$/, '.jpg'),
+            { type: 'image/jpeg' }))
+        }, 'image/jpeg', 0.82)
+      }
+      img.src = URL.createObjectURL(file)
+    })
+  }
+
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || [])
     if (files.length === 0 || !draft || !serialNumber) return
@@ -741,10 +769,13 @@ export default function EditPage() {
       const tempId = tempIds[idx]
 
       try {
-        const ext = file.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg')
+        // For images, resize before upload (12MB → ~150KB, <100ms)
+        const uploadFile = isVideo ? file : await resizeImage(file)
+
+        const ext = uploadFile.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg')
         const filename = `${serialNumber}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
 
-        const publicUrl = await uploadWithProgress(file, filename, (pct) => {
+        const publicUrl = await uploadWithProgress(uploadFile, filename, (pct) => {
           // Per-tile progress — drives the polaroid reveal
           setDraft(prev => prev ? {
             ...prev,

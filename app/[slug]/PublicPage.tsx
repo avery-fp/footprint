@@ -182,6 +182,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 <Image src={item.url} alt={item.title || ''} width={600} height={800}
                   sizes={isMobile ? "50vw" : "(max-width: 768px) 50vw, 25vw"}
                   className="w-full h-auto rounded-xl opacity-0 transition-opacity duration-500" loading={index < 4 ? "eager" : "lazy"}
+                  decoding="async"
                   priority={index < 4} quality={75}
                   onLoad={(e) => (e.target as HTMLElement).classList.remove('opacity-0')}
                   onError={(e) => { (e.target as HTMLElement).parentElement!.style.display = 'none' }} />
