@@ -775,6 +775,8 @@ export default function EditPage() {
         const ext = uploadFile.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg')
         const filename = `${serialNumber}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
 
+        console.log('temp tile added:', tempId)
+
         const publicUrl = await uploadWithProgress(uploadFile, filename, (pct) => {
           // Per-tile progress — drives the polaroid reveal
           setDraft(prev => prev ? {
@@ -783,6 +785,8 @@ export default function EditPage() {
           } : null)
         })
 
+        console.log('upload complete, registering...')
+
         // Register DB record
         const res = await fetch('/api/upload/register', {
           method: 'POST',
@@ -790,6 +794,7 @@ export default function EditPage() {
           body: JSON.stringify({ slug, url: publicUrl, room_id: activeRoomId }),
         })
         const data = await res.json()
+        console.log('register response:', JSON.stringify(data))
 
         if (data.tile) {
           // Snap to 100% — crystal clear
@@ -800,6 +805,8 @@ export default function EditPage() {
 
           // Let the reveal complete, then swap in real tile
           await new Promise(r => setTimeout(r, 200))
+
+          console.log('replacing temp with real:', tempId, '->', data.tile.id)
 
           setTileSources(prev => ({ ...prev, [data.tile.id]: data.tile.source }))
           setDraft(prev => prev ? {
@@ -813,7 +820,9 @@ export default function EditPage() {
               thumbnail_url: data.tile.thumbnail_url,
               embed_html: data.tile.embed_html,
               position: data.tile.position,
-              room_id: data.tile.room_id || null,
+              room_id: data.tile.room_id || c.room_id || null,
+              size: (c as any).size || 1,
+              caption: (c as any).caption || null,
             } : c),
             updated_at: Date.now(),
           } : null)

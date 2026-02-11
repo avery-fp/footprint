@@ -147,7 +147,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
   // Reusable tile renderer — size-aware col-span in CSS Grid
   const renderTile = (item: any, index: number) => {
-    const isVideo = item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
+    const isVideo = item.type === 'image' && /\.(mp4|mov|webm|m4v)/i.test(item.url || '')
     const isHero = widescreenIds.has(item.id)
     const tileSize = item.size || 1
     const colSpan = tileSize === 2 ? 'col-span-2 row-span-2'
