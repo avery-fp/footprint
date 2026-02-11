@@ -116,6 +116,15 @@ function SortableTile({
 
   const sizeClass = size === 2 ? 'col-span-2 row-span-2' : 'aspect-square'
 
+  // Polaroid reveal — tile develops from frosted to crystal clear
+  const isTemp = id.toString().startsWith('temp-')
+  const progress = (content as any)._progress || 0
+  const revealStyle: React.CSSProperties = isTemp ? {
+    filter: `blur(${(1 - progress / 100) * 8}px) saturate(${0.3 + (progress / 100) * 0.7}) brightness(${0.5 + (progress / 100) * 0.5})`,
+    opacity: 0.4 + (progress / 100) * 0.6,
+    transition: 'filter 0.3s ease-out, opacity 0.3s ease-out',
+  } : {}
+
   return (
     <div
       ref={setNodeRef}
@@ -131,7 +140,7 @@ function SortableTile({
       onPointerCancel={handleLongPressEnd}
       onPointerLeave={handleLongPressEnd}
     >
-      <div className={`relative rounded-xl overflow-hidden w-full h-full ${selected ? 'ring-2 ring-green-400' : ''} ${id.toString().startsWith('temp-') ? 'animate-pulse opacity-70' : ''}`}>
+      <div className={`relative rounded-xl overflow-hidden w-full h-full ${selected ? 'ring-2 ring-green-400' : ''}`} style={revealStyle}>
         {/* Red dot delete */}
         <button
           onPointerDown={(e) => e.stopPropagation()}
@@ -262,9 +271,6 @@ export default function EditPage() {
   const [selectedTileId, setSelectedTileId] = useState<string | null>(null)
   // Caption editing
   const [captionTileId, setCaptionTileId] = useState<string | null>(null)
-  // Upload progress
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null)
-
   // Bottom pill input state
   const [pillMode, setPillMode] = useState<'idle' | 'url' | 'thought'>('idle')
   const [pasteUrl, setPasteUrl] = useState('')
@@ -690,30 +696,14 @@ export default function EditPage() {
     if (files.length === 0 || !draft || !serialNumber) return
     setIsAdding(true)
 
-    // Track aggregate progress across all files
-    const fileSizes = files.map(f => f.size)
-    const totalSize = fileSizes.reduce((a, b) => a + b, 0)
-    const loaded: number[] = new Array(files.length).fill(0)
-    const updateProgress = () => {
-      const totalLoaded = loaded.reduce((a, b) => a + b, 0)
-      setUploadProgress(Math.round((totalLoaded / totalSize) * 100))
-    }
-
-    // Create temp tiles immediately for all files
     const tempIds = files.map((_, i) => `temp-${Date.now()}-${i}`)
 
-    // Build temp tiles with instant thumbnails
-    const tempTiles = await Promise.all(files.map(async (file, i) => {
+    // ZERO DELAY — add temp tiles instantly (synchronous)
+    const tempTiles = files.map((file, i) => {
       const isVideo = VIDEO_MIME.includes(file.type) || /\.(mp4|mov|webm|m4v)$/i.test(file.name)
-      let thumbUrl = ''
-      if (isVideo) {
-        try { thumbUrl = await getVideoThumbnail(file) } catch { /* dark placeholder */ }
-      } else {
-        thumbUrl = URL.createObjectURL(file)
-      }
       return {
         id: tempIds[i],
-        url: thumbUrl,
+        url: isVideo ? '' : URL.createObjectURL(file),
         type: 'image' as const,
         title: null,
         description: null,
@@ -722,8 +712,9 @@ export default function EditPage() {
         position: (draft?.content.length || 0) + i,
         room_id: activeRoomId || null,
         _temp: true,
+        _progress: 0,
       }
-    }))
+    })
 
     setDraft(prev => prev ? {
       ...prev,
@@ -731,7 +722,18 @@ export default function EditPage() {
       updated_at: Date.now(),
     } : null)
 
-    setUploadProgress(0)
+    // Extract video thumbnails in parallel (non-blocking)
+    files.forEach((file, i) => {
+      const isVideo = VIDEO_MIME.includes(file.type) || /\.(mp4|mov|webm|m4v)$/i.test(file.name)
+      if (isVideo) {
+        getVideoThumbnail(file).then(thumbUrl => {
+          setDraft(prev => prev ? {
+            ...prev,
+            content: prev.content.map(c => c.id === tempIds[i] ? { ...c, url: thumbUrl } : c),
+          } : null)
+        }).catch(() => { /* no thumb — dark placeholder */ })
+      }
+    })
 
     // Upload all files in parallel
     const uploadOne = async (file: File, idx: number) => {
@@ -743,8 +745,11 @@ export default function EditPage() {
         const filename = `${serialNumber}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
 
         const publicUrl = await uploadWithProgress(file, filename, (pct) => {
-          loaded[idx] = (pct / 100) * file.size
-          updateProgress()
+          // Per-tile progress — drives the polaroid reveal
+          setDraft(prev => prev ? {
+            ...prev,
+            content: prev.content.map(c => c.id === tempId ? { ...c, _progress: pct } : c),
+          } : null)
         })
 
         // Register DB record
@@ -756,6 +761,15 @@ export default function EditPage() {
         const data = await res.json()
 
         if (data.tile) {
+          // Snap to 100% — crystal clear
+          setDraft(prev => prev ? {
+            ...prev,
+            content: prev.content.map(c => c.id === tempId ? { ...c, _progress: 100 } : c),
+          } : null)
+
+          // Let the reveal complete, then swap in real tile
+          await new Promise(r => setTimeout(r, 200))
+
           setTileSources(prev => ({ ...prev, [data.tile.id]: data.tile.source }))
           setDraft(prev => prev ? {
             ...prev,
@@ -793,7 +807,6 @@ export default function EditPage() {
     await Promise.allSettled(files.map((file, idx) => uploadOne(file, idx)))
 
     setIsAdding(false)
-    setUploadProgress(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -989,23 +1002,6 @@ export default function EditPage() {
         className="hidden"
         onChange={handleFileUpload}
       />
-
-      {/* Upload progress bar — 4px at top */}
-      {uploadProgress !== null && (
-        <>
-          <div className="fixed top-0 left-0 right-0 h-1 bg-white/20 z-[200]">
-            <div
-              className="h-full bg-white transition-all duration-150 ease-out"
-              style={{ width: `${uploadProgress}%` }}
-            />
-          </div>
-          <div className="fixed top-3 left-1/2 -translate-x-1/2 z-[200]">
-            <span className="text-[11px] font-mono text-white/60">
-              {uploadProgress}%
-            </span>
-          </div>
-        </>
-      )}
 
       {/* ═══ BOTTOM BAR ═══ */}
       <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-3 pb-[env(safe-area-inset-bottom)]">
