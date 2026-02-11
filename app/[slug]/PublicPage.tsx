@@ -167,17 +167,35 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           style={{ minHeight: '120px' }}>
           {item.type === 'image' ? (
             isVideo ? (
-              <div className="rounded-xl overflow-hidden border border-white/[0.06] max-h-[300px]">
+              <div className="relative rounded-xl overflow-hidden border border-white/[0.06] max-h-[300px]">
                 <VideoTile src={item.url} onWidescreen={() => markWidescreen(item.id)} />
+                {item.caption && (
+                  <div className="absolute bottom-0 left-0 right-0 z-10">
+                    <div className="bg-gradient-to-t from-black/60 to-transparent pt-6 pb-2 px-3">
+                      <p className="text-[11px] text-white/80 leading-snug font-light tracking-wide line-clamp-2">
+                        {item.caption}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
-              <div className="rounded-xl overflow-hidden border border-white/[0.06]">
+              <div className="relative rounded-xl overflow-hidden border border-white/[0.06]">
                 <Image src={item.url} alt={item.title || ''} width={600} height={800}
                   sizes={isMobile ? "50vw" : "(max-width: 768px) 50vw, 25vw"}
                   className="w-full h-auto rounded-xl opacity-0 transition-opacity duration-500" loading={index < 4 ? "eager" : "lazy"}
                   priority={index < 4} quality={75}
                   onLoad={(e) => (e.target as HTMLElement).classList.remove('opacity-0')}
                   onError={(e) => { (e.target as HTMLElement).parentElement!.style.display = 'none' }} />
+                {item.caption && (
+                  <div className="absolute bottom-0 left-0 right-0 z-10">
+                    <div className="bg-gradient-to-t from-black/60 to-transparent pt-6 pb-2 px-3">
+                      <p className="text-[11px] text-white/80 leading-snug font-light tracking-wide line-clamp-2">
+                        {item.caption}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             )
           ) : (

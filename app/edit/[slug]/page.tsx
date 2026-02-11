@@ -22,6 +22,7 @@ interface TileContent extends DraftContent {
 // ═══════════════════════════════════════════
 function SortableTile({
   id, content, onDelete, onSelect, onDoubleClick, deleting, selected, size,
+  captionEditing, onCaptionOpen, onCaptionSave,
 }: {
   id: string
   content: any
@@ -31,11 +32,17 @@ function SortableTile({
   deleting: boolean
   selected: boolean
   size: number
+  captionEditing: boolean
+  onCaptionOpen: () => void
+  onCaptionSave: (caption: string) => void
 }) {
   const [isMuted, setIsMuted] = useState(true)
   const [isLoaded, setIsLoaded] = useState(false)
+  const [captionText, setCaptionText] = useState(content.caption || '')
   const videoRef = useRef<HTMLVideoElement>(null)
   const audioIdRef = useRef(`edit-${id}`)
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const captionInputRef = useRef<HTMLInputElement>(null)
 
   const {
     attributes,
@@ -67,6 +74,31 @@ function SortableTile({
     return () => audioManager.unregister(audioIdRef.current)
   }, [id, isVideo])
 
+  // Focus caption input when editing opens
+  useEffect(() => {
+    if (captionEditing) {
+      setCaptionText(content.caption || '')
+      setTimeout(() => captionInputRef.current?.focus(), 50)
+    }
+  }, [captionEditing, content.caption])
+
+  const handleLongPressStart = () => {
+    longPressTimerRef.current = setTimeout(() => {
+      onCaptionOpen()
+    }, 500)
+  }
+
+  const handleLongPressEnd = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+  }
+
+  const handleCaptionSubmit = () => {
+    onCaptionSave(captionText)
+  }
+
   const handleVideoClick = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (videoRef.current) {
@@ -94,6 +126,10 @@ function SortableTile({
       {...listeners}
       onClick={onSelect}
       onDoubleClick={(e) => { e.stopPropagation(); onDoubleClick() }}
+      onPointerDown={(e) => { if (!captionEditing) handleLongPressStart() }}
+      onPointerUp={handleLongPressEnd}
+      onPointerCancel={handleLongPressEnd}
+      onPointerLeave={handleLongPressEnd}
     >
       <div className={`relative rounded-xl overflow-hidden w-full h-full ${selected ? 'ring-2 ring-green-400' : ''}`}>
         {/* Red dot delete */}
@@ -113,6 +149,37 @@ function SortableTile({
         {selected && (
           <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center z-10">
             <span className="text-white text-xs font-bold">✓</span>
+          </div>
+        )}
+
+        {/* Caption overlay — shown during editing */}
+        {captionEditing && (
+          <div className="absolute bottom-0 left-0 right-0 z-20 p-2"
+            onPointerDown={(e) => e.stopPropagation()}>
+            <input
+              ref={captionInputRef}
+              type="text"
+              value={captionText}
+              onChange={(e) => setCaptionText(e.target.value)}
+              onBlur={handleCaptionSubmit}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { handleCaptionSubmit(); (e.target as HTMLInputElement).blur() }
+                if (e.key === 'Escape') { onCaptionSave(content.caption || ''); (e.target as HTMLInputElement).blur() }
+              }}
+              placeholder="add caption..."
+              className="w-full bg-black/80 text-white text-sm rounded-lg p-2 outline-none placeholder:text-white/30 font-light"
+            />
+          </div>
+        )}
+
+        {/* Existing caption display */}
+        {!captionEditing && content.caption && (
+          <div className="absolute bottom-0 left-0 right-0 z-10">
+            <div className="bg-gradient-to-t from-black/60 to-transparent pt-6 pb-2 px-3">
+              <p className="text-[11px] text-white/80 leading-snug font-light tracking-wide line-clamp-2">
+                {content.caption}
+              </p>
+            </div>
           </div>
         )}
 
@@ -193,6 +260,8 @@ export default function EditPage() {
   const [serialNumber, setSerialNumber] = useState<number | null>(null)
   // Selection state
   const [selectedTileId, setSelectedTileId] = useState<string | null>(null)
+  // Caption editing
+  const [captionTileId, setCaptionTileId] = useState<string | null>(null)
   // Upload progress
   const [uploadStatus, setUploadStatus] = useState<string | null>(null)
 
@@ -243,6 +312,7 @@ export default function EditPage() {
               position: tile.position,
               room_id: tile.room_id || null,
               size: tile.size || 1,
+              caption: tile.caption || null,
             }
           })
           setTileSources(sources)
@@ -754,6 +824,32 @@ export default function EditPage() {
     }
   }
 
+  async function saveCaption(id: string, caption: string) {
+    if (!draft) return
+    const source = tileSources[id]
+    if (!source) return
+
+    const trimmed = caption.trim()
+    const value = trimmed || null
+
+    // Optimistic update
+    setDraft(prev => prev ? {
+      ...prev,
+      content: prev.content.map(c => c.id === id ? { ...c, caption: value } : c),
+      updated_at: Date.now(),
+    } : null)
+
+    try {
+      await fetch('/api/tiles', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, source, slug, caption: value }),
+      })
+    } catch (e) {
+      console.error('Failed to save caption:', e)
+    }
+  }
+
   const selectedTile = draft?.content.find(c => c.id === selectedTileId)
   const selectedIsImage = selectedTile?.type === 'image' && !selectedTile?.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
   const selectedHasThumbnail = selectedTile?.thumbnail_url
@@ -854,6 +950,9 @@ export default function EditPage() {
                     deleting={deletingIds.has(item.id)}
                     selected={selectedTileId === item.id}
                     size={item.size || 1}
+                    captionEditing={captionTileId === item.id}
+                    onCaptionOpen={() => { setCaptionTileId(item.id); setSelectedTileId(null) }}
+                    onCaptionSave={(caption) => { saveCaption(item.id, caption); setCaptionTileId(null) }}
                   />
                 ))}
               </div>
