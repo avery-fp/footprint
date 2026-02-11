@@ -49,7 +49,10 @@ const ROOM_OVERLAYS = [
 const DEFAULT_OVERLAY = 'rgba(0,0,0,0.6)'
 
 export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl }: PublicPageProps) {
-  const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
+  const [activeRoomId, setActiveRoomId] = useState<string>(() => {
+    const first = rooms.filter(r => r.name && r.name.length > 1).find(Boolean)
+    return first?.id || ''
+  })
   const [wallpaperLoaded, setWallpaperLoaded] = useState(false)
   const [showToast, setShowToast] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
@@ -113,11 +116,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       timeout = setTimeout(() => {
         const idx = Math.round(container.scrollLeft / container.offsetWidth)
         if (visibleRooms.length === 0) return
-        if (idx === 0) {
-          setActiveRoomId(null)
-        } else {
-          setActiveRoomId(visibleRooms[idx - 1]?.id || null)
-        }
+        setActiveRoomId(visibleRooms[idx]?.id || visibleRooms[0]?.id || '')
       }, 80)
     }
 
@@ -129,12 +128,12 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   }, [isMobile, visibleRooms])
 
   // Navigate to room (scrolls on mobile)
-  const goToRoom = (roomId: string | null) => {
+  const goToRoom = (roomId: string) => {
     setActiveRoomId(roomId)
     if (isMobile && swipeRef.current) {
-      const idx = roomId ? visibleRooms.findIndex(r => r.id === roomId) + 1 : 0
+      const idx = visibleRooms.findIndex(r => r.id === roomId)
       swipeRef.current.scrollTo({
-        left: idx * swipeRef.current.offsetWidth,
+        left: Math.max(0, idx) * swipeRef.current.offsetWidth,
         behavior: 'smooth'
       })
     }
@@ -151,9 +150,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     const isVideo = item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
     const isHero = widescreenIds.has(item.id)
     const tileSize = item.size || 1
-    const colSpan = tileSize === 4 ? 'col-span-2 md:col-span-4'
-      : tileSize === 2 ? 'col-span-2'
-      : isHero ? 'col-span-2 md:col-span-4'
+    const colSpan = tileSize === 2 ? 'col-span-2 row-span-2'
+      : isHero ? 'col-span-2 row-span-2'
       : ''
     return (
       <div key={item.id}
@@ -235,6 +233,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           />
         </div>
       )}
+      {/* Wallpaper fade — gradient to near-black */}
+      <div
+        className="fixed inset-0 z-[1] pointer-events-none"
+        style={{ background: 'linear-gradient(to bottom, transparent 0%, transparent 30%, rgba(0,0,0,0.85) 60%, rgba(0,0,0,0.95) 80%)' }}
+      />
       <WeatherEffect type={footprint.weather_effect || null} />
       <div className="relative z-10">
         {/* æ Masthead — no avatar, just text */}
@@ -256,7 +259,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             >
               #{serial}
             </span>
-            {footprint.bio && footprint.bio !== 'personal internet' && (
+            {(() => {
+              const showBio = footprint.bio &&
+                footprint.bio.trim().length > 0 &&
+                !['personal internet', 'footprint', 'Personal Internet', 'Footprint'].includes(footprint.bio.trim())
+              return showBio ? (
               <p
                 className="mt-3 text-white/30 text-xs tracking-[0.15em] lowercase max-w-md text-center"
                 style={{
@@ -267,7 +274,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               >
                 {footprint.bio}
               </p>
-            )}
+              ) : null
+            })()}
             {/* CTA */}
             <a
               href="https://footprint.onl"
@@ -281,16 +289,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         {/* Room Tabs — only show when multiple rooms exist */}
         {visibleRooms.length > 1 && (
           <div className="flex items-center justify-center gap-2 mb-6 flex-wrap relative z-20 max-w-7xl mx-auto px-3 md:px-5">
-            <button
-              onClick={() => goToRoom(null)}
-              className={`px-4 py-1.5 rounded-full text-sm transition-all backdrop-blur-sm border-0 ${
-                activeRoomId === null
-                  ? 'bg-white/[0.12] text-white/90'
-                  : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70'
-              }`}
-            >
-              all
-            </button>
             {visibleRooms.map((room) => (
               <button
                 key={room.id}
@@ -321,16 +319,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 WebkitOverflowScrolling: 'touch',
               }}
             >
-              {/* "All" panel */}
-              <div className="w-full min-w-full flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
-                <div className="grid grid-cols-2 gap-2">
-                  {validContent.map((item, idx) => renderTile(item, idx))}
-                </div>
-              </div>
               {/* Room panels */}
               {visibleRooms.map((room) => (
                 <div key={room.id} className="w-full min-w-full flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2" style={{ gridAutoRows: 'minmax(180px, 1fr)', gridAutoFlow: 'dense' }}>
                     {room.content.map((item, idx) => renderTile(item, idx))}
                   </div>
                 </div>
@@ -338,7 +330,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             </div>
           ) : (
             /* DESKTOP — CSS Grid with size-aware spans */
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2" style={{ gridAutoRows: 'minmax(180px, 1fr)', gridAutoFlow: 'dense' }}>
               {content.map((item, idx) => renderTile(item, idx))}
             </div>
           )}
@@ -354,8 +346,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         {isMobile && visibleRooms.length > 1 && (
           <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5
             bg-black/20 backdrop-blur-xl rounded-full px-3 py-1.5 border border-white/[0.04]">
-            {[null, ...visibleRooms.map(r => r.id)].map((id, i) => {
-              const isActive = id === activeRoomId || (id === null && activeRoomId === null)
+            {visibleRooms.map((r, i) => {
+              const isActive = r.id === activeRoomId
               return (
                 <div key={i} className="transition-all duration-300"
                   style={{
