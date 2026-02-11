@@ -48,6 +48,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   })
   const [wallpaperLoaded, setWallpaperLoaded] = useState(false)
   const [showToast, setShowToast] = useState(false)
+  const [unmutedId, setUnmutedId] = useState<string | null>(null)
 
   // Filter out ghost tiles (empty URLs with no title/content)
   const isValidTile = (item: any) =>
@@ -98,7 +99,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   return (
     <div className="min-h-screen bg-black" style={{ color: theme.colors.text }}>
       {/* Wallpaper zone — contained to masthead */}
-      <div className="h-[50vh] relative overflow-hidden">
+      <div className="h-[65vh] relative overflow-hidden">
         {footprint.background_url && (
           <>
             <Image
@@ -121,7 +122,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             />
           </>
         )}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-black" />
         <WeatherEffect type={footprint.weather_effect || null} />
 
         {/* Masthead — centered in wallpaper zone */}
@@ -169,7 +170,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       </div>
 
       {/* Content zone — black bg, overlaps wallpaper fade */}
-      <div className="bg-black -mt-20 relative z-10 pb-12">
+      <div className="bg-black -mt-32 relative z-10 pb-12">
         {/* Sticky room tabs */}
         {visibleRooms.length > 1 && (
           <div className="sticky top-0 z-30 bg-black/90 backdrop-blur-sm py-2 px-3 flex items-center justify-center gap-2 flex-wrap">
@@ -190,25 +191,43 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         )}
 
         {/* Tight magazine grid */}
-        <div className="px-1 md:max-w-7xl md:mx-auto md:px-5 mt-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-1 md:gap-2" style={{ gridAutoFlow: 'dense' }}>
+        <div className="px-2 md:max-w-7xl md:mx-auto md:px-5 mt-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 md:gap-2" style={{ gridAutoFlow: 'dense' }}>
             {content.map((item, idx) => {
               const isVideo = item.type === 'image' && /\.(mp4|mov|webm|m4v)/i.test(item.url || '')
               const span = item.size === 2 ? 'col-span-2 row-span-2' : ''
 
               return (
-                <div key={item.id} className={`${span} aspect-square relative overflow-hidden rounded-lg`}>
+                <div key={item.id} className={`${span} aspect-square relative overflow-hidden rounded-xl`}>
                   {item.type === 'image' ? (
                     isVideo ? (
-                      <video
-                        src={item.url}
-                        autoPlay
-                        muted
-                        loop
-                        playsInline
-                        preload="metadata"
-                        className="w-full h-full object-cover"
-                      />
+                      <div
+                        onClick={() => {
+                          document.querySelectorAll('video').forEach(v => { v.muted = true })
+                          if (unmutedId === String(item.id)) {
+                            setUnmutedId(null)
+                          } else {
+                            const vid = document.querySelector(`video[data-id="${item.id}"]`) as HTMLVideoElement
+                            if (vid) vid.muted = false
+                            setUnmutedId(String(item.id))
+                          }
+                        }}
+                        className="relative w-full h-full cursor-pointer"
+                      >
+                        <video
+                          data-id={item.id}
+                          src={item.url}
+                          autoPlay
+                          muted
+                          loop
+                          playsInline
+                          preload="metadata"
+                          ref={(node) => {
+                            if (node) { node.muted = true; node.play().catch(() => {}) }
+                          }}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
                     ) : (
                       <Image
                         src={item.url}
