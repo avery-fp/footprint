@@ -46,10 +46,12 @@ function SortableTile({
     isDragging,
   } = useSortable({ id })
 
-  const style = {
+  const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : deleting ? 0.5 : 1,
+    contain: 'layout style paint',
+    willChange: isDragging ? 'transform' : undefined,
   }
 
   const isVideo = content.type === 'image' && content.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
@@ -80,13 +82,14 @@ function SortableTile({
     }
   }
 
-  const sizeClass = size === 4 ? 'col-span-2 md:col-span-4 aspect-[3/1]' : size === 2 ? 'col-span-2 aspect-[2/1]' : 'aspect-square'
+  const sizeClass = size === 2 ? 'col-span-2 row-span-2' : 'aspect-square'
 
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={sizeClass}
+      data-tile
       {...attributes}
       {...listeners}
       onClick={onSelect}
@@ -120,12 +123,12 @@ function SortableTile({
               <video
                 ref={videoRef}
                 src={content.url}
-                className={`absolute inset-0 w-full h-full object-cover cursor-pointer transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+                className="absolute inset-0 w-full h-full object-cover cursor-pointer"
+                autoPlay
                 muted
+                loop
                 playsInline
-                preload="metadata"
                 onClick={handleVideoClick}
-                onLoadedData={() => setIsLoaded(true)}
               />
               {!isMuted && (
                 <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60 z-10" />
@@ -139,18 +142,19 @@ function SortableTile({
               alt=""
               width={200}
               height={200}
-              sizes="(max-width: 640px) 33vw, 20vw"
-              className="absolute inset-0 w-full h-full object-cover transition-opacity duration-[800ms]"
-              style={{ opacity: isLoaded ? 1 : 0 }}
+              sizes="(max-width: 640px) 50vw, 25vw"
+              className="absolute inset-0 w-full h-full object-cover"
               loading="lazy"
+              decoding="async"
               quality={75}
-              onLoad={() => setIsLoaded(true)}
+              onError={(e) => { (e.target as HTMLElement).closest('[data-tile]')!.style.display = 'none' }}
             />
           )
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/[0.05] p-2">
             {content.thumbnail_url ? (
-              <Image src={content.thumbnail_url} alt="" width={200} height={200} sizes="(max-width: 640px) 33vw, 20vw" className="absolute inset-0 w-full h-full object-cover" loading="lazy" quality={75} />
+              <Image src={content.thumbnail_url} alt="" width={200} height={200} sizes="(max-width: 640px) 50vw, 25vw" className="absolute inset-0 w-full h-full object-cover" loading="lazy" decoding="async" quality={75}
+                onError={(e) => { (e.target as HTMLElement).closest('[data-tile]')!.style.display = 'none' }} />
             ) : (
               <>
                 <div className="text-2xl mb-1 opacity-60">
@@ -256,13 +260,13 @@ export default function EditPage() {
           })
 
           setSerialNumber(data.footprint.serial_number)
-          setActiveRoomId(null)
 
           // Fetch rooms via server API (bypasses RLS)
           const roomsRes = await fetch(`/api/rooms?serial_number=${data.footprint.serial_number}`)
           const roomsJson = await roomsRes.json()
           if (roomsJson.rooms?.length > 0) {
             setRooms(roomsJson.rooms)
+            setActiveRoomId(roomsJson.rooms[0].id)
           }
         } else {
           setIsOwner(true)
@@ -550,7 +554,7 @@ export default function EditPage() {
 
   // ── File upload ──
 
-  const VIDEO_MIME = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v']
+  const VIDEO_MIME = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v', 'video/mov']
 
   // XHR upload to Supabase Storage with progress events
   function uploadWithProgress(
@@ -570,14 +574,14 @@ export default function EditPage() {
         if (xhr.status >= 200 && xhr.status < 300) {
           const url = `${supabaseUrl}/storage/v1/object/public/content/${path}`
           resolve(url)
-        } else reject(new Error(`Upload failed: ${xhr.status}`))
+        } else reject(new Error(`Upload failed (${xhr.status}): ${xhr.responseText}`))
       }
-      xhr.onerror = () => reject(new Error('Upload failed'))
+      xhr.onerror = () => reject(new Error('Network error during upload'))
 
       xhr.open('POST', `${supabaseUrl}/storage/v1/object/content/${path}`)
       xhr.setRequestHeader('Authorization', `Bearer ${supabaseKey}`)
       xhr.setRequestHeader('apikey', supabaseKey)
-      xhr.setRequestHeader('Content-Type', file.type)
+      xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream')
       xhr.setRequestHeader('x-upsert', 'true')
       xhr.send(file)
     })
@@ -613,111 +617,65 @@ export default function EditPage() {
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || [])
-    if (files.length === 0 || !draft) return
+    if (files.length === 0 || !draft || !serialNumber) return
     setIsAdding(true)
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
-        const isVideo = VIDEO_MIME.includes(file.type)
+        const isVideo = VIDEO_MIME.includes(file.type) || /\.(mp4|mov|webm|m4v)$/i.test(file.name)
         const countLabel = files.length > 1 ? `${i + 1} of ${files.length}` : ''
 
         try {
-          if (isVideo && serialNumber) {
-            // Extract thumbnail instantly — show in grid before upload starts
-            let thumbnailDataUrl: string | null = null
+          // Extract thumbnail for videos
+          let thumbnailDataUrl: string | null = null
+          if (isVideo) {
             try {
               thumbnailDataUrl = await getVideoThumbnail(file)
             } catch { /* silent — grid will show dark placeholder */ }
+          }
 
-            // Add temp tile to grid immediately
-            const tempId = `temp-${Date.now()}-${i}`
-            setDraft(prev => prev ? {
-              ...prev,
-              content: [...prev.content, {
-                id: tempId,
-                url: thumbnailDataUrl || '',
-                type: 'image',
-                title: null,
-                description: null,
-                thumbnail_url: null,
-                embed_html: null,
-                position: prev.content.length,
-                room_id: activeRoomId || null,
-              }],
-              updated_at: Date.now(),
-            } : null)
+          // Add temp tile to grid immediately
+          const tempId = `temp-${Date.now()}-${i}`
+          setDraft(prev => prev ? {
+            ...prev,
+            content: [...prev.content, {
+              id: tempId,
+              url: thumbnailDataUrl || '',
+              type: 'image',
+              title: null,
+              description: null,
+              thumbnail_url: null,
+              embed_html: null,
+              position: prev.content.length,
+              room_id: activeRoomId || null,
+            }],
+            updated_at: Date.now(),
+          } : null)
 
-            // Smart size label
-            const sizeMB = file.size / (1024 * 1024)
-            const sizeLabel = sizeMB > 100
-              ? 'This might take a minute'
-              : sizeMB > 20
-                ? 'Large file — uploading'
-                : 'Uploading video'
+          // Upload via XHR with real progress
+          const ext = file.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg')
+          const filename = `${serialNumber}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
 
-            // Upload via XHR with real progress
-            const ext = file.name.split('.').pop() || 'mp4'
-            const filename = `${serialNumber}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+          try {
+            const publicUrl = await uploadWithProgress(file, filename, (pct) => {
+              const suffix = countLabel ? ` (${countLabel})` : ''
+              setUploadStatus(`Uploading... ${pct}%${suffix}`)
+            })
 
-            try {
-              const publicUrl = await uploadWithProgress(file, filename, (pct) => {
-                const suffix = countLabel ? ` (${countLabel})` : ''
-                setUploadStatus(`${sizeLabel}... ${pct}%${suffix}`)
-              })
-
-              // Register DB record
-              const res = await fetch('/api/upload/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ slug, url: publicUrl, room_id: activeRoomId }),
-              })
-              const data = await res.json()
-
-              if (data.tile) {
-                // Replace temp tile with real tile
-                setTileSources(prev => ({ ...prev, [data.tile.id]: data.tile.source }))
-                setDraft(prev => prev ? {
-                  ...prev,
-                  content: prev.content.map(c => c.id === tempId ? {
-                    id: data.tile.id,
-                    url: data.tile.url,
-                    type: data.tile.type,
-                    title: data.tile.title,
-                    description: data.tile.description,
-                    thumbnail_url: data.tile.thumbnail_url,
-                    embed_html: data.tile.embed_html,
-                    position: data.tile.position,
-                    room_id: data.tile.room_id || null,
-                  } : c),
-                  updated_at: Date.now(),
-                } : null)
-              }
-            } catch (uploadErr) {
-              // Remove temp tile on failure
-              setDraft(prev => prev ? {
-                ...prev,
-                content: prev.content.filter(c => c.id !== tempId),
-                updated_at: Date.now(),
-              } : null)
-              console.error(`Upload failed for ${file.name}:`, uploadErr)
-              setUploadStatus(`Failed: ${file.name}`)
-              await new Promise(r => setTimeout(r, 1500))
-            }
-          } else {
-            // Images go through the API route
-            setUploadStatus(countLabel ? `Uploading ${countLabel}...` : 'Uploading...')
-            const formData = new FormData()
-            formData.append('file', file)
-            formData.append('slug', slug)
-            if (activeRoomId) formData.append('room_id', activeRoomId)
-            const res = await fetch('/api/upload/content', { method: 'POST', body: formData })
+            // Register DB record
+            const res = await fetch('/api/upload/register', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ slug, url: publicUrl, room_id: activeRoomId }),
+            })
             const data = await res.json()
 
             if (data.tile) {
+              // Replace temp tile with real tile
               setTileSources(prev => ({ ...prev, [data.tile.id]: data.tile.source }))
               setDraft(prev => prev ? {
                 ...prev,
-                content: [...prev.content, {
+                content: prev.content.map(c => c.id === tempId ? {
                   id: data.tile.id,
                   url: data.tile.url,
                   type: data.tile.type,
@@ -727,18 +685,24 @@ export default function EditPage() {
                   embed_html: data.tile.embed_html,
                   position: data.tile.position,
                   room_id: data.tile.room_id || null,
-                }],
+                } : c),
                 updated_at: Date.now(),
               } : null)
-            } else if (data.error) {
-              console.error(`Upload failed for ${file.name}: ${data.error}`)
-              setUploadStatus(`Failed: ${file.name}`)
-              await new Promise(r => setTimeout(r, 1500))
             }
+          } catch (uploadErr) {
+            // Remove temp tile on failure
+            setDraft(prev => prev ? {
+              ...prev,
+              content: prev.content.filter(c => c.id !== tempId),
+              updated_at: Date.now(),
+            } : null)
+            console.error(`Upload failed for ${file.name}:`, uploadErr)
+            setUploadStatus(`Failed: ${(uploadErr as Error).message || file.name}`)
+            await new Promise(r => setTimeout(r, 1500))
           }
         } catch (err) {
           console.error(`Upload failed for ${file.name}:`, err)
-          setUploadStatus(`Failed: ${file.name}`)
+          setUploadStatus(`Failed: ${(err as Error).message || file.name}`)
           await new Promise(r => setTimeout(r, 1500))
         }
       }
@@ -764,7 +728,7 @@ export default function EditPage() {
     if (!source) return
 
     const currentSize = tile.size || 1
-    const newSize = currentSize === 1 ? 2 : currentSize === 2 ? 4 : 1
+    const newSize = currentSize === 1 ? 2 : 1
 
     // Optimistic update
     setDraft(prev => prev ? {
@@ -811,7 +775,7 @@ export default function EditPage() {
   const theme = getTheme(draft.theme)
 
   return (
-    <div className="min-h-screen pb-32 relative" style={{ background: theme.colors.background, color: theme.colors.text }}>
+    <div className="min-h-screen pb-32 relative overflow-x-hidden max-w-[100vw]" style={{ background: theme.colors.background, color: theme.colors.text }}>
       {/* Wallpaper layer — real blur via filter */}
       {wallpaperUrl && (
         <div
@@ -823,66 +787,31 @@ export default function EditPage() {
           }}
         />
       )}
-      {/* ═══ HEADER ═══ */}
-      <div className="fixed top-6 left-6 z-50 flex items-center gap-3">
-        <Link
-          href={`/${slug}`}
-          className="flex items-center gap-2 text-sm text-white/60 hover:text-white/90 transition font-mono"
-        >
-          ← view
-        </Link>
-        {/* Blur toggle — only when wallpaper is active */}
-        {wallpaperUrl && (
-          <button
-            onClick={handleToggleBlur}
-            className={`px-3 py-1 rounded-full text-xs font-mono transition border ${
-              backgroundBlur
-                ? 'bg-white/20 text-white/90 border-white/30'
-                : 'bg-white/5 text-white/40 border-white/10'
-            }`}
+      {/* ═══ HEADER — two rows ═══ */}
+      <div className="fixed top-0 left-0 right-0 z-50 bg-black/60 backdrop-blur-sm border-b border-white/[0.06]"
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        {/* Row 1: nav */}
+        <div className="flex items-center justify-between px-4 h-11">
+          <Link
+            href={`/${slug}`}
+            className="text-sm text-white/60 hover:text-white/90 transition font-mono"
           >
-            blur {backgroundBlur ? 'on' : 'off'}
-          </button>
-        )}
-        {wallpaperUrl && (
-          <button
-            onClick={handleClearWallpaper}
-            className="px-3 py-1 rounded-full text-xs font-mono text-red-400/80 hover:text-red-400 border border-red-400/20 hover:border-red-400/40 transition"
+            ← view
+          </Link>
+          <Link
+            href={`/${slug}`}
+            className="text-sm font-medium text-white/90 hover:text-white transition px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
           >
-            clear bg
-          </button>
-        )}
-      </div>
-
-      {/* Right: Done */}
-      <div className="fixed top-6 right-6 z-50">
-        <Link
-          href={`/${slug}`}
-          className="text-sm font-medium text-white/90 hover:text-white transition px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
-        >
-          Done
-        </Link>
-      </div>
-
-      {/* ═══ DENSE MASONRY GRID ═══ */}
-      <div className="max-w-7xl mx-auto px-2 pt-14 relative z-10">
-        {/* Inline Room Tabs */}
-        <div className="flex items-center gap-2 mb-3 px-1 overflow-x-auto hide-scrollbar">
-          <button
-            onClick={() => setActiveRoomId(null)}
-            className={`text-xs px-3 py-1 rounded-full transition-all whitespace-nowrap backdrop-blur-sm border-0 ${
-              activeRoomId === null
-                ? 'bg-white/[0.12] text-white/90'
-                : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70'
-            }`}
-          >
-            all
-          </button>
-          {rooms.map((room) => (
+            Done
+          </Link>
+        </div>
+        {/* Row 2: room pills (scrollable) */}
+        <div className="flex items-center gap-2 px-4 pb-2 overflow-x-auto hide-scrollbar">
+          {rooms.filter(r => r.name && r.name.length > 1).map((room) => (
             <button
               key={room.id}
               onClick={() => setActiveRoomId(room.id)}
-              className={`text-xs px-3 py-1 rounded-full transition-all whitespace-nowrap backdrop-blur-sm border-0 ${
+              className={`text-xs px-3 py-1 rounded-full transition-all whitespace-nowrap border-0 ${
                 activeRoomId === room.id
                   ? 'bg-white/[0.12] text-white/90'
                   : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70'
@@ -893,11 +822,15 @@ export default function EditPage() {
           ))}
           <button
             onClick={handleCreateRoom}
-            className="text-xs px-3 py-1 rounded-full bg-white/[0.06] text-white/30 hover:text-white/60 hover:bg-white/[0.10] backdrop-blur-sm transition-all border-0"
+            className="text-xs px-3 py-1 rounded-full bg-white/[0.06] text-white/30 hover:text-white/60 hover:bg-white/[0.10] transition-all border-0"
           >
             +
           </button>
         </div>
+      </div>
+
+      {/* ═══ DENSE MASONRY GRID ═══ */}
+      <div className="max-w-7xl mx-auto px-3 md:px-6 pt-24 md:pt-20 pb-32 relative z-10">
 
         {filteredContent.length > 0 ? (
           <DndContext
@@ -909,7 +842,7 @@ export default function EditPage() {
               items={filteredContent.map(item => item.id)}
               strategy={rectSortingStrategy}
             >
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 px-1">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-1.5" style={{ gridAutoRows: 'minmax(180px, 1fr)', gridAutoFlow: 'dense' }}>
                 {filteredContent.map(item => (
                   <SortableTile
                     key={item.id}
@@ -946,7 +879,7 @@ export default function EditPage() {
 
       {/* Upload status pill */}
       {uploadStatus && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-black/80 backdrop-blur-sm text-white/70 text-xs font-mono px-4 py-2 rounded-full border border-white/10">
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] bg-black/90 backdrop-blur-sm text-white/70 text-xs px-4 py-2 rounded-full border border-white/10 font-mono">
           {uploadStatus}
         </div>
       )}
