@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Image from 'next/image'
 import ContentCard from '@/components/ContentCard'
 import WeatherEffect from '@/components/WeatherEffect'
 
@@ -102,14 +101,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       <div className="h-[65vh] relative overflow-hidden">
         {footprint.background_url && (
           <>
-            <Image
+            <img
               src={footprint.background_url}
               alt=""
-              fill
-              priority
-              quality={60}
-              sizes="100vw"
-              className={`object-cover transition-opacity duration-700 ${wallpaperLoaded ? 'opacity-100' : 'opacity-0'}`}
+              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${wallpaperLoaded ? 'opacity-100' : 'opacity-0'}`}
               style={{
                 filter: footprint.background_blur !== false ? wallpaperFilter : 'none',
                 transform: footprint.background_blur !== false ? 'scale(1.05)' : 'none',
@@ -223,21 +218,22 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                           playsInline
                           preload="metadata"
                           ref={(node) => {
-                            if (node) { node.muted = true; node.play().catch(() => {}) }
+                            if (node) {
+                              node.muted = true
+                              const p = node.play()
+                              if (p) p.catch(() => {})
+                            }
                           }}
                           className="w-full h-full object-cover"
                         />
                       </div>
                     ) : (
-                      <Image
+                      <img
                         src={item.url}
                         alt=""
-                        fill
-                        sizes={item.size === 2 ? '100vw' : '50vw'}
-                        quality={60}
-                        loading={idx < 4 ? 'eager' : 'lazy'}
+                        loading="lazy"
                         decoding="async"
-                        className="object-cover"
+                        className="w-full h-full object-cover"
                         onError={(e) => { (e.target as HTMLElement).closest('.aspect-square')!.style.display = 'none' }}
                       />
                     )
