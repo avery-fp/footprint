@@ -75,7 +75,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
   // Filter out ghost tiles (empty URLs with no title/content)
   const isValidTile = (item: any) =>
-    (item.type === 'thought' && item.title) || (item.url && item.url !== '')
+    (item.type === 'thought' && item.title) || (item.type === 'image' && item.url && item.url !== '')
 
   const validContent = allContent.filter(isValidTile)
 
@@ -255,10 +255,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             {/* CTA */}
             <a
               href={`/checkout?slug=${pageUrl.split('/').pop()}`}
-              className="mt-5 inline-flex items-center gap-2 text-[10px] tracking-[0.3em] uppercase text-white/25 hover:text-white/50 transition-all duration-700"
+              className="mt-5 inline-flex items-center gap-2 rounded-full px-5 py-2 text-[10px] tracking-[0.2em] uppercase text-white/50 hover:text-white/80 bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] hover:border-white/[0.15] transition-all duration-500"
             >
               Own Your Footprint
-              <span className="w-[3px] h-[3px] rounded-full bg-white/20" />
             </a>
         </header>
 

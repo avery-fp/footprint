@@ -38,16 +38,20 @@ export async function GET(request: NextRequest) {
               width: '100%',
               display: 'flex',
               flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: '#07080A',
+              alignItems: 'flex-start',
+              justifyContent: 'flex-end',
+              backgroundColor: '#0a0a0a',
               color: '#F5F5F5',
               fontFamily: 'system-ui',
+              padding: 80,
             }}
           >
-            <div style={{ fontSize: 72, fontWeight: 300 }}>Footprint</div>
-            <div style={{ fontSize: 24, opacity: 0.6, marginTop: 16 }}>
-              $10. One page. Paste anything. Yours forever.
+            <div style={{ fontSize: 96, fontWeight: 500, letterSpacing: '-0.04em', marginBottom: 16 }}>footprint</div>
+            <div style={{ fontSize: 24, opacity: 0.4, fontWeight: 300, marginBottom: 48 }}>
+              your permanent space on the internet
+            </div>
+            <div style={{ fontSize: 20, opacity: 0.3, fontWeight: 400 }}>
+              one page. infinite rooms. $10 forever.
             </div>
           </div>
         ),

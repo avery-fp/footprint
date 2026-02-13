@@ -5,20 +5,20 @@ import { Toaster } from 'sonner'
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'Footprint',
-  description: 'Own Your Footprint · $10 · yours forever',
+  title: 'footprint',
+  description: 'your permanent space on the internet. one page. infinite rooms. $10 forever.',
   openGraph: {
-    title: 'Footprint',
-    description: 'Own Your Footprint · $10 · yours forever',
+    title: 'footprint',
+    description: 'your permanent space on the internet. one page. infinite rooms. $10 forever.',
     url: 'https://footprint.onl',
-    siteName: 'Footprint',
-    images: [{ url: '/og-image.png', width: 1200, height: 630 }],
+    siteName: 'footprint',
+    images: [{ url: 'https://footprint.onl/api/og', width: 1200, height: 630 }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Footprint',
-    description: 'Own Your Footprint · $10 · yours forever',
-    images: ['/og-image.png'],
+    title: 'footprint',
+    description: 'your permanent space on the internet. one page. infinite rooms. $10 forever.',
+    images: ['https://footprint.onl/api/og'],
   },
 }
 
