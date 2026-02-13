@@ -9,15 +9,13 @@ const supabase = createClient(
 export const revalidate = 3600 // cache 1hr
 
 async function getWallpaper() {
-  // Get ae's first room wallpaper for the landing vibe
-  const { data: room } = await supabase
-    .from('rooms')
-    .select('wallpaper_url')
+  // Get ae's wallpaper from footprints table
+  const { data } = await supabase
+    .from('footprints')
+    .select('background_url')
     .eq('serial_number', 1001)
-    .order('position', { ascending: true })
-    .limit(1)
     .single()
-  return room?.wallpaper_url || null
+  return data?.background_url || null
 }
 
 async function getNextSerial() {
