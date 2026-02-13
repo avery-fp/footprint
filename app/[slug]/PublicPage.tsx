@@ -254,7 +254,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             )}
             {/* CTA */}
             <a
-              href="https://footprint.onl"
+              href={`/checkout?slug=${pageUrl.split('/').pop()}`}
               className="mt-5 inline-flex items-center gap-2 text-[10px] tracking-[0.3em] uppercase text-white/25 hover:text-white/50 transition-all duration-700"
             >
               Own Your Footprint
