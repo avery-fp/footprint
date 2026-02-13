@@ -21,32 +21,32 @@ interface PublicPageProps {
   pageUrl: string
 }
 
-// Wallpaper filter per room — derived from room index
+// Wallpaper filter per room â derived from room index
 const ROOM_FILTERS = [
   // Room 0: cool, moderate blur
   'blur(8px) brightness(0.45) saturate(0.85) hue-rotate(-8deg)',
-  // Room 1: warm, bright, low blur — wallpaper almost legible
+  // Room 1: warm, bright, low blur â wallpaper almost legible
   'blur(4px) brightness(0.65) saturate(1.4) hue-rotate(25deg)',
   // Room 2: deep, hyper-saturated, max blur
   'blur(16px) brightness(0.3) saturate(1.6) hue-rotate(-35deg)',
-  // Room 3: sharp editorial — zero blur, desaturated
+  // Room 3: sharp editorial â zero blur, desaturated
   'blur(0px) brightness(0.55) saturate(0.2) hue-rotate(0deg)',
   // Room 4: vivid, bright, warm shift
   'blur(10px) brightness(0.7) saturate(1.2) hue-rotate(35deg)',
-  // Room 5: noir — dark, muted, heavy blur
+  // Room 5: noir â dark, muted, heavy blur
   'blur(14px) brightness(0.35) saturate(0.4) hue-rotate(-20deg)',
 ]
 const DEFAULT_FILTER = 'blur(12px)'
 
 const ROOM_OVERLAYS = [
-  'rgba(0,0,0,0.58)',
-  'rgba(0,0,0,0.55)',
-  'rgba(0,0,0,0.68)',
-  'rgba(0,0,0,0.62)',
-  'rgba(0,0,0,0.52)',
-  'rgba(0,0,0,0.72)',
+  'rgba(0,0,0,0.35)',
+  'rgba(0,0,0,0.30)',
+  'rgba(0,0,0,0.42)',
+  'rgba(0,0,0,0.38)',
+  'rgba(0,0,0,0.28)',
+  'rgba(0,0,0,0.45)',
 ]
-const DEFAULT_OVERLAY = 'rgba(0,0,0,0.6)'
+const DEFAULT_OVERLAY = 'rgba(0,0,0,0.35)'
 
 export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
@@ -71,9 +71,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
   const validContent = allContent.filter(isValidTile)
 
-  // Filter orphan rooms (empty names, single-char junk)
+  // Filter orphan rooms (empty/whitespace-only names)
   const visibleRooms = rooms
-    .filter(r => r.name && r.name.length > 1)
+    .filter(r => r.name && r.name.trim().length > 0)
     .map(r => ({ ...r, content: r.content.filter(isValidTile) }))
 
   const content = activeRoomId
@@ -146,7 +146,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     return () => clearTimeout(t)
   }, [showToast])
 
-  // Reusable tile renderer — size-aware col-span in CSS Grid
+  // Reusable tile renderer â size-aware col-span in CSS Grid
   const renderTile = (item: any, index: number) => {
     const isVideo = item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
     const isHero = widescreenIds.has(item.id)
@@ -176,6 +176,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                   sizes={isMobile ? "50vw" : "(max-width: 768px) 50vw, 25vw"}
                   className="w-full h-auto rounded-xl opacity-0 transition-opacity duration-500" loading={index < 4 ? "eager" : "lazy"}
                   priority={index < 4} quality={75}
+                  unoptimized={item.url?.includes('/content/')}
                   onLoad={(e) => (e.target as HTMLElement).classList.remove('opacity-0')}
                   onError={(e) => { (e.target as HTMLElement).parentElement!.style.display = 'none' }} />
               </div>
@@ -192,7 +193,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
   return (
     <div className="min-h-screen relative" style={{ background: theme.colors.background, color: theme.colors.text }}>
-      {/* Wallpaper layer — fixed full-viewport, Image with object-cover */}
+      {/* Wallpaper layer â fixed full-viewport, Image with object-cover */}
       {footprint.background_url && (
         <div className="fixed inset-0 z-0">
           <Image
@@ -219,7 +220,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       )}
       <WeatherEffect type={footprint.weather_effect || null} />
       <div className="relative z-10">
-        {/* æ Masthead — no avatar, just text */}
+        {/* Ã¦ Masthead â no avatar, just text */}
         <header className="mb-12 md:mb-16 flex flex-col items-center pt-24 md:pt-32">
             <h1
               className="text-4xl md:text-6xl tracking-[0.15em] font-normal text-white/90"
@@ -229,7 +230,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 textShadow: '0 2px 16px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.5)',
               }}
             >
-              {footprint.display_name || 'æ'}
+              {footprint.display_name || 'Ã¦'}
             </h1>
             <span className="text-white/30 tracking-[0.3em] uppercase text-[10px] font-light mt-2"
               style={{
@@ -260,7 +261,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             </a>
         </header>
 
-        {/* Room Tabs — only show when multiple rooms exist */}
+        {/* Room Tabs â only show when multiple rooms exist */}
         {visibleRooms.length > 1 && (
           <div className="flex items-center justify-center gap-2 mb-6 flex-wrap relative z-20 max-w-7xl mx-auto px-3 md:px-5">
             <button
@@ -298,9 +299,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               className="flex swipe-container"
               style={{
                 overflowX: 'auto',
-                overflowY: 'hidden',
+                overflowY: 'visible',
                 scrollSnapType: 'x mandatory',
                 WebkitOverflowScrolling: 'touch',
+                minHeight: '100vh',
               }}
             >
               {/* "All" panel */}
@@ -319,7 +321,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               ))}
             </div>
           ) : (
-            /* DESKTOP — CSS Grid with size-aware spans */
+            /* DESKTOP â CSS Grid with size-aware spans */
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               {content.map((item, idx) => renderTile(item, idx))}
             </div>
@@ -352,7 +354,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </div>
         )}
 
-        {/* Footer — whisper */}
+        {/* Footer â whisper */}
         <div className="mt-24 mb-12 flex items-center justify-center gap-3">
           <a href="https://footprint.onl" className="text-white/[0.08] text-xs tracking-[0.3em] hover:text-white/20 transition-colors">
             footprint.onl
