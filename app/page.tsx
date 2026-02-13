@@ -34,7 +34,8 @@ export default async function Home() {
   ])
 
   return (
-    <div className="min-h-screen relative overflow-hidden flex flex-col items-center justify-end pb-[12vh]">
+    <div className="min-h-screen relative overflow-hidden">
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
 
       {wallpaper && (
         <>
@@ -43,7 +44,7 @@ export default async function Home() {
             alt=""
             className="fixed inset-0 w-full h-full object-cover"
           />
-          <div className="fixed inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 40%, rgba(0,0,0,0.15) 100%)' }} />
+          <div className="fixed inset-0" style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.55) 50%, rgba(0,0,0,0.9) 100%)' }} />
         </>
       )}
 
@@ -51,58 +52,81 @@ export default async function Home() {
         <div className="fixed inset-0 bg-[#0a0a0a]" />
       )}
 
-      <div className="relative z-10 flex flex-col items-center px-6 text-center">
+      {/* Bottom-left anchored. Not centered. Asymmetry = confidence. */}
+      <div className="relative z-10 min-h-screen flex flex-col justify-end px-8 md:px-16 pb-12 md:pb-16">
         
-        {/* The word. System font. No import. The weight is the design. */}
-        <h1
-          className="text-white/90 mb-5 leading-none"
-          style={{ 
-            fontFamily: "-apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif",
-            fontSize: 'clamp(48px, 8vw, 80px)',
-            fontWeight: 200,
-            letterSpacing: '-0.02em',
-          }}
-        >
-          footprint
-        </h1>
-
-        <p 
-          className="text-white/30 mb-20"
-          style={{ 
-            fontFamily: "-apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif",
-            fontSize: '13px',
-            fontWeight: 400,
-            letterSpacing: '0.01em',
-          }}
-        >
-          your permanent space on the internet
-        </p>
-
-        <div className="flex flex-col items-center gap-6">
-          <Link
-            href="/checkout"
-            className="rounded-full px-10 py-3.5 text-white/90 hover:bg-white hover:text-black transition-all duration-300"
+        <div className="max-w-2xl">
+          {/* The word. Medium weight. Tight. Present. */}
+          <h1
+            className="text-white mb-3 leading-[0.9]"
             style={{ 
-              fontFamily: "-apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif",
-              fontSize: '14px',
-              fontWeight: 400,
-              background: 'rgba(255,255,255,0.12)',
+              fontFamily: "'Inter', -apple-system, sans-serif",
+              fontSize: 'clamp(56px, 10vw, 120px)',
+              fontWeight: 500,
+              letterSpacing: '-0.04em',
             }}
           >
-            Get started — $10
-          </Link>
+            footprint
+          </h1>
 
-          <Link
-            href="/ae"
-            className="text-white/25 hover:text-white/50 transition-all duration-500"
+          {/* Subtitle — same font, just lighter. Clean hierarchy. */}
+          <p 
+            className="text-white/40 mb-10 max-w-sm"
             style={{ 
-              fontFamily: "-apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif",
-              fontSize: '12px',
-              fontWeight: 400,
+              fontFamily: "'Inter', -apple-system, sans-serif",
+              fontSize: '15px',
+              fontWeight: 300,
+              lineHeight: 1.5,
+              letterSpacing: '-0.01em',
             }}
           >
-            See an example
-          </Link>
+            your permanent space on the internet.
+            <br />
+            one page. infinite rooms. $10 forever.
+          </p>
+
+          {/* CTA row — horizontal, not stacked */}
+          <div className="flex items-center gap-6 flex-wrap">
+            <Link
+              href="/checkout"
+              className="rounded-full px-8 py-3 bg-white text-black hover:bg-white/90 transition-all duration-200"
+              style={{ 
+                fontFamily: "'Inter', -apple-system, sans-serif",
+                fontSize: '13px',
+                fontWeight: 500,
+                letterSpacing: '-0.01em',
+              }}
+            >
+              Get started
+            </Link>
+
+            <Link
+              href="/ae"
+              className="text-white/30 hover:text-white/60 transition-all duration-300"
+              style={{ 
+                fontFamily: "'Inter', -apple-system, sans-serif",
+                fontSize: '13px',
+                fontWeight: 400,
+              }}
+            >
+              See an example →
+            </Link>
+          </div>
+        </div>
+
+        {/* Serial — top right. Counterbalance. */}
+        <div className="fixed top-8 right-8 md:right-16">
+          <span 
+            className="text-white/15"
+            style={{ 
+              fontFamily: "'Inter', -apple-system, sans-serif",
+              fontSize: '11px',
+              fontWeight: 400,
+              letterSpacing: '0.02em',
+            }}
+          >
+            #{String(nextSerial).padStart(4, '0')}
+          </span>
         </div>
       </div>
     </div>
