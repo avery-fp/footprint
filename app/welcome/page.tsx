@@ -23,7 +23,6 @@ export default function WelcomePage() {
     }
     load()
 
-    // Light enters slowly. Ando pacing.
     const t1 = setTimeout(() => setPhase(1), 600)
     const t2 = setTimeout(() => setPhase(2), 2400)
     return () => { clearTimeout(t1); clearTimeout(t2) }
@@ -46,18 +45,20 @@ export default function WelcomePage() {
       if (data.serial) {
         setSerial(String(data.serial).padStart(4, '0'))
         
-        // Send magic link
-        const supabase = createBrowserSupabaseClient()
-        await supabase.auth.signInWithOtp({
-          email,
-          options: {
-            emailRedirectTo: `${window.location.origin}/dashboard`,
-          },
+        // Use the CUSTOM magic link system (not Supabase OTP)
+        // This sends an email that links to /auth/verify which is styled
+        const magicRes = await fetch('/api/auth/magic-link', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, redirect: '/dashboard' }),
         })
         
-        // Show the serial reveal
+        if (!magicRes.ok) {
+          console.error('Magic link send failed, but user was created')
+        }
+        
         setSent(true)
-        setPhase(10) // trigger final phase
+        setPhase(10)
       } else {
         throw new Error(data.error || 'Failed')
       }
@@ -73,7 +74,6 @@ export default function WelcomePage() {
     <div className="min-h-screen relative overflow-hidden flex items-center justify-center">
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');`}</style>
 
-      {/* Same world */}
       {wallpaper ? (
         <>
           <img src={wallpaper} alt="" className="fixed inset-0 w-full h-full object-cover" />
@@ -89,7 +89,6 @@ export default function WelcomePage() {
 
         {!sent ? (
           <>
-            {/* Phase 1: The question. Nothing else. */}
             <div className="mb-12 transition-all duration-[1200ms] ease-out"
               style={{ 
                 opacity: phase >= 1 ? 1 : 0,
@@ -105,7 +104,6 @@ export default function WelcomePage() {
               </p>
             </div>
 
-            {/* Phase 2: The input */}
             <div className="w-full max-w-sm transition-all duration-[1000ms] ease-out"
               style={{ 
                 opacity: phase >= 2 ? 1 : 0,
@@ -126,14 +124,13 @@ export default function WelcomePage() {
                   disabled={sending}
                   className="rounded-full px-7 py-3.5 bg-white text-black hover:bg-white/90 transition-all duration-200 disabled:opacity-30 text-[14px] font-medium shrink-0"
                 >
-                  {sending ? '...' : '→'}
+                  {sending ? '...' : '\u2192'}
                 </button>
               </form>
             </div>
           </>
         ) : (
           <>
-            {/* THE REVEAL: Their serial number, massive */}
             <div className="text-center animate-[fadeUp_1.5s_ease-out_forwards]">
               <p className="text-white/90 leading-none mb-4" style={{ 
                 fontSize: 'clamp(72px, 18vw, 140px)', 
@@ -147,7 +144,6 @@ export default function WelcomePage() {
               </p>
             </div>
 
-            {/* After a beat, the instruction */}
             <div className="mt-16 animate-[fadeUp_1s_ease-out_1.5s_both]">
               <p className="text-white/20" style={{ fontSize: '14px', fontWeight: 400 }}>
                 check your email to enter your room
