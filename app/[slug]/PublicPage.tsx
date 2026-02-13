@@ -166,13 +166,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     return (
       <div key={item.id}
         className={`${colSpan} group tile-enter tile-container`}
-        style={{
-          // tiles render instantly — no animation delay
-          contentVisibility: 'auto',
-          containIntrinsicSize: '250px',
-        }}>
-        <div className="group-hover:scale-[1.02] transition-transform duration-300 will-change-transform rounded-xl overflow-hidden bg-white/[0.02]"
-          style={{ minHeight: '120px' }}>
+        style={{}}>
+        <div className="group-hover:scale-[1.02] transition-transform duration-300 will-change-transform rounded-xl overflow-hidden bg-white/[0.02]">
           {item.type === 'image' ? (
             isVideo ? (
               <div className="rounded-xl overflow-hidden border border-white/[0.06] max-h-[300px]">
@@ -182,11 +177,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               <div className="rounded-xl overflow-hidden border border-white/[0.06]">
                 <Image src={item.url} unoptimized={item.url?.includes("/content/")} alt={item.title || ''} width={600} height={800}
                   sizes={isMobile ? "50vw" : "(max-width: 768px) 50vw, 25vw"}
-                  className="w-full h-auto rounded-xl opacity-0 transition-opacity duration-500" loading={index < 4 ? "eager" : "lazy"}
+                  className="w-full h-auto rounded-xl transition-opacity duration-300" loading={index < 4 ? "eager" : "lazy"}
                   priority={index < 4} quality={75}
-                  unoptimized={item.url?.includes('/content/')}
-                  onLoad={(e) => (e.target as HTMLElement).classList.remove('opacity-0')}
-                  onError={(e) => { (e.target as HTMLElement).parentElement!.style.display = 'none' }} />
+                  onError={(e) => { (e.target as HTMLElement).closest('.tile-container')!.style.display = 'none' }} />
               </div>
             )
           ) : (

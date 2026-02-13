@@ -7,6 +7,8 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
   const [isMuted, setIsMuted] = useState(true)
   const [isInView, setIsInView] = useState(false)
   const [isWide, setIsWide] = useState(false)
+  const [isReady, setIsReady] = useState(false)
+  const [hasFailed, setHasFailed] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const videoId = useRef(`video-${src}-${Math.random()}`).current
@@ -22,6 +24,15 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
     observer.observe(el)
     return () => observer.disconnect()
   }, [])
+
+  // Timeout — if video doesn't load in 4s, hide it
+  useEffect(() => {
+    if (!isInView) return
+    const timer = setTimeout(() => {
+      if (!isReady) setHasFailed(true)
+    }, 4000)
+    return () => clearTimeout(timer)
+  }, [isInView, isReady])
 
   // Register with audio manager
   useEffect(() => {
@@ -49,6 +60,8 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
     }
   }
 
+  if (hasFailed) return null
+
   return (
     <div ref={containerRef} className="relative group">
       {isInView ? (
@@ -56,14 +69,15 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
           <video
             ref={videoRef}
             src={src}
-            className={`w-full ${isWide ? 'aspect-video' : 'aspect-square'} object-cover rounded-xl cursor-pointer`}
+            className={`w-full ${isWide ? 'aspect-video' : 'aspect-square'} object-cover rounded-xl cursor-pointer transition-opacity duration-300 ${isReady ? 'opacity-100' : 'opacity-0'}`}
             autoPlay
             muted
             loop
             playsInline
             preload="none"
             onClick={handleClick}
-            onError={(e) => { (e.target as HTMLElement).parentElement!.style.display = 'none' }}
+            onError={() => setHasFailed(true)}
+            onLoadedData={() => setIsReady(true)}
             onLoadedMetadata={(e) => {
               const v = e.currentTarget
               if (v.videoWidth > v.videoHeight * 1.3) {
@@ -72,13 +86,11 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
               }
             }}
           />
-          {!isMuted && (
+          {!isMuted && isReady && (
             <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60" />
           )}
         </>
-      ) : (
-        <div className="w-full aspect-square rounded-xl bg-white/[0.03]" />
-      )}
+      ) : null}
     </div>
   )
 }
