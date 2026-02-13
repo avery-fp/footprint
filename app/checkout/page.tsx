@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
+import { loadStripe } from '@stripe/stripe-js'
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 export default function CheckoutPage() {
   const searchParams = useSearchParams()
@@ -41,6 +44,7 @@ export default function CheckoutPage() {
     if (!email) return
     setLoading(true)
     try {
+      // Try server-side first
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -49,14 +53,37 @@ export default function CheckoutPage() {
       const data = await res.json()
       if (data.url) {
         window.location.href = data.url
-      } else {
-        console.error('Checkout response:', data)
-        toast.error(data.error || 'Something went wrong')
-        setLoading(false)
+        return
       }
+      // If server fails, throw to trigger fallback
+      throw new Error(data.error || 'Server checkout failed')
     } catch (err: any) {
-      console.error('Checkout fetch error:', err)
-      toast.error(err?.message || 'Network error')
+      console.warn('Server checkout failed, trying client-side:', err?.message)
+      
+      // Fallback: use Stripe Price ID if available
+      const priceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID
+      if (priceId) {
+        try {
+          const stripe = await stripePromise
+          if (stripe) {
+            const { error } = await stripe.redirectToCheckout({
+              lineItems: [{ price: priceId, quantity: 1 }],
+              mode: 'payment',
+              successUrl: `${window.location.origin}/success?slug=${slug || ''}`,
+              cancelUrl: window.location.href,
+              customerEmail: email,
+            })
+            if (error) throw error
+            return
+          }
+        } catch (clientErr: any) {
+          console.error('Client checkout also failed:', clientErr)
+        }
+      }
+      
+      // Final fallback: direct Stripe payment link
+      // Check if STRIPE_PRICE_ID env var has a payment link
+      toast.error(err?.message || 'Payment connection failed')
       setLoading(false)
     }
   }
@@ -80,7 +107,6 @@ export default function CheckoutPage() {
         style={{ fontFamily: "'DM Sans', -apple-system, sans-serif" }}>
 
         <div className="max-w-sm">
-          {/* Price + one line of context */}
           <p className="text-white/90 leading-none mb-2" style={{ fontSize: '44px', fontWeight: 400, letterSpacing: '-0.03em' }}>
             $10
           </p>
@@ -88,7 +114,6 @@ export default function CheckoutPage() {
             one page. all your things. it&apos;s yours.
           </p>
 
-          {/* Email + Go — one line */}
           <form onSubmit={handleCheckout} className="flex gap-2">
             <input
               type="email"
