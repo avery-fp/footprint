@@ -168,11 +168,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           {item.type === 'image' ? (
             isVideo ? (
               <div className="rounded-xl overflow-hidden border border-white/[0.06] max-h-[300px]">
-                <VideoTile src={item.url} onWidescreen={() => markWidescreen(item.id)} />
+                <VideoTile src={item.url} unoptimized={item.url?.includes("/content/")} onWidescreen={() => markWidescreen(item.id)} />
               </div>
             ) : (
               <div className="rounded-xl overflow-hidden border border-white/[0.06]">
-                <Image src={item.url} alt={item.title || ''} width={600} height={800}
+                <Image src={item.url} unoptimized={item.url?.includes("/content/")} alt={item.title || ''} width={600} height={800}
                   sizes={isMobile ? "50vw" : "(max-width: 768px) 50vw, 25vw"}
                   className="w-full h-auto rounded-xl opacity-0 transition-opacity duration-500" loading={index < 4 ? "eager" : "lazy"}
                   priority={index < 4} quality={75}

@@ -119,23 +119,23 @@ function SortableTile({
             <>
               <video
                 ref={videoRef}
-                src={content.url}
+                src={content.url} unoptimized={content.url?.includes("/content/")}
                 className={`absolute inset-0 w-full h-full object-cover cursor-pointer transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
                 muted
                 playsInline
                 preload="metadata"
                 onClick={handleVideoClick}
-                onLoadedData={() => setIsLoaded(true)}
+                onLoadedData={() => setIsLoaded(true)} onError={() => setIsLoaded(true)}
               />
               {!isMuted && (
                 <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60 z-10" />
               )}
             </>
           ) : content.url?.startsWith('data:') ? (
-            <img src={content.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            <img src={content.url} unoptimized={content.url?.includes("/content/")} alt="" className="absolute inset-0 w-full h-full object-cover" />
           ) : (
             <Image
-              src={content.url}
+              src={content.url} unoptimized={content.url?.includes("/content/")}
               alt=""
               width={200}
               height={200}
