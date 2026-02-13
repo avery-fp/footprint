@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
               your permanent space on the internet
             </div>
             <div style={{ fontSize: 20, opacity: 0.3, fontWeight: 400 }}>
-              one page. infinite rooms. $10 forever.
+              one page. all your things. $10.
             </div>
           </div>
         ),
@@ -190,7 +190,7 @@ export async function GET(request: NextRequest) {
               footprint.link/{slug}
             </div>
             <div style={{ fontSize: 16, opacity: 0.3 }}>
-              $10 · Yours forever
+              $10 · yours
             </div>
           </div>
         </div>

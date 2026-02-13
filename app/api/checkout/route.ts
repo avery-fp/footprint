@@ -6,7 +6,7 @@ import { stripe, FOOTPRINT_PRICE, FOOTPRINT_CURRENCY } from '@/lib/stripe'
  *
  * Creates a Stripe Checkout session for purchasing a Footprint.
  *
- * The beautiful simplicity: $10 once, you're in forever.
+ * The beautiful simplicity: $10 once.
  * No subscriptions, no tiers, no upsells.
  */
 export async function POST(request: NextRequest) {
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
               name: 'Footprint',
               description: slug
                 ? `Publish footprint.onl/${slug}`
-                : 'One page. Paste anything. Yours forever.',
+                : 'one page. all your things.',
             },
             unit_amount: FOOTPRINT_PRICE,
           },

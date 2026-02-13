@@ -17,21 +17,11 @@ async function getWallpaper() {
   return data?.background_url || null
 }
 
-async function getNextSerial() {
-  const { data } = await supabase
-    .from('footprints')
-    .select('serial_number')
-    .order('serial_number', { ascending: false })
-    .limit(1)
-    .single()
-  return data ? data.serial_number + 1 : 1002
-}
-
 export default async function Home() {
-  const [wallpaper, nextSerial] = await Promise.all([
-    getWallpaper(),
-    getNextSerial(),
-  ])
+  const wallpaper = await getWallpaper()
+
+  // Payment link — goes directly to Stripe. Apple Pay. Google Pay. Card. Done.
+  const paymentLink = process.env.NEXT_PUBLIC_PAYMENT_LINK || '/checkout'
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -54,7 +44,6 @@ export default async function Home() {
         <div className="fixed inset-0 bg-[#080808]" />
       )}
 
-      {/* Bottom-left. Asymmetric. Grounded. */}
       <div className="relative z-10 min-h-screen flex flex-col justify-end px-7 md:px-14 pb-14 md:pb-20">
         
         <div className="max-w-xl">
@@ -71,7 +60,7 @@ export default async function Home() {
           </h1>
 
           <p 
-            className="text-white/35 mb-12 leading-relaxed"
+            className="text-white/35 mb-10 leading-relaxed"
             style={{ 
               fontFamily: "'DM Sans', sans-serif",
               fontSize: '15px',
@@ -79,12 +68,12 @@ export default async function Home() {
               letterSpacing: '-0.01em',
             }}
           >
-            one page. infinite rooms. $10.
+            one page. all your things. $10.
           </p>
 
           <div className="flex items-center gap-5">
-            <Link
-              href="/checkout"
+            <a
+              href={paymentLink}
               className="rounded-full px-8 py-3 bg-white text-black/90 hover:bg-white/90 transition-all duration-200"
               style={{ 
                 fontFamily: "'DM Sans', sans-serif",
@@ -94,7 +83,7 @@ export default async function Home() {
               }}
             >
               Get yours — $10
-            </Link>
+            </a>
 
             <Link
               href="/ae"
@@ -108,20 +97,6 @@ export default async function Home() {
               See a footprint
             </Link>
           </div>
-        </div>
-
-        {/* Serial — top right counterweight */}
-        <div className="fixed top-7 right-7 md:top-10 md:right-14">
-          <span 
-            className="text-white/12"
-            style={{ 
-              fontFamily: "'DM Sans', sans-serif",
-              fontSize: '12px',
-              fontWeight: 400,
-            }}
-          >
-            #{String(nextSerial).padStart(4, '0')}
-          </span>
         </div>
       </div>
     </div>

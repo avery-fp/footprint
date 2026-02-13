@@ -149,7 +149,7 @@ export default function DashboardPage() {
             #{user?.serial_number?.toLocaleString() || '----'}
           </h1>
           <p className="text-white/50">
-            This number is yours forever. It can never be purchased again.
+            This number is yours. It can never be purchased again.
           </p>
         </div>
 
