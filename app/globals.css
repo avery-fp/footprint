@@ -129,9 +129,15 @@ body::before {
   animation: materialize 800ms ease-out forwards;
 }
 
-/* Tiles appear instantly — no animation, no delay */
+/* Tiles materialize — fast uniform dissolve */
+@keyframes tile-materialize {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .tile-enter {
-  opacity: 1;
+  opacity: 0;
+  animation: tile-materialize 300ms ease-out forwards;
 }
 
 .vapor-box {
