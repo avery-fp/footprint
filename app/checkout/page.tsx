@@ -11,7 +11,7 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     // If payment link is configured, redirect immediately
-    const paymentLink = process.env.NEXT_PUBLIC_PAYMENT_LINK
+    const paymentLink = 'https://buy.stripe.com/9B6cN40Ef0sG2z98b214400'
     if (paymentLink) {
       window.location.href = paymentLink
       return
