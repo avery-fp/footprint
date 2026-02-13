@@ -50,6 +50,14 @@ const DEFAULT_OVERLAY = 'rgba(0,0,0,0.35)'
 
 export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
+  
+  // Default to first room on mount
+  useEffect(() => {
+    if (activeRoomId === null && rooms.length > 0) {
+      const visible = rooms.filter(r => r.name && r.name.trim().length > 0)
+      if (visible.length > 0) setActiveRoomId(visible[0].id)
+    }
+  }, [rooms])
   const [wallpaperLoaded, setWallpaperLoaded] = useState(false)
   const [showToast, setShowToast] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
@@ -264,16 +272,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         {/* Room Tabs â only show when multiple rooms exist */}
         {visibleRooms.length > 1 && (
           <div className="flex items-center justify-center gap-2 mb-6 flex-wrap relative z-20 max-w-7xl mx-auto px-3 md:px-5">
-            <button
-              onClick={() => goToRoom(null)}
-              className={`px-4 py-1.5 rounded-full text-sm transition-all backdrop-blur-sm border-0 ${
-                activeRoomId === null
-                  ? 'bg-white/[0.12] text-white/90'
-                  : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70'
-              }`}
-            >
-              all
-            </button>
             {visibleRooms.map((room) => (
               <button
                 key={room.id}
@@ -305,12 +303,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 minHeight: '100vh',
               }}
             >
-              {/* "All" panel */}
-              <div className="w-full min-w-full flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
-                <div className="grid grid-cols-2 gap-2">
-                  {validContent.map((item, idx) => renderTile(item, idx))}
-                </div>
-              </div>
               {/* Room panels */}
               {visibleRooms.map((room) => (
                 <div key={room.id} className="w-full min-w-full flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
@@ -338,8 +330,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         {isMobile && visibleRooms.length > 1 && (
           <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5
             bg-black/20 backdrop-blur-xl rounded-full px-3 py-1.5 border border-white/[0.04]">
-            {[null, ...visibleRooms.map(r => r.id)].map((id, i) => {
-              const isActive = id === activeRoomId || (id === null && activeRoomId === null)
+            {visibleRooms.map((r, i) => {
+              const isActive = r.id === activeRoomId
               return (
                 <div key={i} className="transition-all duration-300"
                   style={{
