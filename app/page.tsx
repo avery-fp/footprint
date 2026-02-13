@@ -79,7 +79,7 @@ export default async function Home() {
               letterSpacing: '-0.01em',
             }}
           >
-            one page. infinite rooms. yours forever.
+            one page. infinite rooms. $10.
           </p>
 
           <div className="flex items-center gap-5">
