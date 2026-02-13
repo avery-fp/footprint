@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import ContentCard from '@/components/ContentCard'
 import VideoTile from '@/components/VideoTile'
 import WeatherEffect from '@/components/WeatherEffect'
@@ -253,12 +254,12 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               </p>
             )}
             {/* CTA */}
-            <a
+            <Link
               href={`/checkout?slug=${pageUrl.split('/').pop()}`}
               className="mt-5 inline-flex items-center gap-2 rounded-full px-5 py-2 text-[10px] tracking-[0.2em] uppercase text-white/50 hover:text-white/80 bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] hover:border-white/[0.15] transition-all duration-500"
             >
               Own Your Footprint
-            </a>
+            </Link>
         </header>
 
         {/* Room Tabs â only show when multiple rooms exist */}

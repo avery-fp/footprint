@@ -28,8 +28,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className="font-sans">
+    <html lang="en" style={{ backgroundColor: '#080808' }}>
+      <body className="font-sans" style={{ backgroundColor: '#080808' }}>
         {children}
         <Toaster 
           position="bottom-center"
