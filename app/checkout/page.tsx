@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
-import Link from 'next/link'
 import { toast } from 'sonner'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
 
@@ -48,10 +47,16 @@ export default function CheckoutPage() {
         body: JSON.stringify({ email, slug }),
       })
       const data = await res.json()
-      if (data.url) window.location.href = data.url
-      else throw new Error(data.error)
-    } catch {
-      toast.error('Something went wrong')
+      if (data.url) {
+        window.location.href = data.url
+      } else {
+        console.error('Checkout response:', data)
+        toast.error('Could not connect to payment. Try again.')
+        setLoading(false)
+      }
+    } catch (err) {
+      console.error('Checkout fetch error:', err)
+      toast.error('Could not connect to payment. Try again.')
       setLoading(false)
     }
   }
@@ -60,7 +65,6 @@ export default function CheckoutPage() {
     <div className="min-h-screen relative overflow-hidden flex items-end">
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');`}</style>
 
-      {/* The world continues */}
       {wallpaper ? (
         <>
           <img src={wallpaper} alt="" className="fixed inset-0 w-full h-full object-cover" />
@@ -72,15 +76,19 @@ export default function CheckoutPage() {
         <div className="fixed inset-0 bg-[#0a0a0a]" />
       )}
 
-      {/* That's it. Three things. Price. Email. Button. */}
       <div className={`relative z-10 w-full px-7 pb-14 transition-all duration-700 ${mounted ? 'opacity-100' : 'opacity-0'}`}
         style={{ fontFamily: "'DM Sans', -apple-system, sans-serif" }}>
 
         <div className="max-w-sm">
-          <p className="text-white/90 mb-6 leading-none" style={{ fontSize: '44px', fontWeight: 400, letterSpacing: '-0.03em' }}>
+          {/* Price + one line of context */}
+          <p className="text-white/90 leading-none mb-2" style={{ fontSize: '44px', fontWeight: 400, letterSpacing: '-0.03em' }}>
             $10
           </p>
+          <p className="text-white/30 mb-8" style={{ fontSize: '14px', fontWeight: 400 }}>
+            one page. all your things. it&apos;s yours.
+          </p>
 
+          {/* Email + Go — one line */}
           <form onSubmit={handleCheckout} className="flex gap-2">
             <input
               type="email"
@@ -93,7 +101,7 @@ export default function CheckoutPage() {
             <button
               type="submit"
               disabled={loading}
-              className="rounded-full px-6 py-3.5 bg-white text-black/90 hover:bg-white/90 transition-all duration-200 disabled:opacity-30 text-[14px] font-medium whitespace-nowrap"
+              className="rounded-full px-7 py-3.5 bg-white text-black hover:bg-white/90 transition-all duration-200 disabled:opacity-30 text-[14px] font-medium shrink-0"
             >
               {loading ? '...' : 'Go'}
             </button>
