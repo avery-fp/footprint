@@ -66,35 +66,37 @@ export default async function Home() {
 
       {/* Content — centered, minimal */}
       <div className="relative z-10 flex flex-col items-center gap-6 px-6 text-center">
-        {/* Footprint — the product name, not the personal mark */}
-        <h1 className="font-mono text-[13px] md:text-[15px] tracking-[0.5em] text-white/90 uppercase mb-2">
-          Footprint
+        {/* Footprint — lowercase, weighted, breathing */}
+        <h1 className="text-[42px] md:text-[56px] font-extralight text-white/90 tracking-[0.08em] lowercase" style={{ fontFamily: "'Helvetica Neue', 'Helvetica', 'Arial', sans-serif", letterSpacing: '0.06em' }}>
+          footprint
         </h1>
 
         {/* One line — the entire pitch */}
-        <p className="font-mono text-[10px] md:text-[11px] tracking-[0.3em] text-white/40 uppercase">
-          Your permanent space on the internet
+        <p className="text-[11px] md:text-[12px] tracking-[0.18em] text-white/35 lowercase" style={{ fontFamily: "'Helvetica Neue', 'Helvetica', sans-serif", fontWeight: 300 }}>
+          your permanent space on the internet
         </p>
 
         {/* Serial number whisper */}
-        <div className="mt-8 mb-2">
-          <span className="font-mono text-[9px] tracking-[0.25em] text-white/20 uppercase">
+        <div className="mt-10 mb-2">
+          <span className="text-[10px] tracking-[0.15em] text-white/20 lowercase" style={{ fontFamily: "'Helvetica Neue', 'Helvetica', sans-serif", fontWeight: 300 }}>
             #{String(nextSerial).padStart(4, '0')} available
           </span>
         </div>
 
         {/* CTA */}
-        <div className="flex flex-col items-center gap-4">
+        <div className="flex flex-col items-center gap-5">
           <Link
             href="/checkout"
-            className="group relative rounded-2xl px-10 py-4 font-mono text-[10px] tracking-[0.25em] uppercase text-white/70 hover:text-white transition-all duration-500 border border-white/[0.1] hover:border-white/[0.2] hover:bg-white/[0.05]"
+            className="group relative rounded-full px-10 py-4 text-[11px] tracking-[0.15em] lowercase text-white/70 hover:text-white transition-all duration-500 border border-white/[0.12] hover:border-white/[0.25] hover:bg-white/[0.06]"
+            style={{ fontFamily: "'Helvetica Neue', 'Helvetica', sans-serif", fontWeight: 300 }}
           >
-            $10 · Claim yours forever
+            $10 · claim yours forever
           </Link>
 
           <Link
             href="/ae"
-            className="font-mono text-[9px] tracking-[0.2em] text-white/15 hover:text-white/40 transition-all duration-700 uppercase"
+            className="text-[10px] tracking-[0.12em] text-white/15 hover:text-white/40 transition-all duration-700 lowercase"
+            style={{ fontFamily: "'Helvetica Neue', 'Helvetica', sans-serif", fontWeight: 300 }}
           >
             see what a footprint looks like →
           </Link>
@@ -103,8 +105,8 @@ export default async function Home() {
 
       {/* Bottom whisper */}
       <div className="fixed bottom-6 left-0 right-0 text-center z-10">
-        <p className="font-mono text-[8px] tracking-[0.2em] text-white/8 uppercase">
-          Not a subscription. Not a template. Yours.
+        <p className="text-[9px] tracking-[0.12em] text-white/8 lowercase" style={{ fontFamily: "'Helvetica Neue', 'Helvetica', sans-serif", fontWeight: 300 }}>
+          not a subscription. not a template. yours.
         </p>
       </div>
     </div>
