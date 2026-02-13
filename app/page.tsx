@@ -35,7 +35,7 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
-      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
 
       {wallpaper && (
         <>
@@ -44,89 +44,81 @@ export default async function Home() {
             alt=""
             className="fixed inset-0 w-full h-full object-cover"
           />
-          <div className="fixed inset-0" style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.55) 50%, rgba(0,0,0,0.9) 100%)' }} />
+          <div className="fixed inset-0" style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.4) 35%, rgba(0,0,0,0.88) 100%)' }} />
         </>
       )}
 
       {!wallpaper && (
-        <div className="fixed inset-0 bg-[#0a0a0a]" />
+        <div className="fixed inset-0 bg-[#080808]" />
       )}
 
-      {/* Bottom-left anchored. Not centered. Asymmetry = confidence. */}
-      <div className="relative z-10 min-h-screen flex flex-col justify-end px-8 md:px-16 pb-12 md:pb-16">
+      {/* Serial — top right whisper */}
+      <div className="fixed top-6 right-6 md:top-8 md:right-12 z-10">
+        <span 
+          className="text-white/10"
+          style={{ fontFamily: "'Inter', sans-serif", fontSize: '11px', fontWeight: 400 }}
+        >
+          #{String(nextSerial).padStart(4, '0')}
+        </span>
+      </div>
+
+      {/* Bottom-left. Asymmetric. Grounded. */}
+      <div className="relative z-10 min-h-screen flex flex-col justify-end px-6 md:px-14 pb-10 md:pb-14">
         
-        <div className="max-w-2xl">
-          {/* The word. Medium weight. Tight. Present. */}
+        <div className="max-w-xl">
           <h1
-            className="text-white mb-3 leading-[0.9]"
+            className="text-white leading-[0.92] mb-4"
             style={{ 
-              fontFamily: "'Inter', -apple-system, sans-serif",
-              fontSize: 'clamp(56px, 10vw, 120px)',
+              fontFamily: "'Inter', sans-serif",
+              fontSize: 'clamp(52px, 9vw, 108px)',
               fontWeight: 500,
-              letterSpacing: '-0.04em',
+              letterSpacing: '-0.045em',
             }}
           >
             footprint
           </h1>
 
-          {/* Subtitle — same font, just lighter. Clean hierarchy. */}
           <p 
-            className="text-white/40 mb-10 max-w-sm"
+            className="text-white/35 mb-10 max-w-xs"
             style={{ 
-              fontFamily: "'Inter', -apple-system, sans-serif",
-              fontSize: '15px',
+              fontFamily: "'Inter', sans-serif",
+              fontSize: '14px',
               fontWeight: 300,
-              lineHeight: 1.5,
-              letterSpacing: '-0.01em',
+              lineHeight: 1.6,
+              letterSpacing: '-0.005em',
             }}
           >
-            your permanent space on the internet.
+            one page. every side of you.
             <br />
-            one page. infinite rooms. $10 forever.
+            $10. yours forever.
           </p>
 
-          {/* CTA row — horizontal, not stacked */}
-          <div className="flex items-center gap-6 flex-wrap">
+          <div className="flex items-center gap-5">
             <Link
               href="/checkout"
-              className="rounded-full px-8 py-3 bg-white text-black hover:bg-white/90 transition-all duration-200"
+              className="rounded-full px-7 py-3 bg-white text-black transition-all duration-200 hover:opacity-90"
               style={{ 
-                fontFamily: "'Inter', -apple-system, sans-serif",
+                fontFamily: "'Inter', sans-serif",
                 fontSize: '13px',
                 fontWeight: 500,
                 letterSpacing: '-0.01em',
               }}
             >
-              Get started
+              Get yours
             </Link>
 
             <Link
               href="/ae"
-              className="text-white/30 hover:text-white/60 transition-all duration-300"
+              className="text-white/25 hover:text-white/50 transition-colors duration-300"
               style={{ 
-                fontFamily: "'Inter', -apple-system, sans-serif",
+                fontFamily: "'Inter', sans-serif",
                 fontSize: '13px',
                 fontWeight: 400,
               }}
             >
-              See an example →
+              See one →
             </Link>
           </div>
-        </div>
-
-        {/* Serial — top right. Counterbalance. */}
-        <div className="fixed top-8 right-8 md:right-16">
-          <span 
-            className="text-white/15"
-            style={{ 
-              fontFamily: "'Inter', -apple-system, sans-serif",
-              fontSize: '11px',
-              fontWeight: 400,
-              letterSpacing: '0.02em',
-            }}
-          >
-            #{String(nextSerial).padStart(4, '0')}
-          </span>
         </div>
       </div>
     </div>
