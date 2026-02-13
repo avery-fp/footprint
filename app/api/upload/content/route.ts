@@ -61,9 +61,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Upload failed' }, { status: 500 })
     }
 
-    // Get public URL
+        // Get public URL (sanitize — Supabase sometimes injects newlines)
     const { data: urlData } = supabase.storage.from('content').getPublicUrl(filename)
-    const publicUrl = urlData.publicUrl
+        const publicUrl = urlData.publicUrl.replace(/[\n\r]/g, '')
 
     // Get next position
     const { data: maxPos } = await supabase
