@@ -66,12 +66,9 @@ export default async function Home() {
 
       {/* Content — centered, minimal */}
       <div className="relative z-10 flex flex-col items-center gap-6 px-6 text-center">
-        {/* æ mark — large, confident */}
-        <h1
-          className="text-7xl md:text-8xl font-light text-white/90 mb-2"
-          style={{ fontFamily: 'serif' }}
-        >
-          æ
+        {/* Footprint — the product name, not the personal mark */}
+        <h1 className="font-mono text-[13px] md:text-[15px] tracking-[0.5em] text-white/90 uppercase mb-2">
+          Footprint
         </h1>
 
         {/* One line — the entire pitch */}
