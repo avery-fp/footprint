@@ -34,9 +34,7 @@ export default async function Home() {
   ])
 
   return (
-    <div className="min-h-screen relative overflow-hidden flex flex-col items-center justify-center">
-      {/* Import a typeface with soul */}
-      <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&display=swap" rel="stylesheet" />
+    <div className="min-h-screen relative overflow-hidden flex flex-col items-center justify-end pb-[12vh]">
 
       {wallpaper && (
         <>
@@ -45,89 +43,67 @@ export default async function Home() {
             alt=""
             className="fixed inset-0 w-full h-full object-cover"
           />
-          <div className="fixed inset-0 bg-black/55" />
-          <div className="fixed inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/40" />
+          <div className="fixed inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 40%, rgba(0,0,0,0.15) 100%)' }} />
         </>
       )}
 
       {!wallpaper && (
-        <>
-          <div className="fixed inset-0 bg-[#050507]" />
-          <div
-            className="fixed inset-0 opacity-20"
-            style={{
-              background: 'radial-gradient(ellipse at 50% 30%, rgba(100,80,160,0.2) 0%, transparent 60%)',
-            }}
-          />
-        </>
+        <div className="fixed inset-0 bg-[#0a0a0a]" />
       )}
 
       <div className="relative z-10 flex flex-col items-center px-6 text-center">
         
-        {/* THE word. Serif. Light. Large. One typeface choice that carries everything. */}
+        {/* The word. System font. No import. The weight is the design. */}
         <h1
-          className="text-[64px] md:text-[88px] lg:text-[104px] leading-none text-white/95 mb-6"
+          className="text-white/90 mb-5 leading-none"
           style={{ 
-            fontFamily: "'Cormorant Garamond', 'Georgia', serif",
-            fontWeight: 300,
-            letterSpacing: '0.02em',
+            fontFamily: "-apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif",
+            fontSize: 'clamp(48px, 8vw, 80px)',
+            fontWeight: 200,
+            letterSpacing: '-0.02em',
           }}
         >
           footprint
         </h1>
 
-        {/* Subtitle — sans, tiny, maximum contrast with the serif above */}
         <p 
-          className="text-[11px] tracking-[0.2em] text-white/30 mb-16"
-          style={{ fontFamily: "'Helvetica Neue', 'Helvetica', sans-serif", fontWeight: 300 }}
+          className="text-white/30 mb-20"
+          style={{ 
+            fontFamily: "-apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif",
+            fontSize: '13px',
+            fontWeight: 400,
+            letterSpacing: '0.01em',
+          }}
         >
           your permanent space on the internet
         </p>
 
-        {/* CTA cluster — tight, intentional */}
-        <div className="flex flex-col items-center gap-3">
-          {/* Serial — integrated into the CTA, not floating */}
-          <span 
-            className="text-[9px] tracking-[0.15em] text-white/15"
-            style={{ fontFamily: "'Helvetica Neue', sans-serif", fontWeight: 300 }}
-          >
-            #{String(nextSerial).padStart(4, '0')} available
-          </span>
-          
+        <div className="flex flex-col items-center gap-6">
           <Link
             href="/checkout"
-            className="group rounded-full px-12 py-4 text-[11px] tracking-[0.12em] text-white/60 hover:text-white/90 transition-all duration-700 backdrop-blur-sm"
+            className="rounded-full px-10 py-3.5 text-white/90 hover:bg-white hover:text-black transition-all duration-300"
             style={{ 
-              fontFamily: "'Helvetica Neue', sans-serif", 
-              fontWeight: 300,
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.08)',
+              fontFamily: "-apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif",
+              fontSize: '14px',
+              fontWeight: 400,
+              background: 'rgba(255,255,255,0.12)',
             }}
           >
-            <span className="group-hover:tracking-[0.16em] transition-all duration-700">
-              $10 · yours forever
-            </span>
+            Get started — $10
+          </Link>
+
+          <Link
+            href="/ae"
+            className="text-white/25 hover:text-white/50 transition-all duration-500"
+            style={{ 
+              fontFamily: "-apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif",
+              fontSize: '12px',
+              fontWeight: 400,
+            }}
+          >
+            See an example
           </Link>
         </div>
-
-        {/* Example link — barely there */}
-        <Link
-          href="/ae"
-          className="mt-12 text-[9px] tracking-[0.1em] text-white/10 hover:text-white/30 transition-all duration-1000"
-          style={{ fontFamily: "'Helvetica Neue', sans-serif", fontWeight: 300 }}
-        >
-          see an example →
-        </Link>
-      </div>
-
-      {/* Bottom — almost invisible */}
-      <div className="fixed bottom-8 left-0 right-0 text-center z-10">
-        <p 
-          className="text-[8px] tracking-[0.1em] text-white/6"
-          style={{ fontFamily: "'Helvetica Neue', sans-serif", fontWeight: 300 }}
-        >
-          not a subscription. not a template. yours.
-        </p>
       </div>
     </div>
   )
