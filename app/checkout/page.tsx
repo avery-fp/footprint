@@ -51,12 +51,12 @@ export default function CheckoutPage() {
         window.location.href = data.url
       } else {
         console.error('Checkout response:', data)
-        toast.error('Could not connect to payment. Try again.')
+        toast.error(data.error || 'Something went wrong')
         setLoading(false)
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Checkout fetch error:', err)
-      toast.error('Could not connect to payment. Try again.')
+      toast.error(err?.message || 'Network error')
       setLoading(false)
     }
   }
