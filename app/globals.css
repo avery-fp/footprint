@@ -130,14 +130,8 @@ body::before {
 }
 
 /* Tiles materialize — fast uniform dissolve */
-@keyframes tile-materialize {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
 .tile-enter {
-  opacity: 0;
-  animation: tile-materialize 300ms ease-out forwards;
+  opacity: 1;
 }
 
 .vapor-box {
