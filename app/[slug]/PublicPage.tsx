@@ -159,7 +159,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       <div key={item.id}
         className={`${colSpan} group tile-enter tile-container`}
         style={{
-          animationDelay: `${index * 60}ms`,
+          // tiles render instantly — no animation delay
           contentVisibility: 'auto',
           containIntrinsicSize: '250px',
         }}>
