@@ -76,7 +76,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
   // Filter out ghost tiles (empty URLs with no title/content)
   const isValidTile = (item: any) =>
-    (item.type === 'thought' && item.title) || (item.type === 'image' && item.url && item.url !== '')
+    (item.type === 'thought' && item.title) ||
+    (item.type === 'image' && item.url && item.url !== '') ||
+    (['youtube', 'spotify', 'soundcloud', 'applemusic', 'vimeo', 'twitter', 'instagram', 'tiktok', 'video', 'link'].includes(item.type) && item.url)
 
   const validContent = allContent.filter(isValidTile)
 
@@ -253,6 +255,16 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 {footprint.bio}
               </p>
             )}
+            <p
+              className="mt-2 text-white/20 text-[10px] tracking-[0.25em] lowercase"
+              style={{
+                fontFamily: '"Helvetica Neue", system-ui, sans-serif',
+                fontWeight: 300,
+                textShadow: '0 2px 16px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.5)',
+              }}
+            >
+              personal internet
+            </p>
             {/* CTA */}
             <a
               href={'https://buy.stripe.com/9B6cN40Ef0sG2z98b214400'}

@@ -548,6 +548,27 @@ export default function EditPage() {
     }
   }
 
+  async function handleDeleteRoom(roomId: string) {
+    if (!confirm('Delete this room? Tiles will be unassigned, not deleted.')) return
+    try {
+      const res = await fetch(`/api/rooms?id=${roomId}`, { method: 'DELETE' })
+      if (!res.ok) {
+        alert('Failed to delete room')
+        return
+      }
+      setRooms(prev => prev.filter(r => r.id !== roomId))
+      if (draft) {
+        setDraft(prev => prev ? {
+          ...prev,
+          content: prev.content.map(c => c.room_id === roomId ? { ...c, room_id: null } : c),
+        } : null)
+      }
+      if (activeRoomId === roomId) setActiveRoomId(null)
+    } catch (e) {
+      console.error('Failed to delete room:', e)
+    }
+  }
+
   // ── File upload ──
 
   const VIDEO_MIME = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v']
@@ -879,17 +900,24 @@ export default function EditPage() {
             all
           </button>
           {rooms.map((room) => (
-            <button
-              key={room.id}
-              onClick={() => setActiveRoomId(room.id)}
-              className={`text-xs px-3 py-1 rounded-full transition-all whitespace-nowrap backdrop-blur-sm border-0 ${
-                activeRoomId === room.id
-                  ? 'bg-white/[0.12] text-white/90'
-                  : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70'
-              }`}
-            >
-              {room.name}
-            </button>
+            <div key={room.id} className="relative group/room flex items-center">
+              <button
+                onClick={() => setActiveRoomId(room.id)}
+                className={`text-xs px-3 py-1 rounded-full transition-all whitespace-nowrap backdrop-blur-sm border-0 ${
+                  activeRoomId === room.id
+                    ? 'bg-white/[0.12] text-white/90'
+                    : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70'
+                }`}
+              >
+                {room.name}
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleDeleteRoom(room.id) }}
+                className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500/80 text-white text-[8px] leading-none flex items-center justify-center opacity-0 group-hover/room:opacity-100 transition-opacity"
+              >
+                ×
+              </button>
+            </div>
           ))}
           <button
             onClick={handleCreateRoom}
