@@ -87,6 +87,7 @@ export default async function FootprintPage({ params }: Props) {
     .from('rooms')
     .select('*')
     .eq('serial_number', footprint.serial_number)
+    .neq('hidden', true)
     .order('position')
 
   // Group content by rooms
