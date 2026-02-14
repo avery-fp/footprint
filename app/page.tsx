@@ -68,7 +68,7 @@ export default async function Home() {
               letterSpacing: '-0.01em',
             }}
           >
-            one page. all your things. $10.
+            a room for your internet. $10.
           </p>
 
           <div className="flex items-center gap-5">
@@ -82,7 +82,7 @@ export default async function Home() {
                 letterSpacing: '-0.01em',
               }}
             >
-              Get yours — $10
+              Claim yours — $10
             </a>
 
             <Link
