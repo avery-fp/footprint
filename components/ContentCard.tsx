@@ -64,7 +64,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
 
   // Register audio-producing types with AudioManager
   useEffect(() => {
-    const isAudioType = ['youtube', 'soundcloud', 'spotify'].includes(content.type)
+    const isAudioType = ['youtube', 'soundcloud', 'spotify', 'applemusic'].includes(content.type)
     if (!isAudioType) return
     audioManager.register(audioIdRef.current, () => {
       setIsActivated(false)
@@ -75,7 +75,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
   // All tiles are aspect-square in the grid — no auto widescreen
 
   const handleActivate = () => {
-    if (['youtube', 'soundcloud', 'spotify'].includes(content.type)) {
+    if (['youtube', 'soundcloud', 'spotify', 'applemusic'].includes(content.type)) {
       audioManager.play(audioIdRef.current)
     }
     setIsActivated(true)
@@ -178,7 +178,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
       )
     }
 
-    // Activated — Spotify embed iframe (dark theme, compact at bottom over album art)
+    // Activated — album art bg (dimmed) with Spotify embed pinned to bottom
     if (spotifyInfo) {
       const compactHeight = spotifyInfo.type === 'track' ? 80 : 152
       return (
@@ -189,9 +189,10 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
               alt=""
               width={400}
               height={400}
-              className="w-full h-full object-cover opacity-40"
+              className="absolute inset-0 w-full h-full object-cover opacity-60"
             />
           )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
           <div className="absolute bottom-0 left-0 right-0" style={{ height: compactHeight }}>
             <iframe
               style={{ borderRadius: 0, border: 'none' }}
@@ -262,7 +263,37 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
   // APPLE MUSIC — embed with materialization
   // ════════════════════════════════════════
   if (content.type === 'applemusic' && content.embed_html) {
-    // Force dark theme by injecting &theme=dark into Apple Music embed URLs
+    // Facade: album art + play button, click activates embed
+    if (!isActivated && content.thumbnail_url) {
+      return (
+        <div
+          ref={containerRef}
+          className="w-full aspect-square rounded-xl overflow-hidden cursor-pointer relative group bg-black"
+          onClick={handleActivate}
+        >
+          <Image
+            src={isInView ? content.thumbnail_url : ''}
+            alt=""
+            width={400}
+            height={400}
+            sizes="(max-width: 768px) 50vw, 25vw"
+            className={`w-full h-full object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+            loading="lazy"
+            quality={75}
+            onLoad={() => setIsLoaded(true)}
+          />
+          {/* Play button */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-full bg-[#fc3c44] flex items-center justify-center group-hover:scale-110 transition-transform">
+              <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+      )
+    }
+    // Activated: dark themed embed, overflow hidden, no scroll
     const darkEmbed = content.embed_html.replace(
       /src="(https:\/\/embed\.music\.apple\.com\/[^"]*?)"/g,
       (match: string, url: string) => `src="${url}${url.includes('?') ? '&' : '?'}theme=dark"`
@@ -270,7 +301,8 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
     return (
       <div className="w-full aspect-square rounded-xl overflow-hidden relative materialize bg-black">
         <div
-          className="absolute inset-0 [&_iframe]:!w-full [&_iframe]:!h-full [&_iframe]:!min-h-0 [&_iframe]:!border-0 [&_iframe]:!bg-black"
+          className="absolute inset-0 overflow-hidden [&_iframe]:!w-full [&_iframe]:!h-full [&_iframe]:!min-h-0 [&_iframe]:!border-0 [&_iframe]:!bg-black [&_iframe]:!overflow-hidden"
+          style={{ overflow: 'hidden' }}
           dangerouslySetInnerHTML={{ __html: darkEmbed }}
         />
       </div>
