@@ -986,25 +986,11 @@ export default function EditPage() {
             href={`/${slug}`}
             className="text-sm font-medium text-white/90 hover:text-white transition px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
           >
-            clear bg
-          </button>
-        )}
-      </div>
-
-      {/* Right: Done */}
-      <div className="fixed top-6 right-6 z-50">
-        <Link
-          href={`/${slug}`}
-          className="text-sm font-medium text-white/90 hover:text-white transition px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
-        >
-          Done
-        </Link>
-      </div>
-
-      {/* ═══ DENSE MASONRY GRID ═══ */}
-      <div className="max-w-7xl mx-auto px-2 pt-14 relative z-10">
-        {/* Inline Room Tabs */}
-        <div className="flex items-center gap-2 mb-3 px-1 overflow-x-auto hide-scrollbar">
+            Done
+          </Link>
+        </div>
+        {/* Row 2: room pills (scrollable) */}
+        <div className="flex items-center gap-2 px-4 pb-2 overflow-x-auto hide-scrollbar">
           <button
             onClick={() => setActiveRoomId(null)}
             className={`text-xs px-3 py-1 rounded-full transition-all whitespace-nowrap backdrop-blur-sm border-0 ${
