@@ -242,18 +242,22 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             >
               #{serial}
             </span>
-            {footprint.bio && footprint.bio !== 'personal internet' && (
-              <p
-                className="mt-3 text-white/30 text-xs tracking-[0.15em] lowercase max-w-md text-center"
-                style={{
-                  fontFamily: '"Helvetica Neue", system-ui, sans-serif',
-                  fontWeight: 300,
-                  textShadow: '0 2px 16px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.5)',
-                }}
-              >
-                {footprint.bio}
-              </p>
-            )}
+            {(() => {
+              const bio = (footprint.bio || '').trim().toLowerCase()
+              const hide = !bio || bio === 'personal internet' || bio === 'footprint'
+              return hide ? null : (
+                <p
+                  className="mt-3 text-white/30 text-xs tracking-[0.15em] lowercase max-w-md text-center"
+                  style={{
+                    fontFamily: '"Helvetica Neue", system-ui, sans-serif',
+                    fontWeight: 300,
+                    textShadow: '0 2px 16px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.5)',
+                  }}
+                >
+                  {footprint.bio}
+                </p>
+              )
+            })()}
             <p
               className="mt-2 text-white/20 text-[10px] tracking-[0.25em] lowercase"
               style={{
