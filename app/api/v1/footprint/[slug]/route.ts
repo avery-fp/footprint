@@ -85,7 +85,7 @@ export async function GET(
       .limit(limit)
 
     // Build the response
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://footprint.link'
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://footprint.onl'
     
     const response = {
       // API metadata

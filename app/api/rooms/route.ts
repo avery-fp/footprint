@@ -34,6 +34,69 @@ export async function GET(request: NextRequest) {
 }
 
 /**
+ * PATCH /api/rooms
+ * 
+ * Toggle room hidden state.
+ * Body: { id, hidden }
+ */
+export async function PATCH(request: NextRequest) {
+  try {
+    const { id, hidden } = await request.json()
+
+    if (!id || typeof hidden !== 'boolean') {
+      return NextResponse.json({ error: 'id and hidden (boolean) required' }, { status: 400 })
+    }
+
+    const supabase = createServerSupabaseClient()
+
+    const { error } = await supabase
+      .from('rooms')
+      .update({ hidden })
+      .eq('id', id)
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to update room' }, { status: 500 })
+  }
+}
+
+/**
+ * DELETE /api/rooms?id=xxx
+ * 
+ * Permanently delete a room and its content.
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+
+    if (!id) {
+      return NextResponse.json({ error: 'id required' }, { status: 400 })
+    }
+
+    const supabase = createServerSupabaseClient()
+
+    // Unassign tiles from this room (move to unassigned, don't delete them)
+    await supabase.from('library').update({ room_id: null }).eq('room_id', id)
+    await supabase.from('links').update({ room_id: null }).eq('room_id', id)
+    // Delete room
+    const { error } = await supabase.from('rooms').delete().eq('id', id)
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to delete room' }, { status: 500 })
+  }
+}
+
+/**
  * POST /api/rooms
  *
  * Create a new room.

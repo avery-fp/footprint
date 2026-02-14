@@ -30,11 +30,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return {
     title,
-    description: footprint.bio || 'A digital footprint',
+    description: footprint.bio || 'a room for your internet. $10.',
     openGraph: {
       title,
-      description: footprint.bio || 'A digital footprint',
-      images: [`/api/og?slug=${params.slug}`],
+      description: footprint.bio || 'a room for your internet. $10.',
+      images: [`https://footprint.onl/api/og?slug=${params.slug}`],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description: footprint.bio || 'a room for your internet. $10.',
+      images: [`https://footprint.onl/api/og?slug=${params.slug}`],
     },
   }
 }
@@ -88,6 +94,7 @@ export default async function FootprintPage({ params }: Props) {
     .from('rooms')
     .select('*')
     .eq('serial_number', footprint.serial_number)
+    .neq('hidden', true)
     .order('position')
 
   // Group content by rooms

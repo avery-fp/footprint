@@ -6,7 +6,7 @@ import { stripe, FOOTPRINT_PRICE, FOOTPRINT_CURRENCY } from '@/lib/stripe'
  *
  * Creates a Stripe Checkout session for purchasing a Footprint.
  *
- * The beautiful simplicity: $10 once, you're in forever.
+ * The beautiful simplicity: $10 once.
  * No subscriptions, no tiers, no upsells.
  */
 export async function POST(request: NextRequest) {
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://footprint.onl'
 
     // Build success URL with slug if provided
     const successUrl = slug
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
               name: 'Footprint',
               description: slug
                 ? `Publish footprint.onl/${slug}`
-                : 'One page. Paste anything. Yours forever.',
+                : 'one page. all your things.',
             },
             unit_amount: FOOTPRINT_PRICE,
           },
@@ -62,11 +62,11 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json({ url: session.url })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Checkout error:', error)
 
     return NextResponse.json(
-      { error: 'Failed to create checkout session' },
+      { error: error?.message || 'Failed to create checkout session' },
       { status: 500 }
     )
   }

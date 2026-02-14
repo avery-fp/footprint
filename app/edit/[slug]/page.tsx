@@ -198,23 +198,23 @@ function SortableTile({
             <>
               <video
                 ref={videoRef}
-                src={content.url}
-                className="absolute inset-0 w-full h-full object-cover cursor-pointer"
-                autoPlay
+                src={content.url} unoptimized={content.url?.includes("/content/")}
+                className={`absolute inset-0 w-full h-full object-cover cursor-pointer transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
                 muted
                 loop
                 playsInline
                 onClick={handleVideoClick}
+                onLoadedData={() => setIsLoaded(true)} onError={() => setIsLoaded(true)}
               />
               {!isMuted && (
                 <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60 z-10" />
               )}
             </>
-          ) : content.url?.startsWith('data:') || content.url?.startsWith('blob:') ? (
-            <img src={content.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          ) : content.url?.startsWith('data:') ? (
+            <img src={content.url} unoptimized={content.url?.includes("/content/")} alt="" className="absolute inset-0 w-full h-full object-cover" />
           ) : (
             <Image
-              src={content.url}
+              src={content.url} unoptimized={content.url?.includes("/content/")}
               alt=""
               width={200}
               height={200}
@@ -628,6 +628,27 @@ export default function EditPage() {
     }
   }
 
+  async function handleDeleteRoom(roomId: string) {
+    if (!confirm('Delete this room? Tiles will be unassigned, not deleted.')) return
+    try {
+      const res = await fetch(`/api/rooms?id=${roomId}`, { method: 'DELETE' })
+      if (!res.ok) {
+        alert('Failed to delete room')
+        return
+      }
+      setRooms(prev => prev.filter(r => r.id !== roomId))
+      if (draft) {
+        setDraft(prev => prev ? {
+          ...prev,
+          content: prev.content.map(c => c.room_id === roomId ? { ...c, room_id: null } : c),
+        } : null)
+      }
+      if (activeRoomId === roomId) setActiveRoomId(null)
+    } catch (e) {
+      console.error('Failed to delete room:', e)
+    }
+  }
+
   // ── File upload ──
 
   const VIDEO_MIME = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v', 'video/mov']
@@ -965,23 +986,54 @@ export default function EditPage() {
             href={`/${slug}`}
             className="text-sm font-medium text-white/90 hover:text-white transition px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
           >
-            Done
-          </Link>
-        </div>
-        {/* Row 2: room pills (scrollable) */}
-        <div className="flex items-center gap-2 px-4 pb-2 overflow-x-auto hide-scrollbar">
-          {rooms.filter(r => r.name && r.name.length > 1).map((room) => (
-            <button
-              key={room.id}
-              onClick={() => setActiveRoomId(room.id)}
-              className={`text-xs px-3 py-1 rounded-full transition-all whitespace-nowrap border-0 ${
-                activeRoomId === room.id
-                  ? 'bg-white/[0.12] text-white/90'
-                  : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70'
-              }`}
-            >
-              {room.name}
-            </button>
+            clear bg
+          </button>
+        )}
+      </div>
+
+      {/* Right: Done */}
+      <div className="fixed top-6 right-6 z-50">
+        <Link
+          href={`/${slug}`}
+          className="text-sm font-medium text-white/90 hover:text-white transition px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
+        >
+          Done
+        </Link>
+      </div>
+
+      {/* ═══ DENSE MASONRY GRID ═══ */}
+      <div className="max-w-7xl mx-auto px-2 pt-14 relative z-10">
+        {/* Inline Room Tabs */}
+        <div className="flex items-center gap-2 mb-3 px-1 overflow-x-auto hide-scrollbar">
+          <button
+            onClick={() => setActiveRoomId(null)}
+            className={`text-xs px-3 py-1 rounded-full transition-all whitespace-nowrap backdrop-blur-sm border-0 ${
+              activeRoomId === null
+                ? 'bg-white/[0.12] text-white/90'
+                : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70'
+            }`}
+          >
+            all
+          </button>
+          {rooms.map((room) => (
+            <div key={room.id} className="relative group/room flex items-center">
+              <button
+                onClick={() => setActiveRoomId(room.id)}
+                className={`text-xs px-3 py-1 rounded-full transition-all whitespace-nowrap backdrop-blur-sm border-0 ${
+                  activeRoomId === room.id
+                    ? 'bg-white/[0.12] text-white/90'
+                    : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70'
+                }`}
+              >
+                {room.name}
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleDeleteRoom(room.id) }}
+                className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500/80 text-white text-[8px] leading-none flex items-center justify-center opacity-0 group-hover/room:opacity-100 transition-opacity"
+              >
+                ×
+              </button>
+            </div>
           ))}
           <button
             onClick={handleCreateRoom}

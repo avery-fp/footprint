@@ -129,26 +129,17 @@ body::before {
   animation: materialize 800ms ease-out forwards;
 }
 
-/* Tile enter — staggered fade-in for public grid */
-@keyframes tile-enter {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
+/* Tiles materialize — fast uniform dissolve */
 .tile-enter {
-  opacity: 0;
-  animation: tile-enter 400ms ease-out forwards;
+  opacity: 1;
 }
 
-/* Vapor Box skeleton - lightweight, no backdrop-filter */
 .vapor-box {
   background: rgba(255, 255, 255, 0.04);
 }
 
-/* Content-visibility — skip rendering off-screen tiles */
 .tile-container {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 300px;
+  /* no content-visibility — render everything immediately */
 }
 
 /* Card hover effect */

@@ -5,20 +5,20 @@ import { Toaster } from 'sonner'
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'Footprint',
-  description: 'Own Your Footprint · $10 · yours forever',
+  title: 'footprint',
+  description: 'a room for your internet. $10.',
   openGraph: {
-    title: 'Footprint',
-    description: 'Own Your Footprint · $10 · yours forever',
+    title: 'footprint',
+    description: 'a room for your internet. $10.',
     url: 'https://footprint.onl',
-    siteName: 'Footprint',
-    images: [{ url: '/og-image.png', width: 1200, height: 630 }],
+    siteName: 'footprint',
+    images: [{ url: 'https://footprint.onl/api/og', width: 1200, height: 630 }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Footprint',
-    description: 'Own Your Footprint · $10 · yours forever',
-    images: ['/og-image.png'],
+    title: 'footprint',
+    description: 'a room for your internet. $10.',
+    images: ['https://footprint.onl/api/og'],
   },
 }
 
@@ -28,8 +28,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className="font-sans">
+    <html lang="en" style={{ backgroundColor: '#080808' }}>
+      <body className="font-sans" style={{ backgroundColor: '#080808' }}>
         {children}
         <Toaster 
           position="bottom-center"
