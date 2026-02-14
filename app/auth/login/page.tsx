@@ -70,14 +70,14 @@ export default function LoginPage() {
   const f = "'DM Sans', -apple-system, sans-serif"
 
   return (
-    <div className="min-h-screen relative overflow-hidden flex items-center justify-center">
+    <div className="min-h-screen relative overflow-hidden flex flex-col justify-end pb-[18vh]">
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');`}</style>
 
       {wallpaper ? (
         <>
           <img src={wallpaper} alt="" className="fixed inset-0 w-full h-full object-cover" />
           <div className="fixed inset-0" style={{
-            background: 'linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.65) 50%, rgba(0,0,0,0.93) 100%)'
+            background: 'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0.85) 75%, rgba(0,0,0,0.95) 100%)'
           }} />
         </>
       ) : (
@@ -88,15 +88,15 @@ export default function LoginPage() {
 
         {!sent ? (
           <>
-            <div className="mb-12 transition-all duration-[1000ms] ease-out"
+            <div className="mb-8 transition-all duration-[1000ms] ease-out"
               style={{
                 opacity: phase >= 1 ? 1 : 0,
                 transform: phase >= 1 ? 'translateY(0)' : 'translateY(14px)',
               }}>
-              <p className="text-white/70 text-center" style={{
-                fontSize: 'clamp(26px, 5.5vw, 40px)',
+              <p className="text-white/60 text-center" style={{
+                fontSize: 'clamp(22px, 4.5vw, 32px)',
                 fontWeight: 400,
-                letterSpacing: '-0.025em',
+                letterSpacing: '-0.02em',
                 lineHeight: 1.2,
               }}>
                 enter your room
