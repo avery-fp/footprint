@@ -74,7 +74,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
 
   // Notify parent about inherently widescreen content
   useEffect(() => {
-    if (['youtube', 'vimeo', 'video'].includes(content.type)) {
+    if (['vimeo', 'video'].includes(content.type)) {
       onWidescreen?.()
     }
   }, [content.type])
