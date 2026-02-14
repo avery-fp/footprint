@@ -262,7 +262,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 textShadow: '0 2px 16px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.5)',
               }}
             >
-              personal internet
+              footprint
             </p>
             {/* CTA */}
             <a
