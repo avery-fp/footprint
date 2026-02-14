@@ -1,15 +1,17 @@
 import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 export const revalidate = 3600
 
 async function getWallpaper() {
-  const { data } = await supabase
+  const { data } = await getSupabase()
     .from('footprints')
     .select('background_url')
     .eq('serial_number', 1001)
