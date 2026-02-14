@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import ContentCard from '@/components/ContentCard'
+import VideoTile from '@/components/VideoTile'
 import WeatherEffect from '@/components/WeatherEffect'
 
 interface Room {
@@ -23,12 +24,15 @@ interface PublicPageProps {
 
 // Wallpaper filter per room â derived from room index
 const ROOM_FILTERS = [
+  // Room 0: cool, moderate blur
   'blur(8px) brightness(0.45) saturate(0.85) hue-rotate(-8deg)',
   // Room 1: warm, bright, low blur â wallpaper almost legible
   'blur(4px) brightness(0.65) saturate(1.4) hue-rotate(25deg)',
+  // Room 2: deep, hyper-saturated, max blur
   'blur(16px) brightness(0.3) saturate(1.6) hue-rotate(-35deg)',
   // Room 3: sharp editorial â zero blur, desaturated
   'blur(0px) brightness(0.55) saturate(0.2) hue-rotate(0deg)',
+  // Room 4: vivid, bright, warm shift
   'blur(10px) brightness(0.7) saturate(1.2) hue-rotate(35deg)',
   // Room 5: noir â dark, muted, heavy blur
   'blur(14px) brightness(0.35) saturate(0.4) hue-rotate(-20deg)',
@@ -57,13 +61,23 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   }, [rooms])
   const [wallpaperLoaded, setWallpaperLoaded] = useState(false)
   const [showToast, setShowToast] = useState(false)
-  const [unmutedId, setUnmutedId] = useState<string | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
+  const [widescreenIds, setWidescreenIds] = useState<Set<string>>(new Set())
+  const swipeRef = useRef<HTMLDivElement>(null)
+
+  const markWidescreen = useCallback((id: string) => {
+    setWidescreenIds(prev => {
+      if (prev.has(id)) return prev
+      const next = new Set(prev)
+      next.add(id)
+      return next
+    })
+  }, [])
 
   // Filter out ghost tiles (empty URLs with no title/content)
   const isValidTile = (item: any) =>
     (item.type === 'thought' && item.title) ||
-    (item.type === 'image' && item.url && item.url !== '') ||
-    (['youtube', 'spotify', 'soundcloud', 'applemusic', 'vimeo', 'twitter', 'instagram', 'tiktok', 'video', 'link'].includes(item.type) && item.url)
+    (item.url && item.url !== '')
 
   const validContent = allContent.filter(isValidTile)
 
@@ -72,15 +86,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     .filter(r => r.name && r.name.trim().length > 0)
     .map(r => ({ ...r, content: r.content.filter(isValidTile) }))
 
-  const rawContent = activeRoomId
+  const content = activeRoomId
     ? visibleRooms.find(r => r.id === activeRoomId)?.content || []
     : validContent
-
-  // Magazine rhythm: every 3rd tile becomes hero (user-set sizes override)
-  const content = rawContent.map((item, i) => ({
-    ...item,
-    size: item.size || (i % 3 === 2 ? 2 : 1),
-  }))
 
   // Wallpaper filter derived from active room
   const activeRoomIndex = activeRoomId ? visibleRooms.findIndex(r => r.id === activeRoomId) : -1
@@ -96,9 +104,50 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     setShowToast(true)
   }
 
-  const goToRoom = (roomId: string) => {
+  // Mobile detection
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
+  // Sync swipe with room state on mobile
+  useEffect(() => {
+    if (!isMobile || !swipeRef.current) return
+    const container = swipeRef.current
+    let timeout: NodeJS.Timeout
+
+    const handleScroll = () => {
+      clearTimeout(timeout)
+      timeout = setTimeout(() => {
+        const idx = Math.round(container.scrollLeft / container.offsetWidth)
+        if (visibleRooms.length === 0) return
+        if (idx === 0) {
+          setActiveRoomId(null)
+        } else {
+          setActiveRoomId(visibleRooms[idx - 1]?.id || null)
+        }
+      }, 80)
+    }
+
+    container.addEventListener('scroll', handleScroll, { passive: true })
+    return () => {
+      container.removeEventListener('scroll', handleScroll)
+      clearTimeout(timeout)
+    }
+  }, [isMobile, visibleRooms])
+
+  // Navigate to room (scrolls on mobile)
+  const goToRoom = (roomId: string | null) => {
     setActiveRoomId(roomId)
-    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })
+    if (isMobile && swipeRef.current) {
+      const idx = roomId ? visibleRooms.findIndex(r => r.id === roomId) + 1 : 0
+      swipeRef.current.scrollTo({
+        left: idx * swipeRef.current.offsetWidth,
+        behavior: 'smooth'
+      })
+    }
   }
 
   useEffect(() => {
@@ -159,9 +208,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             sizes="100vw"
             className={`object-cover transition-opacity duration-700 ${wallpaperLoaded ? 'opacity-100' : 'opacity-0'}`}
             style={{
-              fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
-              lineHeight: 1,
-              textShadow: '0 2px 16px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.5)',
+              filter: footprint.background_blur !== false ? wallpaperFilter : 'none',
+              transform: footprint.background_blur !== false ? 'scale(1.05)' : 'none',
+              transition: 'filter 0.8s ease',
+              willChange: 'transform',
             }}
             onLoad={() => setWallpaperLoaded(true)}
           />
@@ -230,7 +280,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               <button
                 key={room.id}
                 onClick={() => goToRoom(room.id)}
-                className={`px-4 py-1.5 rounded-full text-sm transition-all border-0 ${
+                className={`px-4 py-1.5 rounded-full text-sm transition-all backdrop-blur-sm border-0 ${
                   activeRoomId === room.id
                     ? 'bg-white/[0.12] text-white/90'
                     : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70'
@@ -287,73 +337,18 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             {visibleRooms.map((r, i) => {
               const isActive = r.id === activeRoomId
               return (
-                <div key={item.id} className={`${span} aspect-square relative overflow-hidden rounded-xl`}>
-                  {item.type === 'image' ? (
-                    isVideo ? (
-                      <div
-                        onClick={() => {
-                          document.querySelectorAll('video').forEach(v => { v.muted = true })
-                          if (unmutedId === String(item.id)) {
-                            setUnmutedId(null)
-                          } else {
-                            const vid = document.querySelector(`video[data-id="${item.id}"]`) as HTMLVideoElement
-                            if (vid) vid.muted = false
-                            setUnmutedId(String(item.id))
-                          }
-                        }}
-                        className="relative w-full h-full cursor-pointer"
-                      >
-                        <video
-                          data-id={item.id}
-                          src={item.url}
-                          autoPlay
-                          muted
-                          loop
-                          playsInline
-                          preload="metadata"
-                          ref={(node) => {
-                            if (node) {
-                              node.muted = true
-                              const p = node.play()
-                              if (p) p.catch(() => {})
-                            }
-                          }}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    ) : (
-                      <img
-                        src={item.url}
-                        alt=""
-                        loading="lazy"
-                        decoding="async"
-                        className="w-full h-full object-cover"
-                        onError={(e) => { (e.target as HTMLElement).closest('.aspect-square')!.style.display = 'none' }}
-                      />
-                    )
-                  ) : (
-                    <div className="w-full h-full">
-                      <ContentCard content={item} />
-                    </div>
-                  )}
-                  {item.caption && (
-                    <div className="absolute bottom-0 left-0 right-0 z-10">
-                      <div className="bg-gradient-to-t from-black/60 to-transparent pt-6 pb-2 px-3">
-                        <p className="text-[11px] text-white/80 leading-snug font-light tracking-wide line-clamp-2">
-                          {item.caption}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <div key={i} className="transition-all duration-300"
+                  style={{
+                    width: isActive ? 18 : 4,
+                    height: 3,
+                    borderRadius: 2,
+                    background: isActive ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.15)',
+                  }}
+                />
               )
             })}
           </div>
-
-          {content.length === 0 && (
-            <p className="text-center py-16 text-white/20">Nothing here yet.</p>
-          )}
-        </div>
+        )}
 
         {/* Footer â whisper */}
         <div className="mt-24 mb-12 flex items-center justify-center gap-3">
