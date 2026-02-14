@@ -110,8 +110,8 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
           />
           {/* Play button */}
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-14 h-14 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center group-hover:scale-110 transition-transform">
-              <svg className="w-6 h-6 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
+            <div className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center group-hover:scale-110 transition-transform">
+              <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M8 5v14l11-7z"/>
               </svg>
             </div>
@@ -146,7 +146,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
       return (
         <div
           ref={containerRef}
-          className="w-full aspect-square rounded-xl overflow-hidden cursor-pointer relative group"
+          className="w-full aspect-square rounded-xl overflow-hidden cursor-pointer relative group bg-black"
           onClick={handleActivate}
         >
           <Image
@@ -160,37 +160,48 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
             quality={75}
             onLoad={() => setIsLoaded(true)}
           />
-          {/* Spotify play button */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-14 h-14 rounded-full bg-[#1DB954] flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg">
-              <svg className="w-6 h-6 text-black ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+          {/* Dark overlay for cohesion */}
+          <div className="absolute inset-0 bg-black/30" />
+          {/* Compact dark player bar at bottom */}
+          <div className="absolute bottom-0 left-0 right-0 bg-black/70 backdrop-blur-md px-3 py-2 flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-[#1DB954] flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+              <svg className="w-3.5 h-3.5 text-black ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M8 5v14l11-7z"/>
               </svg>
             </div>
-          </div>
-          {/* Spotify badge */}
-          <div className="absolute bottom-2 left-2 flex items-center gap-1.5 bg-black/50 backdrop-blur-sm rounded-full px-2 py-1">
-            <svg className="w-3 h-3 text-[#1DB954]" viewBox="0 0 24 24" fill="currentColor">
+            <span className="text-[10px] text-white/60 font-medium truncate">{content.title || 'Spotify'}</span>
+            <svg className="w-3 h-3 text-[#1DB954] flex-shrink-0 ml-auto" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
             </svg>
-            <span className="text-[9px] text-white/70 font-medium">{content.title || 'Spotify'}</span>
           </div>
         </div>
       )
     }
 
-    // Activated — Spotify embed iframe
+    // Activated — Spotify embed iframe (dark theme, compact at bottom over album art)
     if (spotifyInfo) {
+      const compactHeight = spotifyInfo.type === 'track' ? 80 : 152
       return (
         <div className="w-full aspect-square rounded-xl overflow-hidden relative materialize bg-black">
-          <iframe
-            style={{ borderRadius: 12, position: 'absolute', inset: 0 }}
-            src={`https://open.spotify.com/embed/${spotifyInfo.type}/${spotifyInfo.id}?theme=0`}
-            width="100%"
-            height="100%"
-            frameBorder="0"
-            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-          />
+          {content.thumbnail_url && (
+            <Image
+              src={content.thumbnail_url}
+              alt=""
+              width={400}
+              height={400}
+              className="w-full h-full object-cover opacity-40"
+            />
+          )}
+          <div className="absolute bottom-0 left-0 right-0" style={{ height: compactHeight }}>
+            <iframe
+              style={{ borderRadius: 0, border: 'none' }}
+              src={`https://open.spotify.com/embed/${spotifyInfo.type}/${spotifyInfo.id}?theme=0`}
+              width="100%"
+              height="100%"
+              frameBorder="0"
+              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+            />
+          </div>
         </div>
       )
     }
@@ -201,16 +212,15 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
         href={content.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="block w-full aspect-square rounded-xl overflow-hidden cursor-pointer relative group"
-        style={{ background: 'linear-gradient(135deg, #1DB954, #191414)' }}
+        className="block w-full aspect-square rounded-xl overflow-hidden cursor-pointer relative group bg-black"
       >
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-          <div className="w-14 h-14 rounded-full bg-[#1DB954] flex items-center justify-center">
-            <svg className="w-6 h-6 text-black ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+          <div className="w-10 h-10 rounded-full bg-[#1DB954] flex items-center justify-center">
+            <svg className="w-4 h-4 text-black ml-0.5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z"/>
             </svg>
           </div>
-          <p className="text-white/70 text-xs font-medium">{content.title || 'Listen on Spotify'}</p>
+          <p className="text-white/50 text-[10px] font-medium">{content.title || 'Spotify'}</p>
         </div>
       </a>
     )
@@ -224,20 +234,16 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
     if (!isActivated) {
       return (
         <div
-          className="rounded-xl overflow-hidden p-6 cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]"
-          style={{ background: 'linear-gradient(135deg, #ff5500, #ff7700)' }}
+          className="w-full aspect-square rounded-xl overflow-hidden cursor-pointer relative group bg-black"
           onClick={handleActivate}
         >
-          <div className="flex items-center gap-3 mb-3">
-            <div className="text-3xl">♫</div>
-            <p className="font-mono text-xs text-white/60 uppercase tracking-wider">SoundCloud</p>
-          </div>
-          <p className="text-white/90 text-sm truncate">{content.title || 'Listen on SoundCloud'}</p>
-          <div className="mt-3 flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-              <span className="text-white text-sm ml-0.5">▶</span>
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-[#ff5500] flex items-center justify-center group-hover:scale-110 transition-transform">
+              <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
             </div>
-            <span className="text-white/40 text-xs font-mono">Tap to play</span>
+            <p className="text-white/50 text-[10px] font-medium truncate max-w-[80%]">{content.title || 'SoundCloud'}</p>
           </div>
         </div>
       )
@@ -245,7 +251,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
     if (content.embed_html) {
       return (
         <div
-          className="w-full min-h-[166px] rounded-xl overflow-hidden materialize"
+          className="w-full aspect-square rounded-xl overflow-hidden materialize bg-black [&_iframe]:!h-full"
           dangerouslySetInnerHTML={{ __html: content.embed_html }}
         />
       )
@@ -256,11 +262,16 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
   // APPLE MUSIC — embed with materialization
   // ════════════════════════════════════════
   if (content.type === 'applemusic' && content.embed_html) {
+    // Force dark theme by injecting &theme=dark into Apple Music embed URLs
+    const darkEmbed = content.embed_html.replace(
+      /src="(https:\/\/embed\.music\.apple\.com\/[^"]*?)"/g,
+      (match: string, url: string) => `src="${url}${url.includes('?') ? '&' : '?'}theme=dark"`
+    )
     return (
-      <div className="w-full aspect-square rounded-xl overflow-hidden relative materialize">
+      <div className="w-full aspect-square rounded-xl overflow-hidden relative materialize bg-black">
         <div
-          className="absolute inset-0 [&_iframe]:!w-full [&_iframe]:!h-full [&_iframe]:!min-h-0"
-          dangerouslySetInnerHTML={{ __html: content.embed_html }}
+          className="absolute inset-0 [&_iframe]:!w-full [&_iframe]:!h-full [&_iframe]:!min-h-0 [&_iframe]:!border-0 [&_iframe]:!bg-black"
+          dangerouslySetInnerHTML={{ __html: darkEmbed }}
         />
       </div>
     )
@@ -271,9 +282,9 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
   // ════════════════════════════════════════
   if (content.type === 'vimeo' && content.embed_html) {
     return (
-      <div className="rounded-xl overflow-hidden relative materialize">
+      <div className="w-full aspect-square rounded-xl overflow-hidden relative materialize bg-black">
         <div
-          className="w-full min-h-[200px]"
+          className="absolute inset-0 [&_iframe]:!w-full [&_iframe]:!h-full"
           dangerouslySetInnerHTML={{ __html: content.embed_html }}
         />
       </div>
