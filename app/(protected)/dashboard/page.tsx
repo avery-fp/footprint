@@ -18,6 +18,7 @@ interface Room {
 interface UserData {
   serial_number: number
   email: string
+  has_password?: boolean
 }
 
 /**
@@ -41,6 +42,9 @@ export default function DashboardPage() {
   const [user, setUser] = useState<UserData | null>(null)
   const [rooms, setRooms] = useState<Room[]>([])
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
+  const [showPasswordSetup, setShowPasswordSetup] = useState(false)
+  const [password, setPassword] = useState('')
+  const [settingPassword, setSettingPassword] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -54,6 +58,7 @@ export default function DashboardPage() {
       
       if (userRes.ok) {
         setUser(userData.user)
+        if (!userData.user.has_password) setShowPasswordSetup(true)
       }
 
       // Fetch rooms
@@ -113,6 +118,33 @@ export default function DashboardPage() {
   // Get primary room for quick link
   const primaryRoom = rooms.find(r => r.is_primary)
 
+
+  async function handleSetPassword() {
+    if (!password || password.length < 6) {
+      toast.error('Password must be at least 6 characters')
+      return
+    }
+    setSettingPassword(true)
+    try {
+      const res = await fetch('/api/set-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      })
+      if (res.ok) {
+        setShowPasswordSetup(false)
+        toast.success('Password set')
+      } else {
+        const data = await res.json()
+        toast.error(data.error || 'Failed to set password')
+      }
+    } catch {
+      toast.error('Failed')
+    } finally {
+      setSettingPassword(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -123,6 +155,38 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen p-6 lg:p-12">
+
+      {/* Password setup — first visit only */}
+      {showPasswordSetup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm px-6">
+          <div className="w-full max-w-sm bg-[#111] border border-white/10 rounded-2xl p-8">
+            <p className="text-xl font-light mb-2 text-white/90">create a password</p>
+            <p className="text-sm text-white/30 mb-6">so you can sign in anytime</p>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="password"
+              className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3 text-white/90 placeholder:text-white/20 focus:outline-none focus:border-white/15 text-sm mb-4"
+              autoFocus
+            />
+            <button
+              onClick={handleSetPassword}
+              disabled={settingPassword || password.length < 6}
+              className="w-full py-3 rounded-xl bg-white text-black text-sm font-medium hover:bg-white/90 transition-all disabled:opacity-30"
+            >
+              {settingPassword ? '...' : 'set password'}
+            </button>
+            <button
+              onClick={() => setShowPasswordSetup(false)}
+              className="w-full mt-3 text-white/20 text-xs hover:text-white/40 transition-colors"
+            >
+              skip for now
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <header className="flex items-center justify-between mb-12">

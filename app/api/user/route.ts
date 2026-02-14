@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
 
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, email, serial_number, created_at')
+      .select('id, email, serial_number, created_at, password_hash')
       .eq('id', userId)
       .single()
 
@@ -27,7 +27,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    return NextResponse.json({ user })
+    // Don't send password_hash to client, just whether it exists
+    const { password_hash, ...safeUser } = user
+    return NextResponse.json({ user: { ...safeUser, has_password: !!password_hash } })
 
   } catch (error) {
     return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 })
