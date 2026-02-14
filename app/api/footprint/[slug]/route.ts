@@ -61,6 +61,7 @@ export async function GET(
       source: 'library' as const,
       room_id: item.room_id || null,
       size: item.size || 1,
+      caption: item.caption || null,
     }))
     const linkTiles = (linksResult.data || []).map(item => ({
       id: item.id,

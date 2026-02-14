@@ -80,8 +80,9 @@ export async function DELETE(request: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
-    // Delete content first
-    await supabase.from('content').delete().eq('room_id', id)
+    // Unassign tiles from this room (move to unassigned, don't delete them)
+    await supabase.from('library').update({ room_id: null }).eq('room_id', id)
+    await supabase.from('links').update({ room_id: null }).eq('room_id', id)
     // Delete room
     const { error } = await supabase.from('rooms').delete().eq('id', id)
 

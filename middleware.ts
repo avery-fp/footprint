@@ -20,6 +20,11 @@ import { verifySessionToken } from './lib/auth'
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  // Let OG image routes through for crawlers
+  if (pathname.endsWith('/opengraph-image')) {
+    return NextResponse.next()
+  }
+
   // Fully public routes - no auth check at all
   const fullyPublicRoutes = [
     '/',

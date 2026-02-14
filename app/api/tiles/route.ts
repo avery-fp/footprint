@@ -221,15 +221,19 @@ export async function DELETE(request: NextRequest) {
 /**
  * PATCH /api/tiles
  *
- * Update a tile's size (1, 2, or 4).
- * Body: { id, source, slug, size }
+ * Update a tile's size or caption.
+ * Body: { id, source, slug, size? , caption? }
  */
 export async function PATCH(request: NextRequest) {
   try {
-    const { id, source, slug, size } = await request.json()
+    const { id, source, slug, size, caption } = await request.json()
 
-    if (!id || !source || !slug || ![1, 2, 4].includes(size) || !['library', 'links'].includes(source)) {
-      return NextResponse.json({ error: 'id, source, slug, and size (1|2|4) required' }, { status: 400 })
+    if (!id || !source || !slug || !['library', 'links'].includes(source)) {
+      return NextResponse.json({ error: 'id, source, and slug required' }, { status: 400 })
+    }
+
+    if (size !== undefined && ![1, 2].includes(size)) {
+      return NextResponse.json({ error: 'size must be 1 or 2' }, { status: 400 })
     }
 
     const supabase = createServerSupabaseClient()
@@ -238,9 +242,17 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Footprint not found' }, { status: 404 })
     }
 
+    const updates: Record<string, any> = {}
+    if (size !== undefined) updates.size = size
+    if (caption !== undefined) updates.caption = caption || null
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
+    }
+
     const { error } = await supabase
       .from(source)
-      .update({ size })
+      .update(updates)
       .eq('id', id)
       .eq('serial_number', serialNumber)
 
@@ -250,7 +262,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Update tile size error:', error)
-    return NextResponse.json({ error: 'Failed to update size' }, { status: 500 })
+    console.error('Update tile error:', error)
+    return NextResponse.json({ error: 'Failed to update tile' }, { status: 500 })
   }
 }

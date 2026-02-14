@@ -25,12 +25,12 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
     return () => observer.disconnect()
   }, [])
 
-  // Timeout — if video doesn't load in 4s, hide it
+  // Timeout — if video doesn't load in 15s, hide it
   useEffect(() => {
     if (!isInView) return
     const timer = setTimeout(() => {
       if (!isReady) setHasFailed(true)
-    }, 4000)
+    }, 15000)
     return () => clearTimeout(timer)
   }, [isInView, isReady])
 
