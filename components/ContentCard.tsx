@@ -184,10 +184,10 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
       return (
         <div className="w-full aspect-square rounded-xl overflow-hidden relative materialize bg-black">
           <iframe
-            style={{ borderRadius: 12 }}
+            style={{ borderRadius: 12, position: 'absolute', inset: 0 }}
             src={`https://open.spotify.com/embed/${spotifyInfo.type}/${spotifyInfo.id}?theme=0`}
             width="100%"
-            height={embedHeight}
+            height="100%"
             frameBorder="0"
             allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
           />
@@ -257,9 +257,9 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
   // ════════════════════════════════════════
   if (content.type === 'applemusic' && content.embed_html) {
     return (
-      <div className="rounded-xl overflow-hidden relative materialize">
+      <div className="w-full aspect-square rounded-xl overflow-hidden relative materialize">
         <div
-          className="w-full min-h-[175px]"
+          className="absolute inset-0 [&_iframe]:!w-full [&_iframe]:!h-full [&_iframe]:!min-h-0"
           dangerouslySetInnerHTML={{ __html: content.embed_html }}
         />
       </div>
