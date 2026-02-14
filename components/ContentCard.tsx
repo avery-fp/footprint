@@ -72,12 +72,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
     return () => audioManager.unregister(audioIdRef.current)
   }, [content.type, content.id])
 
-  // Notify parent about inherently widescreen content
-  useEffect(() => {
-    if (['vimeo', 'video'].includes(content.type)) {
-      onWidescreen?.()
-    }
-  }, [content.type])
+  // All tiles are aspect-square in the grid — no auto widescreen
 
   const handleActivate = () => {
     if (['youtube', 'soundcloud', 'spotify'].includes(content.type)) {

@@ -159,34 +159,32 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // Reusable tile renderer â size-aware col-span in CSS Grid
   const renderTile = (item: any, index: number) => {
     const isVideo = item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
-    const isHero = widescreenIds.has(item.id)
     const tileSize = item.size || 1
     const colSpan = tileSize === 4 ? 'col-span-2 md:col-span-4'
       : tileSize === 2 ? 'col-span-2'
-      : isHero ? 'col-span-2 md:col-span-4'
       : ''
     return (
       <div key={item.id}
         className={`${colSpan} group tile-enter tile-container`}
         style={{}}>
-        <div className="group-hover:scale-[1.02] transition-transform duration-300 will-change-transform rounded-xl overflow-hidden bg-white/[0.02]">
+        <div className="aspect-square group-hover:scale-[1.02] transition-transform duration-300 will-change-transform rounded-xl overflow-hidden bg-white/[0.02]">
           {item.type === 'image' ? (
             isVideo ? (
-              <div className="rounded-xl overflow-hidden border border-white/[0.06] max-h-[300px]">
-                <VideoTile src={item.url} unoptimized={item.url?.includes("/content/")} onWidescreen={() => markWidescreen(item.id)} />
+              <div className="rounded-xl overflow-hidden border border-white/[0.06] w-full h-full">
+                <VideoTile src={item.url} onWidescreen={() => {}} />
               </div>
             ) : (
               <div className="rounded-xl overflow-hidden border border-white/[0.06]">
                 <Image src={item.url} unoptimized={item.url?.includes("/content/")} alt={item.title || ''} width={600} height={800}
                   sizes={isMobile ? "50vw" : "(max-width: 768px) 50vw, 25vw"}
-                  className="w-full h-auto rounded-xl transition-opacity duration-300" loading={index < 4 ? "eager" : "lazy"}
+                  className="w-full h-full object-cover rounded-xl transition-opacity duration-300" loading={index < 4 ? "eager" : "lazy"}
                   priority={index < 4} quality={75}
                   onError={(e) => { (e.target as HTMLElement).closest('.tile-container')!.style.display = 'none' }} />
               </div>
             )
           ) : (
-            <div className="rounded-xl overflow-hidden border border-white/[0.06]">
-              <ContentCard content={item} onWidescreen={() => markWidescreen(item.id)} />
+            <div className="rounded-xl overflow-hidden border border-white/[0.06] w-full h-full">
+              <ContentCard content={item} />
             </div>
           )}
         </div>
