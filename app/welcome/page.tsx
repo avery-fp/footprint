@@ -45,16 +45,17 @@ export default function WelcomePage() {
       if (data.serial) {
         setSerial(String(data.serial).padStart(4, '0'))
         
-        // Use the CUSTOM magic link system (not Supabase OTP)
-        // This sends an email that links to /auth/verify which is styled
-        const magicRes = await fetch('/api/auth/magic-link', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, redirect: '/dashboard' }),
+        // Use Supabase OTP — sends a real email with a magic link
+        const supabase = createBrowserSupabaseClient()
+        const { error: otpError } = await supabase.auth.signInWithOtp({
+          email,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback?redirect=/dashboard`,
+          },
         })
         
-        if (!magicRes.ok) {
-          console.error('Magic link send failed, but user was created')
+        if (otpError) {
+          console.error('Magic link send failed:', otpError.message)
         }
         
         setSent(true)

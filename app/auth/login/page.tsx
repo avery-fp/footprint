@@ -46,19 +46,19 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const res = await fetch('/api/auth/magic-link', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, redirect }),
+      const supabase = createBrowserSupabaseClient()
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirect)}`,
+        },
       })
 
-      const data = await res.json()
-
-      if (data.success) {
+      if (otpError) {
+        toast.error(otpError.message || 'something went wrong')
+      } else {
         setSent(true)
         setPhase(10)
-      } else {
-        toast.error(data.error || 'something went wrong')
       }
     } catch (error) {
       toast.error('could not send link')
