@@ -184,15 +184,13 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
       return (
         <div className="w-full aspect-square rounded-xl overflow-hidden relative materialize bg-black">
           {content.thumbnail_url && (
-            <Image
+            <img
               src={content.thumbnail_url}
               alt=""
-              width={400}
-              height={400}
-              className="absolute inset-0 w-full h-full object-cover opacity-60"
+              className="absolute inset-0 w-full h-full object-cover opacity-50"
             />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
           <div className="absolute bottom-0 left-0 right-0" style={{ height: compactHeight }}>
             <iframe
               style={{ borderRadius: 0, border: 'none' }}
@@ -263,25 +261,29 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
   // APPLE MUSIC — embed with materialization
   // ════════════════════════════════════════
   if (content.type === 'applemusic' && content.embed_html) {
-    // Facade: album art + play button, click activates embed
-    if (!isActivated && content.thumbnail_url) {
+    // Facade: album art (or dark placeholder) + play button, click activates embed
+    if (!isActivated) {
       return (
         <div
           ref={containerRef}
           className="w-full aspect-square rounded-xl overflow-hidden cursor-pointer relative group bg-black"
           onClick={handleActivate}
         >
-          <Image
-            src={isInView ? content.thumbnail_url : ''}
-            alt=""
-            width={400}
-            height={400}
-            sizes="(max-width: 768px) 50vw, 25vw"
-            className={`w-full h-full object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
-            loading="lazy"
-            quality={75}
-            onLoad={() => setIsLoaded(true)}
-          />
+          {content.thumbnail_url ? (
+            <Image
+              src={isInView ? content.thumbnail_url : ''}
+              alt=""
+              width={400}
+              height={400}
+              sizes="(max-width: 768px) 50vw, 25vw"
+              className={`w-full h-full object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+              loading="lazy"
+              quality={75}
+              onLoad={() => setIsLoaded(true)}
+            />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-[#fc3c44]/20 to-black" />
+          )}
           {/* Play button */}
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="w-10 h-10 rounded-full bg-[#fc3c44] flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -289,6 +291,10 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
                 <path d="M8 5v14l11-7z"/>
               </svg>
             </div>
+          </div>
+          {/* Apple Music badge */}
+          <div className="absolute bottom-2 left-2 flex items-center gap-1.5 bg-black/50 backdrop-blur-sm rounded-full px-2 py-1">
+            <span className="text-[9px] text-white/60 font-medium">{content.title || 'Apple Music'}</span>
           </div>
         </div>
       )
@@ -301,7 +307,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
     return (
       <div className="w-full aspect-square rounded-xl overflow-hidden relative materialize bg-black">
         <div
-          className="absolute inset-0 overflow-hidden [&_iframe]:!w-full [&_iframe]:!h-full [&_iframe]:!min-h-0 [&_iframe]:!border-0 [&_iframe]:!bg-black [&_iframe]:!overflow-hidden"
+          className="absolute inset-0 overflow-hidden [&_iframe]:!w-full [&_iframe]:!h-full [&_iframe]:!min-h-0 [&_iframe]:!border-0 [&_iframe]:!bg-transparent [&_iframe]:!overflow-hidden"
           style={{ overflow: 'hidden' }}
           dangerouslySetInnerHTML={{ __html: darkEmbed }}
         />
