@@ -147,8 +147,8 @@ export default function SuccessPage() {
           </div>
         )}
 
-        {/* Link Box */}
-        <div className="glass rounded-xl p-5 flex items-center gap-4 mb-8 opacity-0 animate-fade-up delay-500">
+        {/* Link Box — THE MOST IMPORTANT ELEMENT. This starts the compound loop. */}
+        <div className="glass rounded-xl p-5 flex items-center gap-4 mb-4 opacity-0 animate-fade-up delay-500">
           <a
             href={link}
             target="_blank"
@@ -159,11 +159,15 @@ export default function SuccessPage() {
           </a>
           <button
             onClick={copyLink}
-            className={`py-2 px-4 text-xs rounded-lg flex-shrink-0 transition ${copied ? 'bg-green-500 text-white' : 'bg-white/10 hover:bg-white/20'}`}
+            className={`py-2 px-4 text-xs rounded-lg flex-shrink-0 transition ${copied ? 'bg-green-500 text-white' : 'bg-white text-black hover:bg-white/90'}`}
           >
-            {copied ? 'Copied!' : 'Copy'}
+            {copied ? 'Copied!' : 'Copy link'}
           </button>
         </div>
+
+        <p className="text-white/20 text-xs mb-10 opacity-0 animate-fade-up delay-500">
+          drop it in your bio. share it everywhere. it's yours.
+        </p>
 
         {/* Actions */}
         <div className="flex gap-3 justify-center opacity-0 animate-fade-up delay-600">
