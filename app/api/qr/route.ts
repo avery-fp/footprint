@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Build the URL to encode
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://footprint.link'
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://footprint.onl'
     const footprintUrl = `${baseUrl}/${slug}`
 
     // Generate QR code based on format

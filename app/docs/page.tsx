@@ -11,7 +11,7 @@ export default function APIDocsPage() {
         <section className="mb-12">
           <h2 className="text-xl font-medium mb-4">Base URL</h2>
           <code className="block bg-white/5 border border-white/10 rounded-lg p-4 font-mono text-sm">
-            https://footprint.link/api/v1
+            https://footprint.onl/api/v1
           </code>
         </section>
 
@@ -34,7 +34,7 @@ export default function APIDocsPage() {
           <pre className="bg-white/5 border border-white/10 rounded-lg p-4 font-mono text-xs overflow-x-auto">
 {`{
   "slug": "fp-8291-x7k9",
-  "url": "https://footprint.link/fp-8291-x7k9",
+  "url": "https://footprint.onl/fp-8291-x7k9",
   "profile": {
     "name": "Alex",
     "handle": "@alex",
@@ -57,9 +57,9 @@ export default function APIDocsPage() {
     ]
   },
   "links": {
-    "qr_code": "https://footprint.link/api/qr?slug=...",
-    "embed_script": "https://footprint.link/api/embed?slug=...",
-    "og_image": "https://footprint.link/api/og?slug=..."
+    "qr_code": "https://footprint.onl/api/qr?slug=...",
+    "embed_script": "https://footprint.onl/api/embed?slug=...",
+    "og_image": "https://footprint.onl/api/og?slug=..."
   }
 }`}
           </pre>
@@ -103,7 +103,7 @@ export default function APIDocsPage() {
           <h3 className="font-mono text-sm text-white/50 mb-2">Usage</h3>
           <pre className="bg-white/5 border border-white/10 rounded-lg p-4 font-mono text-xs">
 {`<div id="footprint-embed"></div>
-<script src="https://footprint.link/api/embed?slug=your-slug"></script>`}
+<script src="https://footprint.onl/api/embed?slug=your-slug"></script>`}
           </pre>
         </section>
 

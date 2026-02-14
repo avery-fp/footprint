@@ -186,7 +186,7 @@ export async function sendMagicLinkEmail(email: string, magicLink: string) {
   
   // In production:
   // await resend.emails.send({
-  //   from: 'Footprint <noreply@footprint.link>',
+  //   from: 'Footprint <noreply@footprint.onl>',
   //   to: email,
   //   subject: 'Your login link',
   //   html: `<a href="${magicLink}">Click to sign in</a>`,

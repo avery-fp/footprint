@@ -34,13 +34,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title,
       description: footprint.bio || 'a room for your internet. $10.',
-      images: [`/api/og?slug=${params.slug}`],
+      images: [`https://footprint.onl/api/og?slug=${params.slug}`],
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description: footprint.bio || 'a room for your internet. $10.',
-      images: [`/api/og?slug=${params.slug}`],
+      images: [`https://footprint.onl/api/og?slug=${params.slug}`],
     },
   }
 }

@@ -8,7 +8,7 @@ import { createServerSupabaseClient } from '@/lib/supabase'
  * 
  * Usage on external site:
  * <div id="footprint-embed"></div>
- * <script src="https://footprint.link/api/embed?slug=your-slug"></script>
+ * <script src="https://footprint.onl/api/embed?slug=your-slug"></script>
  * 
  * The widget:
  * 1. Fetches footprint data from our API
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
   const theme = searchParams.get('theme') || 'auto' // auto uses footprint's theme
 
   // Base URL for assets and links
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://footprint.link'
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://footprint.onl'
 
   // If no slug, return helper script
   if (!slug) {

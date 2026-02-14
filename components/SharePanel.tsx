@@ -27,7 +27,7 @@ export default function SharePanel({ slug, footprintId }: SharePanelProps) {
 
   const baseUrl = typeof window !== 'undefined' 
     ? window.location.origin 
-    : process.env.NEXT_PUBLIC_APP_URL || 'https://footprint.link'
+    : process.env.NEXT_PUBLIC_APP_URL || 'https://footprint.onl'
   
   const footprintUrl = `${baseUrl}/${slug}`
   const qrUrl = `${baseUrl}/api/qr?slug=${slug}`
