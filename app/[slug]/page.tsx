@@ -36,6 +36,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: footprint.bio || 'A digital footprint',
       images: [`/api/og?slug=${params.slug}`],
     },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description: footprint.bio || 'A digital footprint',
+      images: [`/api/og?slug=${params.slug}`],
+    },
   }
 }
 
