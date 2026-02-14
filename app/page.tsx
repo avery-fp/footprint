@@ -70,7 +70,7 @@ export default async function Home() {
               letterSpacing: '-0.01em',
             }}
           >
-            a room for your internet. $10.
+            a room for your internet.
           </p>
 
           <div className="flex items-center gap-5">
