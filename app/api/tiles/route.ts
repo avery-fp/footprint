@@ -219,6 +219,55 @@ export async function DELETE(request: NextRequest) {
 }
 
 /**
+ * PUT /api/tiles
+ *
+ * Batch reorder tiles.
+ * Body: { slug, positions: [{ id, source, position }] }
+ */
+export async function PUT(request: NextRequest) {
+  try {
+    const { slug, positions } = await request.json()
+
+    if (!slug || !Array.isArray(positions) || positions.length === 0) {
+      return NextResponse.json({ error: 'slug and positions array required' }, { status: 400 })
+    }
+
+    const supabase = createServerSupabaseClient()
+    const serialNumber = await getSerialNumber(supabase, slug)
+    if (!serialNumber) {
+      return NextResponse.json({ error: 'Footprint not found' }, { status: 404 })
+    }
+
+    // Group by source table for efficient updates
+    const bySource: Record<string, { id: string; position: number }[]> = {}
+    for (const p of positions) {
+      if (!p.id || !p.source || !['library', 'links'].includes(p.source)) continue
+      ;(bySource[p.source] = bySource[p.source] || []).push(p)
+    }
+
+    // Update positions per table
+    const promises: Promise<any>[] = []
+    for (const [source, items] of Object.entries(bySource)) {
+      for (const item of items) {
+        promises.push(
+          supabase
+            .from(source)
+            .update({ position: item.position })
+            .eq('id', item.id)
+            .eq('serial_number', serialNumber)
+        )
+      }
+    }
+    await Promise.all(promises)
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Reorder tiles error:', error)
+    return NextResponse.json({ error: 'Failed to reorder' }, { status: 500 })
+  }
+}
+
+/**
  * PATCH /api/tiles
  *
  * Update a tile's size or caption.
