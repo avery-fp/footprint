@@ -27,11 +27,11 @@ type PageMode =
   | { type: 'adding'; method: 'idle' | 'url' | 'thought' }
 
 // ═══════════════════════════════════════════
-// Sortable Tile — drag handle only, no long-press
+// Sortable Tile
 // ═══════════════════════════════════════════
 function SortableTile({
   id, content, deleting, size, isArranging, isViewing, isMobile, selected, onTap,
-  onLongPressStart, onLongPressMove, onLongPressEnd,
+  onLongPressStart, onLongPressMove, onLongPressEnd, onPinchResize,
 }: {
   id: string
   content: any
@@ -45,11 +45,13 @@ function SortableTile({
   onLongPressStart: (e: React.TouchEvent) => void
   onLongPressMove: (e: React.TouchEvent) => void
   onLongPressEnd: () => void
+  onPinchResize: (direction: 'up' | 'down') => void
 }) {
   const [isMuted, setIsMuted] = useState(true)
   const [isLoaded, setIsLoaded] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const audioIdRef = useRef(`edit-${id}`)
+  const pinchRef = useRef<{ startDist: number; fired: boolean } | null>(null)
 
   const {
     attributes,
@@ -82,6 +84,7 @@ function SortableTile({
   }, [id, isVideo])
 
   const handleVideoClick = (e: React.MouseEvent) => {
+    if (isArranging) return // let tile body onClick open bottom sheet
     e.stopPropagation()
     if (videoRef.current) {
       if (isMuted) {
@@ -107,13 +110,50 @@ function SortableTile({
     transition: 'filter 0.4s ease-out, opacity 0.4s ease-out',
   } : undefined
 
-  // In arrange mode: dnd-kit listeners on tile body + onClick for bottom sheet
-  // In viewing mode (mobile): long-press to enter arrange mode
+  // dnd-kit handlers for arrange mode (pointer-based)
   const tileHandlers = isArranging
     ? { ...attributes, ...listeners, onClick: (e: React.MouseEvent) => { e.stopPropagation(); onTap() } }
-    : isViewing && isMobile
-      ? { onTouchStart: onLongPressStart, onTouchMove: onLongPressMove, onTouchEnd: onLongPressEnd }
-      : {}
+    : {}
+
+  // Touch: compose long-press (viewing) + pinch-to-resize (arranging)
+  const touchHandlers = isMobile ? {
+    onTouchStart: (e: React.TouchEvent) => {
+      if (e.touches.length === 2) {
+        onLongPressEnd()
+        if (isArranging) {
+          const dx = e.touches[0].clientX - e.touches[1].clientX
+          const dy = e.touches[0].clientY - e.touches[1].clientY
+          pinchRef.current = { startDist: Math.sqrt(dx * dx + dy * dy), fired: false }
+        }
+      } else if (e.touches.length === 1 && isViewing) {
+        onLongPressStart(e)
+      }
+    },
+    onTouchMove: (e: React.TouchEvent) => {
+      if (e.touches.length === 2 && pinchRef.current) {
+        e.preventDefault()
+        if (!pinchRef.current.fired) {
+          const dx = e.touches[0].clientX - e.touches[1].clientX
+          const dy = e.touches[0].clientY - e.touches[1].clientY
+          const dist = Math.sqrt(dx * dx + dy * dy)
+          const delta = dist - pinchRef.current.startDist
+          if (delta > 50) {
+            pinchRef.current.fired = true
+            onPinchResize('up')
+          } else if (delta < -50) {
+            pinchRef.current.fired = true
+            onPinchResize('down')
+          }
+        }
+      } else if (e.touches.length === 1 && isViewing) {
+        onLongPressMove(e)
+      }
+    },
+    onTouchEnd: () => {
+      pinchRef.current = null
+      if (isViewing) onLongPressEnd()
+    },
+  } : {}
 
   return (
     <div
@@ -126,6 +166,7 @@ function SortableTile({
         className={`tile-inner relative rounded-xl overflow-hidden w-full h-full ${isArranging ? 'tile-arranging tile-jiggle' : ''} ${selected ? 'ring-2 ring-white/60' : ''}`}
         style={revealStyle}
         {...tileHandlers}
+        {...touchHandlers}
         onContextMenu={(e) => e.preventDefault()}
       >
         {/* Tile content — absolute fill to enforce square */}
@@ -270,6 +311,18 @@ export default function EditPage() {
     }
     touchStartRef.current = null
   }, [])
+
+  // Pinch-to-resize: spread/pinch cycles tile size
+  const handlePinchResize = useCallback((tileId: string, direction: 'up' | 'down') => {
+    if (!draft) return
+    const tile = draft.content.find(c => c.id === tileId)
+    if (!tile) return
+    const current = tile.size || 1
+    const next = direction === 'up'
+      ? (current >= 3 ? 1 : current + 1)
+      : (current <= 1 ? 3 : current - 1)
+    setTileSize(tileId, next)
+  }, [draft])
 
   // Mouse: click-and-drag 8px. Touch: hold 200ms then drag. Both allow normal scroll/tap.
   const sensors = useSensors(
@@ -431,6 +484,7 @@ export default function EditPage() {
             embed_html: data.tile.embed_html,
             position: data.tile.position,
             room_id: data.tile.room_id || null,
+            size: data.tile.size || 1,
           }],
           updated_at: Date.now(),
         } : null)
@@ -468,6 +522,7 @@ export default function EditPage() {
             embed_html: data.tile.embed_html,
             position: data.tile.position,
             room_id: data.tile.room_id || null,
+            size: data.tile.size || 1,
           }],
           updated_at: Date.now(),
         } : null)
@@ -1057,6 +1112,7 @@ export default function EditPage() {
                     onLongPressStart={handleTouchStart}
                     onLongPressMove={handleTouchMove}
                     onLongPressEnd={handleTouchEnd}
+                    onPinchResize={(direction) => handlePinchResize(item.id, direction)}
                   />
                 ))}
               </div>
