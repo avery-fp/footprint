@@ -11,7 +11,7 @@ function extractYouTubeId(url: string): string | null {
 }
 
 function extractSpotifyInfo(url: string): { type: string; id: string } | null {
-  const match = url.match(/open\.spotify\.com\/(track|album|playlist)\/([a-zA-Z0-9]+)/)
+  const match = url.match(/open\.spotify\.com\/(track|album|playlist|artist|episode)\/([a-zA-Z0-9]+)/)
   return match ? { type: match[1], id: match[2] } : null
 }
 
@@ -141,24 +141,24 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
   if (content.type === 'spotify') {
     const spotifyInfo = extractSpotifyInfo(content.url)
     if (spotifyInfo) {
-      const embedHeight = spotifyInfo.type === 'track' ? 152 : 352
       return (
-        <div className="w-full aspect-square rounded-xl overflow-hidden bg-black relative">
+        <div className="w-full h-full rounded-xl overflow-hidden bg-[#121212]">
           <iframe
-            style={{ position: 'absolute', left: 0, right: 0, bottom: 0, border: 'none', borderRadius: '0 0 12px 12px' }}
+            style={{ border: 'none', borderRadius: '12px' }}
             src={`https://open.spotify.com/embed/${spotifyInfo.type}/${spotifyInfo.id}?theme=0`}
             width="100%"
-            height={embedHeight}
+            height="100%"
             frameBorder="0"
             allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+            loading="lazy"
           />
         </div>
       )
     }
     return (
       <a href={content.url} target="_blank" rel="noopener noreferrer"
-        className="block w-full aspect-square rounded-xl overflow-hidden bg-black flex items-center justify-center">
-        <span className="text-white/40 text-xs">Open on Spotify</span>
+        className="block w-full h-full rounded-xl overflow-hidden bg-[#121212] flex items-center justify-center">
+        <span className="text-white/40 text-xs tracking-wider">spotify</span>
       </a>
     )
   }
