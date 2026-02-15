@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
+import { DndContext, closestCenter, KeyboardSensor, MouseSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, sortableKeyboardCoordinates, useSortable, rectSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { loadDraft, saveDraft, clearDraft, DraftFootprint, DraftContent } from '@/lib/draft-store'
@@ -30,12 +30,11 @@ type PageMode =
 // Sortable Tile — drag handle only, no long-press
 // ═══════════════════════════════════════════
 function SortableTile({
-  id, content, onDelete, deleting, size, isArranging, isViewing, isMobile, selected, onTap,
+  id, content, deleting, size, isArranging, isViewing, isMobile, selected, onTap,
   onLongPressStart, onLongPressMove, onLongPressEnd,
 }: {
   id: string
   content: any
-  onDelete: () => void
   deleting: boolean
   size: number
   isArranging: boolean
@@ -108,6 +107,14 @@ function SortableTile({
     transition: 'filter 0.4s ease-out, opacity 0.4s ease-out',
   } : undefined
 
+  // In arrange mode: dnd-kit listeners on tile body + onClick for bottom sheet
+  // In viewing mode (mobile): long-press to enter arrange mode
+  const tileHandlers = isArranging
+    ? { ...attributes, ...listeners, onClick: (e: React.MouseEvent) => { e.stopPropagation(); onTap() } }
+    : isViewing && isMobile
+      ? { onTouchStart: onLongPressStart, onTouchMove: onLongPressMove, onTouchEnd: onLongPressEnd }
+      : {}
+
   return (
     <div
       ref={setNodeRef}
@@ -118,37 +125,9 @@ function SortableTile({
       <div
         className={`tile-inner relative rounded-xl overflow-hidden w-full h-full ${isArranging ? 'tile-arranging tile-jiggle' : ''} ${selected ? 'ring-2 ring-white/60' : ''}`}
         style={revealStyle}
-        onClick={isArranging ? (e) => { e.stopPropagation(); onTap() } : undefined}
-        onTouchStart={isViewing && isMobile ? onLongPressStart : undefined}
-        onTouchMove={isViewing && isMobile ? onLongPressMove : undefined}
-        onTouchEnd={isViewing && isMobile ? onLongPressEnd : undefined}
+        {...tileHandlers}
         onContextMenu={(e) => e.preventDefault()}
       >
-        {/* Delete badge — only in arranging mode */}
-        {isArranging && (
-          <button
-            onClick={(e) => { e.stopPropagation(); onDelete() }}
-            className="absolute top-0 left-0 w-11 h-11 z-10 flex items-center justify-center"
-          >
-            <span className="w-5 h-5 rounded-full bg-red-500/90 flex items-center justify-center text-white text-xs font-bold">−</span>
-          </button>
-        )}
-
-        {/* Drag handle — only in arranging mode */}
-        {isArranging && (
-          <div
-            {...attributes}
-            {...listeners}
-            className="absolute top-1 right-1 w-11 h-11 z-10 flex items-center justify-center drag-handle"
-          >
-            <div className="w-7 h-7 rounded-lg bg-black/60 flex items-center justify-center">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path d="M5 3H9M5 7H9M5 11H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-white/60" />
-              </svg>
-            </div>
-          </div>
-        )}
-
         {/* Tile content — absolute fill to enforce square */}
         {content.type === 'image' ? (
           isVideo ? (
@@ -292,12 +271,11 @@ export default function EditPage() {
     touchStartRef.current = null
   }, [])
 
-  // Activation constraint: require 8px drag distance so clicks still work
+  // Mouse: click-and-drag 8px. Touch: hold 200ms then drag. Both allow normal scroll/tap.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
 
   // Load data
@@ -1074,7 +1052,6 @@ export default function EditPage() {
                     isMobile={isMobile}
                     selected={selectedTileId === item.id}
                     onTap={() => openTileMenu(item.id)}
-                    onDelete={() => handleDelete(item.id)}
                     deleting={deletingIds.has(item.id)}
                     size={item.size || 1}
                     onLongPressStart={handleTouchStart}

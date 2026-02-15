@@ -187,12 +187,12 @@ body::before {
 /* Jiggle animation — iOS home screen style */
 @keyframes jiggle {
   0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(-0.7deg); }
-  75% { transform: rotate(0.7deg); }
+  25% { transform: rotate(-0.4deg); }
+  75% { transform: rotate(0.4deg); }
 }
-.tile-jiggle { animation: jiggle 0.15s ease-in-out infinite alternate; }
-.tile-jiggle:nth-child(2n) { animation-delay: 0.075s; }
-.tile-jiggle:nth-child(3n) { animation-delay: 0.05s; }
+.tile-jiggle { animation: jiggle 0.35s ease-in-out infinite alternate; }
+.tile-jiggle:nth-child(2n) { animation-delay: 0.1s; }
+.tile-jiggle:nth-child(3n) { animation-delay: 0.07s; }
 
 .tile-arranging {
   -webkit-user-select: none;
