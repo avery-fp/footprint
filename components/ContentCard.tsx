@@ -143,9 +143,9 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
     if (spotifyInfo) {
       const embedHeight = spotifyInfo.type === 'track' ? 152 : 352
       return (
-        <div className="w-full aspect-square rounded-xl overflow-hidden bg-black flex items-center justify-center">
+        <div className="w-full aspect-square rounded-xl overflow-hidden bg-black relative">
           <iframe
-            style={{ borderRadius: 12, border: 'none' }}
+            style={{ position: 'absolute', left: 0, right: 0, bottom: 0, border: 'none', borderRadius: '0 0 12px 12px' }}
             src={`https://open.spotify.com/embed/${spotifyInfo.type}/${spotifyInfo.id}?theme=0`}
             width="100%"
             height={embedHeight}
