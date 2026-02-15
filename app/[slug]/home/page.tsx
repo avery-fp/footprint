@@ -672,7 +672,7 @@ export default function EditPage() {
       const res = await fetch('/api/rooms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ serial_number: serialNumber, name: name.trim(), position: rooms.length }),
+        body: JSON.stringify({ serial_number: serialNumber, name: name.trim(), position: rooms.length, slug }),
       })
       const json = await res.json()
       if (!res.ok) {
@@ -689,7 +689,7 @@ export default function EditPage() {
   async function handleDeleteRoom(roomId: string) {
     if (!confirm('Delete this room? Tiles will be unassigned, not deleted.')) return
     try {
-      const res = await fetch(`/api/rooms?id=${roomId}`, { method: 'DELETE' })
+      const res = await fetch(`/api/rooms?id=${roomId}&slug=${encodeURIComponent(slug)}`, { method: 'DELETE' })
       if (!res.ok) {
         alert('Failed to delete room')
         return
@@ -756,6 +756,8 @@ export default function EditPage() {
         ),
         updated_at: Date.now(),
       } : null)
+      // Revalidate public page
+      fetch(`/api/revalidate?path=/${encodeURIComponent(slug)}`).catch(() => {})
     } catch (err) {
       console.error('Failed to assign room:', err)
     }

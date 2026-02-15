@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase'
 
 /**
@@ -73,6 +74,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
+    const slug = searchParams.get('slug')
 
     if (!id) {
       return NextResponse.json({ error: 'id required' }, { status: 400 })
@@ -90,6 +92,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    if (slug) revalidatePath(`/${slug}`)
     return NextResponse.json({ success: true })
   } catch (error) {
     return NextResponse.json({ error: 'Failed to delete room' }, { status: 500 })
@@ -104,7 +107,7 @@ export async function DELETE(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const { serial_number, name, position } = await request.json()
+    const { serial_number, name, position, slug } = await request.json()
 
     if (!serial_number || !name) {
       return NextResponse.json({ error: 'serial_number and name required' }, { status: 400 })
@@ -126,6 +129,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    if (slug) revalidatePath(`/${slug}`)
     return NextResponse.json({ room })
   } catch (error) {
     return NextResponse.json({ error: 'Failed to create room' }, { status: 500 })
