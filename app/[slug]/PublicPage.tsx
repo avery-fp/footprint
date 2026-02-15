@@ -22,19 +22,13 @@ interface PublicPageProps {
   pageUrl: string
 }
 
-// Wallpaper filter per room â derived from room index
+// Wallpaper filter per room - derived from room index
 const ROOM_FILTERS = [
-  // Room 0: cool, moderate blur
   'blur(8px) brightness(0.45) saturate(0.85) hue-rotate(-8deg)',
-  // Room 1: warm, bright, low blur â wallpaper almost legible
   'blur(4px) brightness(0.65) saturate(1.4) hue-rotate(25deg)',
-  // Room 2: deep, hyper-saturated, max blur
   'blur(16px) brightness(0.3) saturate(1.6) hue-rotate(-35deg)',
-  // Room 3: sharp editorial â zero blur, desaturated
   'blur(0px) brightness(0.55) saturate(0.2) hue-rotate(0deg)',
-  // Room 4: vivid, bright, warm shift
   'blur(10px) brightness(0.7) saturate(1.2) hue-rotate(35deg)',
-  // Room 5: noir â dark, muted, heavy blur
   'blur(14px) brightness(0.35) saturate(0.4) hue-rotate(-20deg)',
 ]
 const DEFAULT_FILTER = 'blur(12px)'
@@ -51,7 +45,7 @@ const DEFAULT_OVERLAY = 'rgba(0,0,0,0.35)'
 
 export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
-  
+
   // Default to first room on mount
   useEffect(() => {
     if (activeRoomId === null && rooms.length > 0) {
@@ -63,7 +57,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [showToast, setShowToast] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [widescreenIds, setWidescreenIds] = useState<Set<string>>(new Set())
-  const swipeRef = useRef<HTMLDivElement>(null)
+  const swipeTouchRef = useRef<{ x: number; y: number } | null>(null)
 
   const markWidescreen = useCallback((id: string) => {
     setWidescreenIds(prev => {
@@ -112,42 +106,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  // Sync swipe with room state on mobile
-  useEffect(() => {
-    if (!isMobile || !swipeRef.current) return
-    const container = swipeRef.current
-    let timeout: NodeJS.Timeout
-
-    const handleScroll = () => {
-      clearTimeout(timeout)
-      timeout = setTimeout(() => {
-        const idx = Math.round(container.scrollLeft / container.offsetWidth)
-        if (visibleRooms.length === 0) return
-        if (idx === 0) {
-          setActiveRoomId(null)
-        } else {
-          setActiveRoomId(visibleRooms[idx - 1]?.id || null)
-        }
-      }, 80)
-    }
-
-    container.addEventListener('scroll', handleScroll, { passive: true })
-    return () => {
-      container.removeEventListener('scroll', handleScroll)
-      clearTimeout(timeout)
-    }
-  }, [isMobile, visibleRooms])
-
-  // Navigate to room (scrolls on mobile)
+  // Navigate to room
   const goToRoom = (roomId: string | null) => {
     setActiveRoomId(roomId)
-    if (isMobile && swipeRef.current) {
-      const idx = roomId ? visibleRooms.findIndex(r => r.id === roomId) + 1 : 0
-      swipeRef.current.scrollTo({
-        left: idx * swipeRef.current.offsetWidth,
-        behavior: 'smooth'
-      })
-    }
   }
 
   useEffect(() => {
@@ -156,7 +117,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     return () => clearTimeout(t)
   }, [showToast])
 
-  // Reusable tile renderer â size-aware col-span in CSS Grid
+  // Reusable tile renderer - size-aware col-span in CSS Grid
   const renderTile = (item: any, index: number) => {
     const isVideo = item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
     const tileSize = item.size || 1
@@ -195,7 +156,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
   return (
     <div className="min-h-screen relative" style={{ background: theme.colors.background, color: theme.colors.text }}>
-      {/* Wallpaper layer â fixed full-viewport, Image with object-cover */}
+      {/* Wallpaper layer */}
       {footprint.background_url && (
         <div className="fixed inset-0 z-0">
           <Image
@@ -222,7 +183,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       )}
       <WeatherEffect type={footprint.weather_effect || null} />
       <div className="relative z-10">
-        {/* Ã¦ Masthead â no avatar, just text */}
+        {/* Masthead */}
         <header className="mb-12 md:mb-16 flex flex-col items-center pt-24 md:pt-32">
             <h1
               className="text-4xl md:text-6xl tracking-[0.15em] font-normal text-white/90"
@@ -232,7 +193,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 textShadow: '0 2px 16px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.5)',
               }}
             >
-              {footprint.display_name || 'Ã¦'}
+              {footprint.display_name || '\u00e6'}
             </h1>
             <span className="text-white/30 tracking-[0.3em] uppercase text-[10px] font-light mt-2"
               style={{
@@ -275,7 +236,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             </a>
         </header>
 
-        {/* Room Tabs â only show when multiple rooms exist */}
+        {/* Room Tabs */}
         {visibleRooms.length > 1 && (
           <div className="flex items-center justify-center gap-2 mb-6 flex-wrap relative z-20 max-w-7xl mx-auto px-3 md:px-5">
             {visibleRooms.map((room) => (
@@ -294,36 +255,31 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </div>
         )}
 
-        {/* CSS Columns Masonry */}
-        <div className="max-w-7xl mx-auto px-3 md:px-5">
-          {isMobile && visibleRooms.length > 1 ? (
-            /* MOBILE SWIPE */
-            <div
-              ref={swipeRef}
-              className="flex swipe-container"
-              style={{
-                overflowX: 'auto',
-                overflowY: 'visible',
-                scrollSnapType: 'x mandatory',
-                WebkitOverflowScrolling: 'touch',
-                minHeight: '100vh',
-              }}
-            >
-              {/* Room panels */}
-              {visibleRooms.map((room) => (
-                <div key={room.id} className="w-full min-w-full flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
-                  <div className="grid grid-cols-2 gap-2">
-                    {room.content.map((item, idx) => renderTile(item, idx))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            /* DESKTOP â CSS Grid with size-aware spans */
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              {content.map((item, idx) => renderTile(item, idx))}
-            </div>
-          )}
+        {/* Content grid - swipe gesture switches rooms on mobile */}
+        <div className="max-w-7xl mx-auto px-3 md:px-5"
+          onTouchStart={(e) => {
+            if (visibleRooms.length > 1 && isMobile && e.touches.length === 1) {
+              swipeTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+            }
+          }}
+          onTouchEnd={(e) => {
+            if (!swipeTouchRef.current || visibleRooms.length <= 1 || !isMobile) return
+            const dx = e.changedTouches[0].clientX - swipeTouchRef.current.x
+            const dy = e.changedTouches[0].clientY - swipeTouchRef.current.y
+            swipeTouchRef.current = null
+            if (Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+              const currentIdx = visibleRooms.findIndex(r => r.id === activeRoomId)
+              if (dx < 0 && currentIdx < visibleRooms.length - 1) {
+                setActiveRoomId(visibleRooms[currentIdx + 1].id)
+              } else if (dx > 0 && currentIdx > 0) {
+                setActiveRoomId(visibleRooms[currentIdx - 1].id)
+              }
+            }
+          }}
+        >
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {content.map((item, idx) => renderTile(item, idx))}
+          </div>
         </div>
 
         {content.length === 0 && (
@@ -332,27 +288,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </p>
         )}
 
-        {/* Mobile page dots */}
-        {isMobile && visibleRooms.length > 1 && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5
-            bg-black/20 backdrop-blur-xl rounded-full px-3 py-1.5 border border-white/[0.04]">
-            {visibleRooms.map((r, i) => {
-              const isActive = r.id === activeRoomId
-              return (
-                <div key={i} className="transition-all duration-300"
-                  style={{
-                    width: isActive ? 18 : 4,
-                    height: 3,
-                    borderRadius: 2,
-                    background: isActive ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.15)',
-                  }}
-                />
-              )
-            })}
-          </div>
-        )}
-
-        {/* Footer â whisper */}
+        {/* Footer */}
         <div className="mt-24 mb-12 flex items-center justify-center gap-3">
           <a href="https://footprint.onl" className="text-white/[0.08] text-xs tracking-[0.3em] hover:text-white/20 transition-colors">
             footprint.onl
