@@ -53,6 +53,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       if (visible.length > 0) setActiveRoomId(visible[0].id)
     }
   }, [rooms])
+  const [isOwner, setIsOwner] = useState(false)
   const [wallpaperLoaded, setWallpaperLoaded] = useState(false)
   const [showToast, setShowToast] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
@@ -109,6 +110,16 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
   }, [])
+
+  // Owner detection — lightweight API check, no flash
+  useEffect(() => {
+    const slug = footprint.username
+    if (!slug) return
+    fetch(`/api/footprint/${encodeURIComponent(slug)}`, { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.footprint) setIsOwner(true) })
+      .catch(() => {})
+  }, [footprint.username])
 
   // Navigate to room
   const goToRoom = (roomId: string | null) => {
@@ -272,6 +283,18 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
       )}
       <WeatherEffect type={footprint.weather_effect || null} />
+
+      {/* Owner edit link — top right, small, unobtrusive */}
+      {isOwner && (
+        <Link
+          href={`/${footprint.username}/home`}
+          className="fixed top-4 right-4 z-30 text-sm text-white/40 hover:text-white/70 transition font-mono"
+          style={{ paddingTop: 'env(safe-area-inset-top)' }}
+        >
+          edit
+        </Link>
+      )}
+
       <div className="relative z-10">
         {/* Masthead */}
         <header className="mb-12 md:mb-16 flex flex-col items-center pt-24 md:pt-32">
@@ -320,9 +343,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             {/* CTA */}
             <a
               href={'https://buy.stripe.com/9B6cN40Ef0sG2z98b214400'}
-              className="mt-5 inline-flex items-center gap-2 rounded-full px-5 py-2 text-[10px] tracking-[0.2em] uppercase text-white/50 hover:text-white/80 bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] hover:border-white/[0.15] transition-all duration-500"
+              className="mt-5 inline-flex items-center gap-2 rounded-full px-5 py-2 text-[10px] tracking-[0.2em] lowercase text-white/50 hover:text-white/80 bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] hover:border-white/[0.15] transition-all duration-500"
             >
-              Claim yours — $10
+              make yours.
             </a>
         </header>
 
