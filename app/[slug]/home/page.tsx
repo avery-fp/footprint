@@ -1161,25 +1161,57 @@ export default function EditPage() {
       {/* ═══ TILE ACTION SHEET ═══ */}
       {mode.type === 'tile_menu' && selectedTile && (
         <>
-          {/* Scrim */}
-          <div className="fixed inset-0 z-[60] bg-black/40" onClick={closeTileMenu} />
-          {/* Sheet */}
-          <div className="fixed bottom-0 left-0 right-0 z-[70] bg-[#111214] rounded-t-2xl border-t border-white/[0.08] pb-[env(safe-area-inset-bottom)] animate-slide-up">
+          {/* Scrim — tap to close */}
+          <div className="fixed inset-0 z-[60] animate-overlay-fade" style={{ backgroundColor: 'rgba(0,0,0,0.3)' }} onClick={closeTileMenu} />
+          {/* Sheet — swipe down to close */}
+          <div
+            className="fixed bottom-0 left-0 right-0 z-[70] bg-[#111214] rounded-t-2xl border-t border-white/[0.08] pb-[env(safe-area-inset-bottom)] animate-slide-up"
+            style={{ maxHeight: '60vh' }}
+            onTouchStart={(e) => {
+              const el = e.currentTarget
+              ;(el as any)._sheetTouchY = e.touches[0].clientY
+            }}
+            onTouchMove={(e) => {
+              const el = e.currentTarget
+              const startY = (el as any)._sheetTouchY
+              if (startY === undefined) return
+              const dy = e.touches[0].clientY - startY
+              if (dy > 0) {
+                el.style.transform = `translateY(${dy}px)`
+                el.style.transition = 'none'
+              }
+            }}
+            onTouchEnd={(e) => {
+              const el = e.currentTarget
+              const startY = (el as any)._sheetTouchY
+              if (startY === undefined) return
+              const dy = e.changedTouches[0].clientY - startY
+              delete (el as any)._sheetTouchY
+              if (dy > 80) {
+                el.style.transition = 'transform 200ms ease-out'
+                el.style.transform = 'translateY(100%)'
+                setTimeout(closeTileMenu, 200)
+              } else {
+                el.style.transition = 'transform 200ms ease-out'
+                el.style.transform = 'translateY(0)'
+              }
+            }}
+          >
             {/* Drag indicator */}
             <div className="flex justify-center pt-3 pb-2">
               <div className="w-10 h-1 rounded-full bg-white/20" />
             </div>
 
-            <div className="px-5 pb-6 space-y-4">
+            <div className="px-4 pb-6 overflow-y-auto" style={{ maxHeight: 'calc(60vh - 28px)' }}>
               {/* Resize */}
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between" style={{ minHeight: '48px' }}>
                 <span className="text-sm text-white/50 font-mono">size</span>
                 <div className="flex gap-1.5">
                   {[1, 2, 3].map(s => (
                     <button
                       key={s}
                       onClick={() => setTileSize(mode.tileId, s)}
-                      className={`px-3 py-1 rounded-lg text-xs font-mono transition ${
+                      className={`px-3 py-1.5 rounded-lg text-xs font-mono transition ${
                         (selectedTile.size || 1) === s
                           ? 'bg-white/20 text-white'
                           : 'bg-white/[0.06] text-white/40 hover:bg-white/[0.10]'
@@ -1193,12 +1225,12 @@ export default function EditPage() {
 
               {/* Room assign */}
               {rooms.length > 0 && (
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between" style={{ minHeight: '48px' }}>
                   <span className="text-sm text-white/50 font-mono">room</span>
                   <select
                     value={selectedTile.room_id || ''}
                     onChange={(e) => assignTileRoom(mode.tileId, e.target.value || null)}
-                    className="bg-white/10 text-white text-xs font-mono rounded-lg px-3 py-1.5 border border-white/20 outline-none"
+                    className="bg-white/10 text-white text-xs font-mono rounded-lg px-3 py-2 border border-white/20 outline-none"
                   >
                     <option value="">none</option>
                     {rooms.map(r => (
@@ -1212,19 +1244,23 @@ export default function EditPage() {
               {(selectedIsImage || selectedHasThumbnail) && (
                 <button
                   onClick={() => handleSetWallpaper(mode.tileId)}
-                  className="w-full text-left text-sm text-white/60 hover:text-white/90 transition font-mono py-2 border-t border-white/[0.06]"
+                  className="w-full text-left text-sm text-white/60 hover:text-white/90 transition font-mono border-t border-white/[0.06]"
+                  style={{ minHeight: '48px', display: 'flex', alignItems: 'center' }}
                 >
                   wallpaper
                 </button>
               )}
 
-              {/* Delete */}
-              <button
-                onClick={() => { handleDelete(mode.tileId); closeTileMenu() }}
-                className="w-full text-left text-sm text-red-400/70 hover:text-red-400 transition font-mono py-2 border-t border-white/[0.06]"
-              >
-                delete
-              </button>
+              {/* Delete — separated, red text only */}
+              <div className="mt-4">
+                <button
+                  onClick={() => { handleDelete(mode.tileId); closeTileMenu() }}
+                  className="w-full text-left text-sm transition font-mono border-t border-white/[0.06]"
+                  style={{ minHeight: '48px', display: 'flex', alignItems: 'center', color: '#ef4444' }}
+                >
+                  delete
+                </button>
+              </div>
             </div>
           </div>
         </>
