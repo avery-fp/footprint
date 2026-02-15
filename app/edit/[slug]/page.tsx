@@ -59,6 +59,7 @@ function SortableTile({
     opacity: isDragging ? 0.5 : deleting ? 0.5 : 1,
     contain: 'layout style paint',
     willChange: isDragging ? 'transform' : undefined,
+    touchAction: 'none',
   }
 
   const isVideo = content.type === 'image' && content.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
@@ -135,7 +136,11 @@ function SortableTile({
       {...listeners}
       onClick={onSelect}
       onDoubleClick={(e) => { e.stopPropagation(); onDoubleClick() }}
-      onPointerDown={(e) => { if (!captionEditing) handleLongPressStart() }}
+      onPointerDown={(e) => {
+        if (!captionEditing) handleLongPressStart()
+        // Forward to dnd-kit so dragging works
+        ;(listeners as any)?.onPointerDown?.(e)
+      }}
       onPointerUp={handleLongPressEnd}
       onPointerCancel={handleLongPressEnd}
       onPointerLeave={handleLongPressEnd}
