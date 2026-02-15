@@ -328,7 +328,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
         {content.length === 0 && (
           <p className="text-center py-16" style={{ color: theme.colors.textMuted }}>
-            Nothing here yet.
+            nothing here.
           </p>
         )}
 
@@ -360,7 +360,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           <button
             onClick={handleShare}
             className="text-white/[0.08] hover:text-white/20 transition-colors"
-            title="Copy link"
           >
             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
@@ -372,7 +371,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       {/* Copied toast */}
       {showToast && (
         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 bg-white/[0.08] backdrop-blur-sm rounded-full px-5 py-2 text-white/60 text-sm materialize">
-          Copied to clipboard
+          copied.
         </div>
       )}
     </div>

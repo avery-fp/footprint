@@ -18,33 +18,39 @@ interface TileContent extends DraftContent {
 }
 
 // ═══════════════════════════════════════════
-// Sortable Tile
+// Page Mode — single state machine, no competing booleans
+// ═══════════════════════════════════════════
+type PageMode =
+  | { type: 'viewing' }
+  | { type: 'arranging' }
+  | { type: 'tile_menu'; tileId: string }
+  | { type: 'adding'; method: 'idle' | 'url' | 'thought' }
+
+// ═══════════════════════════════════════════
+// Sortable Tile — drag handle only, no long-press
 // ═══════════════════════════════════════════
 function SortableTile({
-  id, content, onDelete, onSelect, onDoubleClick, deleting, selected, size,
-  captionEditing, onCaptionOpen, onCaptionSave, editMode, onEnterEditMode,
+  id, content, onDelete, deleting, size, isArranging, isViewing, isMobile, selected, onTap,
+  onLongPressStart, onLongPressMove, onLongPressEnd,
 }: {
   id: string
   content: any
   onDelete: () => void
-  onSelect: () => void
-  onDoubleClick: () => void
   deleting: boolean
-  selected: boolean
   size: number
-  captionEditing: boolean
-  onCaptionOpen: () => void
-  onCaptionSave: (caption: string) => void
-  editMode: boolean
-  onEnterEditMode: () => void
+  isArranging: boolean
+  isViewing: boolean
+  isMobile: boolean
+  selected: boolean
+  onTap: () => void
+  onLongPressStart: (e: React.TouchEvent) => void
+  onLongPressMove: (e: React.TouchEvent) => void
+  onLongPressEnd: () => void
 }) {
   const [isMuted, setIsMuted] = useState(true)
   const [isLoaded, setIsLoaded] = useState(false)
-  const [captionText, setCaptionText] = useState(content.caption || '')
   const videoRef = useRef<HTMLVideoElement>(null)
   const audioIdRef = useRef(`edit-${id}`)
-  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const captionInputRef = useRef<HTMLInputElement>(null)
 
   const {
     attributes,
@@ -60,8 +66,7 @@ function SortableTile({
     transition,
     opacity: isDragging ? 0.5 : deleting ? 0.5 : 1,
     contain: 'layout style paint',
-    willChange: isDragging ? 'transform' : undefined,
-    touchAction: editMode ? 'none' : 'auto',
+    willChange: isDragging ? 'transform' : 'auto',
   }
 
   const isVideo = content.type === 'image' && content.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
@@ -76,35 +81,6 @@ function SortableTile({
     })
     return () => audioManager.unregister(audioIdRef.current)
   }, [id, isVideo])
-
-  // Focus caption input when editing opens
-  useEffect(() => {
-    if (captionEditing) {
-      setCaptionText(content.caption || '')
-      setTimeout(() => captionInputRef.current?.focus(), 50)
-    }
-  }, [captionEditing, content.caption])
-
-  const handleLongPressStart = () => {
-    longPressTimerRef.current = setTimeout(() => {
-      if (!editMode) {
-        onEnterEditMode()
-      } else {
-        onCaptionOpen()
-      }
-    }, 500)
-  }
-
-  const handleLongPressEnd = () => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current)
-      longPressTimerRef.current = null
-    }
-  }
-
-  const handleCaptionSubmit = () => {
-    onCaptionSave(captionText)
-  }
 
   const handleVideoClick = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -138,68 +114,37 @@ function SortableTile({
       style={style}
       className={sizeClass}
       data-tile
-      {...(editMode ? attributes : {})}
-      {...(editMode ? listeners : {})}
-      onClick={editMode ? onSelect : undefined}
-      onDoubleClick={editMode ? (e) => { e.stopPropagation(); onDoubleClick() } : undefined}
-      onPointerDown={(e) => {
-        if (!captionEditing) handleLongPressStart()
-        if (editMode) (listeners as any)?.onPointerDown?.(e)
-      }}
-      onPointerUp={handleLongPressEnd}
-      onPointerCancel={handleLongPressEnd}
-      onPointerLeave={handleLongPressEnd}
     >
-      <div className={`relative rounded-xl overflow-hidden w-full h-full ${selected && editMode ? 'ring-2 ring-green-400' : ''}`} style={revealStyle}>
-        {/* Red dot delete — only in edit mode */}
-        {editMode && (
+      <div
+        className={`tile-inner relative rounded-xl overflow-hidden w-full h-full ${isArranging ? 'tile-arranging tile-jiggle' : ''} ${selected ? 'ring-2 ring-white/60' : ''}`}
+        style={revealStyle}
+        onClick={isArranging ? (e) => { e.stopPropagation(); onTap() } : undefined}
+        onTouchStart={isViewing && isMobile ? onLongPressStart : undefined}
+        onTouchMove={isViewing && isMobile ? onLongPressMove : undefined}
+        onTouchEnd={isViewing && isMobile ? onLongPressEnd : undefined}
+        onContextMenu={(e) => e.preventDefault()}
+      >
+        {/* Delete badge — only in arranging mode */}
+        {isArranging && (
           <button
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation()
-              onDelete()
-            }}
+            onClick={(e) => { e.stopPropagation(); onDelete() }}
             className="absolute top-0 left-0 w-11 h-11 z-10 flex items-center justify-center"
-            title="Delete"
           >
-            <span className="w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 transition-all" />
+            <span className="w-5 h-5 rounded-full bg-red-500/90 flex items-center justify-center text-white text-xs font-bold">−</span>
           </button>
         )}
 
-        {/* Green checkmark when selected */}
-        {selected && (
-          <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center z-10">
-            <span className="text-white text-xs font-bold">✓</span>
-          </div>
-        )}
-
-        {/* Caption overlay — shown during editing */}
-        {captionEditing && (
-          <div className="absolute bottom-0 left-0 right-0 z-20 p-2"
-            onPointerDown={(e) => e.stopPropagation()}>
-            <input
-              ref={captionInputRef}
-              type="text"
-              value={captionText}
-              onChange={(e) => setCaptionText(e.target.value)}
-              onBlur={handleCaptionSubmit}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') { handleCaptionSubmit(); (e.target as HTMLInputElement).blur() }
-                if (e.key === 'Escape') { onCaptionSave(content.caption || ''); (e.target as HTMLInputElement).blur() }
-              }}
-              placeholder="add caption..."
-              className="w-full bg-black/80 text-white text-sm rounded-lg p-2 outline-none placeholder:text-white/30 font-light"
-            />
-          </div>
-        )}
-
-        {/* Existing caption display */}
-        {!captionEditing && content.caption && (
-          <div className="absolute bottom-0 left-0 right-0 z-10">
-            <div className="bg-gradient-to-t from-black/60 to-transparent pt-6 pb-2 px-3">
-              <p className="text-[11px] text-white/80 leading-snug font-light tracking-wide line-clamp-2">
-                {content.caption}
-              </p>
+        {/* Drag handle — only in arranging mode */}
+        {isArranging && (
+          <div
+            {...attributes}
+            {...listeners}
+            className="absolute top-1 right-1 w-11 h-11 z-10 flex items-center justify-center drag-handle"
+          >
+            <div className="w-7 h-7 rounded-lg bg-black/60 flex items-center justify-center">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M5 3H9M5 7H9M5 11H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-white/60" />
+              </svg>
             </div>
           </div>
         )}
@@ -210,20 +155,21 @@ function SortableTile({
             <>
               <video
                 ref={videoRef}
-                src={content.url} unoptimized={content.url?.includes("/content/")}
+                src={content.url}
                 className={`absolute inset-0 w-full h-full object-cover cursor-pointer transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
                 muted
                 loop
                 playsInline
+                autoPlay
                 onClick={handleVideoClick}
-                onLoadedData={() => setIsLoaded(true)} onError={() => setIsLoaded(true)}
+                onLoadedData={() => setIsLoaded(true)} onError={(e) => { setIsLoaded(true); (e.target as HTMLVideoElement).style.display = 'none' }}
               />
               {!isMuted && (
                 <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60 z-10" />
               )}
             </>
           ) : content.url?.startsWith('data:') ? (
-            <img src={content.url} unoptimized={content.url?.includes("/content/")} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            <img src={content.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
           ) : (
             <Image
               src={content.url} unoptimized={content.url?.includes("/content/")}
@@ -268,10 +214,15 @@ export default function EditPage() {
   const router = useRouter()
   const slug = params.slug as string
 
+  // Single state machine
+  const [mode, setMode] = useState<PageMode>({ type: 'viewing' })
+  const isArranging = mode.type !== 'viewing'
+  const selectedTileId = mode.type === 'tile_menu' ? mode.tileId : null
+  const pillMode = mode.type === 'adding' ? mode.method : 'idle'
+
   const [draft, setDraft] = useState<DraftFootprint | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isAdding, setIsAdding] = useState(false)
-  const [editMode, setEditMode] = useState(false)
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
   const [isOwner, setIsOwner] = useState(false)
   const [tileSources, setTileSources] = useState<Record<string, 'library' | 'links'>>({})
@@ -280,19 +231,66 @@ export default function EditPage() {
   const [wallpaperUrl, setWallpaperUrl] = useState('')
   const [backgroundBlur, setBackgroundBlur] = useState(true)
   const [serialNumber, setSerialNumber] = useState<number | null>(null)
-  // Selection state
-  const [selectedTileId, setSelectedTileId] = useState<string | null>(null)
-  // Caption editing
-  const [captionTileId, setCaptionTileId] = useState<string | null>(null)
-  // Bottom pill input state
-  const [pillMode, setPillMode] = useState<'idle' | 'url' | 'thought'>('idle')
   const [pasteUrl, setPasteUrl] = useState('')
   const [thoughtText, setThoughtText] = useState('')
+  const [isMobile, setIsMobile] = useState(false)
   const urlInputRef = useRef<HTMLInputElement>(null)
   const thoughtInputRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const longPressRef = useRef<NodeJS.Timeout | null>(null)
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null)
+
+  // Mode transition helpers
+  const enterEdit = () => setMode({ type: 'arranging' })
+  const exitEdit = () => setMode({ type: 'viewing' })
+  const openTileMenu = (tileId: string) => {
+    setMode({ type: 'tile_menu', tileId })
+  }
+  const closeTileMenu = () => setMode({ type: 'arranging' })
+  const startAdding = (method: 'url' | 'thought') => setMode({ type: 'adding', method })
+  const stopAdding = () => setMode({ type: 'arranging' })
+
+  // Mobile detection
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
+  // Long-press to enter arrange mode (mobile + viewing only)
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (!isMobile || mode.type !== 'viewing') return
+    const touch = e.touches[0]
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY }
+    longPressRef.current = setTimeout(() => {
+      enterEdit()
+      longPressRef.current = null
+      touchStartRef.current = null
+    }, 500)
+  }, [isMobile, mode.type])
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!longPressRef.current || !touchStartRef.current) return
+    const touch = e.touches[0]
+    const dx = touch.clientX - touchStartRef.current.x
+    const dy = touch.clientY - touchStartRef.current.y
+    if (Math.sqrt(dx * dx + dy * dy) > 10) {
+      clearTimeout(longPressRef.current)
+      longPressRef.current = null
+      touchStartRef.current = null
+    }
+  }, [])
+
+  const handleTouchEnd = useCallback(() => {
+    if (longPressRef.current) {
+      clearTimeout(longPressRef.current)
+      longPressRef.current = null
+    }
+    touchStartRef.current = null
+  }, [])
 
   // Activation constraint: require 8px drag distance so clicks still work
   const sensors = useSensors(
@@ -460,7 +458,7 @@ export default function EditPage() {
         } : null)
       }
       setPasteUrl('')
-      setPillMode('idle')
+      stopAdding()
     } catch (e) {
       console.error('Failed to add content:', e)
     } finally {
@@ -497,7 +495,7 @@ export default function EditPage() {
         } : null)
       }
       setThoughtText('')
-      setPillMode('idle')
+      stopAdding()
     } catch (e) {
       console.error('Failed to add thought:', e)
     } finally {
@@ -508,7 +506,7 @@ export default function EditPage() {
   async function handleDelete(id: string) {
     if (deletingIds.has(id)) return
     setDeletingIds(prev => new Set(prev).add(id))
-    if (selectedTileId === id) setSelectedTileId(null)
+    if (selectedTileId === id) closeTileMenu()
 
     try {
       const source = tileSources[id]
@@ -568,12 +566,11 @@ export default function EditPage() {
 
   // ── Wallpaper from tile ──
 
-  async function handleSetWallpaper() {
-    if (!selectedTileId || !draft) return
-    const tile = draft.content.find(c => c.id === selectedTileId)
+  async function handleSetWallpaper(tileId: string) {
+    if (!draft) return
+    const tile = draft.content.find(c => c.id === tileId)
     if (!tile) return
 
-    // Use the tile's image URL (or thumbnail for embeds)
     const imageUrl = tile.type === 'image' ? tile.url : tile.thumbnail_url
     if (!imageUrl) return
 
@@ -584,7 +581,7 @@ export default function EditPage() {
         body: JSON.stringify({ background_url: imageUrl }),
       })
       setWallpaperUrl(imageUrl)
-      setSelectedTileId(null)
+      closeTileMenu()
     } catch (e) {
       console.error('Failed to set wallpaper:', e)
     }
@@ -662,11 +659,64 @@ export default function EditPage() {
     }
   }
 
+  // ── Tile size ──
+
+  async function setTileSize(id: string, newSize: number) {
+    if (!draft) return
+    const tile = draft.content.find(c => c.id === id)
+    if (!tile) return
+    const source = tileSources[id]
+    if (!source) return
+
+    const currentSize = tile.size || 1
+    if (currentSize === newSize) return
+
+    setDraft(prev => prev ? {
+      ...prev,
+      content: prev.content.map(c => c.id === id ? { ...c, size: newSize } : c),
+      updated_at: Date.now(),
+    } : null)
+
+    try {
+      await fetch('/api/tiles', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, source, slug, size: newSize }),
+      })
+    } catch (e) {
+      console.error('Failed to update tile size:', e)
+      setDraft(prev => prev ? {
+        ...prev,
+        content: prev.content.map(c => c.id === id ? { ...c, size: currentSize } : c),
+        updated_at: Date.now(),
+      } : null)
+    }
+  }
+
+  // ── Room assign ──
+
+  async function assignTileRoom(tileId: string, newRoomId: string | null) {
+    const source = tileSources[tileId]
+    if (!source) return
+    try {
+      const supabase = createBrowserSupabaseClient()
+      await supabase.from(source).update({ room_id: newRoomId }).eq('id', tileId)
+      setDraft(prev => prev ? {
+        ...prev,
+        content: prev.content.map(c =>
+          c.id === tileId ? { ...c, room_id: newRoomId } : c
+        ),
+        updated_at: Date.now(),
+      } : null)
+    } catch (err) {
+      console.error('Failed to assign room:', err)
+    }
+  }
+
   // ── File upload ──
 
   const VIDEO_MIME = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v', 'video/mov']
 
-  // XHR upload to Supabase Storage with progress events
   function uploadWithProgress(
     file: File,
     path: string,
@@ -697,7 +747,6 @@ export default function EditPage() {
     })
   }
 
-  // Extract first frame from video as JPEG data URL
   function getVideoThumbnail(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
       const video = document.createElement('video')
@@ -725,7 +774,6 @@ export default function EditPage() {
     })
   }
 
-  // Resize images client-side before upload (12MB → ~150KB)
   async function resizeImage(file: File, maxWidth = 1600): Promise<File> {
     if (file.size < 300 * 1024) return file
 
@@ -756,11 +804,32 @@ export default function EditPage() {
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || [])
     if (files.length === 0 || !draft || !serialNumber) return
+
+    // 50MB limit
+    const oversized = files.filter(f => f.size > 50 * 1024 * 1024)
+    if (oversized.length > 0) {
+      alert('under 50mb.')
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+
+    // 4 video cap
+    const existingVideos = draft.content.filter(c =>
+      c.type === 'image' && c.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
+    ).length
+    const incomingVideos = files.filter(f =>
+      VIDEO_MIME.includes(f.type) || /\.(mp4|mov|webm|m4v)$/i.test(f.name)
+    ).length
+    if (existingVideos + incomingVideos > 4) {
+      alert('4 max.')
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+
     setIsAdding(true)
 
     const tempIds = files.map((_, i) => `temp-${Date.now()}-${i}`)
 
-    // ZERO DELAY — add temp tiles instantly (synchronous)
     const tempTiles = files.map((file, i) => {
       const isVideo = VIDEO_MIME.includes(file.type) || /\.(mp4|mov|webm|m4v)$/i.test(file.name)
       return {
@@ -784,7 +853,6 @@ export default function EditPage() {
       updated_at: Date.now(),
     } : null)
 
-    // Extract video thumbnails in parallel (non-blocking)
     files.forEach((file, i) => {
       const isVideo = VIDEO_MIME.includes(file.type) || /\.(mp4|mov|webm|m4v)$/i.test(file.name)
       if (isVideo) {
@@ -793,54 +861,40 @@ export default function EditPage() {
             ...prev,
             content: prev.content.map(c => c.id === tempIds[i] ? { ...c, url: thumbUrl } : c),
           } : null)
-        }).catch(() => { /* no thumb — dark placeholder */ })
+        }).catch(() => {})
       }
     })
 
-    // Upload all files in parallel
     const uploadOne = async (file: File, idx: number) => {
       const isVideo = VIDEO_MIME.includes(file.type) || /\.(mp4|mov|webm|m4v)$/i.test(file.name)
       const tempId = tempIds[idx]
 
       try {
-        // For images, resize before upload (12MB → ~150KB, <100ms)
         const uploadFile = isVideo ? file : await resizeImage(file)
-
         const ext = uploadFile.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg')
         const filename = `${serialNumber}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
 
-        console.log('temp tile added:', tempId)
-
         const publicUrl = await uploadWithProgress(uploadFile, filename, (pct) => {
-          // Per-tile progress — drives the polaroid reveal
           setDraft(prev => prev ? {
             ...prev,
             content: prev.content.map(c => c.id === tempId ? { ...c, _progress: pct } : c),
           } : null)
         })
 
-        console.log('upload complete, registering...')
-
-        // Register DB record
         const res = await fetch('/api/upload/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ slug, url: publicUrl, room_id: activeRoomId }),
         })
         const data = await res.json()
-        console.log('register response:', JSON.stringify(data))
 
         if (data.tile) {
-          // Snap to 100% — crystal clear
           setDraft(prev => prev ? {
             ...prev,
             content: prev.content.map(c => c.id === tempId ? { ...c, _progress: 100 } : c),
           } : null)
 
-          // Let the reveal complete, then swap in real tile
           await new Promise(r => setTimeout(r, 200))
-
-          console.log('replacing temp with real:', tempId, '->', data.tile.id)
 
           setTileSources(prev => ({ ...prev, [data.tile.id]: data.tile.source }))
           setDraft(prev => prev ? {
@@ -862,13 +916,11 @@ export default function EditPage() {
           } : null)
         }
 
-        // Revoke blob URL for images
         if (!isVideo) {
           const thumb = tempTiles[idx]?.url
           if (thumb?.startsWith('blob:')) URL.revokeObjectURL(thumb)
         }
       } catch (err) {
-        // Remove temp tile on failure
         setDraft(prev => prev ? {
           ...prev,
           content: prev.content.filter(c => c.id !== tempId),
@@ -884,74 +936,9 @@ export default function EditPage() {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  // ── Selection helpers ──
+  // ── Derived values ──
 
-  function handleSelect(id: string) {
-    setSelectedTileId(prev => prev === id ? null : id)
-    setPillMode('idle')
-  }
-
-  async function cycleSize(id: string) {
-    if (!draft) return
-    const tile = draft.content.find(c => c.id === id)
-    if (!tile) return
-    const source = tileSources[id]
-    if (!source) return
-
-    const currentSize = tile.size || 1
-    const newSize = currentSize === 1 ? 2 : currentSize === 2 ? 3 : 1
-
-    // Optimistic update
-    setDraft(prev => prev ? {
-      ...prev,
-      content: prev.content.map(c => c.id === id ? { ...c, size: newSize } : c),
-      updated_at: Date.now(),
-    } : null)
-
-    try {
-      await fetch('/api/tiles', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, source, slug, size: newSize }),
-      })
-    } catch (e) {
-      console.error('Failed to update tile size:', e)
-      // Revert on failure
-      setDraft(prev => prev ? {
-        ...prev,
-        content: prev.content.map(c => c.id === id ? { ...c, size: currentSize } : c),
-        updated_at: Date.now(),
-      } : null)
-    }
-  }
-
-  async function saveCaption(id: string, caption: string) {
-    if (!draft) return
-    const source = tileSources[id]
-    if (!source) return
-
-    const trimmed = caption.trim()
-    const value = trimmed || null
-
-    // Optimistic update
-    setDraft(prev => prev ? {
-      ...prev,
-      content: prev.content.map(c => c.id === id ? { ...c, caption: value } : c),
-      updated_at: Date.now(),
-    } : null)
-
-    try {
-      await fetch('/api/tiles', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, source, slug, caption: value }),
-      })
-    } catch (e) {
-      console.error('Failed to save caption:', e)
-    }
-  }
-
-  const selectedTile = draft?.content.find(c => c.id === selectedTileId)
+  const selectedTile = selectedTileId ? draft?.content.find(c => c.id === selectedTileId) : null
   const selectedIsImage = selectedTile?.type === 'image' && !selectedTile?.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
   const selectedHasThumbnail = selectedTile?.thumbnail_url
 
@@ -973,7 +960,7 @@ export default function EditPage() {
 
   return (
     <div className="min-h-screen pb-32 relative overflow-x-hidden max-w-[100vw]" style={{ background: theme.colors.background, color: theme.colors.text }}>
-      {/* Wallpaper layer — real blur via filter */}
+      {/* Wallpaper layer */}
       {wallpaperUrl && (
         <div
           className="fixed inset-0 z-0 bg-cover bg-center"
@@ -984,10 +971,10 @@ export default function EditPage() {
           }}
         />
       )}
-      {/* ═══ HEADER — two rows ═══ */}
+
+      {/* ═══ HEADER ═══ */}
       <div className="fixed top-0 left-0 right-0 z-50 bg-black/60 backdrop-blur-sm border-b border-white/[0.06]"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-        {/* Row 1: nav */}
         <div className="flex items-center justify-between px-4 h-11">
           <Link
             href={`/${slug}`}
@@ -996,7 +983,7 @@ export default function EditPage() {
             ← view
           </Link>
           <div className="flex items-center gap-2">
-            {editMode && activeRoomId && (
+            {isArranging && activeRoomId && (
               <>
                 <button
                   onClick={() => setActiveRoomId(null)}
@@ -1012,24 +999,24 @@ export default function EditPage() {
                 </button>
               </>
             )}
-            {editMode ? (
+            {isArranging ? (
               <button
-                onClick={() => { setEditMode(false); setSelectedTileId(null) }}
+                onClick={exitEdit}
                 className="text-sm font-medium text-white/90 hover:text-white transition px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
               >
-                Done
+                done
               </button>
             ) : (
-              <Link
-                href={`/${slug}`}
+              <button
+                onClick={enterEdit}
                 className="text-sm font-medium text-white/90 hover:text-white transition px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
               >
-                Done
-              </Link>
+                edit
+              </button>
             )}
           </div>
         </div>
-        {/* Row 2: room pills (scrollable) */}
+        {/* Room pills */}
         <div className="flex items-center gap-2 px-4 pb-2 overflow-x-auto hide-scrollbar">
           <button
             onClick={() => setActiveRoomId(null)}
@@ -1063,12 +1050,12 @@ export default function EditPage() {
         </div>
       </div>
 
-      {/* ═══ DENSE MASONRY GRID ═══ */}
+      {/* ═══ TILE GRID ═══ */}
       <div className="max-w-7xl mx-auto px-3 md:px-6 pt-24 md:pt-20 pb-32 relative z-10">
 
         {filteredContent.length > 0 ? (
           <DndContext
-            sensors={editMode ? sensors : []}
+            sensors={isArranging ? sensors : []}
             collisionDetection={closestCenter}
             onDragEnd={handleDragEnd}
           >
@@ -1082,17 +1069,17 @@ export default function EditPage() {
                     key={item.id}
                     id={item.id}
                     content={item}
-                    editMode={editMode}
-                    onEnterEditMode={() => setEditMode(true)}
-                    onDelete={() => handleDelete(item.id)}
-                    onSelect={() => handleSelect(item.id)}
-                    onDoubleClick={() => cycleSize(item.id)}
-                    deleting={deletingIds.has(item.id)}
+                    isArranging={isArranging}
+                    isViewing={mode.type === 'viewing'}
+                    isMobile={isMobile}
                     selected={selectedTileId === item.id}
+                    onTap={() => openTileMenu(item.id)}
+                    onDelete={() => handleDelete(item.id)}
+                    deleting={deletingIds.has(item.id)}
                     size={item.size || 1}
-                    captionEditing={captionTileId === item.id}
-                    onCaptionOpen={() => { setCaptionTileId(item.id); setSelectedTileId(null) }}
-                    onCaptionSave={(caption) => { saveCaption(item.id, caption); setCaptionTileId(null) }}
+                    onLongPressStart={handleTouchStart}
+                    onLongPressMove={handleTouchMove}
+                    onLongPressEnd={handleTouchEnd}
                   />
                 ))}
               </div>
@@ -1100,13 +1087,12 @@ export default function EditPage() {
           </DndContext>
         ) : (
           <div className="text-center py-32">
-            <p className="text-white/30 text-lg mb-4">Empty room</p>
-            <p className="text-white/20 text-sm font-mono">Tap + below to add your first tile</p>
+            <p className="text-white/30 text-sm font-mono">nothing here.</p>
           </div>
         )}
       </div>
 
-      {/* Hidden file input for uploads */}
+      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
@@ -1116,21 +1102,93 @@ export default function EditPage() {
         onChange={handleFileUpload}
       />
 
-      {/* ═══ BOTTOM BAR — always visible ═══ */}
-      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-3 pb-[env(safe-area-inset-bottom)]">
+      {/* ═══ TILE ACTION SHEET ═══ */}
+      {mode.type === 'tile_menu' && selectedTile && (
+        <>
+          {/* Scrim */}
+          <div className="fixed inset-0 z-[60] bg-black/40" onClick={closeTileMenu} />
+          {/* Sheet */}
+          <div className="fixed bottom-0 left-0 right-0 z-[70] bg-[#111214] rounded-t-2xl border-t border-white/[0.08] pb-[env(safe-area-inset-bottom)] animate-slide-up">
+            {/* Drag indicator */}
+            <div className="flex justify-center pt-3 pb-2">
+              <div className="w-10 h-1 rounded-full bg-white/20" />
+            </div>
 
-        {/* Expanded URL input */}
-        {pillMode === 'url' && !selectedTileId && (
+            <div className="px-5 pb-6 space-y-4">
+              {/* Resize */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-white/50 font-mono">size</span>
+                <div className="flex gap-1.5">
+                  {[1, 2, 3].map(s => (
+                    <button
+                      key={s}
+                      onClick={() => setTileSize(mode.tileId, s)}
+                      className={`px-3 py-1 rounded-lg text-xs font-mono transition ${
+                        (selectedTile.size || 1) === s
+                          ? 'bg-white/20 text-white'
+                          : 'bg-white/[0.06] text-white/40 hover:bg-white/[0.10]'
+                      }`}
+                    >
+                      {s}x
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Room assign */}
+              {rooms.length > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-white/50 font-mono">room</span>
+                  <select
+                    value={selectedTile.room_id || ''}
+                    onChange={(e) => assignTileRoom(mode.tileId, e.target.value || null)}
+                    className="bg-white/10 text-white text-xs font-mono rounded-lg px-3 py-1.5 border border-white/20 outline-none"
+                  >
+                    <option value="">none</option>
+                    {rooms.map(r => (
+                      <option key={r.id} value={r.id}>{r.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Set as wallpaper */}
+              {(selectedIsImage || selectedHasThumbnail) && (
+                <button
+                  onClick={() => handleSetWallpaper(mode.tileId)}
+                  className="w-full text-left text-sm text-white/60 hover:text-white/90 transition font-mono py-2 border-t border-white/[0.06]"
+                >
+                  wallpaper
+                </button>
+              )}
+
+              {/* Delete */}
+              <button
+                onClick={() => { handleDelete(mode.tileId); closeTileMenu() }}
+                className="w-full text-left text-sm text-red-400/70 hover:text-red-400 transition font-mono py-2 border-t border-white/[0.06]"
+              >
+                delete
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ═══ BOTTOM BAR — only in arranging/adding ═══ */}
+      <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-3 pb-[env(safe-area-inset-bottom)] transition-all duration-300 ${isArranging && mode.type !== 'tile_menu' ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
+
+        {/* URL input */}
+        {pillMode === 'url' && (
           <div className="w-80 bg-black/60 backdrop-blur-sm border border-white/20 rounded-2xl p-3 materialize">
             <input
               ref={urlInputRef}
               type="text"
-              placeholder="Paste URL..."
+              placeholder=""
               value={pasteUrl}
               onChange={e => setPasteUrl(e.target.value)}
               onKeyDown={e => {
                 if (e.key === 'Enter') handleAddContent()
-                if (e.key === 'Escape') setPillMode('idle')
+                if (e.key === 'Escape') stopAdding()
               }}
               className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl font-mono text-sm focus:border-white/30 focus:outline-none text-white placeholder:text-white/30"
             />
@@ -1140,10 +1198,10 @@ export default function EditPage() {
                 disabled={isAdding || !pasteUrl.trim()}
                 className="flex-1 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl font-mono text-xs transition disabled:opacity-50"
               >
-                {isAdding ? 'Adding...' : 'Add'}
+                {isAdding ? 'adding...' : 'add'}
               </button>
               <button
-                onClick={() => { setPillMode('idle'); setPasteUrl('') }}
+                onClick={() => { stopAdding(); setPasteUrl('') }}
                 className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white/60 rounded-xl font-mono text-xs transition"
               >
                 ×
@@ -1152,17 +1210,17 @@ export default function EditPage() {
           </div>
         )}
 
-        {/* Expanded thought input */}
-        {pillMode === 'thought' && !selectedTileId && (
+        {/* Thought input */}
+        {pillMode === 'thought' && (
           <div className="w-80 bg-black/60 backdrop-blur-sm border border-white/20 rounded-2xl p-3 materialize">
             <textarea
               ref={thoughtInputRef}
-              placeholder="Write a thought..."
+              placeholder=""
               value={thoughtText}
               onChange={e => setThoughtText(e.target.value)}
               onKeyDown={e => {
                 if (e.key === 'Enter' && e.metaKey) handleAddThought()
-                if (e.key === 'Escape') setPillMode('idle')
+                if (e.key === 'Escape') stopAdding()
               }}
               rows={3}
               className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl font-mono text-sm focus:border-white/30 focus:outline-none text-white placeholder:text-white/30 resize-none"
@@ -1173,10 +1231,10 @@ export default function EditPage() {
                 disabled={isAdding || !thoughtText.trim()}
                 className="flex-1 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl font-mono text-xs transition disabled:opacity-50"
               >
-                {isAdding ? 'Adding...' : 'Add thought'}
+                {isAdding ? 'adding...' : 'add'}
               </button>
               <button
-                onClick={() => { setPillMode('idle'); setThoughtText('') }}
+                onClick={() => { stopAdding(); setThoughtText('') }}
                 className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white/60 rounded-xl font-mono text-xs transition"
               >
                 ×
@@ -1185,89 +1243,26 @@ export default function EditPage() {
           </div>
         )}
 
-        {/* CONTEXTUAL BAR: when a tile is selected → Wallpaper | Delete */}
-        {selectedTileId ? (
-          <div className="flex items-center gap-4 bg-black/60 backdrop-blur-sm rounded-full border border-white/20 px-6 py-3">
-            {(selectedIsImage || selectedHasThumbnail) && (
-              <button
-                onClick={handleSetWallpaper}
-                className="flex items-center gap-2 text-white/80 hover:text-white transition"
-              >
-                <span className="text-sm font-mono">Wallpaper</span>
-              </button>
-            )}
-            {(selectedIsImage || selectedHasThumbnail) && (
-              <div className="w-px h-4 bg-white/20" />
-            )}
-            {rooms.length > 0 && (
-              <>
-                <select
-                  value={draft?.content.find(c => c.id === selectedTileId)?.room_id || ''}
-                  onChange={async (e) => {
-                    const newRoomId = e.target.value || null
-                    const source = tileSources[selectedTileId!]
-                    if (!source) return
-                    try {
-                      const supabase = createBrowserSupabaseClient()
-                      await supabase.from(source).update({ room_id: newRoomId }).eq('id', selectedTileId)
-                      setDraft(prev => prev ? {
-                        ...prev,
-                        content: prev.content.map(c =>
-                          c.id === selectedTileId ? { ...c, room_id: newRoomId } : c
-                        ),
-                        updated_at: Date.now(),
-                      } : null)
-                    } catch (err) {
-                      console.error('Failed to assign room:', err)
-                    }
-                  }}
-                  className="bg-white/10 text-white text-xs font-mono rounded-lg px-2 py-1 border border-white/20 outline-none"
-                >
-                  <option value="">No room</option>
-                  {rooms.map(r => (
-                    <option key={r.id} value={r.id}>{r.name}</option>
-                  ))}
-                </select>
-                <div className="w-px h-4 bg-white/20" />
-              </>
-            )}
-            <button
-              onClick={() => {
-                handleDelete(selectedTileId)
-                setSelectedTileId(null)
-              }}
-              className="flex items-center gap-2 text-red-400 hover:text-red-300 transition"
-            >
-              <span className="text-sm font-mono">Delete</span>
-            </button>
-          </div>
-        ) : (
-          /* DEFAULT PILL: camera | + | chat */
+        {/* Default pill: upload | link | thought */}
+        {pillMode === 'idle' && (
           <div className="flex items-center gap-0 bg-black/50 backdrop-blur-sm rounded-full border border-white/20 overflow-hidden">
             <button
-              onClick={() => { setEditMode(true); fileInputRef.current?.click() }}
+              onClick={() => fileInputRef.current?.click()}
               className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all"
-              title="Upload file"
             >
               <span className="text-white/60 text-sm font-bold">↑</span>
             </button>
             <div className="w-px h-6 bg-white/10" />
             <button
-              onClick={() => { setEditMode(true); setPillMode(pillMode === 'url' ? 'idle' : 'url') }}
-              className={`w-14 h-14 flex items-center justify-center transition-all ${
-                pillMode === 'url' ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'
-              }`}
-              title="Add content"
+              onClick={() => startAdding('url')}
+              className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-white/60"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
             </button>
             <div className="w-px h-6 bg-white/10" />
             <button
-              onClick={() => { setEditMode(true); setPillMode(pillMode === 'thought' ? 'idle' : 'thought') }}
-              className={`w-14 h-14 flex items-center justify-center transition-all ${
-                pillMode === 'thought' ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'
-              }`}
-              title="Add thought"
+              onClick={() => startAdding('thought')}
+              className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all"
             >
               <span className="text-white/60 text-sm font-medium">Aa</span>
             </button>

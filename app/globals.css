@@ -183,3 +183,34 @@ body::before {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Jiggle animation — iOS home screen style */
+@keyframes jiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-0.7deg); }
+  75% { transform: rotate(0.7deg); }
+}
+.tile-jiggle { animation: jiggle 0.15s ease-in-out infinite alternate; }
+.tile-jiggle:nth-child(2n) { animation-delay: 0.075s; }
+.tile-jiggle:nth-child(3n) { animation-delay: 0.05s; }
+
+.tile-arranging {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Bottom sheet slide-up */
+@keyframes slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.animate-slide-up { animation: slide-up 0.25s ease-out; }
+
+/* Desktop tile hover — subtle brightness on pointer devices */
+@media (hover: hover) {
+  .tile-inner:not(.tile-arranging):hover {
+    filter: brightness(1.08);
+    transition: filter 0.15s ease;
+  }
+}
