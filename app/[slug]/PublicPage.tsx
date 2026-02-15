@@ -57,7 +57,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [showToast, setShowToast] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [widescreenIds, setWidescreenIds] = useState<Set<string>>(new Set())
-  const swipeTouchRef = useRef<{ x: number; y: number } | null>(null)
+  const [swipeDelta, setSwipeDelta] = useState(0)
+  const [isSwipeAnimating, setIsSwipeAnimating] = useState(false)
+  const swipeTouchRef = useRef<{ x: number; y: number; locked: boolean; isVertical: boolean } | null>(null)
+  const swipeRafRef = useRef<number | null>(null)
+  const swipeContainerRef = useRef<HTMLDivElement>(null)
 
   const markWidescreen = useCallback((id: string) => {
     setWidescreenIds(prev => {
@@ -110,6 +114,92 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const goToRoom = (roomId: string | null) => {
     setActiveRoomId(roomId)
   }
+
+  // Gesture-tracked room swipe
+  const handleSwipeTouchStart = useCallback((e: React.TouchEvent) => {
+    if (visibleRooms.length <= 1 || !isMobile || e.touches.length !== 1 || isSwipeAnimating) return
+    swipeTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, locked: false, isVertical: false }
+  }, [visibleRooms.length, isMobile, isSwipeAnimating])
+
+  const handleSwipeTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!swipeTouchRef.current || visibleRooms.length <= 1 || isSwipeAnimating) return
+    const touch = e.touches[0]
+    const dx = touch.clientX - swipeTouchRef.current.x
+    const dy = touch.clientY - swipeTouchRef.current.y
+
+    // Determine direction lock on first significant movement
+    if (!swipeTouchRef.current.locked) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return
+      swipeTouchRef.current.locked = true
+      swipeTouchRef.current.isVertical = Math.abs(dy) > Math.abs(dx)
+    }
+
+    // If vertical scroll, bail
+    if (swipeTouchRef.current.isVertical) return
+
+    const currentIdx = visibleRooms.findIndex(r => r.id === activeRoomId)
+    // Resist at edges
+    const atStart = currentIdx <= 0 && dx > 0
+    const atEnd = currentIdx >= visibleRooms.length - 1 && dx < 0
+    const resistedDx = (atStart || atEnd) ? dx * 0.2 : dx
+
+    if (swipeRafRef.current) cancelAnimationFrame(swipeRafRef.current)
+    swipeRafRef.current = requestAnimationFrame(() => {
+      setSwipeDelta(resistedDx)
+
+      // Update room pill at 50% threshold
+      const screenWidth = window.innerWidth
+      const pct = Math.abs(resistedDx) / screenWidth
+      if (pct > 0.5) {
+        if (resistedDx < 0 && currentIdx < visibleRooms.length - 1) {
+          setActiveRoomId(visibleRooms[currentIdx + 1].id)
+          swipeTouchRef.current = { x: touch.clientX, y: touch.clientY, locked: true, isVertical: false }
+          setSwipeDelta(0)
+        } else if (resistedDx > 0 && currentIdx > 0) {
+          setActiveRoomId(visibleRooms[currentIdx - 1].id)
+          swipeTouchRef.current = { x: touch.clientX, y: touch.clientY, locked: true, isVertical: false }
+          setSwipeDelta(0)
+        }
+      }
+    })
+  }, [visibleRooms, activeRoomId, isMobile, isSwipeAnimating])
+
+  const handleSwipeTouchEnd = useCallback(() => {
+    if (!swipeTouchRef.current || swipeTouchRef.current.isVertical) {
+      swipeTouchRef.current = null
+      return
+    }
+    if (swipeRafRef.current) cancelAnimationFrame(swipeRafRef.current)
+
+    const screenWidth = window.innerWidth
+    const pct = Math.abs(swipeDelta) / screenWidth
+    const currentIdx = visibleRooms.findIndex(r => r.id === activeRoomId)
+
+    if (pct > 0.3) {
+      // Commit swipe
+      setIsSwipeAnimating(true)
+      const goingLeft = swipeDelta < 0
+      const targetDelta = goingLeft ? -screenWidth : screenWidth
+
+      setSwipeDelta(targetDelta)
+      setTimeout(() => {
+        if (goingLeft && currentIdx < visibleRooms.length - 1) {
+          setActiveRoomId(visibleRooms[currentIdx + 1].id)
+        } else if (!goingLeft && currentIdx > 0) {
+          setActiveRoomId(visibleRooms[currentIdx - 1].id)
+        }
+        setSwipeDelta(0)
+        setIsSwipeAnimating(false)
+      }, 300)
+    } else {
+      // Snap back
+      setIsSwipeAnimating(true)
+      setSwipeDelta(0)
+      setTimeout(() => setIsSwipeAnimating(false), 200)
+    }
+
+    swipeTouchRef.current = null
+  }, [swipeDelta, visibleRooms, activeRoomId])
 
   useEffect(() => {
     if (!showToast) return
@@ -255,29 +345,21 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </div>
         )}
 
-        {/* Content grid - swipe gesture switches rooms on mobile */}
-        <div className="max-w-7xl mx-auto px-3 md:px-5"
-          onTouchStart={(e) => {
-            if (visibleRooms.length > 1 && isMobile && e.touches.length === 1) {
-              swipeTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
-            }
-          }}
-          onTouchEnd={(e) => {
-            if (!swipeTouchRef.current || visibleRooms.length <= 1 || !isMobile) return
-            const dx = e.changedTouches[0].clientX - swipeTouchRef.current.x
-            const dy = e.changedTouches[0].clientY - swipeTouchRef.current.y
-            swipeTouchRef.current = null
-            if (Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-              const currentIdx = visibleRooms.findIndex(r => r.id === activeRoomId)
-              if (dx < 0 && currentIdx < visibleRooms.length - 1) {
-                setActiveRoomId(visibleRooms[currentIdx + 1].id)
-              } else if (dx > 0 && currentIdx > 0) {
-                setActiveRoomId(visibleRooms[currentIdx - 1].id)
-              }
-            }
-          }}
+        {/* Content grid - gesture-tracked room swipe on mobile */}
+        <div className="max-w-7xl mx-auto px-3 md:px-5 overflow-hidden"
+          ref={swipeContainerRef}
+          onTouchStart={handleSwipeTouchStart}
+          onTouchMove={handleSwipeTouchMove}
+          onTouchEnd={handleSwipeTouchEnd}
         >
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <div
+            className="grid grid-cols-2 md:grid-cols-4 gap-2"
+            style={{
+              transform: swipeDelta !== 0 ? `translateX(${swipeDelta}px)` : undefined,
+              transition: isSwipeAnimating ? 'transform 300ms cubic-bezier(0.32, 0.72, 0, 1)' : 'none',
+              willChange: swipeDelta !== 0 ? 'transform' : 'auto',
+            }}
+          >
             {content.map((item, idx) => renderTile(item, idx))}
           </div>
         </div>
