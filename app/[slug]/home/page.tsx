@@ -192,7 +192,7 @@ function SortableTile({
                 muted
                 loop
                 playsInline
-                autoPlay
+                preload="none"
                 onClick={handleVideoClick}
                 onLoadedData={() => setIsLoaded(true)} onError={(e) => { setIsLoaded(true); (e.target as HTMLVideoElement).style.display = 'none' }}
               />
@@ -204,10 +204,10 @@ function SortableTile({
             <img src={content.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
           ) : (
             <Image
-              src={content.url} unoptimized={content.url?.includes("/content/")}
+              src={content.url} unoptimized={content.url?.startsWith('data:')}
               alt=""
-              width={200}
-              height={200}
+              width={400}
+              height={400}
               sizes="(max-width: 640px) 50vw, 25vw"
               className="absolute inset-0 w-full h-full object-cover"
               loading="lazy"

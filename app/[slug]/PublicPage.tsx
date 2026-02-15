@@ -218,6 +218,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     return () => clearTimeout(t)
   }, [showToast])
 
+  // Image sizes based on tile size for proper srcset selection
+  const getImageSizes = (tileSize: number) => {
+    if (tileSize >= 3) return isMobile ? '100vw' : '(max-width: 768px) 100vw, 75vw'
+    if (tileSize === 2) return isMobile ? '100vw' : '(max-width: 768px) 100vw, 50vw'
+    return isMobile ? '50vw' : '(max-width: 768px) 50vw, 25vw'
+  }
+
   // Reusable tile renderer - size-aware col-span in CSS Grid
   const renderTile = (item: any, index: number) => {
     const isVideo = item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
@@ -226,6 +233,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       : tileSize === 3 ? 'col-span-2 md:col-span-3'
       : tileSize === 2 ? 'col-span-2'
       : ''
+    const imgSizes = getImageSizes(tileSize)
     return (
       <div key={item.id}
         className={`${colSpan} group tile-enter tile-container`}
@@ -238,16 +246,18 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               </div>
             ) : (
               <div className="rounded-xl overflow-hidden border border-white/[0.06]">
-                <Image src={item.url} unoptimized={item.url?.includes("/content/")} alt={item.title || ''} width={600} height={800}
-                  sizes={isMobile ? "50vw" : "(max-width: 768px) 50vw, 25vw"}
-                  className="w-full h-full object-cover rounded-xl transition-opacity duration-300" loading={index < 4 ? "eager" : "lazy"}
+                <Image src={item.url} alt={item.title || ''}
+                  width={tileSize >= 2 ? 800 : 400} height={tileSize >= 2 ? 800 : 400}
+                  sizes={imgSizes}
+                  className="w-full h-full object-cover rounded-xl transition-opacity duration-300"
+                  loading={index < 4 ? "eager" : "lazy"}
                   priority={index < 4} quality={75}
                   onError={(e) => { (e.target as HTMLElement).closest('.tile-container')!.style.display = 'none' }} />
               </div>
             )
           ) : (
             <div className="rounded-xl overflow-hidden border border-white/[0.06] w-full h-full">
-              <ContentCard content={item} />
+              <ContentCard content={item} isMobile={isMobile} tileSize={tileSize} />
             </div>
           )}
         </div>
