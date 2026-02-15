@@ -22,7 +22,7 @@ interface TileContent extends DraftContent {
 // ═══════════════════════════════════════════
 function SortableTile({
   id, content, onDelete, onSelect, onDoubleClick, deleting, selected, size,
-  captionEditing, onCaptionOpen, onCaptionSave,
+  captionEditing, onCaptionOpen, onCaptionSave, editMode,
 }: {
   id: string
   content: any
@@ -35,6 +35,7 @@ function SortableTile({
   captionEditing: boolean
   onCaptionOpen: () => void
   onCaptionSave: (caption: string) => void
+  editMode: boolean
 }) {
   const [isMuted, setIsMuted] = useState(true)
   const [isLoaded, setIsLoaded] = useState(false)
@@ -59,7 +60,7 @@ function SortableTile({
     opacity: isDragging ? 0.5 : deleting ? 0.5 : 1,
     contain: 'layout style paint',
     willChange: isDragging ? 'transform' : undefined,
-    touchAction: 'none',
+    touchAction: editMode ? 'none' : 'auto',
   }
 
   const isVideo = content.type === 'image' && content.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
@@ -132,32 +133,33 @@ function SortableTile({
       style={style}
       className={sizeClass}
       data-tile
-      {...attributes}
-      {...listeners}
-      onClick={onSelect}
-      onDoubleClick={(e) => { e.stopPropagation(); onDoubleClick() }}
-      onPointerDown={(e) => {
+      {...(editMode ? attributes : {})}
+      {...(editMode ? listeners : {})}
+      onClick={editMode ? onSelect : undefined}
+      onDoubleClick={editMode ? (e) => { e.stopPropagation(); onDoubleClick() } : undefined}
+      onPointerDown={editMode ? (e) => {
         if (!captionEditing) handleLongPressStart()
-        // Forward to dnd-kit so dragging works
         ;(listeners as any)?.onPointerDown?.(e)
-      }}
-      onPointerUp={handleLongPressEnd}
-      onPointerCancel={handleLongPressEnd}
-      onPointerLeave={handleLongPressEnd}
+      } : undefined}
+      onPointerUp={editMode ? handleLongPressEnd : undefined}
+      onPointerCancel={editMode ? handleLongPressEnd : undefined}
+      onPointerLeave={editMode ? handleLongPressEnd : undefined}
     >
-      <div className={`relative rounded-xl overflow-hidden w-full h-full ${selected ? 'ring-2 ring-green-400' : ''}`} style={revealStyle}>
-        {/* Red dot delete */}
-        <button
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation()
-            onDelete()
-          }}
-          className="absolute top-0 left-0 w-11 h-11 z-10 flex items-center justify-center"
-          title="Delete"
-        >
-          <span className="w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 transition-all" />
-        </button>
+      <div className={`relative rounded-xl overflow-hidden w-full h-full ${selected && editMode ? 'ring-2 ring-green-400' : ''}`} style={revealStyle}>
+        {/* Red dot delete — only in edit mode */}
+        {editMode && (
+          <button
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete()
+            }}
+            className="absolute top-0 left-0 w-11 h-11 z-10 flex items-center justify-center"
+            title="Delete"
+          >
+            <span className="w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 transition-all" />
+          </button>
+        )}
 
         {/* Green checkmark when selected */}
         {selected && (
@@ -264,6 +266,7 @@ export default function EditPage() {
   const [draft, setDraft] = useState<DraftFootprint | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isAdding, setIsAdding] = useState(false)
+  const [editMode, setEditMode] = useState(false)
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
   const [isOwner, setIsOwner] = useState(false)
   const [tileSources, setTileSources] = useState<Record<string, 'library' | 'links'>>({})
@@ -987,28 +990,39 @@ export default function EditPage() {
           >
             ← view
           </Link>
-          {activeRoomId && (
-            <>
+          <div className="flex items-center gap-2">
+            {editMode && activeRoomId && (
+              <>
+                <button
+                  onClick={() => setActiveRoomId(null)}
+                  className="text-xs text-white/40 hover:text-white/70 transition font-mono"
+                >
+                  clear
+                </button>
+                <button
+                  onClick={() => handleDeleteRoom(activeRoomId)}
+                  className="text-xs text-red-400/60 hover:text-red-400 transition font-mono"
+                >
+                  delete
+                </button>
+              </>
+            )}
+            {editMode ? (
               <button
-                onClick={() => setActiveRoomId(null)}
-                className="text-xs text-white/40 hover:text-white/70 transition font-mono"
+                onClick={() => { setEditMode(false); setSelectedTileId(null) }}
+                className="text-sm font-medium text-white/90 hover:text-white transition px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
               >
-                clear
+                Done
               </button>
+            ) : (
               <button
-                onClick={() => handleDeleteRoom(activeRoomId)}
-                className="text-xs text-red-400/60 hover:text-red-400 transition font-mono"
+                onClick={() => setEditMode(true)}
+                className="text-sm font-medium text-white/90 hover:text-white transition px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
               >
-                delete
+                Edit
               </button>
-            </>
-          )}
-          <Link
-            href={`/${slug}`}
-            className="text-sm font-medium text-white/90 hover:text-white transition px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
-          >
-            Done
-          </Link>
+            )}
+          </div>
         </div>
         {/* Row 2: room pills (scrollable) */}
         <div className="flex items-center gap-2 px-4 pb-2 overflow-x-auto hide-scrollbar">
@@ -1049,7 +1063,7 @@ export default function EditPage() {
 
         {filteredContent.length > 0 ? (
           <DndContext
-            sensors={sensors}
+            sensors={editMode ? sensors : []}
             collisionDetection={closestCenter}
             onDragEnd={handleDragEnd}
           >
@@ -1063,6 +1077,7 @@ export default function EditPage() {
                     key={item.id}
                     id={item.id}
                     content={item}
+                    editMode={editMode}
                     onDelete={() => handleDelete(item.id)}
                     onSelect={() => handleSelect(item.id)}
                     onDoubleClick={() => cycleSize(item.id)}
@@ -1095,8 +1110,8 @@ export default function EditPage() {
         onChange={handleFileUpload}
       />
 
-      {/* ═══ BOTTOM BAR ═══ */}
-      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-3 pb-[env(safe-area-inset-bottom)]">
+      {/* ═══ BOTTOM BAR — only in edit mode ═══ */}
+      <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-3 pb-[env(safe-area-inset-bottom)] transition-all duration-300 ${editMode ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
 
         {/* Expanded URL input */}
         {pillMode === 'url' && !selectedTileId && (

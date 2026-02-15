@@ -29,6 +29,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" style={{ backgroundColor: '#080808' }}>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+      </head>
       <body className="font-sans" style={{ backgroundColor: '#080808' }}>
         {children}
         <Toaster 
