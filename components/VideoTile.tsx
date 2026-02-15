@@ -27,7 +27,7 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
           setIsVisible(false)
         }
       },
-      { rootMargin: '100px' }
+      { rootMargin: '100vh' }
     )
     observer.observe(el)
     return () => observer.disconnect()
