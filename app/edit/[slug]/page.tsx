@@ -846,15 +846,15 @@ export default function EditPage() {
       return
     }
 
-    // 4 video cap
+    // 8 video cap
     const existingVideos = draft.content.filter(c =>
       c.type === 'image' && c.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
     ).length
     const incomingVideos = files.filter(f =>
       VIDEO_MIME.includes(f.type) || /\.(mp4|mov|webm|m4v)$/i.test(f.name)
     ).length
-    if (existingVideos + incomingVideos > 4) {
-      alert('4 max.')
+    if (existingVideos + incomingVideos > 8) {
+      alert('8 max.')
       if (fileInputRef.current) fileInputRef.current.value = ''
       return
     }
