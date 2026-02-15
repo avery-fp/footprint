@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
       : `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`
 
     const cancelUrl = slug
-      ? `${baseUrl}/edit/${encodeURIComponent(slug)}`
+      ? `${baseUrl}/${encodeURIComponent(slug)}/home`
       : `${baseUrl}/checkout`
 
     // Create Stripe Checkout session with slug in metadata
