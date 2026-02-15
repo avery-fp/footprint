@@ -11,7 +11,7 @@ import { verifySessionToken } from './lib/auth'
  * 3. Session validation
  * 4. Setting x-user-id header for API routes
  *
- * Protected routes are under /edit/* and /dashboard/*
+ * Protected routes are under /[slug]/home and /dashboard
  * These require a valid session cookie.
  *
  * API routes get x-user-id header if authenticated,
@@ -53,7 +53,7 @@ export async function middleware(request: NextRequest) {
 
   // Check if this is a public footprint page (dynamic route like /ae, /username)
   const isPublicFootprint = /^\/[a-zA-Z0-9-]+$/.test(pathname) &&
-    !pathname.startsWith('/edit') &&
+    !pathname.endsWith('/home') &&
     !pathname.startsWith('/dashboard') &&
     !pathname.startsWith('/auth') &&
     !pathname.startsWith('/api')
@@ -66,8 +66,8 @@ export async function middleware(request: NextRequest) {
   // Check for session
   const sessionToken = request.cookies.get('session')?.value
 
-  // /edit routes: optional auth - set headers if authenticated, allow through if not
-  if (pathname.startsWith('/edit/')) {
+  // /[slug]/home routes: optional auth - set headers if authenticated, allow through if not
+  if (pathname.endsWith('/home')) {
     if (!sessionToken) {
       return NextResponse.next() // Allow unauthenticated access
     }

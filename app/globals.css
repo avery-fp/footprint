@@ -198,6 +198,7 @@ body::before {
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
+  touch-action: none;
 }
 
 /* Bottom sheet slide-up */

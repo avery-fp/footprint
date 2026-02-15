@@ -98,7 +98,7 @@ export default function SuccessPage() {
         <div className="flex gap-3">
           {slug && (
             <Link
-              href={`/edit/${slug}`}
+              href={`/${slug}/home`}
               className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition"
             >
               Back to editor
@@ -178,7 +178,7 @@ export default function SuccessPage() {
             View your page
           </Link>
           <Link
-            href={`/edit/${slug}`}
+            href={`/${slug}/home`}
             className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition"
           >
             Keep editing

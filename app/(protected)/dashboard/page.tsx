@@ -253,7 +253,7 @@ export default function DashboardPage() {
         <div className="flex gap-4 justify-center mb-12">
           {primaryRoom && (
             <Link
-              href={`/edit/${primaryRoom.slug}`}
+              href={`/${primaryRoom.slug}/home`}
               className="btn-primary rounded-lg"
             >
               Edit your Footprint
@@ -274,7 +274,7 @@ export default function DashboardPage() {
               Your Rooms
             </h2>
             <Link
-              href={primaryRoom ? `/edit/${primaryRoom.slug}` : '/'}
+              href={primaryRoom ? `/${primaryRoom.slug}/home` : '/'}
               className="font-mono text-xs text-white/40 hover:text-paper transition-colors"
             >
               + New room
@@ -288,7 +288,7 @@ export default function DashboardPage() {
                 className={`relative glass rounded-xl p-6 transition-all ${room.hidden ? 'opacity-40' : ''} ${deletingIds.has(room.id) ? 'opacity-20' : ''}`}
               >
                 <Link
-                  href={`/edit/${room.slug}`}
+                  href={`/${room.slug}/home`}
                   className="block glass-hover card-hover group"
                 >
                   <div className="flex items-start justify-between mb-4">
