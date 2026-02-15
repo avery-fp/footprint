@@ -590,11 +590,26 @@ export default function EditPage() {
     const [moved] = newContent.splice(oldIndex, 1)
     newContent.splice(newIndex, 0, moved)
 
+    const reordered = newContent.map((item, index) => ({ ...item, position: index }))
+
     setDraft({
       ...draft,
-      content: newContent.map((item, index) => ({ ...item, position: index })),
+      content: reordered,
       updated_at: Date.now(),
     })
+
+    // Persist positions to server
+    const positions = reordered.map(item => ({
+      id: item.id,
+      source: tileSources[item.id] || 'library',
+      position: item.position,
+    }))
+
+    fetch('/api/tiles', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug, positions }),
+    }).catch(e => console.error('Failed to save tile order:', e))
   }
 
   // ── Wallpaper from tile ──
