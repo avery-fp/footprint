@@ -22,7 +22,7 @@ interface TileContent extends DraftContent {
 // ═══════════════════════════════════════════
 function SortableTile({
   id, content, onDelete, onSelect, onDoubleClick, deleting, selected, size,
-  captionEditing, onCaptionOpen, onCaptionSave, editMode,
+  captionEditing, onCaptionOpen, onCaptionSave, editMode, onEnterEditMode,
 }: {
   id: string
   content: any
@@ -36,6 +36,7 @@ function SortableTile({
   onCaptionOpen: () => void
   onCaptionSave: (caption: string) => void
   editMode: boolean
+  onEnterEditMode: () => void
 }) {
   const [isMuted, setIsMuted] = useState(true)
   const [isLoaded, setIsLoaded] = useState(false)
@@ -86,7 +87,11 @@ function SortableTile({
 
   const handleLongPressStart = () => {
     longPressTimerRef.current = setTimeout(() => {
-      onCaptionOpen()
+      if (!editMode) {
+        onEnterEditMode()
+      } else {
+        onCaptionOpen()
+      }
     }, 500)
   }
 
@@ -137,13 +142,13 @@ function SortableTile({
       {...(editMode ? listeners : {})}
       onClick={editMode ? onSelect : undefined}
       onDoubleClick={editMode ? (e) => { e.stopPropagation(); onDoubleClick() } : undefined}
-      onPointerDown={editMode ? (e) => {
+      onPointerDown={(e) => {
         if (!captionEditing) handleLongPressStart()
-        ;(listeners as any)?.onPointerDown?.(e)
-      } : undefined}
-      onPointerUp={editMode ? handleLongPressEnd : undefined}
-      onPointerCancel={editMode ? handleLongPressEnd : undefined}
-      onPointerLeave={editMode ? handleLongPressEnd : undefined}
+        if (editMode) (listeners as any)?.onPointerDown?.(e)
+      }}
+      onPointerUp={handleLongPressEnd}
+      onPointerCancel={handleLongPressEnd}
+      onPointerLeave={handleLongPressEnd}
     >
       <div className={`relative rounded-xl overflow-hidden w-full h-full ${selected && editMode ? 'ring-2 ring-green-400' : ''}`} style={revealStyle}>
         {/* Red dot delete — only in edit mode */}
@@ -1015,12 +1020,12 @@ export default function EditPage() {
                 Done
               </button>
             ) : (
-              <button
-                onClick={() => setEditMode(true)}
+              <Link
+                href={`/${slug}`}
                 className="text-sm font-medium text-white/90 hover:text-white transition px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
               >
-                Edit
-              </button>
+                Done
+              </Link>
             )}
           </div>
         </div>
@@ -1078,6 +1083,7 @@ export default function EditPage() {
                     id={item.id}
                     content={item}
                     editMode={editMode}
+                    onEnterEditMode={() => setEditMode(true)}
                     onDelete={() => handleDelete(item.id)}
                     onSelect={() => handleSelect(item.id)}
                     onDoubleClick={() => cycleSize(item.id)}
@@ -1110,8 +1116,8 @@ export default function EditPage() {
         onChange={handleFileUpload}
       />
 
-      {/* ═══ BOTTOM BAR — only in edit mode ═══ */}
-      <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-3 pb-[env(safe-area-inset-bottom)] transition-all duration-300 ${editMode ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
+      {/* ═══ BOTTOM BAR — always visible ═══ */}
+      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-3 pb-[env(safe-area-inset-bottom)]">
 
         {/* Expanded URL input */}
         {pillMode === 'url' && !selectedTileId && (
@@ -1239,7 +1245,7 @@ export default function EditPage() {
           /* DEFAULT PILL: camera | + | chat */
           <div className="flex items-center gap-0 bg-black/50 backdrop-blur-sm rounded-full border border-white/20 overflow-hidden">
             <button
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => { setEditMode(true); fileInputRef.current?.click() }}
               className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all"
               title="Upload file"
             >
@@ -1247,7 +1253,7 @@ export default function EditPage() {
             </button>
             <div className="w-px h-6 bg-white/10" />
             <button
-              onClick={() => setPillMode(pillMode === 'url' ? 'idle' : 'url')}
+              onClick={() => { setEditMode(true); setPillMode(pillMode === 'url' ? 'idle' : 'url') }}
               className={`w-14 h-14 flex items-center justify-center transition-all ${
                 pillMode === 'url' ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'
               }`}
@@ -1257,7 +1263,7 @@ export default function EditPage() {
             </button>
             <div className="w-px h-6 bg-white/10" />
             <button
-              onClick={() => setPillMode(pillMode === 'thought' ? 'idle' : 'thought')}
+              onClick={() => { setEditMode(true); setPillMode(pillMode === 'thought' ? 'idle' : 'thought') }}
               className={`w-14 h-14 flex items-center justify-center transition-all ${
                 pillMode === 'thought' ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white hover:bg-white/10'
               }`}
