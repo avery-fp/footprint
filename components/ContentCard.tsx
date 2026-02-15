@@ -142,13 +142,12 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
     const spotifyInfo = extractSpotifyInfo(content.url)
     if (spotifyInfo) {
       return (
-        <div className="w-full h-full rounded-xl overflow-hidden flex items-center justify-center">
+        <div className="w-full h-full rounded-xl overflow-hidden flex items-center justify-center bg-transparent">
           <iframe
-            style={{ border: 'none', borderRadius: '12px' }}
+            style={{ border: 'none', borderRadius: '12px', background: 'transparent' }}
             src={`https://open.spotify.com/embed/${spotifyInfo.type}/${spotifyInfo.id}?theme=0`}
             width="100%"
             height="100%"
-            frameBorder="0"
             allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
             loading="lazy"
           />
