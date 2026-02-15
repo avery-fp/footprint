@@ -6,6 +6,7 @@ import { audioManager } from '@/lib/audio-manager'
 export default function VideoTile({ src, onWidescreen }: { src: string; onWidescreen?: () => void }) {
   const [isMuted, setIsMuted] = useState(true)
   const [isInView, setIsInView] = useState(false)
+  const [isVisible, setIsVisible] = useState(false)
   const [isWide, setIsWide] = useState(false)
   const [isReady, setIsReady] = useState(false)
   const [hasFailed, setHasFailed] = useState(false)
@@ -13,17 +14,34 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
   const videoRef = useRef<HTMLVideoElement>(null)
   const videoId = useRef(`video-${src}-${Math.random()}`).current
 
-  // IntersectionObserver — only load video when near viewport
+  // IntersectionObserver — render when near, play/pause on visibility
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
     const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setIsInView(true) },
-      { rootMargin: '200px' }
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsInView(true)
+          setIsVisible(true)
+        } else {
+          setIsVisible(false)
+        }
+      },
+      { rootMargin: '100px' }
     )
     observer.observe(el)
     return () => observer.disconnect()
   }, [])
+
+  // Play/pause based on viewport visibility
+  useEffect(() => {
+    if (!videoRef.current || !isReady) return
+    if (isVisible) {
+      videoRef.current.play().catch(() => {})
+    } else {
+      videoRef.current.pause()
+    }
+  }, [isVisible, isReady])
 
   // Timeout — if video doesn't load in 15s, hide it
   useEffect(() => {
