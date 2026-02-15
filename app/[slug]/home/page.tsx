@@ -1023,56 +1023,42 @@ export default function EditPage() {
       {/* ═══ HEADER ═══ */}
       <div className="fixed top-0 left-0 right-0 z-50 bg-black/60 backdrop-blur-sm border-b border-white/[0.06]"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-        <div className="flex items-center justify-between px-4 h-11">
+        <div className="flex items-center justify-between px-4 pt-4 pb-2" style={{ minHeight: '52px' }}>
           <Link
             href={`/${slug}`}
-            className="text-sm text-white/60 hover:text-white/90 transition font-mono"
+            className="text-sm text-white/60 hover:text-white/90 transition font-mono flex items-center justify-center"
+            style={{ minWidth: '44px', minHeight: '44px' }}
           >
-            ← view
+            ←
           </Link>
-          <div className="flex items-center gap-2">
-            {isArranging && activeRoomId && (
-              <>
-                <button
-                  onClick={() => setActiveRoomId(null)}
-                  className="text-xs text-white/40 hover:text-white/70 transition font-mono"
-                >
-                  clear
-                </button>
-                <button
-                  onClick={() => handleDeleteRoom(activeRoomId)}
-                  className="text-xs text-red-400/60 hover:text-red-400 transition font-mono"
-                >
-                  delete
-                </button>
-              </>
-            )}
-            {isArranging ? (
-              <button
-                onClick={exitEdit}
-                className="text-sm font-medium text-white/90 hover:text-white transition px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
-              >
-                done
-              </button>
-            ) : (
-              <button
-                onClick={enterEdit}
-                className="text-sm font-medium text-white/90 hover:text-white transition px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
-              >
-                edit
-              </button>
-            )}
-          </div>
+          {isArranging ? (
+            <button
+              onClick={exitEdit}
+              className="text-sm text-white/90 hover:text-white transition font-mono flex items-center justify-center px-5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
+              style={{ minHeight: '44px', minWidth: '44px' }}
+            >
+              done
+            </button>
+          ) : (
+            <button
+              onClick={enterEdit}
+              className="text-sm text-white/90 hover:text-white transition font-mono flex items-center justify-center px-5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
+              style={{ minHeight: '44px', minWidth: '44px' }}
+            >
+              edit
+            </button>
+          )}
         </div>
         {/* Room pills */}
-        <div className="flex items-center gap-2 px-4 pb-2 overflow-x-auto hide-scrollbar">
+        <div className="flex items-center gap-3 px-4 pb-3 overflow-x-auto hide-scrollbar">
           <button
             onClick={() => setActiveRoomId(null)}
-            className={`text-xs px-3 py-1 rounded-full transition-all whitespace-nowrap backdrop-blur-sm border-0 ${
+            className={`text-xs px-4 py-2 rounded-full transition-all whitespace-nowrap backdrop-blur-sm border-0 ${
               activeRoomId === null
                 ? 'bg-white/[0.12] text-white/90'
                 : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70'
             }`}
+            style={{ minHeight: '36px' }}
           >
             all
           </button>
@@ -1080,18 +1066,20 @@ export default function EditPage() {
             <button
               key={room.id}
               onClick={() => setActiveRoomId(room.id)}
-              className={`text-xs px-3 py-1 rounded-full transition-all whitespace-nowrap backdrop-blur-sm border-0 ${
+              className={`text-xs px-4 py-2 rounded-full transition-all whitespace-nowrap backdrop-blur-sm border-0 ${
                 activeRoomId === room.id
                   ? 'bg-white/[0.12] text-white/90'
                   : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70'
               }`}
+              style={{ minHeight: '36px' }}
             >
               {room.name}
             </button>
           ))}
           <button
             onClick={handleCreateRoom}
-            className="text-xs px-3 py-1 rounded-full bg-white/[0.06] text-white/30 hover:text-white/60 hover:bg-white/[0.10] transition-all border-0"
+            className="text-xs px-4 py-2 rounded-full bg-white/[0.06] text-white/30 hover:text-white/60 hover:bg-white/[0.10] transition-all border-0"
+            style={{ minHeight: '36px' }}
           >
             +
           </button>
@@ -1099,7 +1087,7 @@ export default function EditPage() {
       </div>
 
       {/* ═══ TILE GRID ═══ */}
-      <div className="max-w-7xl mx-auto px-3 md:px-6 pt-24 md:pt-20 pb-32 relative z-10">
+      <div className="max-w-7xl mx-auto px-3 md:px-6 pt-28 md:pt-24 pb-32 relative z-10">
 
         {filteredContent.length > 0 ? (
           <DndContext
