@@ -53,11 +53,16 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       if (visible.length > 0) setActiveRoomId(visible[0].id)
     }
   }, [rooms])
+  const [isOwner, setIsOwner] = useState(false)
   const [wallpaperLoaded, setWallpaperLoaded] = useState(false)
   const [showToast, setShowToast] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [widescreenIds, setWidescreenIds] = useState<Set<string>>(new Set())
-  const swipeTouchRef = useRef<{ x: number; y: number } | null>(null)
+  const [swipeDelta, setSwipeDelta] = useState(0)
+  const [isSwipeAnimating, setIsSwipeAnimating] = useState(false)
+  const swipeTouchRef = useRef<{ x: number; y: number; locked: boolean; isVertical: boolean } | null>(null)
+  const swipeRafRef = useRef<number | null>(null)
+  const swipeContainerRef = useRef<HTMLDivElement>(null)
 
   const markWidescreen = useCallback((id: string) => {
     setWidescreenIds(prev => {
@@ -106,16 +111,119 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     return () => window.removeEventListener('resize', check)
   }, [])
 
+  // Owner detection — lightweight API check, no flash
+  useEffect(() => {
+    const slug = footprint.username
+    if (!slug) return
+    fetch(`/api/footprint/${encodeURIComponent(slug)}`, { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.footprint) setIsOwner(true) })
+      .catch(() => {})
+  }, [footprint.username])
+
   // Navigate to room
   const goToRoom = (roomId: string | null) => {
     setActiveRoomId(roomId)
   }
+
+  // Gesture-tracked room swipe
+  const handleSwipeTouchStart = useCallback((e: React.TouchEvent) => {
+    if (visibleRooms.length <= 1 || !isMobile || e.touches.length !== 1 || isSwipeAnimating) return
+    swipeTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, locked: false, isVertical: false }
+  }, [visibleRooms.length, isMobile, isSwipeAnimating])
+
+  const handleSwipeTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!swipeTouchRef.current || visibleRooms.length <= 1 || isSwipeAnimating) return
+    const touch = e.touches[0]
+    const dx = touch.clientX - swipeTouchRef.current.x
+    const dy = touch.clientY - swipeTouchRef.current.y
+
+    // Determine direction lock on first significant movement
+    if (!swipeTouchRef.current.locked) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return
+      swipeTouchRef.current.locked = true
+      swipeTouchRef.current.isVertical = Math.abs(dy) > Math.abs(dx)
+    }
+
+    // If vertical scroll, bail
+    if (swipeTouchRef.current.isVertical) return
+
+    const currentIdx = visibleRooms.findIndex(r => r.id === activeRoomId)
+    // Resist at edges
+    const atStart = currentIdx <= 0 && dx > 0
+    const atEnd = currentIdx >= visibleRooms.length - 1 && dx < 0
+    const resistedDx = (atStart || atEnd) ? dx * 0.2 : dx
+
+    if (swipeRafRef.current) cancelAnimationFrame(swipeRafRef.current)
+    swipeRafRef.current = requestAnimationFrame(() => {
+      setSwipeDelta(resistedDx)
+
+      // Update room pill at 50% threshold
+      const screenWidth = window.innerWidth
+      const pct = Math.abs(resistedDx) / screenWidth
+      if (pct > 0.5) {
+        if (resistedDx < 0 && currentIdx < visibleRooms.length - 1) {
+          setActiveRoomId(visibleRooms[currentIdx + 1].id)
+          swipeTouchRef.current = { x: touch.clientX, y: touch.clientY, locked: true, isVertical: false }
+          setSwipeDelta(0)
+        } else if (resistedDx > 0 && currentIdx > 0) {
+          setActiveRoomId(visibleRooms[currentIdx - 1].id)
+          swipeTouchRef.current = { x: touch.clientX, y: touch.clientY, locked: true, isVertical: false }
+          setSwipeDelta(0)
+        }
+      }
+    })
+  }, [visibleRooms, activeRoomId, isMobile, isSwipeAnimating])
+
+  const handleSwipeTouchEnd = useCallback(() => {
+    if (!swipeTouchRef.current || swipeTouchRef.current.isVertical) {
+      swipeTouchRef.current = null
+      return
+    }
+    if (swipeRafRef.current) cancelAnimationFrame(swipeRafRef.current)
+
+    const screenWidth = window.innerWidth
+    const pct = Math.abs(swipeDelta) / screenWidth
+    const currentIdx = visibleRooms.findIndex(r => r.id === activeRoomId)
+
+    if (pct > 0.3) {
+      // Commit swipe
+      setIsSwipeAnimating(true)
+      const goingLeft = swipeDelta < 0
+      const targetDelta = goingLeft ? -screenWidth : screenWidth
+
+      setSwipeDelta(targetDelta)
+      setTimeout(() => {
+        if (goingLeft && currentIdx < visibleRooms.length - 1) {
+          setActiveRoomId(visibleRooms[currentIdx + 1].id)
+        } else if (!goingLeft && currentIdx > 0) {
+          setActiveRoomId(visibleRooms[currentIdx - 1].id)
+        }
+        setSwipeDelta(0)
+        setIsSwipeAnimating(false)
+      }, 300)
+    } else {
+      // Snap back
+      setIsSwipeAnimating(true)
+      setSwipeDelta(0)
+      setTimeout(() => setIsSwipeAnimating(false), 200)
+    }
+
+    swipeTouchRef.current = null
+  }, [swipeDelta, visibleRooms, activeRoomId])
 
   useEffect(() => {
     if (!showToast) return
     const t = setTimeout(() => setShowToast(false), 2000)
     return () => clearTimeout(t)
   }, [showToast])
+
+  // Image sizes based on tile size for proper srcset selection
+  const getImageSizes = (tileSize: number) => {
+    if (tileSize >= 3) return isMobile ? '100vw' : '(max-width: 768px) 100vw, 75vw'
+    if (tileSize === 2) return isMobile ? '100vw' : '(max-width: 768px) 100vw, 50vw'
+    return isMobile ? '50vw' : '(max-width: 768px) 50vw, 25vw'
+  }
 
   // Reusable tile renderer - size-aware col-span in CSS Grid
   const renderTile = (item: any, index: number) => {
@@ -125,6 +233,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       : tileSize === 3 ? 'col-span-2 md:col-span-3'
       : tileSize === 2 ? 'col-span-2'
       : ''
+    const imgSizes = getImageSizes(tileSize)
     return (
       <div key={item.id}
         className={`${colSpan} group tile-enter tile-container`}
@@ -137,16 +246,18 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               </div>
             ) : (
               <div className="rounded-xl overflow-hidden border border-white/[0.06]">
-                <Image src={item.url} unoptimized={item.url?.includes("/content/")} alt={item.title || ''} width={600} height={800}
-                  sizes={isMobile ? "50vw" : "(max-width: 768px) 50vw, 25vw"}
-                  className="w-full h-full object-cover rounded-xl transition-opacity duration-300" loading={index < 4 ? "eager" : "lazy"}
+                <Image src={item.url} alt={item.title || ''}
+                  width={tileSize >= 2 ? 800 : 400} height={tileSize >= 2 ? 800 : 400}
+                  sizes={imgSizes}
+                  className="w-full h-full object-cover rounded-xl transition-opacity duration-300"
+                  loading={index < 4 ? "eager" : "lazy"}
                   priority={index < 4} quality={75}
                   onError={(e) => { (e.target as HTMLElement).closest('.tile-container')!.style.display = 'none' }} />
               </div>
             )
           ) : (
             <div className="rounded-xl overflow-hidden border border-white/[0.06] w-full h-full">
-              <ContentCard content={item} />
+              <ContentCard content={item} isMobile={isMobile} tileSize={tileSize} />
             </div>
           )}
         </div>
@@ -182,6 +293,18 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
       )}
       <WeatherEffect type={footprint.weather_effect || null} />
+
+      {/* Owner edit link — top right, small, unobtrusive */}
+      {isOwner && (
+        <Link
+          href={`/${footprint.username}/home`}
+          className="fixed top-4 right-4 z-30 text-sm text-white/40 hover:text-white/70 transition font-mono"
+          style={{ paddingTop: 'env(safe-area-inset-top)' }}
+        >
+          edit
+        </Link>
+      )}
+
       <div className="relative z-10">
         {/* Masthead */}
         <header className="mb-12 md:mb-16 flex flex-col items-center pt-24 md:pt-32">
@@ -230,9 +353,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             {/* CTA */}
             <a
               href={'https://buy.stripe.com/9B6cN40Ef0sG2z98b214400'}
-              className="mt-5 inline-flex items-center gap-2 rounded-full px-5 py-2 text-[10px] tracking-[0.2em] uppercase text-white/50 hover:text-white/80 bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] hover:border-white/[0.15] transition-all duration-500"
+              className="mt-5 inline-flex items-center gap-2 rounded-full px-5 py-2 text-[10px] tracking-[0.2em] lowercase text-white/50 hover:text-white/80 bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] hover:border-white/[0.15] transition-all duration-500"
             >
-              Claim yours — $10
+              make yours.
             </a>
         </header>
 
@@ -255,29 +378,21 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </div>
         )}
 
-        {/* Content grid - swipe gesture switches rooms on mobile */}
-        <div className="max-w-7xl mx-auto px-3 md:px-5"
-          onTouchStart={(e) => {
-            if (visibleRooms.length > 1 && isMobile && e.touches.length === 1) {
-              swipeTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
-            }
-          }}
-          onTouchEnd={(e) => {
-            if (!swipeTouchRef.current || visibleRooms.length <= 1 || !isMobile) return
-            const dx = e.changedTouches[0].clientX - swipeTouchRef.current.x
-            const dy = e.changedTouches[0].clientY - swipeTouchRef.current.y
-            swipeTouchRef.current = null
-            if (Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-              const currentIdx = visibleRooms.findIndex(r => r.id === activeRoomId)
-              if (dx < 0 && currentIdx < visibleRooms.length - 1) {
-                setActiveRoomId(visibleRooms[currentIdx + 1].id)
-              } else if (dx > 0 && currentIdx > 0) {
-                setActiveRoomId(visibleRooms[currentIdx - 1].id)
-              }
-            }
-          }}
+        {/* Content grid - gesture-tracked room swipe on mobile */}
+        <div className="max-w-7xl mx-auto px-3 md:px-5 overflow-hidden"
+          ref={swipeContainerRef}
+          onTouchStart={handleSwipeTouchStart}
+          onTouchMove={handleSwipeTouchMove}
+          onTouchEnd={handleSwipeTouchEnd}
         >
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <div
+            className="grid grid-cols-2 md:grid-cols-4 gap-2"
+            style={{
+              transform: swipeDelta !== 0 ? `translateX(${swipeDelta}px)` : undefined,
+              transition: isSwipeAnimating ? 'transform 300ms cubic-bezier(0.32, 0.72, 0, 1)' : 'none',
+              willChange: swipeDelta !== 0 ? 'transform' : 'auto',
+            }}
+          >
             {content.map((item, idx) => renderTile(item, idx))}
           </div>
         </div>

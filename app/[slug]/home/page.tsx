@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { DndContext, closestCenter, KeyboardSensor, MouseSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
+import { DndContext, closestCenter, KeyboardSensor, MouseSensor, TouchSensor, useSensor, useSensors, DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import { SortableContext, sortableKeyboardCoordinates, useSortable, rectSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { loadDraft, saveDraft, clearDraft, DraftFootprint, DraftContent } from '@/lib/draft-store'
@@ -30,7 +30,7 @@ type PageMode =
 // Sortable Tile
 // ═══════════════════════════════════════════
 function SortableTile({
-  id, content, deleting, size, isArranging, isViewing, isMobile, selected, onTap,
+  id, content, deleting, size, isArranging, isViewing, isMobile, selected, anyDragging, onTap,
   onLongPressStart, onLongPressMove, onLongPressEnd, onPinchResize,
 }: {
   id: string
@@ -41,6 +41,7 @@ function SortableTile({
   isViewing: boolean
   isMobile: boolean
   selected: boolean
+  anyDragging: boolean
   onTap: () => void
   onLongPressStart: (e: React.TouchEvent) => void
   onLongPressMove: (e: React.TouchEvent) => void
@@ -60,12 +61,23 @@ function SortableTile({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id })
+  } = useSortable({
+    id,
+    transition: {
+      duration: 200,
+      easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
+    },
+  })
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : deleting ? 0.5 : 1,
+    transition: isDragging
+      ? transition
+      : `${transition || ''}, opacity 200ms ease-out, box-shadow 200ms ease-out`.replace(/^, /, ''),
+    opacity: isDragging ? 1 : deleting ? 0.5 : anyDragging ? 0.9 : 1,
+    scale: isDragging ? '1.05' : undefined,
+    boxShadow: isDragging ? '0 12px 32px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.3)' : undefined,
+    zIndex: isDragging ? 50 : undefined,
     contain: 'layout style paint',
     willChange: isDragging ? 'transform' : 'auto',
   }
@@ -180,7 +192,7 @@ function SortableTile({
                 muted
                 loop
                 playsInline
-                autoPlay
+                preload="none"
                 onClick={handleVideoClick}
                 onLoadedData={() => setIsLoaded(true)} onError={(e) => { setIsLoaded(true); (e.target as HTMLVideoElement).style.display = 'none' }}
               />
@@ -192,10 +204,10 @@ function SortableTile({
             <img src={content.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
           ) : (
             <Image
-              src={content.url} unoptimized={content.url?.includes("/content/")}
+              src={content.url} unoptimized={content.url?.startsWith('data:')}
               alt=""
-              width={200}
-              height={200}
+              width={400}
+              height={400}
               sizes="(max-width: 640px) 50vw, 25vw"
               className="absolute inset-0 w-full h-full object-cover"
               loading="lazy"
@@ -244,6 +256,7 @@ export default function EditPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isAdding, setIsAdding] = useState(false)
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
+  const [draggingTileId, setDraggingTileId] = useState<string | null>(null)
   const [isOwner, setIsOwner] = useState(false)
   const [tileSources, setTileSources] = useState<Record<string, 'library' | 'links'>>({})
   const [rooms, setRooms] = useState<any[]>([])
@@ -578,7 +591,12 @@ export default function EditPage() {
     }
   }
 
+  function handleDragStart(event: { active: { id: string | number } }) {
+    setDraggingTileId(String(event.active.id))
+  }
+
   function handleDragEnd(event: DragEndEvent) {
+    setDraggingTileId(null)
     const { active, over } = event
     if (!over || active.id === over.id || !draft) return
 
@@ -1025,56 +1043,42 @@ export default function EditPage() {
       {/* ═══ HEADER ═══ */}
       <div className="fixed top-0 left-0 right-0 z-50 bg-black/60 backdrop-blur-sm border-b border-white/[0.06]"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-        <div className="flex items-center justify-between px-4 h-11">
+        <div className="flex items-center justify-between px-4 pt-4 pb-2" style={{ minHeight: '52px' }}>
           <Link
             href={`/${slug}`}
-            className="text-sm text-white/60 hover:text-white/90 transition font-mono"
+            className="text-sm text-white/60 hover:text-white/90 transition font-mono flex items-center justify-center"
+            style={{ minWidth: '44px', minHeight: '44px' }}
           >
-            ← view
+            ←
           </Link>
-          <div className="flex items-center gap-2">
-            {isArranging && activeRoomId && (
-              <>
-                <button
-                  onClick={() => setActiveRoomId(null)}
-                  className="text-xs text-white/40 hover:text-white/70 transition font-mono"
-                >
-                  clear
-                </button>
-                <button
-                  onClick={() => handleDeleteRoom(activeRoomId)}
-                  className="text-xs text-red-400/60 hover:text-red-400 transition font-mono"
-                >
-                  delete
-                </button>
-              </>
-            )}
-            {isArranging ? (
-              <button
-                onClick={exitEdit}
-                className="text-sm font-medium text-white/90 hover:text-white transition px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
-              >
-                done
-              </button>
-            ) : (
-              <button
-                onClick={enterEdit}
-                className="text-sm font-medium text-white/90 hover:text-white transition px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
-              >
-                edit
-              </button>
-            )}
-          </div>
+          {isArranging ? (
+            <button
+              onClick={exitEdit}
+              className="text-sm text-white/90 hover:text-white transition font-mono flex items-center justify-center px-5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
+              style={{ minHeight: '44px', minWidth: '44px' }}
+            >
+              done
+            </button>
+          ) : (
+            <button
+              onClick={enterEdit}
+              className="text-sm text-white/90 hover:text-white transition font-mono flex items-center justify-center px-5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
+              style={{ minHeight: '44px', minWidth: '44px' }}
+            >
+              edit
+            </button>
+          )}
         </div>
         {/* Room pills */}
-        <div className="flex items-center gap-2 px-4 pb-2 overflow-x-auto hide-scrollbar">
+        <div className="flex items-center gap-3 px-4 pb-3 overflow-x-auto hide-scrollbar">
           <button
             onClick={() => setActiveRoomId(null)}
-            className={`text-xs px-3 py-1 rounded-full transition-all whitespace-nowrap backdrop-blur-sm border-0 ${
+            className={`text-xs px-4 py-2 rounded-full transition-all whitespace-nowrap backdrop-blur-sm border-0 ${
               activeRoomId === null
                 ? 'bg-white/[0.12] text-white/90'
                 : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70'
             }`}
+            style={{ minHeight: '36px' }}
           >
             all
           </button>
@@ -1082,18 +1086,20 @@ export default function EditPage() {
             <button
               key={room.id}
               onClick={() => setActiveRoomId(room.id)}
-              className={`text-xs px-3 py-1 rounded-full transition-all whitespace-nowrap backdrop-blur-sm border-0 ${
+              className={`text-xs px-4 py-2 rounded-full transition-all whitespace-nowrap backdrop-blur-sm border-0 ${
                 activeRoomId === room.id
                   ? 'bg-white/[0.12] text-white/90'
                   : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70'
               }`}
+              style={{ minHeight: '36px' }}
             >
               {room.name}
             </button>
           ))}
           <button
             onClick={handleCreateRoom}
-            className="text-xs px-3 py-1 rounded-full bg-white/[0.06] text-white/30 hover:text-white/60 hover:bg-white/[0.10] transition-all border-0"
+            className="text-xs px-4 py-2 rounded-full bg-white/[0.06] text-white/30 hover:text-white/60 hover:bg-white/[0.10] transition-all border-0"
+            style={{ minHeight: '36px' }}
           >
             +
           </button>
@@ -1101,19 +1107,20 @@ export default function EditPage() {
       </div>
 
       {/* ═══ TILE GRID ═══ */}
-      <div className="max-w-7xl mx-auto px-3 md:px-6 pt-24 md:pt-20 pb-32 relative z-10">
+      <div className="max-w-7xl mx-auto px-3 md:px-6 pt-28 md:pt-24 pb-32 relative z-10">
 
         {filteredContent.length > 0 ? (
           <DndContext
             sensors={isArranging ? sensors : []}
             collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
             <SortableContext
               items={filteredContent.map(item => item.id)}
               strategy={rectSortingStrategy}
             >
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-1.5" style={{ gridAutoRows: 'minmax(180px, 1fr)', gridAutoFlow: 'dense' }}>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5" style={{ gridAutoRows: 'minmax(180px, 1fr)', gridAutoFlow: 'dense' }}>
                 {filteredContent.map(item => (
                   <SortableTile
                     key={item.id}
@@ -1123,6 +1130,7 @@ export default function EditPage() {
                     isViewing={mode.type === 'viewing'}
                     isMobile={isMobile}
                     selected={selectedTileId === item.id}
+                    anyDragging={draggingTileId !== null}
                     onTap={() => openTileMenu(item.id)}
                     deleting={deletingIds.has(item.id)}
                     size={item.size || 1}
@@ -1155,25 +1163,57 @@ export default function EditPage() {
       {/* ═══ TILE ACTION SHEET ═══ */}
       {mode.type === 'tile_menu' && selectedTile && (
         <>
-          {/* Scrim */}
-          <div className="fixed inset-0 z-[60] bg-black/40" onClick={closeTileMenu} />
-          {/* Sheet */}
-          <div className="fixed bottom-0 left-0 right-0 z-[70] bg-[#111214] rounded-t-2xl border-t border-white/[0.08] pb-[env(safe-area-inset-bottom)] animate-slide-up">
+          {/* Scrim — tap to close */}
+          <div className="fixed inset-0 z-[60] animate-overlay-fade" style={{ backgroundColor: 'rgba(0,0,0,0.3)' }} onClick={closeTileMenu} />
+          {/* Sheet — swipe down to close */}
+          <div
+            className="fixed bottom-0 left-0 right-0 z-[70] bg-[#111214] rounded-t-2xl border-t border-white/[0.08] pb-[env(safe-area-inset-bottom)] animate-slide-up"
+            style={{ maxHeight: '60vh' }}
+            onTouchStart={(e) => {
+              const el = e.currentTarget
+              ;(el as any)._sheetTouchY = e.touches[0].clientY
+            }}
+            onTouchMove={(e) => {
+              const el = e.currentTarget
+              const startY = (el as any)._sheetTouchY
+              if (startY === undefined) return
+              const dy = e.touches[0].clientY - startY
+              if (dy > 0) {
+                el.style.transform = `translateY(${dy}px)`
+                el.style.transition = 'none'
+              }
+            }}
+            onTouchEnd={(e) => {
+              const el = e.currentTarget
+              const startY = (el as any)._sheetTouchY
+              if (startY === undefined) return
+              const dy = e.changedTouches[0].clientY - startY
+              delete (el as any)._sheetTouchY
+              if (dy > 80) {
+                el.style.transition = 'transform 200ms ease-out'
+                el.style.transform = 'translateY(100%)'
+                setTimeout(closeTileMenu, 200)
+              } else {
+                el.style.transition = 'transform 200ms ease-out'
+                el.style.transform = 'translateY(0)'
+              }
+            }}
+          >
             {/* Drag indicator */}
             <div className="flex justify-center pt-3 pb-2">
               <div className="w-10 h-1 rounded-full bg-white/20" />
             </div>
 
-            <div className="px-5 pb-6 space-y-4">
+            <div className="px-4 pb-6 overflow-y-auto" style={{ maxHeight: 'calc(60vh - 28px)' }}>
               {/* Resize */}
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between" style={{ minHeight: '48px' }}>
                 <span className="text-sm text-white/50 font-mono">size</span>
                 <div className="flex gap-1.5">
                   {[1, 2, 3].map(s => (
                     <button
                       key={s}
                       onClick={() => setTileSize(mode.tileId, s)}
-                      className={`px-3 py-1 rounded-lg text-xs font-mono transition ${
+                      className={`px-3 py-1.5 rounded-lg text-xs font-mono transition ${
                         (selectedTile.size || 1) === s
                           ? 'bg-white/20 text-white'
                           : 'bg-white/[0.06] text-white/40 hover:bg-white/[0.10]'
@@ -1187,12 +1227,12 @@ export default function EditPage() {
 
               {/* Room assign */}
               {rooms.length > 0 && (
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between" style={{ minHeight: '48px' }}>
                   <span className="text-sm text-white/50 font-mono">room</span>
                   <select
                     value={selectedTile.room_id || ''}
                     onChange={(e) => assignTileRoom(mode.tileId, e.target.value || null)}
-                    className="bg-white/10 text-white text-xs font-mono rounded-lg px-3 py-1.5 border border-white/20 outline-none"
+                    className="bg-white/10 text-white text-xs font-mono rounded-lg px-3 py-2 border border-white/20 outline-none"
                   >
                     <option value="">none</option>
                     {rooms.map(r => (
@@ -1206,19 +1246,23 @@ export default function EditPage() {
               {(selectedIsImage || selectedHasThumbnail) && (
                 <button
                   onClick={() => handleSetWallpaper(mode.tileId)}
-                  className="w-full text-left text-sm text-white/60 hover:text-white/90 transition font-mono py-2 border-t border-white/[0.06]"
+                  className="w-full text-left text-sm text-white/60 hover:text-white/90 transition font-mono border-t border-white/[0.06]"
+                  style={{ minHeight: '48px', display: 'flex', alignItems: 'center' }}
                 >
                   wallpaper
                 </button>
               )}
 
-              {/* Delete */}
-              <button
-                onClick={() => { handleDelete(mode.tileId); closeTileMenu() }}
-                className="w-full text-left text-sm text-red-400/70 hover:text-red-400 transition font-mono py-2 border-t border-white/[0.06]"
-              >
-                delete
-              </button>
+              {/* Delete — separated, red text only */}
+              <div className="mt-4">
+                <button
+                  onClick={() => { handleDelete(mode.tileId); closeTileMenu() }}
+                  className="w-full text-left text-sm transition font-mono border-t border-white/[0.06]"
+                  style={{ minHeight: '48px', display: 'flex', alignItems: 'center', color: '#ef4444' }}
+                >
+                  delete
+                </button>
+              </div>
             </div>
           </div>
         </>

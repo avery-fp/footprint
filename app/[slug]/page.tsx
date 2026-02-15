@@ -58,10 +58,11 @@ export default async function FootprintPage({ params }: Props) {
 
   if (!footprint) notFound()
 
-  // Fetch tiles from library (images) + links (embeds/urls)
-  const [{ data: images }, { data: links }] = await Promise.all([
+  // Fetch tiles + rooms in parallel (single round-trip, no waterfall)
+  const [{ data: images }, { data: links }, { data: roomsData }] = await Promise.all([
     supabase.from('library').select('*').eq('serial_number', footprint.serial_number).order('position'),
     supabase.from('links').select('*').eq('serial_number', footprint.serial_number).order('position'),
+    supabase.from('rooms').select('*').eq('serial_number', footprint.serial_number).neq('hidden', true).order('position'),
   ])
 
   // Merge and sort by position
@@ -88,14 +89,6 @@ export default async function FootprintPage({ params }: Props) {
       size: link.size || 1,
     })),
   ].sort((a, b) => a.position - b.position)
-
-  // Fetch rooms if they exist
-  const { data: roomsData } = await supabase
-    .from('rooms')
-    .select('*')
-    .eq('serial_number', footprint.serial_number)
-    .neq('hidden', true)
-    .order('position')
 
   // Group content by rooms
   const rooms = (roomsData || []).map((room: any) => ({

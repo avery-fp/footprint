@@ -26,6 +26,8 @@ interface ContentCardProps {
     embed_html: string | null
   }
   onWidescreen?: () => void
+  isMobile?: boolean
+  tileSize?: number
 }
 
 /**
@@ -35,8 +37,9 @@ interface ContentCardProps {
  * Vapor Boxes: Skeleton placeholders with aspect-ratio
  * 800ms Materialization: Fade-in on media load
  * One Sound Policy: AudioManager integration
+ * ALL iframes: lazy loaded via IntersectionObserver
  */
-export default function ContentCard({ content, onWidescreen }: ContentCardProps) {
+export default function ContentCard({ content, onWidescreen, isMobile = false, tileSize = 1 }: ContentCardProps) {
   const icon = getContentIcon(content.type)
   const customBg = getContentBackground(content.type)
   const [isActivated, setIsActivated] = useState(false)
@@ -45,7 +48,7 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
   const containerRef = useRef<HTMLDivElement>(null)
   const audioIdRef = useRef(`card-${content.id}`)
 
-  // IntersectionObserver — only load images when near viewport
+  // IntersectionObserver — only load content when near viewport
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
@@ -71,8 +74,6 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
     })
     return () => audioManager.unregister(audioIdRef.current)
   }, [content.type, content.id])
-
-  // All tiles are aspect-square in the grid — no auto widescreen
 
   const handleActivate = () => {
     if (['youtube', 'soundcloud', 'spotify', 'applemusic'].includes(content.type)) {
@@ -136,22 +137,50 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
   }
 
   // ════════════════════════════════════════
-  // SPOTIFY — official dark embed in dark square tile
+  // SPOTIFY — lazy loaded, mobile facade at size 1
   // ════════════════════════════════════════
   if (content.type === 'spotify') {
     const spotifyInfo = extractSpotifyInfo(content.url)
     if (spotifyInfo) {
+      // Mobile at size 1: iframe is unusable. Show facade → open link.
+      if (isMobile && tileSize <= 1) {
+        return (
+          <a
+            ref={containerRef as any}
+            href={content.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block w-full h-full rounded-xl overflow-hidden relative bg-[#191414] cursor-pointer group"
+          >
+            {/* Spotify-branded card with play icon */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+              <div className="w-12 h-12 rounded-full bg-[#1DB954] flex items-center justify-center group-hover:scale-110 transition-transform">
+                <svg className="w-5 h-5 text-black ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+              </div>
+              <p className="text-white/50 text-[10px] font-medium truncate max-w-[80%] text-center">
+                {content.title || 'spotify'}
+              </p>
+            </div>
+          </a>
+        )
+      }
+      // Desktop or size 2+: lazy load iframe
       return (
-        <div className="w-full h-full rounded-xl overflow-hidden flex items-center justify-center">
-          <iframe
-            style={{ border: 'none', borderRadius: '12px' }}
-            src={`https://open.spotify.com/embed/${spotifyInfo.type}/${spotifyInfo.id}?theme=0`}
-            width="100%"
-            height="100%"
-            frameBorder="0"
-            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-            loading="lazy"
-          />
+        <div ref={containerRef} className="w-full h-full rounded-xl overflow-hidden flex items-center justify-center bg-transparent">
+          {isInView ? (
+            <iframe
+              style={{ border: 'none', borderRadius: '12px', background: 'transparent' }}
+              src={`https://open.spotify.com/embed/${spotifyInfo.type}/${spotifyInfo.id}?theme=0`}
+              width="100%"
+              height="100%"
+              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+              loading="lazy"
+            />
+          ) : (
+            <div className="w-full h-full bg-[#191414] rounded-xl" />
+          )}
         </div>
       )
     }
@@ -196,35 +225,38 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
   }
 
   // ════════════════════════════════════════
-  // APPLE MUSIC — official dark embed in dark square tile
+  // APPLE MUSIC — lazy loaded dark embed
   // ════════════════════════════════════════
   if (content.type === 'applemusic' && content.embed_html) {
     let darkEmbed = content.embed_html.replace(
       /src="(https:\/\/embed\.music\.apple\.com\/[^"]*?)"/g,
       (_m: string, url: string) => `src="${url}${url.includes('?') ? '&' : '?'}theme=dark"`
     )
-    // Inject scrolling="no" into iframe tags
     darkEmbed = darkEmbed.replace(/<iframe /g, '<iframe scrolling="no" ')
     return (
-      <div className="w-full aspect-square rounded-xl overflow-hidden bg-black">
-        <div
-          className="w-full h-full overflow-hidden [&_iframe]:!w-full [&_iframe]:!h-full [&_iframe]:!min-h-0 [&_iframe]:!border-0 [&_iframe]:!overflow-hidden"
-          dangerouslySetInnerHTML={{ __html: darkEmbed }}
-        />
+      <div ref={containerRef} className="w-full aspect-square rounded-xl overflow-hidden bg-black">
+        {isInView ? (
+          <div
+            className="w-full h-full overflow-hidden [&_iframe]:!w-full [&_iframe]:!h-full [&_iframe]:!min-h-0 [&_iframe]:!border-0 [&_iframe]:!overflow-hidden"
+            dangerouslySetInnerHTML={{ __html: darkEmbed }}
+          />
+        ) : null}
       </div>
     )
   }
 
   // ════════════════════════════════════════
-  // VIMEO — embed with materialization
+  // VIMEO — lazy loaded embed
   // ════════════════════════════════════════
   if (content.type === 'vimeo' && content.embed_html) {
     return (
-      <div className="w-full aspect-square rounded-xl overflow-hidden relative materialize bg-black">
-        <div
-          className="absolute inset-0 [&_iframe]:!w-full [&_iframe]:!h-full"
-          dangerouslySetInnerHTML={{ __html: content.embed_html }}
-        />
+      <div ref={containerRef} className="w-full aspect-square rounded-xl overflow-hidden relative bg-black">
+        {isInView ? (
+          <div
+            className="absolute inset-0 [&_iframe]:!w-full [&_iframe]:!h-full materialize"
+            dangerouslySetInnerHTML={{ __html: content.embed_html }}
+          />
+        ) : null}
       </div>
     )
   }

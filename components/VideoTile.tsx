@@ -27,18 +27,19 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
           setIsVisible(false)
         }
       },
-      { rootMargin: '100px' }
+      { rootMargin: '100vh' }
     )
     observer.observe(el)
     return () => observer.disconnect()
   }, [])
 
   // Play/pause based on viewport visibility
+  // Without autoPlay, we call .play() to initiate download + playback when visible
   useEffect(() => {
-    if (!videoRef.current || !isReady) return
+    if (!videoRef.current) return
     if (isVisible) {
       videoRef.current.play().catch(() => {})
-    } else {
+    } else if (isReady) {
       videoRef.current.pause()
     }
   }, [isVisible, isReady])
@@ -88,7 +89,6 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
             ref={videoRef}
             src={src}
             className={`w-full ${isWide ? 'aspect-video' : 'aspect-square'} object-cover rounded-xl cursor-pointer transition-opacity duration-300 ${isReady ? 'opacity-100' : 'opacity-0'}`}
-            autoPlay
             muted
             loop
             playsInline
