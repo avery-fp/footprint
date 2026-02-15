@@ -136,91 +136,29 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
   }
 
   // ════════════════════════════════════════
-  // SPOTIFY — FACADE: album art + play button, click loads embed
+  // SPOTIFY — official dark embed in dark square tile
   // ════════════════════════════════════════
   if (content.type === 'spotify') {
     const spotifyInfo = extractSpotifyInfo(content.url)
-    const embedHeight = spotifyInfo?.type === 'track' ? 152 : 352
-
-    if (!isActivated && content.thumbnail_url) {
-      return (
-        <div
-          ref={containerRef}
-          className="w-full aspect-square rounded-xl overflow-hidden cursor-pointer relative group bg-black"
-          onClick={handleActivate}
-        >
-          <Image
-            src={isInView ? content.thumbnail_url : ''}
-            alt=""
-            width={400}
-            height={400}
-            sizes="(max-width: 768px) 50vw, 25vw"
-            className={`w-full h-full object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
-            loading="lazy"
-            quality={75}
-            onLoad={() => setIsLoaded(true)}
-          />
-          {/* Dark overlay for cohesion */}
-          <div className="absolute inset-0 bg-black/30" />
-          {/* Compact dark player bar at bottom */}
-          <div className="absolute bottom-0 left-0 right-0 bg-black/70 backdrop-blur-md px-3 py-2 flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-[#1DB954] flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-              <svg className="w-3.5 h-3.5 text-black ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z"/>
-              </svg>
-            </div>
-            <span className="text-[10px] text-white/60 font-medium truncate">{content.title || 'Spotify'}</span>
-            <svg className="w-3 h-3 text-[#1DB954] flex-shrink-0 ml-auto" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
-            </svg>
-          </div>
-        </div>
-      )
-    }
-
-    // Activated — album art bg (dimmed) with Spotify embed pinned to bottom
     if (spotifyInfo) {
-      const compactHeight = spotifyInfo.type === 'track' ? 80 : 152
+      const embedHeight = spotifyInfo.type === 'track' ? 152 : 352
       return (
-        <div className="w-full aspect-square rounded-xl overflow-hidden relative materialize bg-black">
-          {content.thumbnail_url && (
-            <img
-              src={content.thumbnail_url}
-              alt=""
-              className="absolute inset-0 w-full h-full object-cover opacity-50"
-            />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
-          <div className="absolute bottom-0 left-0 right-0" style={{ height: compactHeight }}>
-            <iframe
-              style={{ borderRadius: 0, border: 'none' }}
-              src={`https://open.spotify.com/embed/${spotifyInfo.type}/${spotifyInfo.id}?theme=0`}
-              width="100%"
-              height="100%"
-              frameBorder="0"
-              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-            />
-          </div>
+        <div className="w-full aspect-square rounded-xl overflow-hidden bg-black flex items-center justify-center">
+          <iframe
+            style={{ borderRadius: 12, border: 'none' }}
+            src={`https://open.spotify.com/embed/${spotifyInfo.type}/${spotifyInfo.id}?theme=0`}
+            width="100%"
+            height={embedHeight}
+            frameBorder="0"
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+          />
         </div>
       )
     }
-
-    // Fallback — no thumbnail, no parseable URL
     return (
-      <a
-        href={content.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block w-full aspect-square rounded-xl overflow-hidden cursor-pointer relative group bg-black"
-      >
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-[#1DB954] flex items-center justify-center">
-            <svg className="w-4 h-4 text-black ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M8 5v14l11-7z"/>
-            </svg>
-          </div>
-          <p className="text-white/50 text-[10px] font-medium">{content.title || 'Spotify'}</p>
-        </div>
+      <a href={content.url} target="_blank" rel="noopener noreferrer"
+        className="block w-full aspect-square rounded-xl overflow-hidden bg-black flex items-center justify-center">
+        <span className="text-white/40 text-xs">Open on Spotify</span>
       </a>
     )
   }
@@ -258,57 +196,17 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
   }
 
   // ════════════════════════════════════════
-  // APPLE MUSIC — embed with materialization
+  // APPLE MUSIC — official dark embed in dark square tile
   // ════════════════════════════════════════
   if (content.type === 'applemusic' && content.embed_html) {
-    // Facade: album art (or dark placeholder) + play button, click activates embed
-    if (!isActivated) {
-      return (
-        <div
-          ref={containerRef}
-          className="w-full aspect-square rounded-xl overflow-hidden cursor-pointer relative group bg-black"
-          onClick={handleActivate}
-        >
-          {content.thumbnail_url ? (
-            <Image
-              src={isInView ? content.thumbnail_url : ''}
-              alt=""
-              width={400}
-              height={400}
-              sizes="(max-width: 768px) 50vw, 25vw"
-              className={`w-full h-full object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
-              loading="lazy"
-              quality={75}
-              onLoad={() => setIsLoaded(true)}
-            />
-          ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-[#fc3c44]/20 to-black" />
-          )}
-          {/* Play button */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-10 h-10 rounded-full bg-[#fc3c44] flex items-center justify-center group-hover:scale-110 transition-transform">
-              <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z"/>
-              </svg>
-            </div>
-          </div>
-          {/* Apple Music badge */}
-          <div className="absolute bottom-2 left-2 flex items-center gap-1.5 bg-black/50 backdrop-blur-sm rounded-full px-2 py-1">
-            <span className="text-[9px] text-white/60 font-medium">{content.title || 'Apple Music'}</span>
-          </div>
-        </div>
-      )
-    }
-    // Activated: dark themed embed, overflow hidden, no scroll
     const darkEmbed = content.embed_html.replace(
       /src="(https:\/\/embed\.music\.apple\.com\/[^"]*?)"/g,
-      (match: string, url: string) => `src="${url}${url.includes('?') ? '&' : '?'}theme=dark"`
+      (_m: string, url: string) => `src="${url}${url.includes('?') ? '&' : '?'}theme=dark"`
     )
     return (
-      <div className="w-full aspect-square rounded-xl overflow-hidden relative materialize bg-black">
+      <div className="w-full aspect-square rounded-xl overflow-hidden bg-black">
         <div
-          className="absolute inset-0 overflow-hidden [&_iframe]:!w-full [&_iframe]:!h-full [&_iframe]:!min-h-0 [&_iframe]:!border-0 [&_iframe]:!bg-transparent [&_iframe]:!overflow-hidden"
-          style={{ overflow: 'hidden' }}
+          className="w-full h-full overflow-hidden [&_iframe]:!w-full [&_iframe]:!h-full [&_iframe]:!min-h-0 [&_iframe]:!border-0"
           dangerouslySetInnerHTML={{ __html: darkEmbed }}
         />
       </div>
