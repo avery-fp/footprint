@@ -987,6 +987,22 @@ export default function EditPage() {
           >
             ← view
           </Link>
+          {activeRoomId && (
+            <>
+              <button
+                onClick={() => setActiveRoomId(null)}
+                className="text-xs text-white/40 hover:text-white/70 transition font-mono"
+              >
+                clear
+              </button>
+              <button
+                onClick={() => handleDeleteRoom(activeRoomId)}
+                className="text-xs text-red-400/60 hover:text-red-400 transition font-mono"
+              >
+                delete
+              </button>
+            </>
+          )}
           <Link
             href={`/${slug}`}
             className="text-sm font-medium text-white/90 hover:text-white transition px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
@@ -1007,24 +1023,17 @@ export default function EditPage() {
             all
           </button>
           {rooms.map((room) => (
-            <div key={room.id} className="relative group/room flex items-center">
-              <button
-                onClick={() => setActiveRoomId(room.id)}
-                className={`text-xs px-3 py-1 rounded-full transition-all whitespace-nowrap backdrop-blur-sm border-0 ${
-                  activeRoomId === room.id
-                    ? 'bg-white/[0.12] text-white/90'
-                    : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70'
-                }`}
-              >
-                {room.name}
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); handleDeleteRoom(room.id) }}
-                className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500/80 text-white text-[8px] leading-none flex items-center justify-center opacity-0 group-hover/room:opacity-100 transition-opacity"
-              >
-                ×
-              </button>
-            </div>
+            <button
+              key={room.id}
+              onClick={() => setActiveRoomId(room.id)}
+              className={`text-xs px-3 py-1 rounded-full transition-all whitespace-nowrap backdrop-blur-sm border-0 ${
+                activeRoomId === room.id
+                  ? 'bg-white/[0.12] text-white/90'
+                  : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70'
+              }`}
+            >
+              {room.name}
+            </button>
           ))}
           <button
             onClick={handleCreateRoom}
