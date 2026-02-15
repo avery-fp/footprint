@@ -161,6 +161,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     const isVideo = item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
     const tileSize = item.size || 1
     const colSpan = tileSize === 4 ? 'col-span-2 md:col-span-4'
+      : tileSize === 3 ? 'col-span-2 md:col-span-3'
       : tileSize === 2 ? 'col-span-2'
       : ''
     return (
@@ -257,10 +258,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               )
             })()}
             <p
-              className="mt-2 text-white/20 text-[10px] tracking-[0.25em] lowercase"
+              className="mt-2 text-white/30 text-[11px] tracking-[0.25em] lowercase font-medium"
               style={{
                 fontFamily: '"Helvetica Neue", system-ui, sans-serif',
-                fontWeight: 300,
                 textShadow: '0 2px 16px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.5)',
               }}
             >

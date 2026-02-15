@@ -115,7 +115,7 @@ function SortableTile({
     }
   }
 
-  const sizeClass = size === 2 ? 'col-span-2 row-span-2' : 'aspect-square'
+  const sizeClass = size === 3 ? 'col-span-3 row-span-3' : size === 2 ? 'col-span-2 row-span-2' : 'aspect-square'
 
   // Polaroid reveal — tile develops from frosted to crystal clear
   const isTemp = id.toString().startsWith('temp-')
@@ -891,7 +891,7 @@ export default function EditPage() {
     if (!source) return
 
     const currentSize = tile.size || 1
-    const newSize = currentSize === 1 ? 2 : 1
+    const newSize = currentSize === 1 ? 2 : currentSize === 2 ? 3 : 1
 
     // Optimistic update
     setDraft(prev => prev ? {

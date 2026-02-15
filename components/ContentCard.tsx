@@ -199,14 +199,16 @@ export default function ContentCard({ content, onWidescreen }: ContentCardProps)
   // APPLE MUSIC — official dark embed in dark square tile
   // ════════════════════════════════════════
   if (content.type === 'applemusic' && content.embed_html) {
-    const darkEmbed = content.embed_html.replace(
+    let darkEmbed = content.embed_html.replace(
       /src="(https:\/\/embed\.music\.apple\.com\/[^"]*?)"/g,
       (_m: string, url: string) => `src="${url}${url.includes('?') ? '&' : '?'}theme=dark"`
     )
+    // Inject scrolling="no" into iframe tags
+    darkEmbed = darkEmbed.replace(/<iframe /g, '<iframe scrolling="no" ')
     return (
       <div className="w-full aspect-square rounded-xl overflow-hidden bg-black">
         <div
-          className="w-full h-full overflow-hidden [&_iframe]:!w-full [&_iframe]:!h-full [&_iframe]:!min-h-0 [&_iframe]:!border-0"
+          className="w-full h-full overflow-hidden [&_iframe]:!w-full [&_iframe]:!h-full [&_iframe]:!min-h-0 [&_iframe]:!border-0 [&_iframe]:!overflow-hidden"
           dangerouslySetInnerHTML={{ __html: darkEmbed }}
         />
       </div>
