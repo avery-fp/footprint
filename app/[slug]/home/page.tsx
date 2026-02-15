@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { DndContext, closestCenter, KeyboardSensor, MouseSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
+import { DndContext, closestCenter, KeyboardSensor, MouseSensor, TouchSensor, useSensor, useSensors, DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import { SortableContext, sortableKeyboardCoordinates, useSortable, rectSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { loadDraft, saveDraft, clearDraft, DraftFootprint, DraftContent } from '@/lib/draft-store'
@@ -30,7 +30,7 @@ type PageMode =
 // Sortable Tile
 // ═══════════════════════════════════════════
 function SortableTile({
-  id, content, deleting, size, isArranging, isViewing, isMobile, selected, onTap,
+  id, content, deleting, size, isArranging, isViewing, isMobile, selected, anyDragging, onTap,
   onLongPressStart, onLongPressMove, onLongPressEnd, onPinchResize,
 }: {
   id: string
@@ -41,6 +41,7 @@ function SortableTile({
   isViewing: boolean
   isMobile: boolean
   selected: boolean
+  anyDragging: boolean
   onTap: () => void
   onLongPressStart: (e: React.TouchEvent) => void
   onLongPressMove: (e: React.TouchEvent) => void
@@ -60,12 +61,23 @@ function SortableTile({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id })
+  } = useSortable({
+    id,
+    transition: {
+      duration: 200,
+      easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
+    },
+  })
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : deleting ? 0.5 : 1,
+    transition: isDragging
+      ? transition
+      : `${transition || ''}, opacity 200ms ease-out, box-shadow 200ms ease-out`.replace(/^, /, ''),
+    opacity: isDragging ? 1 : deleting ? 0.5 : anyDragging ? 0.9 : 1,
+    scale: isDragging ? '1.05' : undefined,
+    boxShadow: isDragging ? '0 12px 32px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.3)' : undefined,
+    zIndex: isDragging ? 50 : undefined,
     contain: 'layout style paint',
     willChange: isDragging ? 'transform' : 'auto',
   }
@@ -244,6 +256,7 @@ export default function EditPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isAdding, setIsAdding] = useState(false)
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
+  const [draggingTileId, setDraggingTileId] = useState<string | null>(null)
   const [isOwner, setIsOwner] = useState(false)
   const [tileSources, setTileSources] = useState<Record<string, 'library' | 'links'>>({})
   const [rooms, setRooms] = useState<any[]>([])
@@ -578,7 +591,12 @@ export default function EditPage() {
     }
   }
 
+  function handleDragStart(event: { active: { id: string | number } }) {
+    setDraggingTileId(String(event.active.id))
+  }
+
   function handleDragEnd(event: DragEndEvent) {
+    setDraggingTileId(null)
     const { active, over } = event
     if (!over || active.id === over.id || !draft) return
 
@@ -1093,13 +1111,14 @@ export default function EditPage() {
           <DndContext
             sensors={isArranging ? sensors : []}
             collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
             <SortableContext
               items={filteredContent.map(item => item.id)}
               strategy={rectSortingStrategy}
             >
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-1.5" style={{ gridAutoRows: 'minmax(180px, 1fr)', gridAutoFlow: 'dense' }}>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5" style={{ gridAutoRows: 'minmax(180px, 1fr)', gridAutoFlow: 'dense' }}>
                 {filteredContent.map(item => (
                   <SortableTile
                     key={item.id}
@@ -1109,6 +1128,7 @@ export default function EditPage() {
                     isViewing={mode.type === 'viewing'}
                     isMobile={isMobile}
                     selected={selectedTileId === item.id}
+                    anyDragging={draggingTileId !== null}
                     onTap={() => openTileMenu(item.id)}
                     deleting={deletingIds.has(item.id)}
                     size={item.size || 1}
