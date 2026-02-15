@@ -206,3 +206,11 @@ body::before {
   to { transform: translateY(0); }
 }
 .animate-slide-up { animation: slide-up 0.25s ease-out; }
+
+/* Desktop tile hover — subtle brightness on pointer devices */
+@media (hover: hover) {
+  .tile-inner:not(.tile-arranging):hover {
+    filter: brightness(1.08);
+    transition: filter 0.15s ease;
+  }
+}

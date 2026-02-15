@@ -232,8 +232,8 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'id, source, and slug required' }, { status: 400 })
     }
 
-    if (size !== undefined && ![1, 2].includes(size)) {
-      return NextResponse.json({ error: 'size must be 1 or 2' }, { status: 400 })
+    if (size !== undefined && ![1, 2, 3].includes(size)) {
+      return NextResponse.json({ error: 'size must be 1, 2, or 3' }, { status: 400 })
     }
 
     const supabase = createServerSupabaseClient()

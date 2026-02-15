@@ -30,7 +30,8 @@ type PageMode =
 // Sortable Tile — drag handle only, no long-press
 // ═══════════════════════════════════════════
 function SortableTile({
-  id, content, onDelete, deleting, size, isArranging, selected, onTap,
+  id, content, onDelete, deleting, size, isArranging, isViewing, isMobile, selected, onTap,
+  onLongPressStart, onLongPressMove, onLongPressEnd,
 }: {
   id: string
   content: any
@@ -38,8 +39,13 @@ function SortableTile({
   deleting: boolean
   size: number
   isArranging: boolean
+  isViewing: boolean
+  isMobile: boolean
   selected: boolean
   onTap: () => void
+  onLongPressStart: (e: React.TouchEvent) => void
+  onLongPressMove: (e: React.TouchEvent) => void
+  onLongPressEnd: () => void
 }) {
   const [isMuted, setIsMuted] = useState(true)
   const [isLoaded, setIsLoaded] = useState(false)
@@ -110,16 +116,19 @@ function SortableTile({
       data-tile
     >
       <div
-        className={`relative rounded-xl overflow-hidden w-full h-full ${isArranging ? 'tile-arranging tile-jiggle' : ''} ${selected ? 'ring-2 ring-white/60' : ''}`}
+        className={`tile-inner relative rounded-xl overflow-hidden w-full h-full ${isArranging ? 'tile-arranging tile-jiggle' : ''} ${selected ? 'ring-2 ring-white/60' : ''}`}
         style={revealStyle}
         onClick={isArranging ? (e) => { e.stopPropagation(); onTap() } : undefined}
+        onTouchStart={isViewing && isMobile ? onLongPressStart : undefined}
+        onTouchMove={isViewing && isMobile ? onLongPressMove : undefined}
+        onTouchEnd={isViewing && isMobile ? onLongPressEnd : undefined}
+        onContextMenu={(e) => e.preventDefault()}
       >
         {/* Delete badge — only in arranging mode */}
         {isArranging && (
           <button
             onClick={(e) => { e.stopPropagation(); onDelete() }}
             className="absolute top-0 left-0 w-11 h-11 z-10 flex items-center justify-center"
-            title="Delete"
           >
             <span className="w-5 h-5 rounded-full bg-red-500/90 flex items-center justify-center text-white text-xs font-bold">−</span>
           </button>
@@ -140,17 +149,6 @@ function SortableTile({
           </div>
         )}
 
-        {/* Caption display */}
-        {content.caption && (
-          <div className="absolute bottom-0 left-0 right-0 z-10">
-            <div className="bg-gradient-to-t from-black/60 to-transparent pt-6 pb-2 px-3">
-              <p className="text-[11px] text-white/80 leading-snug font-light tracking-wide line-clamp-2">
-                {content.caption}
-              </p>
-            </div>
-          </div>
-        )}
-
         {/* Tile content — absolute fill to enforce square */}
         {content.type === 'image' ? (
           isVideo ? (
@@ -164,7 +162,7 @@ function SortableTile({
                 playsInline
                 autoPlay
                 onClick={handleVideoClick}
-                onLoadedData={() => setIsLoaded(true)} onError={() => setIsLoaded(true)}
+                onLoadedData={() => setIsLoaded(true)} onError={(e) => { setIsLoaded(true); (e.target as HTMLVideoElement).style.display = 'none' }}
               />
               {!isMuted && (
                 <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60 z-10" />
@@ -235,25 +233,64 @@ export default function EditPage() {
   const [serialNumber, setSerialNumber] = useState<number | null>(null)
   const [pasteUrl, setPasteUrl] = useState('')
   const [thoughtText, setThoughtText] = useState('')
-  const [sheetCaption, setSheetCaption] = useState('')
+  const [isMobile, setIsMobile] = useState(false)
   const urlInputRef = useRef<HTMLInputElement>(null)
   const thoughtInputRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const captionInputRef = useRef<HTMLInputElement>(null)
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const longPressRef = useRef<NodeJS.Timeout | null>(null)
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null)
 
   // Mode transition helpers
   const enterEdit = () => setMode({ type: 'arranging' })
   const exitEdit = () => setMode({ type: 'viewing' })
   const openTileMenu = (tileId: string) => {
-    const tile = draft?.content.find(c => c.id === tileId)
-    setSheetCaption(tile?.caption || '')
     setMode({ type: 'tile_menu', tileId })
   }
   const closeTileMenu = () => setMode({ type: 'arranging' })
   const startAdding = (method: 'url' | 'thought') => setMode({ type: 'adding', method })
   const stopAdding = () => setMode({ type: 'arranging' })
+
+  // Mobile detection
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
+  // Long-press to enter arrange mode (mobile + viewing only)
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (!isMobile || mode.type !== 'viewing') return
+    const touch = e.touches[0]
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY }
+    longPressRef.current = setTimeout(() => {
+      enterEdit()
+      longPressRef.current = null
+      touchStartRef.current = null
+    }, 500)
+  }, [isMobile, mode.type])
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!longPressRef.current || !touchStartRef.current) return
+    const touch = e.touches[0]
+    const dx = touch.clientX - touchStartRef.current.x
+    const dy = touch.clientY - touchStartRef.current.y
+    if (Math.sqrt(dx * dx + dy * dy) > 10) {
+      clearTimeout(longPressRef.current)
+      longPressRef.current = null
+      touchStartRef.current = null
+    }
+  }, [])
+
+  const handleTouchEnd = useCallback(() => {
+    if (longPressRef.current) {
+      clearTimeout(longPressRef.current)
+      longPressRef.current = null
+    }
+    touchStartRef.current = null
+  }, [])
 
   // Activation constraint: require 8px drag distance so clicks still work
   const sensors = useSensors(
@@ -389,13 +426,6 @@ export default function EditPage() {
       setTimeout(() => thoughtInputRef.current?.focus(), 100)
     }
   }, [pillMode])
-
-  // Focus caption input when sheet opens
-  useEffect(() => {
-    if (mode.type === 'tile_menu') {
-      setTimeout(() => captionInputRef.current?.focus(), 300)
-    }
-  }, [mode])
 
   // ── Tile actions ──
 
@@ -663,33 +693,6 @@ export default function EditPage() {
     }
   }
 
-  // ── Caption ──
-
-  async function saveCaption(id: string, caption: string) {
-    if (!draft) return
-    const source = tileSources[id]
-    if (!source) return
-
-    const trimmed = caption.trim()
-    const value = trimmed || null
-
-    setDraft(prev => prev ? {
-      ...prev,
-      content: prev.content.map(c => c.id === id ? { ...c, caption: value } : c),
-      updated_at: Date.now(),
-    } : null)
-
-    try {
-      await fetch('/api/tiles', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, source, slug, caption: value }),
-      })
-    } catch (e) {
-      console.error('Failed to save caption:', e)
-    }
-  }
-
   // ── Room assign ──
 
   async function assignTileRoom(tileId: string, newRoomId: string | null) {
@@ -801,6 +804,28 @@ export default function EditPage() {
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || [])
     if (files.length === 0 || !draft || !serialNumber) return
+
+    // 50MB limit
+    const oversized = files.filter(f => f.size > 50 * 1024 * 1024)
+    if (oversized.length > 0) {
+      alert('under 50mb.')
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+
+    // 4 video cap
+    const existingVideos = draft.content.filter(c =>
+      c.type === 'image' && c.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
+    ).length
+    const incomingVideos = files.filter(f =>
+      VIDEO_MIME.includes(f.type) || /\.(mp4|mov|webm|m4v)$/i.test(f.name)
+    ).length
+    if (existingVideos + incomingVideos > 4) {
+      alert('4 max.')
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+
     setIsAdding(true)
 
     const tempIds = files.map((_, i) => `temp-${Date.now()}-${i}`)
@@ -979,14 +1004,14 @@ export default function EditPage() {
                 onClick={exitEdit}
                 className="text-sm font-medium text-white/90 hover:text-white transition px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
               >
-                Done
+                done
               </button>
             ) : (
               <button
                 onClick={enterEdit}
                 className="text-sm font-medium text-white/90 hover:text-white transition px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
               >
-                Edit
+                edit
               </button>
             )}
           </div>
@@ -1045,11 +1070,16 @@ export default function EditPage() {
                     id={item.id}
                     content={item}
                     isArranging={isArranging}
+                    isViewing={mode.type === 'viewing'}
+                    isMobile={isMobile}
                     selected={selectedTileId === item.id}
                     onTap={() => openTileMenu(item.id)}
                     onDelete={() => handleDelete(item.id)}
                     deleting={deletingIds.has(item.id)}
                     size={item.size || 1}
+                    onLongPressStart={handleTouchStart}
+                    onLongPressMove={handleTouchMove}
+                    onLongPressEnd={handleTouchEnd}
                   />
                 ))}
               </div>
@@ -1057,8 +1087,7 @@ export default function EditPage() {
           </DndContext>
         ) : (
           <div className="text-center py-32">
-            <p className="text-white/30 text-lg mb-4">Empty room</p>
-            <p className="text-white/20 text-sm font-mono">Tap Edit, then + to add your first tile</p>
+            <p className="text-white/30 text-sm font-mono">nothing here.</p>
           </div>
         )}
       </div>
@@ -1088,7 +1117,7 @@ export default function EditPage() {
             <div className="px-5 pb-6 space-y-4">
               {/* Resize */}
               <div className="flex items-center justify-between">
-                <span className="text-sm text-white/50 font-mono">Size</span>
+                <span className="text-sm text-white/50 font-mono">size</span>
                 <div className="flex gap-1.5">
                   {[1, 2, 3].map(s => (
                     <button
@@ -1106,33 +1135,16 @@ export default function EditPage() {
                 </div>
               </div>
 
-              {/* Caption */}
-              <div>
-                <span className="text-sm text-white/50 font-mono block mb-1.5">Caption</span>
-                <input
-                  ref={captionInputRef}
-                  type="text"
-                  value={sheetCaption}
-                  onChange={(e) => setSheetCaption(e.target.value)}
-                  onBlur={() => saveCaption(mode.tileId, sheetCaption)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') { saveCaption(mode.tileId, sheetCaption); (e.target as HTMLInputElement).blur() }
-                  }}
-                  placeholder="add caption..."
-                  className="w-full bg-transparent text-white text-sm border-b border-white/10 py-2 outline-none placeholder:text-white/20 font-light"
-                />
-              </div>
-
               {/* Room assign */}
               {rooms.length > 0 && (
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-white/50 font-mono">Room</span>
+                  <span className="text-sm text-white/50 font-mono">room</span>
                   <select
                     value={selectedTile.room_id || ''}
                     onChange={(e) => assignTileRoom(mode.tileId, e.target.value || null)}
                     className="bg-white/10 text-white text-xs font-mono rounded-lg px-3 py-1.5 border border-white/20 outline-none"
                   >
-                    <option value="">No room</option>
+                    <option value="">none</option>
                     {rooms.map(r => (
                       <option key={r.id} value={r.id}>{r.name}</option>
                     ))}
@@ -1146,7 +1158,7 @@ export default function EditPage() {
                   onClick={() => handleSetWallpaper(mode.tileId)}
                   className="w-full text-left text-sm text-white/60 hover:text-white/90 transition font-mono py-2 border-t border-white/[0.06]"
                 >
-                  Set as wallpaper
+                  wallpaper
                 </button>
               )}
 
@@ -1155,7 +1167,7 @@ export default function EditPage() {
                 onClick={() => { handleDelete(mode.tileId); closeTileMenu() }}
                 className="w-full text-left text-sm text-red-400/70 hover:text-red-400 transition font-mono py-2 border-t border-white/[0.06]"
               >
-                Delete tile
+                delete
               </button>
             </div>
           </div>
@@ -1171,7 +1183,7 @@ export default function EditPage() {
             <input
               ref={urlInputRef}
               type="text"
-              placeholder="Paste URL..."
+              placeholder=""
               value={pasteUrl}
               onChange={e => setPasteUrl(e.target.value)}
               onKeyDown={e => {
@@ -1186,7 +1198,7 @@ export default function EditPage() {
                 disabled={isAdding || !pasteUrl.trim()}
                 className="flex-1 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl font-mono text-xs transition disabled:opacity-50"
               >
-                {isAdding ? 'Adding...' : 'Add'}
+                {isAdding ? 'adding...' : 'add'}
               </button>
               <button
                 onClick={() => { stopAdding(); setPasteUrl('') }}
@@ -1203,7 +1215,7 @@ export default function EditPage() {
           <div className="w-80 bg-black/60 backdrop-blur-sm border border-white/20 rounded-2xl p-3 materialize">
             <textarea
               ref={thoughtInputRef}
-              placeholder="Write a thought..."
+              placeholder=""
               value={thoughtText}
               onChange={e => setThoughtText(e.target.value)}
               onKeyDown={e => {
@@ -1219,7 +1231,7 @@ export default function EditPage() {
                 disabled={isAdding || !thoughtText.trim()}
                 className="flex-1 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl font-mono text-xs transition disabled:opacity-50"
               >
-                {isAdding ? 'Adding...' : 'Add thought'}
+                {isAdding ? 'adding...' : 'add'}
               </button>
               <button
                 onClick={() => { stopAdding(); setThoughtText('') }}
@@ -1237,7 +1249,6 @@ export default function EditPage() {
             <button
               onClick={() => fileInputRef.current?.click()}
               className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all"
-              title="Upload file"
             >
               <span className="text-white/60 text-sm font-bold">↑</span>
             </button>
@@ -1245,7 +1256,6 @@ export default function EditPage() {
             <button
               onClick={() => startAdding('url')}
               className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all"
-              title="Add content"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-white/60"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
             </button>
@@ -1253,7 +1263,6 @@ export default function EditPage() {
             <button
               onClick={() => startAdding('thought')}
               className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all"
-              title="Add thought"
             >
               <span className="text-white/60 text-sm font-medium">Aa</span>
             </button>
