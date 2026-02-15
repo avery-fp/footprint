@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { parseURL } from '@/lib/parser'
 import { verifySessionToken } from '@/lib/auth'
@@ -149,6 +150,7 @@ export async function POST(request: NextRequest) {
       room_id: tile.room_id || null,
     }
 
+    revalidatePath(`/${slug}`)
     return NextResponse.json({ tile: normalizedTile })
 
   } catch (error) {
@@ -210,6 +212,7 @@ export async function DELETE(request: NextRequest) {
 
     console.log(`DELETE /api/tiles: Deleted ${count} row(s) from ${source} table. Tile ID: ${id}`)
 
+    revalidatePath(`/${slug}`)
     return NextResponse.json({ success: true, deleted: count })
 
   } catch (error) {
@@ -260,6 +263,7 @@ export async function PUT(request: NextRequest) {
     }
     await Promise.all(promises)
 
+    revalidatePath(`/${slug}`)
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Reorder tiles error:', error)
@@ -309,6 +313,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    revalidatePath(`/${slug}`)
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Update tile error:', error)

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { verifySessionToken } from '@/lib/auth'
 
@@ -136,6 +137,7 @@ export async function PUT(
       return NextResponse.json({ error: updateError.message }, { status: 500 })
     }
 
+    revalidatePath(`/${username}`)
     return NextResponse.json({ success: true, ...updates })
 
   } catch (error) {
