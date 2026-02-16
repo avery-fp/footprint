@@ -4,10 +4,24 @@ import { createServerSupabaseClient } from '@/lib/supabase'
 import { parseURL } from '@/lib/parser'
 
 /**
+ * Tile size rhythm pattern — creates visual variety like a hand-curated room.
+ * Maps tile index → size (1=standard, 2=double/hero).
+ * Pattern: hero, small, small, hero, small, small, small, ...
+ */
+function getTileSize(index: number): number {
+  if (index === 0) return 2  // First tile: hero
+  if (index === 3) return 2  // 4th tile: hero
+  return 1                    // Rest: standard
+}
+
+/**
  * POST /api/aro/mint
  *
  * Creates a NEW standalone footprint page at footprint.onl/{slug}.
- * Each mint = new serial_number + new user + new footprint + one room + content.
+ * Each mint = new serial + user + footprint + room + styled content.
+ *
+ * Produces pages that look hand-curated: wallpaper backgrounds,
+ * music embeds, varied tile sizes, theme styling — all automatic.
  *
  * Machine-to-machine auth via ARO_KEY.
  */
@@ -21,18 +35,19 @@ export async function POST(request: NextRequest) {
       image_urls,
       embed_urls,
       wallpaper_url,
+      music_url,
       theme_id,
       display_name,
       bio,
       metadata,
     } = body
 
-    // 1. Auth: verify ARO_KEY
+    // 1. Auth
     if (!aro_key || aro_key !== process.env.ARO_KEY) {
       return NextResponse.json({ error: 'Invalid aro_key' }, { status: 401 })
     }
 
-    // 2. Validate required fields
+    // 2. Validate
     if (!slug || !room_name) {
       return NextResponse.json(
         { error: 'slug and room_name required' },
@@ -49,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
-    // 3. Check slug not already taken
+    // 3. Check slug availability
     const { data: existing } = await supabase
       .from('footprints')
       .select('serial_number')
@@ -63,7 +78,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 4. Claim a serial number
+    // 4. Claim serial
     const { data: serialData, error: serialError } = await supabase.rpc('claim_next_serial')
     if (serialError || !serialData) {
       return NextResponse.json(
@@ -74,7 +89,7 @@ export async function POST(request: NextRequest) {
 
     const serialNumber = serialData as number
 
-    // 5. Create or reuse synthetic user (upsert for retry safety)
+    // 5. Create or reuse user (upsert for retry safety)
     const aroEmail = `aro+${slug}@footprint.onl`
 
     const { data: existingUser } = await supabase
@@ -83,20 +98,14 @@ export async function POST(request: NextRequest) {
       .eq('email', aroEmail)
       .single()
 
-    let userId: string
     let effectiveSerial = serialNumber
 
     if (existingUser) {
-      // Reuse existing user from a previous partial attempt
-      userId = existingUser.id
       effectiveSerial = existingUser.serial_number
     } else {
       const { data: newUser, error: userError } = await supabase
         .from('users')
-        .insert({
-          email: aroEmail,
-          serial_number: serialNumber,
-        })
+        .insert({ email: aroEmail, serial_number: serialNumber })
         .select()
         .single()
 
@@ -106,12 +115,36 @@ export async function POST(request: NextRequest) {
           { status: 500 }
         )
       }
-      userId = newUser.id
     }
 
-    // 6. Create the footprint — standalone page at footprint.onl/{slug}
-    //    Columns: serial_number, username, display_name, dimension, bio,
-    //    published, email (18 actual columns, no user_id/is_primary/is_public/name)
+    // 6. Upload wallpaper to storage (if provided)
+    let backgroundUrl: string | null = null
+
+    if (wallpaper_url) {
+      try {
+        const wpResponse = await fetch(wallpaper_url)
+        if (wpResponse.ok) {
+          const wpContentType = wpResponse.headers.get('content-type') || 'image/jpeg'
+          const wpBuffer = Buffer.from(await wpResponse.arrayBuffer())
+          const wpExt = wpContentType === 'image/png' ? 'png'
+            : wpContentType === 'image/webp' ? 'webp' : 'jpg'
+          const wpFilename = `${effectiveSerial}/wallpaper-${Date.now()}.${wpExt}`
+
+          await supabase.storage
+            .from('content')
+            .upload(wpFilename, wpBuffer, { contentType: wpContentType, upsert: true })
+
+          const { data: wpUrlData } = supabase.storage
+            .from('content')
+            .getPublicUrl(wpFilename)
+          backgroundUrl = wpUrlData.publicUrl.replace(/[\n\r]/g, '')
+        }
+      } catch (err: any) {
+        console.error('Wallpaper upload failed:', err.message)
+      }
+    }
+
+    // 7. Create footprint with background + theme
     const { data: footprint, error: fpError } = await supabase
       .from('footprints')
       .insert({
@@ -122,6 +155,8 @@ export async function POST(request: NextRequest) {
         dimension: theme_id || 'midnight',
         published: true,
         email: aroEmail,
+        background_url: backgroundUrl,
+        background_blur: true,
       })
       .select()
       .single()
@@ -133,14 +168,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 7. Create one room inside the footprint
+    // 8. Create room with wallpaper + music
+    const roomInsert: Record<string, any> = {
+      serial_number: effectiveSerial,
+      name: room_name,
+      position: 0,
+    }
+    if (backgroundUrl) roomInsert.wallpaper_url = backgroundUrl
+    if (music_url) roomInsert.music_url = music_url
+
     const { data: room, error: roomError } = await supabase
       .from('rooms')
-      .insert({
-        serial_number: effectiveSerial,
-        name: room_name,
-        position: 0,
-      })
+      .insert(roomInsert)
       .select()
       .single()
 
@@ -151,10 +190,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // 9. Process images with size rhythm
     let tileCount = 0
+    let firstImageUrl: string | null = null
 
-    // 8. Process image_urls: fetch → upload to storage → insert into library
-    await Promise.allSettled(
+    const imageResults = await Promise.allSettled(
       image_urls.map(async (imageUrl: string, index: number) => {
         try {
           const response = await fetch(imageUrl)
@@ -183,11 +223,15 @@ export async function POST(request: NextRequest) {
             .getPublicUrl(filename)
           const publicUrl = urlData.publicUrl.replace(/[\n\r]/g, '')
 
+          // Track first image for default background
+          if (index === 0) firstImageUrl = publicUrl
+
           const { error: insertError } = await supabase.from('library').insert({
             serial_number: effectiveSerial,
             image_url: publicUrl,
             position: index,
             room_id: room.id,
+            size: getTileSize(index),
           })
 
           if (insertError) throw insertError
@@ -201,7 +245,15 @@ export async function POST(request: NextRequest) {
       })
     )
 
-    // 9. Process embed_urls (optional): parse → insert into links
+    // 10. Default background: use first image if no wallpaper was provided
+    if (!backgroundUrl && firstImageUrl) {
+      await supabase
+        .from('footprints')
+        .update({ background_url: firstImageUrl, background_blur: true })
+        .eq('serial_number', effectiveSerial)
+    }
+
+    // 11. Process embed_urls as link tiles
     if (Array.isArray(embed_urls) && embed_urls.length > 0) {
       await Promise.allSettled(
         embed_urls.map(async (embedUrl: string, index: number) => {
@@ -220,59 +272,46 @@ export async function POST(request: NextRequest) {
               thumbnail: parsed.thumbnail_url,
               position: image_urls.length + index,
               room_id: room.id,
+              size: 1,
             })
 
             if (insertError) throw insertError
 
             tileCount++
-            return { url: parsed.url, type: parsed.type, status: 'ok' }
           } catch (err: any) {
             console.error(`Failed to process embed ${embedUrl}:`, err.message)
-            return { url: embedUrl, status: 'failed', error: err.message }
           }
         })
       )
     }
 
-    // 10. Handle wallpaper (optional)
-    if (wallpaper_url) {
+    // 12. Process music_url as a link tile (Spotify/SoundCloud/Apple Music)
+    if (music_url) {
       try {
-        const wpResponse = await fetch(wallpaper_url)
-        if (wpResponse.ok) {
-          const wpContentType =
-            wpResponse.headers.get('content-type') || 'image/jpeg'
-          const wpBuffer = Buffer.from(await wpResponse.arrayBuffer())
-          const wpExt =
-            wpContentType === 'image/png'
-              ? 'png'
-              : wpContentType === 'image/webp'
-              ? 'webp'
-              : 'jpg'
-          const wpFilename = `${effectiveSerial}/wallpaper-${room.id}.${wpExt}`
+        const parsed = await parseURL(music_url)
 
-          await supabase.storage
-            .from('content')
-            .upload(wpFilename, wpBuffer, {
-              contentType: wpContentType,
-              upsert: true,
-            })
+        await supabase.from('links').insert({
+          serial_number: effectiveSerial,
+          url: parsed.url,
+          platform: parsed.type,
+          title: parsed.title,
+          metadata: {
+            description: parsed.description,
+            embed_html: parsed.embed_html,
+          },
+          thumbnail: parsed.thumbnail_url,
+          position: image_urls.length + (embed_urls?.length || 0),
+          room_id: room.id,
+          size: 2,
+        })
 
-          const { data: wpUrlData } = supabase.storage
-            .from('content')
-            .getPublicUrl(wpFilename)
-          const wpPublicUrl = wpUrlData.publicUrl.replace(/[\n\r]/g, '')
-
-          await supabase
-            .from('rooms')
-            .update({ wallpaper_url: wpPublicUrl })
-            .eq('id', room.id)
-        }
+        tileCount++
       } catch (err: any) {
-        console.error('Wallpaper upload failed:', err.message)
+        console.error('Failed to process music_url:', err.message)
       }
     }
 
-    // 11. Store metadata if provided
+    // 13. Store metadata on room if provided
     if (metadata) {
       await supabase
         .from('rooms')
@@ -286,7 +325,6 @@ export async function POST(request: NextRequest) {
         .eq('id', room.id)
     }
 
-    // Revalidate the new page
     revalidatePath(`/${slug}`)
 
     return NextResponse.json({
