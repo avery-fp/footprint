@@ -86,5 +86,152 @@ async function handleCheckoutComplete(session: any) {
     status: 'completed',
   })
 
+  // Handle remix: clone room content from source footprint
+  const remixSource = session.metadata?.remix_source
+  const remixRoom = session.metadata?.remix_room
+
+  if (remixSource) {
+    try {
+      await cloneRemixContent(supabase, remixSource, remixRoom, serialNumber, slug)
+      console.log(`✓ Remix from ${remixSource} → #${serialNumber}`)
+    } catch (err) {
+      console.error('Remix clone failed:', err)
+    }
+  }
+
+  // Track conversion from UTM if present
+  const utmChannel = session.metadata?.utm_channel
+  const utmPack = session.metadata?.utm_pack
+  if (utmChannel && utmPack) {
+    try {
+      const { data: matchingEvents } = await supabase
+        .from('fp_distribution_events')
+        .select('id, conversions')
+        .eq('pack_id', utmPack)
+        .eq('channel', utmChannel)
+        .order('posted_at', { ascending: false })
+        .limit(1)
+
+      if (matchingEvents && matchingEvents.length > 0) {
+        await supabase
+          .from('fp_distribution_events')
+          .update({ conversions: (matchingEvents[0].conversions || 0) + 1 })
+          .eq('id', matchingEvents[0].id)
+      }
+    } catch (err) {
+      console.error('Conversion tracking failed:', err)
+    }
+  }
+
   console.log(`✓ New user: ${email} #${serialNumber}`)
+}
+
+/**
+ * Clone content from a source footprint to a new user's footprint.
+ * Powers the remix/clone mechanic — every buyer becomes a distribution node.
+ */
+async function cloneRemixContent(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  sourceSlug: string,
+  roomName: string | null,
+  targetSerialNumber: number,
+  targetSlug: string
+) {
+  // Get source footprint
+  const { data: source } = await supabase
+    .from('footprints')
+    .select('serial_number')
+    .eq('username', sourceSlug)
+    .single()
+
+  if (!source) return
+
+  const sourceSerial = source.serial_number
+
+  // Get source rooms
+  let sourceRooms
+  if (roomName) {
+    const { data } = await supabase
+      .from('rooms')
+      .select('*')
+      .eq('serial_number', sourceSerial)
+      .eq('name', roomName)
+    sourceRooms = data
+  } else {
+    const { data } = await supabase
+      .from('rooms')
+      .select('*')
+      .eq('serial_number', sourceSerial)
+      .neq('hidden', true)
+      .order('position')
+      .limit(5)
+    sourceRooms = data
+  }
+
+  if (!sourceRooms || sourceRooms.length === 0) return
+
+  for (const sourceRoom of sourceRooms) {
+    // Create new room for target user
+    const { data: newRoom } = await supabase
+      .from('rooms')
+      .insert({
+        serial_number: targetSerialNumber,
+        name: sourceRoom.name,
+        position: sourceRoom.position,
+      })
+      .select()
+      .single()
+
+    if (!newRoom) continue
+
+    // Clone images (library) — points to same storage URLs
+    const { data: sourceImages } = await supabase
+      .from('library')
+      .select('*')
+      .eq('serial_number', sourceSerial)
+      .eq('room_id', sourceRoom.id)
+
+    if (sourceImages) {
+      for (const img of sourceImages) {
+        await supabase.from('library').insert({
+          serial_number: targetSerialNumber,
+          image_url: img.image_url,
+          position: img.position,
+          room_id: newRoom.id,
+          size: img.size || 1,
+        })
+      }
+    }
+
+    // Clone links/embeds
+    const { data: sourceLinks } = await supabase
+      .from('links')
+      .select('*')
+      .eq('serial_number', sourceSerial)
+      .eq('room_id', sourceRoom.id)
+
+    if (sourceLinks) {
+      for (const link of sourceLinks) {
+        await supabase.from('links').insert({
+          serial_number: targetSerialNumber,
+          url: link.url,
+          platform: link.platform,
+          title: link.title,
+          metadata: link.metadata,
+          thumbnail: link.thumbnail,
+          position: link.position,
+          room_id: newRoom.id,
+          size: link.size || 1,
+        })
+      }
+    }
+  }
+
+  // Track remix in distribution events
+  await supabase.from('fp_distribution_events').insert({
+    serial_number: sourceSerial,
+    channel: 'remix',
+    surface: `remix by #${targetSerialNumber}`,
+    notes: `Cloned to ${targetSlug} from ${sourceSlug}`,
+  }).catch(() => {}) // Non-critical, don't fail the purchase
 }
