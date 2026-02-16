@@ -4,6 +4,8 @@
 
 import { validateEnv } from './env.js'
 import { runPipeline, mintSingle } from './pipeline/autoMint.js'
+import { distribute } from './pipeline/distribute.js'
+import type { Platform } from './agents/scanner.js'
 
 function parseArgs() {
   const args = process.argv.slice(2)
@@ -14,6 +16,9 @@ function parseArgs() {
     dry_run: false,
     skip_screenshots: false,
     skip_deploy: false,
+    once: false,
+    room: '',
+    platforms: '',
   }
 
   if (args[0] && !args[0].startsWith('--')) {
@@ -40,6 +45,15 @@ function parseArgs() {
       case '--mode':
         parsed.mode = args[++i] || 'auto'
         break
+      case '--once':
+        parsed.once = true
+        break
+      case '--room':
+        parsed.room = args[++i] || ''
+        break
+      case '--platforms':
+        parsed.platforms = args[++i] || ''
+        break
     }
   }
 
@@ -48,6 +62,33 @@ function parseArgs() {
 
 export async function main() {
   const args = parseArgs()
+
+  // Distribute mode has its own env validation (only needs ANTHROPIC_API_KEY)
+  if (args.mode === 'distribute') {
+    console.log(`
+╔══════════════════════════════════════════╗
+║         FOOTPRINT CULTURE ENGINE         ║
+║     autonomous distribution pipeline     ║
+╚══════════════════════════════════════════╝
+`)
+
+    if (!process.env.ANTHROPIC_API_KEY) {
+      console.error('✗ ANTHROPIC_API_KEY required for distribution')
+      process.exit(1)
+    }
+
+    const platforms = args.platforms
+      ? args.platforms.split(',').map(p => p.trim()) as Platform[]
+      : undefined
+
+    await distribute({
+      once: args.once,
+      dry_run: args.dry_run,
+      room_url: args.room || undefined,
+      platforms,
+    })
+    return
+  }
 
   console.log(`
 ╔══════════════════════════════════════════╗
@@ -67,6 +108,9 @@ export async function main() {
     console.error('\nOptional:')
     console.error('  FP_BASE_URL (default: https://footprint.onl)')
     console.error('  GOOGLE_API_KEY, GOOGLE_CX (for moment/event image search)')
+    console.error('  REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET (for distribution)')
+    console.error('  TWITTER_BEARER_TOKEN, TWITTER_API_KEY (for distribution)')
+    console.error('  YOUTUBE_API_KEY, YOUTUBE_OAUTH_TOKEN (for distribution)')
     process.exit(1)
   }
 
@@ -114,7 +158,7 @@ export async function main() {
 
     default:
       console.error(`✗ Unknown mode: "${args.mode}"`)
-      console.error('  Available now: mint')
+      console.error('  Available: mint, distribute')
       console.error('  Coming soon: auto, batch, darwin')
       process.exit(1)
   }

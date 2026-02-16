@@ -10,7 +10,8 @@
     "fp:auto": "npx tsx src/fp/culture.mjs auto",
     "fp:batch": "npx tsx src/fp/culture.mjs batch",
     "fp:mint": "npx tsx src/fp/culture.mjs mint",
-    "fp:darwin": "npx tsx src/fp/culture.mjs darwin"
+    "fp:darwin": "npx tsx src/fp/culture.mjs darwin",
+    "fp:distribute": "npx tsx src/fp/culture.mjs distribute"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.1.0",
