@@ -34,6 +34,7 @@ function loadDotenv() {
 loadDotenv()
 
 export interface FPConfig {
+  UNSPLASH_ACCESS_KEY: string
   BING_API_KEY: string
   SPOTIFY_CLIENT_ID: string
   SPOTIFY_CLIENT_SECRET: string
@@ -55,6 +56,7 @@ let _config: FPConfig | null = null
 export function getConfig(): FPConfig {
   if (_config) return _config
   _config = {
+    UNSPLASH_ACCESS_KEY: requireEnv('UNSPLASH_ACCESS_KEY'),
     BING_API_KEY: requireEnv('BING_API_KEY'),
     SPOTIFY_CLIENT_ID: requireEnv('SPOTIFY_CLIENT_ID'),
     SPOTIFY_CLIENT_SECRET: requireEnv('SPOTIFY_CLIENT_SECRET'),
@@ -70,6 +72,7 @@ export function getConfig(): FPConfig {
  */
 export function validateEnv(): void {
   const required = [
+    'UNSPLASH_ACCESS_KEY',
     'BING_API_KEY',
     'SPOTIFY_CLIENT_ID',
     'SPOTIFY_CLIENT_SECRET',

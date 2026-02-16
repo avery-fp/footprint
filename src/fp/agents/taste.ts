@@ -8,10 +8,11 @@
  *
  * Flow:
  *   1. Claude generates a creative brief from the noun
- *   2. Bing Image Search finds high-quality editorial images
- *   3. Spotify Search finds a matching track
- *   4. Best image becomes the wallpaper
- *   5. Returns a complete MintPayload ready for /api/aro/mint
+ *   2. Unsplash (PRIMARY) finds ae-tier editorial images
+ *   3. Bing Image Search (FALLBACK) for niche/trending topics Unsplash won't have
+ *   4. Spotify Search finds a matching track
+ *   5. Best image becomes the wallpaper
+ *   6. Returns a complete MintPayload ready for /api/aro/mint
  */
 
 import { getConfig } from '../env.js'
@@ -42,7 +43,7 @@ Output valid JSON:
   "display_name": "aesthetic lowercase name for the page header",
   "bio": "one short line or empty string — less is more",
   "theme_id": "midnight",
-  "image_queries": ["4-6 specific image search queries"],
+  "image_queries": ["4-6 specific search queries for Unsplash/image search"],
   "wallpaper_query": "one atmospheric/moody query for the blurred background",
   "music_query": "spotify search query for a track that matches the vibe",
   "embed_queries": []
@@ -53,14 +54,14 @@ Rules:
 - display_name: what appears at the top of the page. Lowercase. Think: "æ", "drake", "tokyo nights". Not: "Drake's Album", "TOKYO".
 - bio: empty string for most topics. Only add if truly needed.
 - theme_id: "midnight" for 70% of rooms. "ocean" for water/calm. "ember" for warm/cultural. "forest" for nature. "violet" for creative/music.
-- image_queries: CRITICAL. These search Bing Images. Each query must find EDITORIAL, AESTHETIC photos.
-  - Add "editorial photography" or "aesthetic" to queries
-  - Be specific: "lebron james courtside editorial photography" NOT "basketball"
-  - Target real photography, not illustrations or stock
+- image_queries: These search Unsplash first (high-quality editorial photos), then Bing as fallback.
+  - Be specific but natural: "courtside basketball photography" NOT "lebron james editorial photography"
+  - Unsplash excels at: aesthetic, moody, editorial photography. Lean into that.
+  - For trending/niche topics, include the specific proper noun so Bing fallback can find it.
   - First query = hero image (will be large tile)
   - Vary angles: close-ups, wide shots, details, atmosphere
-- wallpaper_query: finds the blurred background. Should be atmospheric, moody, textural.
-  - Example: "dark basketball arena atmosphere photography"
+- wallpaper_query: finds the blurred background. Atmospheric, moody, textural.
+  - Example: "dark arena atmosphere" or "neon city rain night"
 - music_query: search Spotify. Match the vibe perfectly.
   - Example: "drake night owl dark ambient" or "tokyo lo-fi city pop"
 - embed_queries: usually empty []. Only add YouTube URLs if truly essential.`
@@ -122,7 +123,49 @@ async function generateBrief(noun: string, feedback?: DarwinFeedback): Promise<C
   return brief
 }
 
-// ─── Bing: image search ─────────────────────────────────
+// ─── Unsplash: PRIMARY image source ─────────────────────
+//
+// Unsplash images are already ae-tier. Free API, no filtering needed.
+// 50 req/hr on the free plan — more than enough for pipeline use.
+
+interface UnsplashPhoto {
+  urls: { regular: string; full: string; small: string }
+  width: number
+  height: number
+  description: string | null
+  alt_description: string | null
+}
+
+async function searchUnsplash(query: string, count: number = 10): Promise<string[]> {
+  const config = getConfig()
+
+  const params = new URLSearchParams({
+    query,
+    per_page: String(count),
+    orientation: 'landscape',
+  })
+
+  const response = await fetch(`https://api.unsplash.com/search/photos?${params}`, {
+    headers: { 'Authorization': `Client-ID ${config.UNSPLASH_ACCESS_KEY}` },
+  })
+
+  if (!response.ok) {
+    console.error(`  [taste] Unsplash failed for "${query}": ${response.status}`)
+    return []
+  }
+
+  const data = await response.json()
+  const photos: UnsplashPhoto[] = data.results || []
+
+  // Unsplash "regular" URLs are 1080w — perfect for tiles.
+  // No quality filtering needed — Unsplash curates its own library.
+  return photos.map(p => p.urls.regular)
+}
+
+// ─── Bing: FALLBACK image source ────────────────────────
+//
+// Used when Unsplash doesn't have enough results
+// (niche topics, trending events, specific people).
 
 interface BingImage {
   contentUrl: string
@@ -131,7 +174,7 @@ interface BingImage {
   height: number
 }
 
-async function searchImages(query: string, count: number = 8): Promise<string[]> {
+async function searchBing(query: string, count: number = 8): Promise<string[]> {
   const config = getConfig()
 
   const params = new URLSearchParams({
@@ -147,17 +190,41 @@ async function searchImages(query: string, count: number = 8): Promise<string[]>
   })
 
   if (!response.ok) {
-    console.error(`Bing search failed for "${query}": ${response.status}`)
+    console.error(`  [taste] Bing failed for "${query}": ${response.status}`)
     return []
   }
 
   const data = await response.json()
   const images: BingImage[] = data.value || []
 
-  // Filter for quality: minimum 600px, prefer square-ish aspect ratios
+  // Filter for quality: minimum 600px
   return images
     .filter(img => img.width >= 600 && img.height >= 600)
     .map(img => img.contentUrl)
+}
+
+// ─── Image search: Unsplash first, Bing fallback ────────
+
+const TARGET_IMAGES = 8
+const MIN_IMAGES = 4
+
+async function searchImages(query: string, count: number = 10): Promise<string[]> {
+  // Try Unsplash first — ae-tier quality by default
+  const unsplashResults = await searchUnsplash(query, count)
+
+  if (unsplashResults.length >= MIN_IMAGES) {
+    return unsplashResults
+  }
+
+  // Not enough from Unsplash — add Bing results to fill the gap
+  if (unsplashResults.length > 0) {
+    console.log(`  [taste] Unsplash returned ${unsplashResults.length} for "${query}", supplementing with Bing`)
+  } else {
+    console.log(`  [taste] Unsplash empty for "${query}", falling back to Bing`)
+  }
+
+  const bingResults = await searchBing(query, count)
+  return [...unsplashResults, ...bingResults]
 }
 
 // ─── Spotify: track search ──────────────────────────────
@@ -231,7 +298,8 @@ export async function curate(input: TasteInput): Promise<MintPayload> {
   console.log(`  [taste] brief: slug=${brief.slug}, theme=${brief.theme_id}, ${brief.image_queries.length} image queries`)
 
   // Run image searches in parallel (one per query)
-  console.log(`  [taste] searching images...`)
+  // Each query goes Unsplash-first → Bing-fallback internally
+  console.log(`  [taste] searching images (Unsplash → Bing fallback)...`)
   const imageResults = await Promise.all(
     brief.image_queries.map(q => searchImages(q, 3))
   )
@@ -241,7 +309,7 @@ export async function curate(input: TasteInput): Promise<MintPayload> {
   const allImages: string[] = []
   for (const batch of imageResults) {
     for (const url of batch) {
-      if (!seen.has(url) && allImages.length < 8) {
+      if (!seen.has(url) && allImages.length < TARGET_IMAGES) {
         seen.add(url)
         allImages.push(url)
       }
@@ -254,7 +322,7 @@ export async function curate(input: TasteInput): Promise<MintPayload> {
 
   console.log(`  [taste] found ${allImages.length} images`)
 
-  // Wallpaper: search separately for atmospheric background
+  // Wallpaper: Unsplash-first search for atmospheric background
   console.log(`  [taste] searching wallpaper...`)
   const wallpaperResults = await searchImages(brief.wallpaper_query, 3)
   const wallpaper_url = wallpaperResults[0] || undefined // Falls back to first image in mint route
