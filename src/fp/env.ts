@@ -41,6 +41,8 @@ export interface FPConfig {
   ANTHROPIC_API_KEY: string
   ARO_KEY: string
   FP_BASE_URL: string
+  GOOGLE_API_KEY?: string
+  GOOGLE_CX?: string
 }
 
 function requireEnv(key: string): string {
@@ -63,6 +65,8 @@ export function getConfig(): FPConfig {
     ANTHROPIC_API_KEY: requireEnv('ANTHROPIC_API_KEY'),
     ARO_KEY: requireEnv('ARO_KEY'),
     FP_BASE_URL: process.env.FP_BASE_URL || 'https://footprint.onl',
+    GOOGLE_API_KEY: process.env.GOOGLE_API_KEY || undefined,
+    GOOGLE_CX: process.env.GOOGLE_CX || undefined,
   }
   return _config
 }

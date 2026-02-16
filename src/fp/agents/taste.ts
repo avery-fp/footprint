@@ -7,9 +7,12 @@
  * Every output must produce pages indistinguishable from footprint.onl/ae.
  *
  * Flow:
- *   1. Claude generates a creative brief from the noun
- *   2. Unsplash (PRIMARY) finds ae-tier editorial images
- *   3. Bing Image Search (FALLBACK) for niche/trending topics Unsplash won't have
+ *   1. Claude generates a creative brief from the noun (includes is_moment flag)
+ *   2. Image sourcing routes by is_moment:
+ *      - MOMENT (is_moment=true): Google CSE (dateRestrict=d1) → Unsplash → Bing
+ *      - EVERGREEN (is_moment=false): Unsplash → Bing
+ *   3. Claude Haiku scores all candidate images 1-10 on ae standard
+ *      - Only images scoring 7+ pass through
  *   4. Spotify Search finds a matching track
  *   5. Best image becomes the wallpaper
  *   6. Returns a complete MintPayload ready for /api/aro/mint
@@ -43,6 +46,7 @@ Output valid JSON:
   "display_name": "aesthetic lowercase name for the page header",
   "bio": "one short line or empty string — less is more",
   "theme_id": "midnight",
+  "is_moment": false,
   "image_queries": ["4-6 specific search queries for Unsplash/image search"],
   "wallpaper_query": "one atmospheric/moody query for the blurred background",
   "music_query": "spotify search query for a track that matches the vibe",
@@ -50,6 +54,7 @@ Output valid JSON:
 }
 
 Rules:
+- is_moment: true if the noun is a live/recent event, game, award show, breaking news, trending topic, or anything time-sensitive where photos from the last 24-48h matter. false for evergreen topics (cities, genres, aesthetics, people in general).
 - slug: 2-4 words, lowercase, hyphens. Must feel like a curated room name.
 - display_name: what appears at the top of the page. Lowercase. Think: "æ", "drake", "tokyo nights". Not: "Drake's Album", "TOKYO".
 - bio: empty string for most topics. Only add if truly needed.
@@ -116,6 +121,9 @@ async function generateBrief(noun: string, feedback?: DarwinFeedback): Promise<C
   if (!brief.slug || !brief.display_name || !brief.image_queries?.length || !brief.music_query) {
     throw new Error(`Incomplete brief: missing required fields`)
   }
+
+  // Default is_moment to false if not provided
+  brief.is_moment = brief.is_moment === true
 
   // Sanitize slug
   brief.slug = brief.slug.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
@@ -203,20 +211,97 @@ async function searchBing(query: string, count: number = 8): Promise<string[]> {
     .map(img => img.contentUrl)
 }
 
-// ─── Image search: Unsplash first, Bing fallback ────────
+// ─── Google Custom Search: for moment/event nouns ───────
+//
+// Time-sensitive topics (games, award shows, breaking news) need
+// images from the last 24h. Google CSE with dateRestrict=d1 does this.
+// Falls back to Unsplash if Google returns < 4 results.
+
+interface GoogleSearchItem {
+  link: string
+  image?: { width: number; height: number }
+}
+
+async function searchGoogle(query: string, count: number = 10): Promise<string[]> {
+  const config = getConfig()
+
+  if (!config.GOOGLE_API_KEY || !config.GOOGLE_CX) {
+    console.log(`  [taste] Google CSE not configured, skipping`)
+    return []
+  }
+
+  const params = new URLSearchParams({
+    key: config.GOOGLE_API_KEY,
+    cx: config.GOOGLE_CX,
+    q: query,
+    searchType: 'image',
+    num: String(Math.min(count, 10)),
+    dateRestrict: 'd1',
+    imgSize: 'large',
+  })
+
+  try {
+    const response = await fetch(`https://www.googleapis.com/customsearch/v1?${params}`)
+
+    if (!response.ok) {
+      console.error(`  [taste] Google CSE failed for "${query}": ${response.status}`)
+      return []
+    }
+
+    const data = await response.json()
+    const items: GoogleSearchItem[] = data.items || []
+
+    return items
+      .filter(item => item.image && item.image.width >= 600 && item.image.height >= 400)
+      .map(item => item.link)
+  } catch (err) {
+    console.error(`  [taste] Google CSE error:`, err)
+    return []
+  }
+}
+
+// ─── Image search: routes by is_moment ──────────────────
 
 const TARGET_IMAGES = 8
 const MIN_IMAGES = 4
 
-async function searchImages(query: string, count: number = 10): Promise<string[]> {
-  // Try Unsplash first — ae-tier quality by default
+async function searchImages(query: string, count: number = 10, isMoment: boolean = false): Promise<string[]> {
+  if (isMoment) {
+    // MOMENT PATH: Google first (dateRestrict=d1) → Unsplash fallback → Bing fallback
+    console.log(`  [taste] moment search: Google CSE first for "${query}"`)
+    const googleResults = await searchGoogle(query, count)
+
+    if (googleResults.length >= MIN_IMAGES) {
+      return googleResults
+    }
+
+    // Google didn't have enough — fall back to Unsplash
+    if (googleResults.length > 0) {
+      console.log(`  [taste] Google returned ${googleResults.length} for "${query}", supplementing with Unsplash`)
+    } else {
+      console.log(`  [taste] Google empty for "${query}", falling back to Unsplash`)
+    }
+
+    const unsplashResults = await searchUnsplash(query, count)
+    const combined = [...googleResults, ...unsplashResults]
+
+    if (combined.length >= MIN_IMAGES) {
+      return combined
+    }
+
+    // Still not enough — add Bing
+    console.log(`  [taste] ${combined.length} images so far, adding Bing fallback`)
+    const bingResults = await searchBing(query, count)
+    return [...combined, ...bingResults]
+  }
+
+  // EVERGREEN PATH: Unsplash first → Bing fallback (original behavior)
   const unsplashResults = await searchUnsplash(query, count)
 
   if (unsplashResults.length >= MIN_IMAGES) {
     return unsplashResults
   }
 
-  // Not enough from Unsplash — add Bing results to fill the gap
   if (unsplashResults.length > 0) {
     console.log(`  [taste] Unsplash returned ${unsplashResults.length} for "${query}", supplementing with Bing`)
   } else {
@@ -225,6 +310,88 @@ async function searchImages(query: string, count: number = 10): Promise<string[]
 
   const bingResults = await searchBing(query, count)
   return [...unsplashResults, ...bingResults]
+}
+
+// ─── Aesthetic scoring via Claude Haiku ──────────────────
+//
+// Every candidate image URL is scored 1-10 on the ae standard.
+// Only images scoring 7+ make it into the final payload.
+// This ensures every room hits ae quality regardless of source.
+
+interface AeScoreEntry {
+  url: string
+  score: number
+}
+
+async function scoreAesthetics(imageUrls: string[]): Promise<string[]> {
+  if (imageUrls.length === 0) return []
+
+  const config = getConfig()
+
+  const scoringPrompt = `You are the aesthetic curator for footprint.onl/ae.
+Score each image URL 1-10 on ae standard:
+- 10: editorial, moody, camera-roll worthy, no text/logos/watermarks
+- 7-9: strong photo, minor imperfections
+- 4-6: generic stock feel, busy composition
+- 1-3: logos, watermarks, graphics, clipart, screenshots of UIs
+
+Image URLs to score:
+${imageUrls.map((u, i) => `${i + 1}. ${u}`).join('\n')}
+
+Return ONLY valid JSON, no markdown:
+{ "ranked": [{ "url": "...", "score": N }] }
+Only include images scoring 7+.
+Order by score descending.`
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': config.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 2048,
+        messages: [{ role: 'user', content: scoringPrompt }],
+      }),
+    })
+
+    if (!response.ok) {
+      console.error(`  [taste] ae scoring failed (${response.status}), passing all images through`)
+      return imageUrls
+    }
+
+    const data = await response.json()
+    const content = data.content?.[0]?.text
+    if (!content) {
+      console.error(`  [taste] ae scoring returned empty, passing all images through`)
+      return imageUrls
+    }
+
+    const jsonMatch = content.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) {
+      console.error(`  [taste] ae scoring returned non-JSON, passing all images through`)
+      return imageUrls
+    }
+
+    const result: { ranked: AeScoreEntry[] } = JSON.parse(jsonMatch[0])
+    const passed = (result.ranked || []).filter(e => e.score >= 7)
+
+    console.log(`  [taste] ae scoring: ${passed.length}/${imageUrls.length} passed (7+ threshold)`)
+
+    if (passed.length === 0) {
+      // If nothing passed scoring, return originals rather than empty
+      console.log(`  [taste] ae scoring too strict — passing top half through`)
+      return imageUrls.slice(0, Math.ceil(imageUrls.length / 2))
+    }
+
+    return passed.map(e => e.url)
+  } catch (err) {
+    console.error(`  [taste] ae scoring error, passing all images through:`, err)
+    return imageUrls
+  }
 }
 
 // ─── Spotify: track search ──────────────────────────────
@@ -295,13 +462,14 @@ export async function curate(input: TasteInput): Promise<MintPayload> {
 
   console.log(`  [taste] generating brief for "${noun}"...`)
   const brief = await generateBrief(noun, feedback)
-  console.log(`  [taste] brief: slug=${brief.slug}, theme=${brief.theme_id}, ${brief.image_queries.length} image queries`)
+  console.log(`  [taste] brief: slug=${brief.slug}, theme=${brief.theme_id}, is_moment=${brief.is_moment}, ${brief.image_queries.length} image queries`)
 
   // Run image searches in parallel (one per query)
-  // Each query goes Unsplash-first → Bing-fallback internally
-  console.log(`  [taste] searching images (Unsplash → Bing fallback)...`)
+  // Routing depends on is_moment: Google-first for moments, Unsplash-first for evergreen
+  const sourceLabel = brief.is_moment ? 'Google CSE → Unsplash → Bing' : 'Unsplash → Bing fallback'
+  console.log(`  [taste] searching images (${sourceLabel})...`)
   const imageResults = await Promise.all(
-    brief.image_queries.map(q => searchImages(q, 3))
+    brief.image_queries.map(q => searchImages(q, 3, brief.is_moment))
   )
 
   // Flatten and dedupe, take best 6-8
@@ -320,7 +488,15 @@ export async function curate(input: TasteInput): Promise<MintPayload> {
     throw new Error(`No images found for "${noun}" — cannot mint without visuals`)
   }
 
-  console.log(`  [taste] found ${allImages.length} images`)
+  console.log(`  [taste] found ${allImages.length} candidate images, running ae scoring...`)
+
+  // Aesthetic scoring: Claude Haiku rates each image 1-10, only 7+ pass
+  const scoredImages = await scoreAesthetics(allImages)
+  console.log(`  [taste] ${scoredImages.length} images passed ae scoring`)
+
+  if (scoredImages.length === 0) {
+    throw new Error(`No images passed ae scoring for "${noun}" — quality too low`)
+  }
 
   // Wallpaper: Unsplash-first search for atmospheric background
   console.log(`  [taste] searching wallpaper...`)
@@ -340,7 +516,7 @@ export async function curate(input: TasteInput): Promise<MintPayload> {
     aro_key: config.ARO_KEY,
     slug: brief.slug,
     room_name: brief.display_name,
-    image_urls: allImages,
+    image_urls: scoredImages,
     embed_urls: brief.embed_queries || [],
     wallpaper_url,
     music_url,
@@ -355,6 +531,6 @@ export async function curate(input: TasteInput): Promise<MintPayload> {
     },
   }
 
-  console.log(`  [taste] payload ready: ${payload.slug} (${allImages.length} images, wallpaper=${!!wallpaper_url}, music=${!!music_url})`)
+  console.log(`  [taste] payload ready: ${payload.slug} (${scoredImages.length} images, wallpaper=${!!wallpaper_url}, music=${!!music_url})`)
   return payload
 }

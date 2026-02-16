@@ -66,6 +66,7 @@ export async function main() {
     console.error('  ANTHROPIC_API_KEY, ARO_KEY')
     console.error('\nOptional:')
     console.error('  FP_BASE_URL (default: https://footprint.onl)')
+    console.error('  GOOGLE_API_KEY, GOOGLE_CX (for moment/event image search)')
     process.exit(1)
   }
 

@@ -17,6 +17,7 @@ export interface CreativeBrief {
   display_name: string
   bio: string
   theme_id: string
+  is_moment: boolean
   image_queries: string[]
   wallpaper_query: string
   music_query: string
