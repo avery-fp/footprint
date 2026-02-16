@@ -6,9 +6,10 @@ import { parseURL } from '@/lib/parser'
 /**
  * POST /api/aro/mint
  *
- * Programmatic room creator. Machine-to-machine auth via ARO_KEY.
- * Creates a room in a footprint, downloads images to Supabase Storage,
- * and adds embed tiles — all in one call.
+ * Creates a NEW standalone footprint page at footprint.onl/{slug}.
+ * Each mint = new serial_number + new user + new footprint + one room + content.
+ *
+ * Machine-to-machine auth via ARO_KEY.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -21,6 +22,8 @@ export async function POST(request: NextRequest) {
       embed_urls,
       wallpaper_url,
       theme_id,
+      display_name,
+      bio,
       metadata,
     } = body
 
@@ -46,39 +49,82 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
-    // 3. Look up footprint by slug → get serial_number
-    const { data: footprint } = await supabase
+    // 3. Check slug not already taken
+    const { data: existing } = await supabase
       .from('footprints')
-      .select('serial_number')
+      .select('id')
       .eq('username', slug)
       .single()
 
-    if (!footprint) {
+    if (existing) {
       return NextResponse.json(
-        { error: `Footprint '${slug}' not found` },
-        { status: 404 }
+        { error: `Slug '${slug}' is already taken` },
+        { status: 409 }
       )
     }
 
-    const serialNumber = footprint.serial_number
+    // 4. Claim a serial number
+    const { data: serialData, error: serialError } = await supabase.rpc('claim_next_serial')
+    if (serialError || !serialData) {
+      return NextResponse.json(
+        { error: 'Failed to claim serial number' },
+        { status: 500 }
+      )
+    }
 
-    // 4. Create room — get next position
-    const { data: maxPosRoom } = await supabase
-      .from('rooms')
-      .select('position')
-      .eq('serial_number', serialNumber)
-      .order('position', { ascending: false })
-      .limit(1)
+    const serialNumber = serialData as number
+
+    // 5. Create a synthetic user to own this footprint
+    const aroEmail = `aro+${slug}@footprint.onl`
+
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .insert({
+        email: aroEmail,
+        serial_number: serialNumber,
+      })
+      .select()
       .single()
 
-    const nextRoomPosition = (maxPosRoom?.position ?? -1) + 1
+    if (userError || !user) {
+      return NextResponse.json(
+        { error: userError?.message || 'Failed to create user' },
+        { status: 500 }
+      )
+    }
 
+    // 6. Create the footprint — standalone page at footprint.onl/{slug}
+    const { data: footprint, error: fpError } = await supabase
+      .from('footprints')
+      .insert({
+        user_id: user.id,
+        username: slug,
+        serial_number: serialNumber,
+        name: room_name,
+        display_name: display_name || room_name,
+        bio: bio || null,
+        dimension: theme_id || 'midnight',
+        published: true,
+        is_primary: true,
+        is_public: true,
+      })
+      .select()
+      .single()
+
+    if (fpError || !footprint) {
+      return NextResponse.json(
+        { error: fpError?.message || 'Failed to create footprint' },
+        { status: 500 }
+      )
+    }
+
+    // 7. Create one room inside the footprint
     const { data: room, error: roomError } = await supabase
       .from('rooms')
       .insert({
         serial_number: serialNumber,
         name: room_name,
-        position: nextRoomPosition,
+        position: 0,
       })
       .select()
       .single()
@@ -92,8 +138,8 @@ export async function POST(request: NextRequest) {
 
     let tileCount = 0
 
-    // 5. Process image_urls: fetch → upload to storage → insert into library
-    const imageResults = await Promise.allSettled(
+    // 8. Process image_urls: fetch → upload to storage → insert into library
+    await Promise.allSettled(
       image_urls.map(async (imageUrl: string, index: number) => {
         try {
           const response = await fetch(imageUrl)
@@ -102,7 +148,6 @@ export async function POST(request: NextRequest) {
           const contentType = response.headers.get('content-type') || 'image/jpeg'
           const buffer = Buffer.from(await response.arrayBuffer())
 
-          // Determine extension from content type
           const extMap: Record<string, string> = {
             'image/jpeg': 'jpg',
             'image/png': 'png',
@@ -112,20 +157,17 @@ export async function POST(request: NextRequest) {
           const ext = extMap[contentType] || 'jpg'
           const filename = `${serialNumber}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
 
-          // Upload to Supabase Storage
           const { error: uploadError } = await supabase.storage
             .from('content')
             .upload(filename, buffer, { contentType, upsert: false })
 
           if (uploadError) throw uploadError
 
-          // Get public URL
           const { data: urlData } = supabase.storage
             .from('content')
             .getPublicUrl(filename)
           const publicUrl = urlData.publicUrl.replace(/[\n\r]/g, '')
 
-          // Insert into library
           const { error: insertError } = await supabase.from('library').insert({
             serial_number: serialNumber,
             image_url: publicUrl,
@@ -144,9 +186,9 @@ export async function POST(request: NextRequest) {
       })
     )
 
-    // 6. Process embed_urls (optional): parse → insert into links
+    // 9. Process embed_urls (optional): parse → insert into links
     if (Array.isArray(embed_urls) && embed_urls.length > 0) {
-      const embedResults = await Promise.allSettled(
+      await Promise.allSettled(
         embed_urls.map(async (embedUrl: string, index: number) => {
           try {
             const parsed = await parseURL(embedUrl)
@@ -177,7 +219,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 7. Handle wallpaper (optional): upload and store URL
+    // 10. Handle wallpaper (optional)
     if (wallpaper_url) {
       try {
         const wpResponse = await fetch(wallpaper_url)
@@ -205,7 +247,6 @@ export async function POST(request: NextRequest) {
             .getPublicUrl(wpFilename)
           const wpPublicUrl = wpUrlData.publicUrl.replace(/[\n\r]/g, '')
 
-          // Store wallpaper URL on the room (if column exists) or as metadata
           await supabase
             .from('rooms')
             .update({ wallpaper_url: wpPublicUrl })
@@ -216,7 +257,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 8. Store metadata if provided
+    // 11. Store metadata if provided
     if (metadata) {
       await supabase
         .from('rooms')
@@ -230,14 +271,16 @@ export async function POST(request: NextRequest) {
         .eq('id', room.id)
     }
 
-    // Revalidate public page
+    // Revalidate the new page
     revalidatePath(`/${slug}`)
 
     return NextResponse.json({
+      slug,
       room_id: room.id,
       room_url: `https://footprint.onl/${slug}`,
       tile_count: tileCount,
       serial_number: serialNumber,
+      footprint_id: footprint.id,
     })
   } catch (error: any) {
     console.error('ARO mint error:', error)
