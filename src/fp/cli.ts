@@ -5,6 +5,7 @@
 import { validateEnv } from './env.js'
 import { runPipeline, mintSingle } from './pipeline/autoMint.js'
 import { distribute } from './pipeline/distribute.js'
+import { ignite } from './pipeline/ignite.js'
 import type { Platform } from './agents/scanner.js'
 
 function parseArgs() {
@@ -19,6 +20,7 @@ function parseArgs() {
     once: false,
     room: '',
     platforms: '',
+    tier: 0,
   }
 
   if (args[0] && !args[0].startsWith('--')) {
@@ -54,6 +56,9 @@ function parseArgs() {
       case '--platforms':
         parsed.platforms = args[++i] || ''
         break
+      case '--tier':
+        parsed.tier = parseInt(args[++i], 10) || 0
+        break
     }
   }
 
@@ -63,7 +68,33 @@ function parseArgs() {
 export async function main() {
   const args = parseArgs()
 
-  // Distribute mode has its own env validation (only needs ANTHROPIC_API_KEY)
+  // ─── Ignite mode ──────────────────────────────────────
+  if (args.mode === 'ignite') {
+    // Ignite needs taste pipeline env vars
+    try {
+      validateEnv()
+    } catch (err: any) {
+      console.error(`\n${err.message}`)
+      console.error('\nRequired for ignite:')
+      console.error('  UNSPLASH_ACCESS_KEY, BING_API_KEY')
+      console.error('  SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET')
+      console.error('  ANTHROPIC_API_KEY, ARO_KEY')
+      console.error('\nOptional:')
+      console.error('  TWITTER_API_KEY, TWITTER_API_SECRET (for X posting)')
+      console.error('  TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_SECRET')
+      console.error('  SCREENSHOT_API_KEY (fallback if Puppeteer fails)')
+      process.exit(1)
+    }
+
+    await ignite({
+      tier: (args.tier >= 1 && args.tier <= 3) ? args.tier as 1 | 2 | 3 : undefined,
+      noun: args.noun || undefined,
+      dry_run: args.dry_run,
+    })
+    return
+  }
+
+  // ─── Distribute mode ──────────────────────────────────
   if (args.mode === 'distribute') {
     console.log(`
 ╔══════════════════════════════════════════╗
@@ -73,7 +104,7 @@ export async function main() {
 `)
 
     if (!process.env.ANTHROPIC_API_KEY) {
-      console.error('✗ ANTHROPIC_API_KEY required for distribution')
+      console.error('ANTHROPIC_API_KEY required for distribution')
       process.exit(1)
     }
 
@@ -90,6 +121,7 @@ export async function main() {
     return
   }
 
+  // ─── Standard modes (mint, auto, batch) ───────────────
   console.log(`
 ╔══════════════════════════════════════════╗
 ║         FOOTPRINT CULTURE ENGINE         ║
@@ -100,7 +132,7 @@ export async function main() {
   try {
     validateEnv()
   } catch (err: any) {
-    console.error(`\n✗ ${err.message}`)
+    console.error(`\n${err.message}`)
     console.error('\nRequired env vars:')
     console.error('  UNSPLASH_ACCESS_KEY, BING_API_KEY')
     console.error('  SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET')
@@ -119,7 +151,7 @@ export async function main() {
   switch (args.mode) {
     case 'mint': {
       if (!args.noun) {
-        console.error('✗ --noun required for mint mode')
+        console.error('--noun required for mint mode')
         console.error('  Usage: npm run fp:mint -- --noun "topic"')
         process.exit(1)
       }
@@ -134,12 +166,12 @@ export async function main() {
       })
 
       if (result.error) {
-        console.error(`\n✗ Failed: ${result.error}`)
+        console.error(`\nFailed: ${result.error}`)
         process.exit(1)
       }
 
       if (result.mint) {
-        console.log(`\n✓ Minted: ${result.mint.room_url}`)
+        console.log(`\nMinted: ${result.mint.room_url}`)
         console.log(`  Serial: #${result.mint.serial_number}`)
         console.log(`  Tiles: ${result.mint.tile_count}`)
       }
@@ -157,8 +189,8 @@ export async function main() {
     }
 
     default:
-      console.error(`✗ Unknown mode: "${args.mode}"`)
-      console.error('  Available: mint, distribute')
+      console.error(`Unknown mode: "${args.mode}"`)
+      console.error('  Available: mint, ignite, distribute')
       console.error('  Coming soon: auto, batch, darwin')
       process.exit(1)
   }

@@ -11,7 +11,8 @@
     "fp:batch": "npx tsx src/fp/culture.mjs batch",
     "fp:mint": "npx tsx src/fp/culture.mjs mint",
     "fp:darwin": "npx tsx src/fp/culture.mjs darwin",
-    "fp:distribute": "npx tsx src/fp/culture.mjs distribute"
+    "fp:distribute": "npx tsx src/fp/culture.mjs distribute",
+    "fp:ignite": "npx tsx src/fp/culture.mjs ignite"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.1.0",
@@ -33,6 +34,7 @@
     "satori": "^0.10.11",
     "sonner": "^1.3.1",
     "stripe": "^14.25.0",
+    "puppeteer": "^23.0.0",
     "zustand": "^4.4.7"
   },
   "devDependencies": {
