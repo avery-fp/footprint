@@ -704,6 +704,42 @@ export default function EditPage() {
     }
   }
 
+  async function handleRenameRoom(roomId: string) {
+    const room = rooms.find(r => r.id === roomId)
+    if (!room) return
+    const name = prompt('Rename room:', room.name)
+    if (!name?.trim() || name.trim() === room.name) return
+    try {
+      const res = await fetch('/api/rooms', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: roomId, name: name.trim() }),
+      })
+      if (!res.ok) { alert('Failed to rename room'); return }
+      setRooms(prev => prev.map(r => r.id === roomId ? { ...r, name: name.trim() } : r))
+    } catch (e) {
+      console.error('Failed to rename room:', e)
+    }
+  }
+
+  async function handleClearRoom(roomId: string) {
+    if (!draft) return
+    const tilesInRoom = draft.content.filter(c => c.room_id === roomId)
+    if (tilesInRoom.length === 0) return
+    if (!confirm(`Remove ${tilesInRoom.length} tile${tilesInRoom.length > 1 ? 's' : ''} from this room? They won't be deleted.`)) return
+    const sb = createBrowserSupabaseClient()
+    for (const tile of tilesInRoom) {
+      const source = tileSources[tile.id]
+      if (source) {
+        await sb.from(source).update({ room_id: null }).eq('id', tile.id)
+      }
+    }
+    setDraft(prev => prev ? {
+      ...prev,
+      content: prev.content.map(c => c.room_id === roomId ? { ...c, room_id: null } : c),
+    } : null)
+  }
+
   async function handleDeleteRoom(roomId: string) {
     if (!confirm('Delete this room? Tiles will be unassigned, not deleted.')) return
     try {
@@ -1049,7 +1085,31 @@ export default function EditPage() {
           >
             ←
           </Link>
-          {isArranging ? (
+          {isArranging && activeRoomId ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleRenameRoom(activeRoomId)}
+                className="text-xs text-white/60 hover:text-white/90 transition font-mono px-3 rounded-full bg-white/[0.06] hover:bg-white/[0.12]"
+                style={{ minHeight: '36px' }}
+              >
+                rename
+              </button>
+              <button
+                onClick={() => handleClearRoom(activeRoomId)}
+                className="text-xs text-white/60 hover:text-white/90 transition font-mono px-3 rounded-full bg-white/[0.06] hover:bg-white/[0.12]"
+                style={{ minHeight: '36px' }}
+              >
+                clear
+              </button>
+              <button
+                onClick={() => handleDeleteRoom(activeRoomId)}
+                className="text-xs text-red-400/80 hover:text-red-400 transition font-mono px-3 rounded-full bg-white/[0.06] hover:bg-red-500/[0.15]"
+                style={{ minHeight: '36px' }}
+              >
+                delete
+              </button>
+            </div>
+          ) : isArranging ? (
             <button
               onClick={exitEdit}
               className="text-sm text-white/90 hover:text-white transition font-mono flex items-center justify-center px-5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
