@@ -53,6 +53,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     }
   }, [rooms])
   const [wallpaperLoaded, setWallpaperLoaded] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [showToast, setShowToast] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [widescreenIds, setWidescreenIds] = useState<Set<string>>(new Set())
@@ -107,6 +108,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     check()
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
+  }, [])
+
+  // Check if user is logged in
+  useEffect(() => {
+    fetch('/api/user', { credentials: 'include' })
+      .then(r => { if (r.ok) setIsLoggedIn(true) })
+      .catch(() => {})
   }, [])
 
   // Owner detection — lightweight API check, no flash
@@ -282,6 +290,18 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
       )}
       <WeatherEffect type={footprint.weather_effect || null} />
+
+      {isLoggedIn && (
+        <a
+          href="/dashboard"
+          className="fixed top-4 right-4 z-30 w-9 h-9 flex items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.15] backdrop-blur-sm transition"
+          style={{ marginTop: 'env(safe-area-inset-top)' }}
+        >
+          <svg className="w-4 h-4 text-white/50" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+          </svg>
+        </a>
+      )}
 
       <div className="relative z-10">
         {/* Masthead */}
