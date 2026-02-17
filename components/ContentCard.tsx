@@ -137,12 +137,12 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }
 
   // ════════════════════════════════════════
-  // SPOTIFY — lazy loaded, mobile facade at size 1
+  // SPOTIFY — album art facade on mobile, iframe on desktop
   // ════════════════════════════════════════
   if (content.type === 'spotify') {
     const spotifyInfo = extractSpotifyInfo(content.url)
     if (spotifyInfo) {
-      // Mobile at size 1: iframe is unusable. Show facade → open link.
+      // Mobile at size 1: show album art card → tapping opens Spotify
       if (isMobile && tileSize <= 1) {
         return (
           <a
@@ -150,18 +150,33 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             href={content.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="block w-full h-full rounded-xl overflow-hidden relative bg-[#191414] cursor-pointer group"
+            className="block w-full aspect-square rounded-xl overflow-hidden relative bg-[#191414] cursor-pointer group"
           >
-            {/* Spotify-branded card with play icon */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-              <div className="w-12 h-12 rounded-full bg-[#1DB954] flex items-center justify-center group-hover:scale-110 transition-transform">
-                <svg className="w-5 h-5 text-black ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+            {content.thumbnail_url && isInView && (
+              <Image
+                src={content.thumbnail_url}
+                alt=""
+                fill
+                sizes="(max-width: 768px) 50vw, 25vw"
+                className={`object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+                loading="lazy"
+                quality={75}
+                onLoad={() => setIsLoaded(true)}
+              />
+            )}
+            {/* Scrim + play button */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+            <div className="absolute inset-0 flex flex-col items-end justify-end p-3 gap-1.5">
+              <p className="text-white text-xs font-medium leading-tight line-clamp-2 w-full">
+                {content.title || 'Spotify'}
+              </p>
+            </div>
+            <div className="absolute top-2.5 right-2.5">
+              <div className="w-9 h-9 rounded-full bg-[#1DB954] flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg">
+                <svg className="w-4 h-4 text-black ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M8 5v14l11-7z"/>
                 </svg>
               </div>
-              <p className="text-white/50 text-[10px] font-medium truncate max-w-[80%] text-center">
-                {content.title || 'spotify'}
-              </p>
             </div>
           </a>
         )
