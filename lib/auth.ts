@@ -22,15 +22,15 @@ const SESSION_EXPIRY = '30d'     // Session valid for 30 days
  * 
  * Simple. Secure. No passwords to remember.
  */
-export async function generateMagicLink(email: string): Promise<string> {
+export async function generateMagicLink(email: string, redirect?: string): Promise<string> {
   const supabase = createServerSupabaseClient()
-  
+
   // Generate a unique token
   const token = nanoid(32)
-  
+
   // Calculate expiry time (15 minutes from now)
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000)
-  
+
   // Store the magic link in the database
   const { error } = await supabase
     .from('magic_links')
@@ -49,7 +49,8 @@ export async function generateMagicLink(email: string): Promise<string> {
   const baseUrl = process.env.NODE_ENV === 'production'
     ? 'https://www.footprint.onl'
     : 'http://localhost:3000'
-  return `${baseUrl}/auth/verify?token=${token}`
+  const url = `${baseUrl}/auth/verify?token=${token}`
+  return redirect ? `${url}&redirect=${encodeURIComponent(redirect)}` : url
 }
 
 /**
@@ -226,8 +227,9 @@ export async function sendMagicLinkEmail(email: string, magicLink: string) {
 /**
  * Send welcome email with magic link after purchase
  */
-export async function sendWelcomeEmail(email: string, serialNumber: number) {
-  const magicLink = await generateMagicLink(email)
+export async function sendWelcomeEmail(email: string, serialNumber: number, username?: string) {
+  const redirect = username ? `/${username}/home` : '/dashboard'
+  const magicLink = await generateMagicLink(email, redirect)
 
   if (!process.env.RESEND_API_KEY) {
     console.log(`[DEV] Welcome email for ${email} (FP #${serialNumber}): ${magicLink}`)
