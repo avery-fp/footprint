@@ -36,23 +36,31 @@ export async function GET(request: NextRequest) {
 
 /**
  * PATCH /api/rooms
- * 
- * Toggle room hidden state.
- * Body: { id, hidden }
+ *
+ * Update room properties (hidden, name).
+ * Body: { id, hidden?, name? }
  */
 export async function PATCH(request: NextRequest) {
   try {
-    const { id, hidden } = await request.json()
+    const { id, hidden, name } = await request.json()
 
-    if (!id || typeof hidden !== 'boolean') {
-      return NextResponse.json({ error: 'id and hidden (boolean) required' }, { status: 400 })
+    if (!id) {
+      return NextResponse.json({ error: 'id required' }, { status: 400 })
+    }
+
+    const updates: Record<string, any> = {}
+    if (typeof hidden === 'boolean') updates.hidden = hidden
+    if (typeof name === 'string' && name.trim()) updates.name = name.trim()
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
     }
 
     const supabase = createServerSupabaseClient()
 
     const { error } = await supabase
       .from('rooms')
-      .update({ hidden })
+      .update(updates)
       .eq('id', id)
 
     if (error) {

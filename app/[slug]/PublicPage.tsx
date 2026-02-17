@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Image from 'next/image'
-import Link from 'next/link'
 import ContentCard from '@/components/ContentCard'
 import VideoTile from '@/components/VideoTile'
 import WeatherEffect from '@/components/WeatherEffect'
@@ -53,7 +52,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       if (visible.length > 0) setActiveRoomId(visible[0].id)
     }
   }, [rooms])
-  const [isOwner, setIsOwner] = useState(false)
   const [wallpaperLoaded, setWallpaperLoaded] = useState(false)
   const [showToast, setShowToast] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
@@ -112,15 +110,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   }, [])
 
   // Owner detection — lightweight API check, no flash
-  useEffect(() => {
-    const slug = footprint.username
-    if (!slug) return
-    fetch(`/api/footprint/${encodeURIComponent(slug)}`, { credentials: 'include' })
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.footprint) setIsOwner(true) })
-      .catch(() => {})
-  }, [footprint.username])
-
   // Navigate to room
   const goToRoom = (roomId: string | null) => {
     setActiveRoomId(roomId)
@@ -293,17 +282,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
       )}
       <WeatherEffect type={footprint.weather_effect || null} />
-
-      {/* Owner edit link — top right, small, unobtrusive */}
-      {isOwner && (
-        <Link
-          href={`/${footprint.username}/home`}
-          className="fixed top-4 right-4 z-30 text-sm text-white/40 hover:text-white/70 transition font-mono"
-          style={{ paddingTop: 'env(safe-area-inset-top)' }}
-        >
-          edit
-        </Link>
-      )}
 
       <div className="relative z-10">
         {/* Masthead */}

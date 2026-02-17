@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { constructWebhookEvent, stripe } from '@/lib/stripe'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { sendWelcomeEmail } from '@/lib/auth'
 import { nanoid } from 'nanoid'
 
 export async function POST(request: NextRequest) {
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
 async function handleCheckoutComplete(session: any) {
   const supabase = createServerSupabaseClient()
   const email = session.customer_email || session.customer_details?.email
-  
+
   if (!email) throw new Error('No email found in checkout session')
 
   const { data: existingUser } = await supabase
@@ -53,7 +54,7 @@ async function handleCheckoutComplete(session: any) {
   if (serialError || !serialData) throw new Error('Failed to claim serial number')
 
   const serialNumber = serialData
-  const slug = `fp-${serialNumber}-${nanoid(4).toLowerCase()}`
+  const username = `fp-${serialNumber}-${nanoid(4).toLowerCase()}`
 
   const { data: user, error: userError } = await supabase
     .from('users')
@@ -70,11 +71,12 @@ async function handleCheckoutComplete(session: any) {
 
   await supabase.from('footprints').insert({
     user_id: user.id,
-    slug,
+    username,
+    serial_number: serialNumber,
     name: 'Everything',
     icon: '◈',
     is_primary: true,
-    is_public: true,
+    published: true,
   })
 
   await supabase.from('payments').insert({
@@ -87,4 +89,13 @@ async function handleCheckoutComplete(session: any) {
   })
 
   console.log(`✓ New user: ${email} #${serialNumber}`)
+
+  // Send welcome email with magic link so they can log in immediately
+  try {
+    await sendWelcomeEmail(email, serialNumber)
+    console.log(`✓ Welcome email sent: ${email}`)
+  } catch (err) {
+    // Log but don't fail the webhook — user exists, they can request a link manually
+    console.error(`⚠ Welcome email failed for ${email}:`, err)
+  }
 }
