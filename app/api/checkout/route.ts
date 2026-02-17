@@ -12,9 +12,9 @@ import { stripe, FOOTPRINT_PRICE, FOOTPRINT_CURRENCY } from '@/lib/stripe'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { email, slug } = body
+    const { email, slug, remix_source, remix_room } = body
 
-    if (!email) {
+    if (!email && !remix_source) {
       return NextResponse.json(
         { error: 'Email is required' },
         { status: 400 }
@@ -58,6 +58,8 @@ export async function POST(request: NextRequest) {
       metadata: {
         product: 'footprint',
         slug: slug || '',
+        ...(remix_source ? { remix_source } : {}),
+        ...(remix_room ? { remix_room } : {}),
       },
     })
 

@@ -27,3 +27,9 @@ Thumbs.db
 .vercel/
 .vercel
 .env*.local
+
+# Pipeline output
+deploy-log/
+deploy-queue/
+ignition-output/
+fp-factory/output/

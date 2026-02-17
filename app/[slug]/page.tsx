@@ -103,7 +103,7 @@ export default async function FootprintPage({ params }: Props) {
 
   return (
     <>
-      <AnalyticsTracker footprintId={footprint.id} />
+      <AnalyticsTracker footprintId={footprint.id} serialNumber={footprint.serial_number} />
       <PublicPage
         footprint={footprint}
         content={content}
