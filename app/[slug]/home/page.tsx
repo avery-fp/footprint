@@ -137,7 +137,7 @@ function SortableTile({
           const dy = e.touches[0].clientY - e.touches[1].clientY
           pinchRef.current = { startDist: Math.sqrt(dx * dx + dy * dy), fired: false }
         }
-      } else if (e.touches.length === 1 && isViewing) {
+      } else if (e.touches.length === 1 && (isViewing || isArranging)) {
         onLongPressStart(e)
       }
     },
@@ -157,13 +157,13 @@ function SortableTile({
             onPinchResize('down')
           }
         }
-      } else if (e.touches.length === 1 && isViewing) {
+      } else if (e.touches.length === 1 && (isViewing || isArranging)) {
         onLongPressMove(e)
       }
     },
     onTouchEnd: () => {
       pinchRef.current = null
-      if (isViewing) onLongPressEnd()
+      if (isViewing || isArranging) onLongPressEnd()
     },
   } : {}
 
@@ -175,7 +175,13 @@ function SortableTile({
       data-tile
     >
       <div
-        className={`tile-inner relative rounded-xl overflow-hidden w-full h-full ${isArranging ? 'tile-arranging tile-jiggle' : ''} ${selected ? 'ring-2 ring-white/60' : ''}`}
+        className={`tile-inner relative rounded-xl overflow-hidden w-full h-full ${
+          isArranging
+            ? isMobile
+              ? 'tile-arranging ring-1 ring-white/20'
+              : 'tile-arranging tile-jiggle'
+            : ''
+        } ${selected ? 'ring-2 ring-white/60' : ''}`}
         style={revealStyle}
         {...tileHandlers}
         {...touchHandlers}
@@ -257,10 +263,12 @@ export default function EditPage() {
   const [isAdding, setIsAdding] = useState(false)
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
   const [draggingTileId, setDraggingTileId] = useState<string | null>(null)
+  const [swapSourceId, setSwapSourceId] = useState<string | null>(null)
   const [isOwner, setIsOwner] = useState(false)
   const [tileSources, setTileSources] = useState<Record<string, 'library' | 'links'>>({})
   const [rooms, setRooms] = useState<any[]>([])
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
+  const [gridFade, setGridFade] = useState<'visible' | 'out' | 'in'>('visible')
   const [wallpaperUrl, setWallpaperUrl] = useState('')
   const [backgroundBlur, setBackgroundBlur] = useState(true)
   const [serialNumber, setSerialNumber] = useState<number | null>(null)
@@ -277,13 +285,24 @@ export default function EditPage() {
 
   // Mode transition helpers
   const enterEdit = () => setMode({ type: 'arranging' })
-  const exitEdit = () => setMode({ type: 'viewing' })
+  const exitEdit = () => { setSwapSourceId(null); setMode({ type: 'viewing' }) }
   const openTileMenu = (tileId: string) => {
     setMode({ type: 'tile_menu', tileId })
   }
   const closeTileMenu = () => setMode({ type: 'arranging' })
   const startAdding = (method: 'url' | 'thought') => setMode({ type: 'adding', method })
   const stopAdding = () => setMode({ type: 'arranging' })
+
+  // Switch rooms with crossfade
+  const switchRoom = useCallback((roomId: string | null) => {
+    if (roomId === activeRoomId || gridFade !== 'visible') return
+    setGridFade('out')
+    setTimeout(() => {
+      setActiveRoomId(roomId)
+      setGridFade('in')
+      setTimeout(() => setGridFade('visible'), 250)
+    }, 150)
+  }, [activeRoomId, gridFade])
 
   // Mobile detection
   useEffect(() => {
@@ -293,17 +312,27 @@ export default function EditPage() {
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  // Long-press to enter arrange mode (mobile + viewing only)
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (!isMobile || mode.type !== 'viewing') return
+  // Long-press: viewing → enter edit mode, arranging → open tile menu
+  const handleTouchStart = useCallback((e: React.TouchEvent, tileId?: string) => {
+    if (!isMobile) return
     const touch = e.touches[0]
     touchStartRef.current = { x: touch.clientX, y: touch.clientY }
-    longPressRef.current = setTimeout(() => {
-      enterEdit()
-      longPressRef.current = null
-      touchStartRef.current = null
-    }, 500)
-  }, [isMobile, mode.type])
+
+    if (mode.type === 'viewing') {
+      longPressRef.current = setTimeout(() => {
+        enterEdit()
+        longPressRef.current = null
+        touchStartRef.current = null
+      }, 500)
+    } else if (isArranging && tileId) {
+      longPressRef.current = setTimeout(() => {
+        setSwapSourceId(null)
+        openTileMenu(tileId)
+        longPressRef.current = null
+        touchStartRef.current = null
+      }, 500)
+    }
+  }, [isMobile, mode.type, isArranging])
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (!longPressRef.current || !touchStartRef.current) return
@@ -337,12 +366,13 @@ export default function EditPage() {
     setTileSize(tileId, next)
   }, [draft])
 
-  // Mouse: click-and-drag 8px. Touch: hold 200ms then drag. Both allow normal scroll/tap.
-  const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  )
+  // Desktop: click-and-drag. Mobile: tap-to-swap (no dnd-kit touch sensor).
+  const mouseSensor = useSensor(MouseSensor, { activationConstraint: { distance: 8 } })
+  const touchSensor = useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
+  const keyboardSensor = useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  const sensors = isMobile
+    ? [mouseSensor, keyboardSensor]
+    : [mouseSensor, touchSensor, keyboardSensor]
 
   // Load data
   useEffect(() => {
@@ -623,6 +653,44 @@ export default function EditPage() {
       position: item.position,
     }))
 
+    fetch('/api/tiles', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug, positions }),
+    }).catch(e => console.error('Failed to save tile order:', e))
+  }
+
+  // ── Tap-to-swap (mobile only) ──
+
+  function handleTileSwap(tileId: string) {
+    if (!isMobile || !isArranging || !draft) return
+
+    if (!swapSourceId) {
+      setSwapSourceId(tileId)
+      return
+    }
+
+    if (swapSourceId === tileId) {
+      setSwapSourceId(null)
+      return
+    }
+
+    const oldIndex = draft.content.findIndex(item => item.id === swapSourceId)
+    const newIndex = draft.content.findIndex(item => item.id === tileId)
+    if (oldIndex === -1 || newIndex === -1) { setSwapSourceId(null); return }
+
+    const newContent = [...draft.content]
+    ;[newContent[oldIndex], newContent[newIndex]] = [newContent[newIndex], newContent[oldIndex]]
+    const reordered = newContent.map((item, index) => ({ ...item, position: index }))
+
+    setDraft({ ...draft, content: reordered, updated_at: Date.now() })
+    setSwapSourceId(null)
+
+    const positions = reordered.map(item => ({
+      id: item.id,
+      source: tileSources[item.id] || 'library',
+      position: item.position,
+    }))
     fetch('/api/tiles', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -1132,11 +1200,11 @@ export default function EditPage() {
         {/* Room pills */}
         <div className="flex items-center gap-3 px-4 pb-3 overflow-x-auto hide-scrollbar">
           <button
-            onClick={() => setActiveRoomId(null)}
-            className={`text-xs px-4 py-2 rounded-full transition-all whitespace-nowrap backdrop-blur-sm border-0 ${
+            onClick={() => switchRoom(null)}
+            className={`text-xs px-4 py-2 rounded-full transition-all duration-300 whitespace-nowrap backdrop-blur-sm border-0 ${
               activeRoomId === null
-                ? 'bg-white/[0.12] text-white/90'
-                : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70'
+                ? 'bg-white/[0.12] text-white/90 scale-[1.05]'
+                : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70 scale-100'
             }`}
             style={{ minHeight: '36px' }}
           >
@@ -1145,11 +1213,11 @@ export default function EditPage() {
           {rooms.map((room) => (
             <button
               key={room.id}
-              onClick={() => setActiveRoomId(room.id)}
-              className={`text-xs px-4 py-2 rounded-full transition-all whitespace-nowrap backdrop-blur-sm border-0 ${
+              onClick={() => switchRoom(room.id)}
+              className={`text-xs px-4 py-2 rounded-full transition-all duration-300 whitespace-nowrap backdrop-blur-sm border-0 ${
                 activeRoomId === room.id
-                  ? 'bg-white/[0.12] text-white/90'
-                  : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70'
+                  ? 'bg-white/[0.12] text-white/90 scale-[1.05]'
+                  : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70 scale-100'
               }`}
               style={{ minHeight: '36px' }}
             >
@@ -1180,7 +1248,12 @@ export default function EditPage() {
               items={filteredContent.map(item => item.id)}
               strategy={rectSortingStrategy}
             >
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5" style={{ gridAutoRows: 'minmax(180px, 1fr)', gridAutoFlow: 'dense' }}>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5" style={{
+                gridAutoRows: 'minmax(180px, 1fr)',
+                gridAutoFlow: 'dense',
+                opacity: gridFade === 'out' ? 0 : 1,
+                transition: 'opacity 150ms ease-out',
+              }}>
                 {filteredContent.map(item => (
                   <SortableTile
                     key={item.id}
@@ -1189,12 +1262,18 @@ export default function EditPage() {
                     isArranging={isArranging}
                     isViewing={mode.type === 'viewing'}
                     isMobile={isMobile}
-                    selected={selectedTileId === item.id}
+                    selected={selectedTileId === item.id || swapSourceId === item.id}
                     anyDragging={draggingTileId !== null}
-                    onTap={() => openTileMenu(item.id)}
+                    onTap={() => {
+                      if (isMobile && isArranging) {
+                        handleTileSwap(item.id)
+                      } else {
+                        openTileMenu(item.id)
+                      }
+                    }}
                     deleting={deletingIds.has(item.id)}
                     size={item.size || 1}
-                    onLongPressStart={handleTouchStart}
+                    onLongPressStart={(e: React.TouchEvent) => handleTouchStart(e, item.id)}
                     onLongPressMove={handleTouchMove}
                     onLongPressEnd={handleTouchEnd}
                     onPinchResize={(direction) => handlePinchResize(item.id, direction)}

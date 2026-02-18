@@ -129,7 +129,7 @@ async function handleCheckoutComplete(session: any) {
 
   // Send welcome email with magic link so they can log in immediately
   try {
-    await sendWelcomeEmail(email, serialNumber)
+    await sendWelcomeEmail(email, serialNumber, username)
     console.log(`✓ Welcome email sent: ${email}`)
   } catch (err) {
     // Log but don't fail the webhook — user exists, they can request a link manually
