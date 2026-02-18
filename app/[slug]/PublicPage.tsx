@@ -58,8 +58,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [isMobile, setIsMobile] = useState(false)
   const [widescreenIds, setWidescreenIds] = useState<Set<string>>(new Set())
   const [swipeDelta, setSwipeDelta] = useState(0)
-  const [isSwipeAnimating, setIsSwipeAnimating] = useState(false)
-  const swipeTouchRef = useRef<{ x: number; y: number; locked: boolean; isVertical: boolean } | null>(null)
+  const [swipePhase, setSwipePhase] = useState<'idle' | 'tracking' | 'exit' | 'enter'>('idle')
+  const [roomFade, setRoomFade] = useState<'visible' | 'out' | 'in'>('visible')
+  const swipeTouchRef = useRef<{ x: number; y: number; locked: boolean; isVertical: boolean; time: number } | null>(null)
   const swipeRafRef = useRef<number | null>(null)
   const swipeContainerRef = useRef<HTMLDivElement>(null)
 
@@ -117,60 +118,49 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       .catch(() => {})
   }, [])
 
-  // Owner detection — lightweight API check, no flash
-  // Navigate to room
-  const goToRoom = (roomId: string | null) => {
-    setActiveRoomId(roomId)
-  }
+  // Navigate to room — with smooth crossfade for pill taps
+  const goToRoom = useCallback((roomId: string | null) => {
+    if (roomId === activeRoomId || roomFade !== 'visible') return
+    setRoomFade('out')
+    setTimeout(() => {
+      setActiveRoomId(roomId)
+      setRoomFade('in')
+      setTimeout(() => setRoomFade('visible'), 300)
+    }, 200)
+  }, [activeRoomId, roomFade])
 
-  // Gesture-tracked room swipe
+  // ── Room swipe gesture (mobile) ──
+
   const handleSwipeTouchStart = useCallback((e: React.TouchEvent) => {
-    if (visibleRooms.length <= 1 || !isMobile || e.touches.length !== 1 || isSwipeAnimating) return
-    swipeTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, locked: false, isVertical: false }
-  }, [visibleRooms.length, isMobile, isSwipeAnimating])
+    if (visibleRooms.length <= 1 || !isMobile || e.touches.length !== 1 || swipePhase !== 'idle') return
+    swipeTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, locked: false, isVertical: false, time: Date.now() }
+  }, [visibleRooms.length, isMobile, swipePhase])
 
   const handleSwipeTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!swipeTouchRef.current || visibleRooms.length <= 1 || isSwipeAnimating) return
+    if (!swipeTouchRef.current || visibleRooms.length <= 1 || swipePhase === 'exit' || swipePhase === 'enter') return
     const touch = e.touches[0]
     const dx = touch.clientX - swipeTouchRef.current.x
     const dy = touch.clientY - swipeTouchRef.current.y
 
-    // Determine direction lock on first significant movement
     if (!swipeTouchRef.current.locked) {
       if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return
       swipeTouchRef.current.locked = true
       swipeTouchRef.current.isVertical = Math.abs(dy) > Math.abs(dx)
     }
 
-    // If vertical scroll, bail
     if (swipeTouchRef.current.isVertical) return
 
     const currentIdx = visibleRooms.findIndex(r => r.id === activeRoomId)
-    // Resist at edges
     const atStart = currentIdx <= 0 && dx > 0
     const atEnd = currentIdx >= visibleRooms.length - 1 && dx < 0
-    const resistedDx = (atStart || atEnd) ? dx * 0.2 : dx
+    const resistedDx = (atStart || atEnd) ? dx * 0.25 : dx
 
     if (swipeRafRef.current) cancelAnimationFrame(swipeRafRef.current)
     swipeRafRef.current = requestAnimationFrame(() => {
       setSwipeDelta(resistedDx)
-
-      // Update room pill at 50% threshold
-      const screenWidth = window.innerWidth
-      const pct = Math.abs(resistedDx) / screenWidth
-      if (pct > 0.5) {
-        if (resistedDx < 0 && currentIdx < visibleRooms.length - 1) {
-          setActiveRoomId(visibleRooms[currentIdx + 1].id)
-          swipeTouchRef.current = { x: touch.clientX, y: touch.clientY, locked: true, isVertical: false }
-          setSwipeDelta(0)
-        } else if (resistedDx > 0 && currentIdx > 0) {
-          setActiveRoomId(visibleRooms[currentIdx - 1].id)
-          swipeTouchRef.current = { x: touch.clientX, y: touch.clientY, locked: true, isVertical: false }
-          setSwipeDelta(0)
-        }
-      }
+      setSwipePhase('tracking')
     })
-  }, [visibleRooms, activeRoomId, isMobile, isSwipeAnimating])
+  }, [visibleRooms, activeRoomId, isMobile, swipePhase])
 
   const handleSwipeTouchEnd = useCallback(() => {
     if (!swipeTouchRef.current || swipeTouchRef.current.isVertical) {
@@ -180,33 +170,43 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     if (swipeRafRef.current) cancelAnimationFrame(swipeRafRef.current)
 
     const screenWidth = window.innerWidth
+    const velocity = Math.abs(swipeDelta) / Math.max(1, Date.now() - swipeTouchRef.current.time)
     const pct = Math.abs(swipeDelta) / screenWidth
+    const committed = pct > 0.2 || velocity > 0.4
+    const goingLeft = swipeDelta < 0
     const currentIdx = visibleRooms.findIndex(r => r.id === activeRoomId)
-
-    if (pct > 0.3) {
-      // Commit swipe
-      setIsSwipeAnimating(true)
-      const goingLeft = swipeDelta < 0
-      const targetDelta = goingLeft ? -screenWidth : screenWidth
-
-      setSwipeDelta(targetDelta)
-      setTimeout(() => {
-        if (goingLeft && currentIdx < visibleRooms.length - 1) {
-          setActiveRoomId(visibleRooms[currentIdx + 1].id)
-        } else if (!goingLeft && currentIdx > 0) {
-          setActiveRoomId(visibleRooms[currentIdx - 1].id)
-        }
-        setSwipeDelta(0)
-        setIsSwipeAnimating(false)
-      }, 300)
-    } else {
-      // Snap back
-      setIsSwipeAnimating(true)
-      setSwipeDelta(0)
-      setTimeout(() => setIsSwipeAnimating(false), 200)
-    }
+    const nextIdx = goingLeft ? currentIdx + 1 : currentIdx - 1
+    const canCommit = committed && nextIdx >= 0 && nextIdx < visibleRooms.length
 
     swipeTouchRef.current = null
+
+    if (!canCommit) {
+      // Snap back
+      setSwipePhase('exit')
+      setSwipeDelta(0)
+      setTimeout(() => setSwipePhase('idle'), 300)
+      return
+    }
+
+    // Phase 1: slide current content off-screen
+    setSwipePhase('exit')
+    setSwipeDelta(goingLeft ? -screenWidth * 0.7 : screenWidth * 0.7)
+
+    setTimeout(() => {
+      // Phase 2: change room, position new content on opposite side
+      setActiveRoomId(visibleRooms[nextIdx].id)
+      setSwipePhase('idle') // no transition for repositioning
+      setSwipeDelta(goingLeft ? screenWidth * 0.35 : -screenWidth * 0.35)
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          // Phase 3: slide new content to center
+          setSwipePhase('enter')
+          setSwipeDelta(0)
+          setTimeout(() => setSwipePhase('idle'), 400)
+        })
+      })
+    }, 220)
   }, [swipeDelta, visibleRooms, activeRoomId])
 
   useEffect(() => {
@@ -357,26 +357,28 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             </a>
         </header>
 
-        {/* Room Tabs */}
+        {/* Room Tabs — sticky at top */}
         {visibleRooms.length > 1 && (
-          <div className="flex items-center justify-center gap-2 mb-6 flex-wrap relative z-20 max-w-7xl mx-auto px-3 md:px-5">
-            {visibleRooms.map((room) => (
-              <button
-                key={room.id}
-                onClick={() => goToRoom(room.id)}
-                className={`px-4 py-1.5 rounded-full text-sm transition-all backdrop-blur-sm border-0 ${
-                  activeRoomId === room.id
-                    ? 'bg-white/[0.12] text-white/90'
-                    : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70'
-                }`}
-              >
-                {room.name}
-              </button>
-            ))}
+          <div className="sticky top-0 z-20 py-3 backdrop-blur-md" style={{ background: 'rgba(0,0,0,0.3)' }}>
+            <div className="flex items-center justify-center gap-2 flex-wrap max-w-7xl mx-auto px-3 md:px-5">
+              {visibleRooms.map((room) => (
+                <button
+                  key={room.id}
+                  onClick={() => goToRoom(room.id)}
+                  className={`px-4 py-1.5 rounded-full text-sm border-0 transition-all duration-300 ${
+                    activeRoomId === room.id
+                      ? 'bg-white/[0.15] text-white/90 scale-[1.05]'
+                      : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70 scale-100'
+                  }`}
+                >
+                  {room.name}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* Content grid - gesture-tracked room swipe on mobile */}
+        {/* Content grid — gesture-tracked room swipe on mobile */}
         <div className="max-w-7xl mx-auto px-3 md:px-5 overflow-hidden"
           ref={swipeContainerRef}
           onTouchStart={handleSwipeTouchStart}
@@ -387,8 +389,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             className="grid grid-cols-2 md:grid-cols-4 gap-2"
             style={{
               transform: swipeDelta !== 0 ? `translateX(${swipeDelta}px)` : undefined,
-              transition: isSwipeAnimating ? 'transform 300ms cubic-bezier(0.32, 0.72, 0, 1)' : 'none',
-              willChange: swipeDelta !== 0 ? 'transform' : 'auto',
+              opacity: swipePhase === 'exit' ? 0 : roomFade === 'out' ? 0 : roomFade === 'in' ? 1 : 1,
+              transition: swipePhase === 'tracking' ? 'none'
+                : swipePhase === 'exit' ? 'transform 220ms cubic-bezier(0.2, 0, 0.6, 1), opacity 200ms ease-out'
+                : swipePhase === 'enter' ? 'transform 380ms cubic-bezier(0.16, 1, 0.3, 1), opacity 350ms ease-out'
+                : roomFade !== 'visible' ? 'opacity 200ms ease-out'
+                : 'transform 300ms cubic-bezier(0.32, 0.72, 0, 1)',
+              willChange: swipePhase !== 'idle' ? 'transform, opacity' : 'auto',
             }}
           >
             {content.map((item, idx) => renderTile(item, idx))}

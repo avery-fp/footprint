@@ -268,6 +268,7 @@ export default function EditPage() {
   const [tileSources, setTileSources] = useState<Record<string, 'library' | 'links'>>({})
   const [rooms, setRooms] = useState<any[]>([])
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
+  const [gridFade, setGridFade] = useState<'visible' | 'out' | 'in'>('visible')
   const [wallpaperUrl, setWallpaperUrl] = useState('')
   const [backgroundBlur, setBackgroundBlur] = useState(true)
   const [serialNumber, setSerialNumber] = useState<number | null>(null)
@@ -291,6 +292,17 @@ export default function EditPage() {
   const closeTileMenu = () => setMode({ type: 'arranging' })
   const startAdding = (method: 'url' | 'thought') => setMode({ type: 'adding', method })
   const stopAdding = () => setMode({ type: 'arranging' })
+
+  // Switch rooms with crossfade
+  const switchRoom = useCallback((roomId: string | null) => {
+    if (roomId === activeRoomId || gridFade !== 'visible') return
+    setGridFade('out')
+    setTimeout(() => {
+      setActiveRoomId(roomId)
+      setGridFade('in')
+      setTimeout(() => setGridFade('visible'), 250)
+    }, 150)
+  }, [activeRoomId, gridFade])
 
   // Mobile detection
   useEffect(() => {
@@ -1186,11 +1198,11 @@ export default function EditPage() {
         {/* Room pills */}
         <div className="flex items-center gap-3 px-4 pb-3 overflow-x-auto hide-scrollbar">
           <button
-            onClick={() => setActiveRoomId(null)}
-            className={`text-xs px-4 py-2 rounded-full transition-all whitespace-nowrap backdrop-blur-sm border-0 ${
+            onClick={() => switchRoom(null)}
+            className={`text-xs px-4 py-2 rounded-full transition-all duration-300 whitespace-nowrap backdrop-blur-sm border-0 ${
               activeRoomId === null
-                ? 'bg-white/[0.12] text-white/90'
-                : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70'
+                ? 'bg-white/[0.12] text-white/90 scale-[1.05]'
+                : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70 scale-100'
             }`}
             style={{ minHeight: '36px' }}
           >
@@ -1199,11 +1211,11 @@ export default function EditPage() {
           {rooms.map((room) => (
             <button
               key={room.id}
-              onClick={() => setActiveRoomId(room.id)}
-              className={`text-xs px-4 py-2 rounded-full transition-all whitespace-nowrap backdrop-blur-sm border-0 ${
+              onClick={() => switchRoom(room.id)}
+              className={`text-xs px-4 py-2 rounded-full transition-all duration-300 whitespace-nowrap backdrop-blur-sm border-0 ${
                 activeRoomId === room.id
-                  ? 'bg-white/[0.12] text-white/90'
-                  : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70'
+                  ? 'bg-white/[0.12] text-white/90 scale-[1.05]'
+                  : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70 scale-100'
               }`}
               style={{ minHeight: '36px' }}
             >
@@ -1234,7 +1246,12 @@ export default function EditPage() {
               items={filteredContent.map(item => item.id)}
               strategy={rectSortingStrategy}
             >
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5" style={{ gridAutoRows: 'minmax(180px, 1fr)', gridAutoFlow: 'dense' }}>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5" style={{
+                gridAutoRows: 'minmax(180px, 1fr)',
+                gridAutoFlow: 'dense',
+                opacity: gridFade === 'out' ? 0 : 1,
+                transition: 'opacity 150ms ease-out',
+              }}>
                 {filteredContent.map(item => (
                   <SortableTile
                     key={item.id}
