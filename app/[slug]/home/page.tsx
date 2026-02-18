@@ -198,7 +198,8 @@ function SortableTile({
                 muted
                 loop
                 playsInline
-                preload="none"
+                autoPlay
+                preload="metadata"
                 onClick={handleVideoClick}
                 onLoadedData={() => setIsLoaded(true)} onError={(e) => { setIsLoaded(true); (e.target as HTMLVideoElement).style.display = 'none' }}
               />
