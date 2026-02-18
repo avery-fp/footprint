@@ -1,0 +1,79 @@
+{
+  "clusters": {
+    "1_core_identity": [
+      "#footprint", "#digitalidentity", "#linkinbio", "#biolink",
+      "#personalbranding", "#identitydesign", "#onlineidentity",
+      "#digitalroom", "#myinternet", "#curatedidentity",
+      "#internetpresence", "#ownit", "#digitalself",
+      "#webidentity", "#footprintonl"
+    ],
+    "2_design_minimal": [
+      "#minimaldesign", "#cleandesign", "#uiux", "#designinspiration",
+      "#designersofinstagram", "#minimal", "#moderndesign",
+      "#interfacedesign", "#digitalaesthetic", "#gridlayout",
+      "#uidesign", "#designdetails", "#visualdesign",
+      "#designlover", "#simplicity"
+    ],
+    "3_dark_aesthetic": [
+      "#darkaesthetic", "#darkmode", "#moodyaesthetic", "#darkvibes",
+      "#aestheticpage", "#grunge", "#darktones", "#cyberaesthetic",
+      "#nocturnal", "#vibecheck", "#moodboard", "#darkfeed",
+      "#gothicaesthetic", "#shadowaesthetic", "#blackaesthetic"
+    ],
+    "4_creator_economy": [
+      "#creatoreconomy", "#creatortips", "#contentcreator", "#creatortools",
+      "#digitalcreator", "#influencertools", "#socialmediastrategy",
+      "#growthhacks", "#buildyourbrand", "#sidehustle",
+      "#creatorsofinstagram", "#independentcreator", "#onlinebusiness",
+      "#monetize", "#passiveincome"
+    ],
+    "5_music": [
+      "#musicpage", "#spotifyplaylist", "#musiccurator", "#musicaesthetic",
+      "#albumart", "#vinylvibes", "#musicproducer", "#beatmaker",
+      "#soundcloud", "#musicblog", "#indiemusic", "#hiphopculture",
+      "#rnbaesthetic", "#musiclover", "#playlistcurator"
+    ],
+    "6_fashion": [
+      "#streetwear", "#fashionpage", "#styleinspiration", "#ootd",
+      "#fashiondesign", "#fashionaesthetic", "#drip", "#wardrobestyle",
+      "#fashioncurator", "#lookbook", "#fashionblogger", "#fitcheck",
+      "#mensfashion", "#womensfashion", "#styleinspo"
+    ],
+    "7_art": [
+      "#digitalart", "#contemporaryart", "#artcollector", "#artcuration",
+      "#visualart", "#gallerywall", "#artaesthetic", "#graphicdesign",
+      "#illustrationart", "#creativedirection", "#artdaily",
+      "#artoftheday", "#artistsoninstagram", "#artworld", "#curatedart"
+    ],
+    "8_genz_culture": [
+      "#genz", "#internetculture", "#culturepage", "#trending",
+      "#fyp", "#foryou", "#viral", "#memeculture", "#zoomer",
+      "#aesthetic", "#vibe", "#iykyk", "#niche", "#core",
+      "#chronicallyonline"
+    ],
+    "9_tech_product": [
+      "#webapp", "#saas", "#indiemaker", "#techproduct",
+      "#productdesign", "#buildinpublic", "#startuplife", "#techtools",
+      "#digitaltools", "#appdesign", "#productlaunch", "#shipfast",
+      "#makersmovement", "#nocode", "#indieweb"
+    ],
+    "10_growth_amplifier": [
+      "#explore", "#explorepage", "#reels", "#tiktokviral",
+      "#instagramreels", "#youtubeshorts", "#contentmarketing",
+      "#socialmediatips", "#algorithm", "#engagement",
+      "#followforfollowback", "#discoverpage", "#viralcontent",
+      "#trendingsound", "#blowup"
+    ]
+  },
+  "rotation_order": [1, 8, 2, 5, 3, 10, 6, 4, 7, 9],
+  "platform_caps": {
+    "tiktok": 8,
+    "reels": 15,
+    "shorts": 8,
+    "twitter": 3
+  },
+  "cross_pollination": {
+    "every_nth_post": 3,
+    "tags_from_next_cluster": 3
+  }
+}
