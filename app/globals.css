@@ -175,14 +175,6 @@ body::before {
   @apply text-white/30;
 }
 
-/* Mobile swipe container — hide scrollbar */
-.swipe-container::-webkit-scrollbar {
-  display: none;
-}
-.swipe-container {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
 
 /* Jiggle animation — iOS home screen style */
 @keyframes jiggle {

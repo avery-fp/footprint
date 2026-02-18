@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import ContentCard from '@/components/ContentCard'
 import VideoTile from '@/components/VideoTile'
@@ -57,12 +57,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [showToast, setShowToast] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [widescreenIds, setWidescreenIds] = useState<Set<string>>(new Set())
-  const [swipeDelta, setSwipeDelta] = useState(0)
-  const [swipePhase, setSwipePhase] = useState<'idle' | 'tracking' | 'exit' | 'enter'>('idle')
   const [roomFade, setRoomFade] = useState<'visible' | 'out' | 'in'>('visible')
-  const swipeTouchRef = useRef<{ x: number; y: number; locked: boolean; isVertical: boolean; time: number } | null>(null)
-  const swipeRafRef = useRef<number | null>(null)
-  const swipeContainerRef = useRef<HTMLDivElement>(null)
 
   const markWidescreen = useCallback((id: string) => {
     setWidescreenIds(prev => {
@@ -128,86 +123,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       setTimeout(() => setRoomFade('visible'), 300)
     }, 200)
   }, [activeRoomId, roomFade])
-
-  // ── Room swipe gesture (mobile) ──
-
-  const handleSwipeTouchStart = useCallback((e: React.TouchEvent) => {
-    if (visibleRooms.length <= 1 || !isMobile || e.touches.length !== 1 || swipePhase !== 'idle') return
-    swipeTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, locked: false, isVertical: false, time: Date.now() }
-  }, [visibleRooms.length, isMobile, swipePhase])
-
-  const handleSwipeTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!swipeTouchRef.current || visibleRooms.length <= 1 || swipePhase === 'exit' || swipePhase === 'enter') return
-    const touch = e.touches[0]
-    const dx = touch.clientX - swipeTouchRef.current.x
-    const dy = touch.clientY - swipeTouchRef.current.y
-
-    if (!swipeTouchRef.current.locked) {
-      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return
-      swipeTouchRef.current.locked = true
-      swipeTouchRef.current.isVertical = Math.abs(dy) > Math.abs(dx)
-    }
-
-    if (swipeTouchRef.current.isVertical) return
-
-    const currentIdx = visibleRooms.findIndex(r => r.id === activeRoomId)
-    const atStart = currentIdx <= 0 && dx > 0
-    const atEnd = currentIdx >= visibleRooms.length - 1 && dx < 0
-    const resistedDx = (atStart || atEnd) ? dx * 0.25 : dx
-
-    if (swipeRafRef.current) cancelAnimationFrame(swipeRafRef.current)
-    swipeRafRef.current = requestAnimationFrame(() => {
-      setSwipeDelta(resistedDx)
-      setSwipePhase('tracking')
-    })
-  }, [visibleRooms, activeRoomId, isMobile, swipePhase])
-
-  const handleSwipeTouchEnd = useCallback(() => {
-    if (!swipeTouchRef.current || swipeTouchRef.current.isVertical) {
-      swipeTouchRef.current = null
-      return
-    }
-    if (swipeRafRef.current) cancelAnimationFrame(swipeRafRef.current)
-
-    const screenWidth = window.innerWidth
-    const velocity = Math.abs(swipeDelta) / Math.max(1, Date.now() - swipeTouchRef.current.time)
-    const pct = Math.abs(swipeDelta) / screenWidth
-    const committed = pct > 0.2 || velocity > 0.4
-    const goingLeft = swipeDelta < 0
-    const currentIdx = visibleRooms.findIndex(r => r.id === activeRoomId)
-    const nextIdx = goingLeft ? currentIdx + 1 : currentIdx - 1
-    const canCommit = committed && nextIdx >= 0 && nextIdx < visibleRooms.length
-
-    swipeTouchRef.current = null
-
-    if (!canCommit) {
-      // Snap back
-      setSwipePhase('exit')
-      setSwipeDelta(0)
-      setTimeout(() => setSwipePhase('idle'), 300)
-      return
-    }
-
-    // Phase 1: slide current content off-screen
-    setSwipePhase('exit')
-    setSwipeDelta(goingLeft ? -screenWidth * 0.7 : screenWidth * 0.7)
-
-    setTimeout(() => {
-      // Phase 2: change room, position new content on opposite side
-      setActiveRoomId(visibleRooms[nextIdx].id)
-      setSwipePhase('idle') // no transition for repositioning
-      setSwipeDelta(goingLeft ? screenWidth * 0.35 : -screenWidth * 0.35)
-
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          // Phase 3: slide new content to center
-          setSwipePhase('enter')
-          setSwipeDelta(0)
-          setTimeout(() => setSwipePhase('idle'), 400)
-        })
-      })
-    }, 220)
-  }, [swipeDelta, visibleRooms, activeRoomId])
 
   useEffect(() => {
     if (!showToast) return
@@ -359,7 +274,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
         {/* Room Tabs — sticky at top */}
         {visibleRooms.length > 1 && (
-          <div className="sticky top-0 z-20 py-3 backdrop-blur-md" style={{ background: 'rgba(0,0,0,0.3)' }}>
+          <div className="sticky top-0 z-20 py-3 backdrop-blur-xl border-b border-white/[0.06]" style={{ background: 'rgba(255,255,255,0.04)' }}>
             <div className="flex items-center justify-center gap-2 flex-wrap max-w-7xl mx-auto px-3 md:px-5">
               {visibleRooms.map((room) => (
                 <button
@@ -378,24 +293,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </div>
         )}
 
-        {/* Content grid — gesture-tracked room swipe on mobile */}
-        <div className="max-w-7xl mx-auto px-3 md:px-5 overflow-hidden"
-          ref={swipeContainerRef}
-          onTouchStart={handleSwipeTouchStart}
-          onTouchMove={handleSwipeTouchMove}
-          onTouchEnd={handleSwipeTouchEnd}
-        >
+        {/* Content grid */}
+        <div className="max-w-7xl mx-auto px-3 md:px-5">
           <div
             className="grid grid-cols-2 md:grid-cols-4 gap-2"
             style={{
-              transform: swipeDelta !== 0 ? `translateX(${swipeDelta}px)` : undefined,
-              opacity: swipePhase === 'exit' ? 0 : roomFade === 'out' ? 0 : roomFade === 'in' ? 1 : 1,
-              transition: swipePhase === 'tracking' ? 'none'
-                : swipePhase === 'exit' ? 'transform 220ms cubic-bezier(0.2, 0, 0.6, 1), opacity 200ms ease-out'
-                : swipePhase === 'enter' ? 'transform 380ms cubic-bezier(0.16, 1, 0.3, 1), opacity 350ms ease-out'
-                : roomFade !== 'visible' ? 'opacity 200ms ease-out'
-                : 'transform 300ms cubic-bezier(0.32, 0.72, 0, 1)',
-              willChange: swipePhase !== 'idle' ? 'transform, opacity' : 'auto',
+              opacity: roomFade === 'out' ? 0 : 1,
+              transition: 'opacity 200ms ease-out',
             }}
           >
             {content.map((item, idx) => renderTile(item, idx))}
