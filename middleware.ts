@@ -47,6 +47,8 @@ export async function middleware(request: NextRequest) {
     '/api/events',
     '/api/aro-feed',
     '/api/share',
+    '/api/pulse',
+    '/api/embed',
   ]
 
   // Check if this is a fully public route

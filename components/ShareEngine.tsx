@@ -106,12 +106,43 @@ export default function ShareEngine({ slug }: ShareEngineProps) {
           </button>
         </div>
 
-        {/* Download card */}
+        {/* Download cards */}
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <button
+            onClick={downloadCard}
+            className="py-2.5 rounded-lg text-xs font-medium bg-white text-black hover:bg-white/90 transition-all"
+          >
+            Share card (1:1)
+          </button>
+          <button
+            onClick={() => {
+              if (!data) return
+              const storyUrl = data.card_url.replace('/card?', '/story?')
+              const a = document.createElement('a')
+              a.href = storyUrl
+              a.download = `footprint-${slug}-story.png`
+              a.target = '_blank'
+              a.click()
+            }}
+            className="py-2.5 rounded-lg text-xs font-medium bg-white/10 hover:bg-white/15 text-white/70 transition-all"
+          >
+            Story card (9:16)
+          </button>
+        </div>
+
+        {/* QR code */}
         <button
-          onClick={downloadCard}
-          className="w-full py-2.5 rounded-lg text-xs font-medium bg-white text-black hover:bg-white/90 transition-all mb-4"
+          onClick={() => {
+            if (!data) return
+            const a = document.createElement('a')
+            a.href = `/api/share/qr?slug=${slug}&style=light`
+            a.download = `footprint-${slug}-qr.png`
+            a.target = '_blank'
+            a.click()
+          }}
+          className="w-full py-2.5 rounded-lg text-xs font-medium bg-white/10 hover:bg-white/15 text-white/70 transition-all mb-4"
         >
-          Download share card (PNG)
+          Download QR code
         </button>
 
         {/* Card preview */}

@@ -3,11 +3,18 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 
+interface PulseData {
+  next_serial: number
+  total_claimed: number
+  remaining: number
+  recent: { serial: number; ago: string }[]
+}
+
 export default function CheckoutPage() {
   const searchParams = useSearchParams()
   const [refCode, setRefCode] = useState(searchParams.get('ref') || '')
+  const [pulse, setPulse] = useState<PulseData | null>(null)
 
-  // Pick up referral from URL param or previous sessionStorage (from public page visit)
   useEffect(() => {
     const urlRef = searchParams.get('ref')
     if (urlRef) {
@@ -17,6 +24,23 @@ export default function CheckoutPage() {
       const stored = sessionStorage.getItem('fp_ref')
       if (stored) setRefCode(stored)
     }
+
+    // Track checkout view funnel event
+    fetch('/api/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        footprint_id: '00000000-0000-0000-0000-000000000000',
+        event_type: 'visit',
+        event_data: { page: 'checkout', ref: urlRef || sessionStorage.getItem('fp_ref') || null },
+      }),
+    }).catch(() => {})
+
+    // Fetch live pulse data
+    fetch('/api/pulse')
+      .then(r => r.json())
+      .then(d => { if (d.next_serial) setPulse(d) })
+      .catch(() => {})
   }, [searchParams])
 
   const [email, setEmail] = useState('')
@@ -33,7 +57,6 @@ export default function CheckoutPage() {
     try {
       const normalizedPromo = promo.trim().toLowerCase()
 
-      // Free path: promo code "please"
       if (normalizedPromo === 'please') {
         const res = await fetch('/api/checkout/free', {
           method: 'POST',
@@ -50,7 +73,6 @@ export default function CheckoutPage() {
         return
       }
 
-      // Paid path: Stripe checkout
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -130,8 +152,45 @@ export default function CheckoutPage() {
           </button>
         </form>
 
+        {/* Scarcity + Social Proof */}
+        {pulse && (
+          <div className="mt-8 space-y-3">
+            {/* Serial scarcity */}
+            <div className="flex items-center justify-center gap-3">
+              <span
+                className="text-white/12 text-xs"
+                style={{ fontFamily: "'DM Sans', sans-serif" }}
+              >
+                Next: #{pulse.next_serial.toLocaleString()}
+              </span>
+              <span className="text-white/8">·</span>
+              <span
+                className="text-white/12 text-xs"
+                style={{ fontFamily: "'DM Sans', sans-serif" }}
+              >
+                {pulse.remaining.toLocaleString()} left
+              </span>
+            </div>
+
+            {/* Recent buyers ticker */}
+            {pulse.recent.length > 0 && (
+              <div className="flex flex-col items-center gap-1.5">
+                {pulse.recent.slice(0, 3).map((buyer, i) => (
+                  <p
+                    key={i}
+                    className="text-white/10 text-[11px]"
+                    style={{ fontFamily: "'DM Sans', sans-serif" }}
+                  >
+                    #{buyer.serial.toLocaleString()} claimed {buyer.ago}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         <p
-          className="text-white/15 text-xs text-center mt-8"
+          className="text-white/15 text-xs text-center mt-6"
           style={{ fontFamily: "'DM Sans', sans-serif" }}
         >
           one payment. yours forever.

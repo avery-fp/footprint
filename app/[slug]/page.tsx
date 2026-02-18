@@ -5,6 +5,7 @@ import { getTheme } from '@/lib/themes'
 import AnalyticsTracker from '@/components/AnalyticsTracker'
 import ShareEngine from '@/components/ShareEngine'
 import EventTracker from '@/components/EventTracker'
+import ReferralBanner from '@/components/ReferralBanner'
 import PublicPage from './PublicPage'
 
 // ISR — cache page at the edge, revalidate every 10 seconds
@@ -107,6 +108,7 @@ export default async function FootprintPage({ params }: Props) {
     <>
       <AnalyticsTracker footprintId={footprint.id} serialNumber={footprint.serial_number} />
       <EventTracker footprintId={footprint.id} />
+      <ReferralBanner serial={serial} />
       <ShareEngine slug={params.slug} />
       <PublicPage
         footprint={footprint}
