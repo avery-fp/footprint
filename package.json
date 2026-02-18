@@ -12,7 +12,12 @@
     "fp:mint": "npx tsx src/fp/culture.mjs mint",
     "fp:darwin": "npx tsx src/fp/culture.mjs darwin",
     "fp:distribute": "npx tsx src/fp/culture.mjs distribute",
-    "fp:ignite": "npx tsx src/fp/culture.mjs ignite"
+    "fp:ignite": "npx tsx src/fp/culture.mjs ignite",
+    "aro": "npx tsx cli/aro.ts run",
+    "aro:dry": "npx tsx cli/aro.ts run --dry",
+    "aro:ingest": "npx tsx cli/aro.ts ingest-targets",
+    "aro:events": "npx tsx cli/aro.ts ingest-events",
+    "aro:export": "npx tsx cli/aro.ts export"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.1.0",

@@ -33,3 +33,11 @@ deploy-log/
 deploy-queue/
 ignition-output/
 fp-factory/output/
+fp-factory/blast_*/
+
+# ARO output
+output/ranked_targets.json
+output/messages.csv
+output/distribution_plan.json
+output/lift.json
+output/snapshots/
