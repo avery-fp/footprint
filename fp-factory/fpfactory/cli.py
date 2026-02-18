@@ -15,6 +15,8 @@ import sys
 from .config import FactoryConfig, DEFAULT_VARIANT_MATRIX
 from .pipeline import run_factory, stage_slice, stage_mutation
 from .mutation import run_mutation_cycle
+from .assembler import assemble_schedule
+from .aro_bridge import bridge_perf_to_events, bridge_perf_to_targets
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -151,6 +153,35 @@ examples:
     pkg_parser.add_argument("--no-zip", action="store_true")
     pkg_parser.add_argument("--thumbnails", type=int, default=3)
     pkg_parser.add_argument("--ffmpeg", default="ffmpeg")
+
+    # ─── assemble: schedule assembler ──────────────────────
+
+    asm_parser = subparsers.add_parser("assemble", help="Map variants to 72-hour schedule grid")
+    asm_parser.add_argument("--input", required=True, help="Batch output directory (with variants/)")
+    asm_parser.add_argument("-o", "--output", default=None, help="Schedule output dir (default: <input>/schedule)")
+    asm_parser.add_argument("--start-date", default="", help="Start date YYYY-MM-DD (default: tomorrow)")
+    asm_parser.add_argument("--manifest", default="", help="Path to batch manifest JSON")
+
+    # ─── blast: full pipeline + assemble ────────────────────
+
+    blast_parser = subparsers.add_parser("blast", help="Full pipeline + schedule assembly (one command)")
+    blast_parser.add_argument("input", help="Source video file")
+    blast_parser.add_argument("-o", "--output", default="blast_output", help="Output directory")
+    blast_parser.add_argument("--preset", choices=["fast", "max", "tiktok"], default="fast",
+                               help="Blast preset (default: fast)")
+    blast_parser.add_argument("--start-date", default="", help="Schedule start YYYY-MM-DD (default: tomorrow)")
+    blast_parser.add_argument("--workers", type=int, default=4, help="Worker processes")
+    blast_parser.add_argument("--ffmpeg", default="ffmpeg")
+    blast_parser.add_argument("--ffprobe", default="ffprobe")
+
+    # ─── bridge: fp-factory analytics → ARO events ─────────
+
+    bridge_parser = subparsers.add_parser("bridge", help="Convert performance CSV to ARO events")
+    bridge_parser.add_argument("--csv", required=True, help="Performance CSV (analytics/day1_perf.csv)")
+    bridge_parser.add_argument("-o", "--output", default=None,
+                                help="Output directory (default: alongside input)")
+    bridge_parser.add_argument("--channel", default="content",
+                                help="Channel label for ARO events (default: content)")
 
     return parser
 
@@ -297,6 +328,165 @@ def cmd_package(args):
     )
 
 
+def cmd_assemble(args):
+    """Schedule assembler — map variants to 72-hour grid."""
+    input_dir = os.path.abspath(args.input)
+    variants_dir = os.path.join(input_dir, "variants")
+    output_dir = os.path.abspath(args.output) if args.output else os.path.join(input_dir, "schedule")
+
+    if not os.path.isdir(variants_dir):
+        print(f"Error: no variants/ directory in {input_dir}")
+        sys.exit(1)
+
+    # Find manifest
+    manifest = args.manifest
+    if not manifest:
+        import glob
+        manifests = glob.glob(os.path.join(input_dir, "*_manifest.json"))
+        if manifests:
+            manifest = manifests[0]
+
+    result = assemble_schedule(
+        variants_dir=variants_dir,
+        output_dir=output_dir,
+        start_date=args.start_date,
+        manifest_path=manifest,
+    )
+
+    print(f"\nSchedule assembled: {result.get('total_assigned', 0)} posts across 3 days")
+    print(f"Output: {output_dir}")
+
+
+def cmd_blast(args):
+    """Full blast: pipeline + assemble in one command."""
+    if not os.path.exists(args.input):
+        print(f"Error: input file not found: {args.input}")
+        sys.exit(1)
+
+    # Preset configurations
+    presets = {
+        "fast": {
+            "target_clips": 40,
+            "variants": 3,
+            "zooms": "1.0,1.15",
+            "speeds": "1.0,1.1",
+            "grades": "none,high_contrast,cinematic",
+            "ratios": "9:16",
+            "thumbnails": 1,
+        },
+        "max": {
+            "target_clips": 100,
+            "variants": 10,
+            "zooms": "1.0,1.1,1.2,1.3",
+            "speeds": "0.85,0.95,1.0,1.1,1.15",
+            "grades": "none,warm,cool,cinematic,high_contrast,neon,vintage,desaturate",
+            "ratios": "9:16,1:1",
+            "thumbnails": 3,
+        },
+        "tiktok": {
+            "target_clips": 60,
+            "variants": 5,
+            "zooms": "1.0,1.15,1.3",
+            "speeds": "1.0,1.1,1.2",
+            "grades": "none,high_contrast,neon,cinematic",
+            "ratios": "9:16",
+            "thumbnails": 1,
+        },
+    }
+
+    p = presets[args.preset]
+    output_dir = os.path.abspath(args.output)
+
+    print(f"""
+╔══════════════════════════════════════════════════╗
+║          FOOTPRINT CONTENT BLAST                 ║
+║                                                  ║
+║  Preset: {args.preset:<38} ║
+║  Input:  {os.path.basename(args.input):<38} ║
+║  Workers: {args.workers:<37} ║
+╚══════════════════════════════════════════════════╝
+""")
+
+    # Step 1: Run factory
+    cfg = FactoryConfig(
+        input_path=os.path.abspath(args.input),
+        output_dir=output_dir,
+        slice_method="scene",
+        min_clip_seconds=4.0 if args.preset == "fast" else 3.0,
+        max_clip_seconds=20.0 if args.preset == "fast" else 25.0,
+        target_clips=p["target_clips"],
+        variants_per_clip=p["variants"],
+        variant_matrix={
+            "zooms": [float(x) for x in p["zooms"].split(",")],
+            "speed_shifts": [float(x) for x in p["speeds"].split(",")],
+            "color_grades": [x.strip() for x in p["grades"].split(",")],
+            "aspect_ratios": [x.strip() for x in p["ratios"].split(",")],
+        },
+        hashtag_categories=["core", "growth", "aesthetic"],
+        workers=args.workers,
+        platforms=["tiktok", "reels", "shorts", "twitter"],
+        create_zips=True,
+        generate_thumbnails=p["thumbnails"] > 0,
+        thumbnail_count=p["thumbnails"],
+        ffmpeg_path=args.ffmpeg,
+        ffprobe_path=args.ffprobe,
+    )
+
+    summary = run_factory(cfg)
+
+    # Step 2: Assemble schedule
+    import glob
+    manifests = glob.glob(os.path.join(output_dir, "*_manifest.json"))
+    manifest = manifests[0] if manifests else ""
+
+    schedule_dir = os.path.join(output_dir, "schedule")
+    asm_result = assemble_schedule(
+        variants_dir=os.path.join(output_dir, "variants"),
+        output_dir=schedule_dir,
+        start_date=args.start_date,
+        manifest_path=manifest,
+    )
+
+    print(f"""
+══════════════════════════════════════════════════
+  BLAST COMPLETE
+
+  Variants:  {summary.get('variants_generated', 0)}
+  Scheduled: {asm_result.get('total_assigned', 0)} posts
+  Zips:      {output_dir}/zips/
+  Schedule:  {schedule_dir}/
+  Grid:      {schedule_dir}/full_grid.csv
+
+  Upload zips → Later/Planoly/Metricool
+  Import full_grid.csv for timing reference
+══════════════════════════════════════════════════
+""")
+
+
+def cmd_bridge(args):
+    """Convert fp-factory performance CSV → ARO events + targets."""
+    if not os.path.exists(args.csv):
+        print(f"Error: CSV not found: {args.csv}")
+        sys.exit(1)
+
+    csv_dir = os.path.dirname(os.path.abspath(args.csv))
+    output_dir = os.path.abspath(args.output) if args.output else csv_dir
+
+    base = os.path.splitext(os.path.basename(args.csv))[0]
+
+    # Generate ARO events
+    events_path = os.path.join(output_dir, f"{base}_aro_events.csv")
+    bridge_perf_to_events(args.csv, events_path, channel=args.channel)
+
+    # Generate ARO targets
+    targets_path = os.path.join(output_dir, f"{base}_aro_targets.csv")
+    bridge_perf_to_targets(args.csv, targets_path)
+
+    print(f"\nBridge complete. To ingest into ARO:")
+    print(f"  npx tsx cli/aro.ts ingest-events {events_path}")
+    print(f"  npx tsx cli/aro.ts ingest-targets {targets_path}")
+
+
 def main():
     parser = build_parser()
     args = parser.parse_args()
@@ -310,6 +500,9 @@ def main():
         "slice": cmd_slice,
         "mutate": cmd_mutate,
         "package": cmd_package,
+        "assemble": cmd_assemble,
+        "blast": cmd_blast,
+        "bridge": cmd_bridge,
     }
 
     handler = commands.get(args.command)
