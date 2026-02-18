@@ -2,189 +2,109 @@
 
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import Link from 'next/link'
-import { toast } from 'sonner'
-import { loadDraft, clearDraft } from '@/lib/draft-store'
 
-type Status = 'loading' | 'publishing' | 'success' | 'error'
+type Status = 'activating' | 'success' | 'error'
 
 export default function SuccessPage() {
   const searchParams = useSearchParams()
   const sessionId = searchParams.get('session_id')
-  const slug = searchParams.get('slug')
 
-  const [status, setStatus] = useState<Status>('loading')
-  const [serialNumber, setSerialNumber] = useState<number | null>(null)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
+  const [status, setStatus] = useState<Status>('activating')
+  const [serial, setSerial] = useState<number | null>(null)
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    async function publishDraft() {
-      if (!sessionId || !slug) {
-        setErrorMessage('Missing session or page information')
+    async function activate() {
+      if (!sessionId) {
+        setError('Missing session ID')
         setStatus('error')
         return
       }
-
-      // Load draft from localStorage
-      const draft = loadDraft(slug)
-      if (!draft) {
-        setErrorMessage('No draft found. You may have already published.')
-        setStatus('error')
-        return
-      }
-
-      setStatus('publishing')
 
       try {
-        const res = await fetch('/api/import-draft', {
+        const res = await fetch('/api/checkout/activate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            session_id: sessionId,
-            slug,
-            draft,
-          }),
+          body: JSON.stringify({ session_id: sessionId }),
         })
-
         const data = await res.json()
 
-        if (res.ok && data.success) {
-          setSerialNumber(data.serial_number)
-          clearDraft(slug)
-          setStatus('success')
-          toast.success('Your page is live!')
-        } else {
-          setErrorMessage(data.error || 'Failed to publish')
+        if (!res.ok) {
+          setError(data.error || 'Activation failed')
           setStatus('error')
+          return
         }
-      } catch (error) {
-        console.error('Failed to publish:', error)
-        setErrorMessage('Network error. Please try again.')
+
+        setSerial(data.serial)
+        setStatus('success')
+
+        // Auto-redirect to /build after brief flash
+        setTimeout(() => {
+          window.location.href = '/build'
+        }, 2000)
+      } catch {
+        setError('Network error. Try refreshing.')
         setStatus('error')
       }
     }
 
-    publishDraft()
-  }, [sessionId, slug])
+    activate()
+  }, [sessionId])
 
-  const link = `${typeof window !== 'undefined' ? window.location.origin : ''}/${slug}`
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center px-6">
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');`}</style>
 
-  const copyLink = () => {
-    navigator.clipboard.writeText(link)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
+      {status === 'activating' && (
+        <>
+          <div className="w-16 h-16 rounded-full border-2 border-white/20 border-t-white/60 animate-spin mb-8" />
+          <p className="text-white/40 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+            Activating your Footprint...
+          </p>
+        </>
+      )}
 
-  if (status === 'loading' || status === 'publishing') {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6">
-        <div className="w-16 h-16 rounded-full border-2 border-white/20 border-t-white/60 animate-spin mb-8" />
-        <p className="font-mono text-white/50">
-          {status === 'loading' ? 'Loading...' : 'Publishing your page...'}
-        </p>
-      </div>
-    )
-  }
-
-  if (status === 'error') {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6">
-        <div className="w-20 h-20 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-8">
-          <span className="text-4xl text-red-400">×</span>
-        </div>
-        <h1 className="text-3xl font-light mb-4">Something went wrong</h1>
-        <p className="text-white/50 mb-8">{errorMessage}</p>
-        <div className="flex gap-3">
-          {slug && (
-            <Link
-              href={`/${slug}/home`}
-              className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition"
-            >
-              Back to editor
-            </Link>
+      {status === 'success' && (
+        <div className="text-center animate-fade-up">
+          <div className="w-20 h-20 rounded-full bg-green-400 flex items-center justify-center mx-auto mb-6">
+            <span className="text-4xl text-black">✓</span>
+          </div>
+          <h1
+            className="text-4xl text-white mb-3"
+            style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 400, letterSpacing: '-0.03em' }}
+          >
+            You're in
+          </h1>
+          {serial && (
+            <p className="font-mono text-white/40 text-sm mb-6">
+              FP #{serial.toLocaleString()}
+            </p>
           )}
+          <p className="text-white/25 text-sm" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+            Taking you to your room...
+          </p>
+        </div>
+      )}
+
+      {status === 'error' && (
+        <div className="text-center">
+          <div className="w-20 h-20 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-6">
+            <span className="text-4xl text-red-400">×</span>
+          </div>
+          <h1 className="text-2xl text-white mb-3" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+            Something went wrong
+          </h1>
+          <p className="text-white/40 text-sm mb-8" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+            {error}
+          </p>
           <button
             onClick={() => window.location.reload()}
-            className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition"
+            className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition text-white/80 text-sm"
           >
             Try again
           </button>
         </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-24">
-      <div className="w-full max-w-md text-center">
-        {/* Success icon */}
-        <div className="w-20 h-20 rounded-full bg-green-400 flex items-center justify-center mx-auto mb-8 opacity-0 animate-pop-in">
-          <span className="text-4xl text-black">✓</span>
-        </div>
-
-        {/* Title */}
-        <h1 className="text-5xl font-light mb-4 opacity-0 animate-fade-up delay-200">
-          You're live
-        </h1>
-
-        <p className="text-white/60 text-lg mb-12 opacity-0 animate-fade-up delay-300">
-          Your page is now public. Share it with the world.
-        </p>
-
-        {/* FP Number Card */}
-        {serialNumber && (
-          <div className="glass rounded-2xl p-8 mb-8 opacity-0 animate-fade-up delay-400">
-            <p className="font-mono text-xs tracking-widest uppercase text-white/40 mb-3">
-              Your Footprint Number
-            </p>
-            <p className="font-mono text-5xl font-medium mb-4">
-              FP #{serialNumber.toLocaleString()}
-            </p>
-            <p className="text-sm text-white/40">
-              This number is yours forever.
-            </p>
-          </div>
-        )}
-
-        {/* Link Box — THE MOST IMPORTANT ELEMENT. This starts the compound loop. */}
-        <div className="glass rounded-xl p-5 flex items-center gap-4 mb-4 opacity-0 animate-fade-up delay-500">
-          <a
-            href={link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-mono text-sm text-white/60 hover:text-white/80 flex-1 text-left truncate transition"
-          >
-            {link}
-          </a>
-          <button
-            onClick={copyLink}
-            className={`py-2 px-4 text-xs rounded-lg flex-shrink-0 transition ${copied ? 'bg-green-500 text-white' : 'bg-white text-black hover:bg-white/90'}`}
-          >
-            {copied ? 'Copied!' : 'Copy link'}
-          </button>
-        </div>
-
-        <p className="text-white/20 text-xs mb-10 opacity-0 animate-fade-up delay-500">
-          drop it in your bio. share it everywhere. it's yours.
-        </p>
-
-        {/* Actions */}
-        <div className="flex gap-3 justify-center opacity-0 animate-fade-up delay-600">
-          <Link
-            href={`/${slug}`}
-            className="px-6 py-3 bg-green-500 hover:bg-green-400 text-white rounded-lg transition"
-          >
-            View your page
-          </Link>
-          <Link
-            href={`/${slug}/home`}
-            className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition"
-          >
-            Keep editing
-          </Link>
-        </div>
-      </div>
+      )}
     </div>
   )
 }

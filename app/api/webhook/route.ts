@@ -123,6 +123,20 @@ async function handleCheckoutComplete(session: any) {
     }
   }
 
+  // Track referral from checkout metadata
+  const refCode = session.metadata?.ref
+  if (refCode) {
+    const refSerial = parseInt(refCode.replace('FP-', ''), 10)
+    if (!isNaN(refSerial)) {
+      await supabase.from('referrals').insert({
+        referrer_serial: refSerial,
+        referred_user_id: user.id,
+        referral_code: refCode,
+        converted: true,
+      }).catch(() => {})
+    }
+  }
+
   console.log(`✓ New user: ${email} #${serialNumber}`)
 }
 

@@ -22,8 +22,7 @@ async function getWallpaper() {
 export default async function Home() {
   const wallpaper = await getWallpaper()
 
-  // Payment link — goes directly to Stripe. Apple Pay. Google Pay. Card. Done.
-  const paymentLink = 'https://buy.stripe.com/9B6cN40Ef0sG2z98b214400'
+  const paymentLink = '/checkout'
 
   return (
     <div className="min-h-screen relative overflow-hidden">

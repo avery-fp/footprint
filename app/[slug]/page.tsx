@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation'
 import { Metadata } from 'next'
 import { getTheme } from '@/lib/themes'
 import AnalyticsTracker from '@/components/AnalyticsTracker'
+import ShareEngine from '@/components/ShareEngine'
+import EventTracker from '@/components/EventTracker'
 import PublicPage from './PublicPage'
 
 // ISR — cache page at the edge, revalidate every 10 seconds
@@ -104,6 +106,8 @@ export default async function FootprintPage({ params }: Props) {
   return (
     <>
       <AnalyticsTracker footprintId={footprint.id} serialNumber={footprint.serial_number} />
+      <EventTracker footprintId={footprint.id} />
+      <ShareEngine slug={params.slug} />
       <PublicPage
         footprint={footprint}
         content={content}
