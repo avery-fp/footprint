@@ -1,11 +1,23 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 
 export default function CheckoutPage() {
   const searchParams = useSearchParams()
-  const refCode = searchParams.get('ref') || ''
+  const [refCode, setRefCode] = useState(searchParams.get('ref') || '')
+
+  // Pick up referral from URL param or previous sessionStorage (from public page visit)
+  useEffect(() => {
+    const urlRef = searchParams.get('ref')
+    if (urlRef) {
+      sessionStorage.setItem('fp_ref', urlRef)
+      setRefCode(urlRef)
+    } else {
+      const stored = sessionStorage.getItem('fp_ref')
+      if (stored) setRefCode(stored)
+    }
+  }, [searchParams])
 
   const [email, setEmail] = useState('')
   const [promo, setPromo] = useState('')

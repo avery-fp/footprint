@@ -111,8 +111,11 @@ export async function middleware(request: NextRequest) {
     })
   }
 
-  // Page routes: redirect to login if no session
+  // Page routes: redirect to checkout/login if no session
   if (!sessionToken) {
+    if (pathname === '/build') {
+      return NextResponse.redirect(new URL('/checkout', request.url))
+    }
     const loginUrl = new URL('/auth/login', request.url)
     loginUrl.searchParams.set('redirect', pathname)
     return NextResponse.redirect(loginUrl)

@@ -28,6 +28,7 @@ export default function BuildPage() {
   const [bio, setBio] = useState('')
   const [firstLink, setFirstLink] = useState('')
   const [saving, setSaving] = useState(false)
+  const [copied, setCopied] = useState(false)
   const [step, setStep] = useState<'profile' | 'content' | 'done'>('profile')
 
   useEffect(() => {
@@ -242,7 +243,7 @@ export default function BuildPage() {
           </div>
         )}
 
-        {/* Step 3: Done */}
+        {/* Step 3: Done — share moment */}
         {step === 'done' && (
           <div className="animate-fade-up text-center">
             <div className="w-16 h-16 rounded-full bg-green-400 flex items-center justify-center mx-auto mb-6">
@@ -257,9 +258,56 @@ export default function BuildPage() {
             </h2>
 
             {footprint && (
-              <p className="font-mono text-white/30 text-xs mb-8">
+              <p className="font-mono text-white/30 text-xs mb-6">
                 footprint.onl/{footprint.slug}
               </p>
+            )}
+
+            {/* Share CTA — the lateral fire moment */}
+            {footprint && user && (
+              <div className="bg-white/[0.04] border border-white/[0.06] rounded-xl p-4 mb-6">
+                <p
+                  className="text-white/40 text-xs mb-3"
+                  style={{ fontFamily: "'DM Sans', sans-serif" }}
+                >
+                  Share it. Every click counts.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      const url = `${window.location.origin}/${footprint.slug}?ref=FP-${user.serial_number}`
+                      navigator.clipboard.writeText(url)
+                      setCopied(true)
+                      setTimeout(() => setCopied(false), 2000)
+                    }}
+                    className={`flex-1 py-2.5 rounded-lg text-xs font-medium transition-all ${
+                      copied ? 'bg-green-500 text-white' : 'bg-white/10 hover:bg-white/15 text-white/70'
+                    }`}
+                    style={{ fontFamily: "'DM Sans', sans-serif" }}
+                  >
+                    {copied ? 'Copied!' : 'Copy share link'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      const url = `${window.location.origin}/${footprint.slug}?ref=FP-${user.serial_number}`
+                      if (navigator.share) {
+                        navigator.share({ title: 'My Footprint', url }).catch(() => {})
+                      } else {
+                        navigator.clipboard.writeText(url)
+                        setCopied(true)
+                        setTimeout(() => setCopied(false), 2000)
+                      }
+                    }}
+                    className="flex-1 py-2.5 rounded-lg text-xs font-medium bg-white/10 hover:bg-white/15 text-white/70 transition-all"
+                    style={{ fontFamily: "'DM Sans', sans-serif" }}
+                  >
+                    Share
+                  </button>
+                </div>
+                <p className="font-mono text-white/15 text-[10px] mt-2">
+                  ref: FP-{user.serial_number}
+                </p>
+              </div>
             )}
 
             <button

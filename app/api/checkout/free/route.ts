@@ -118,6 +118,28 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Record conversion event for analytics micro-brain
+    const { data: fp } = await supabase
+      .from('footprints')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('is_primary', true)
+      .single()
+
+    if (fp) {
+      await supabase.from('fp_events').insert({
+        footprint_id: fp.id,
+        event_type: 'conversion',
+        event_data: {
+          serial_number: serialNumber,
+          amount: 0,
+          ref: ref || null,
+          source: 'promo',
+          promo_code: normalizedPromo,
+        },
+      }).catch(() => {})
+    }
+
     // Create session + set cookie
     const sessionToken = await createSessionToken(user.id, user.email)
     const response = NextResponse.json({ success: true, serial: serialNumber, slug })
