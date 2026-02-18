@@ -272,9 +272,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             </a>
         </header>
 
-        {/* Room Tabs — sticky at top */}
+        {/* Room pills — sticky on mobile only */}
         {visibleRooms.length > 1 && (
-          <div className="sticky top-0 z-20 py-3 backdrop-blur-xl border-b border-white/[0.06]" style={{ background: 'rgba(255,255,255,0.04)' }}>
+          <div className="sticky md:relative top-0 z-20 py-3">
             <div className="flex items-center justify-center gap-2 flex-wrap max-w-7xl mx-auto px-3 md:px-5">
               {visibleRooms.map((room) => (
                 <button
