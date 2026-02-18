@@ -148,29 +148,22 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     const imgSizes = getImageSizes(tileSize)
     return (
       <div key={item.id}
-        className={`${colSpan} group tile-enter tile-container`}
-        style={{}}>
-        <div className="aspect-square group-hover:scale-[1.02] transition-transform duration-300 will-change-transform rounded-xl overflow-hidden bg-white/[0.02]">
+        className={`${colSpan} group tile-enter tile-container`}>
+        <div className="aspect-square group-hover:scale-[1.02] transition-transform duration-300 will-change-transform rounded-xl overflow-hidden">
           {item.type === 'image' ? (
             isVideo ? (
-              <div className="rounded-xl overflow-hidden border border-white/[0.06] w-full h-full">
-                <VideoTile src={item.url} onWidescreen={() => {}} />
-              </div>
+              <VideoTile src={item.url} onWidescreen={() => {}} />
             ) : (
-              <div className="rounded-xl overflow-hidden border border-white/[0.06]">
-                <Image src={item.url} alt={item.title || ''}
-                  width={tileSize >= 2 ? 800 : 400} height={tileSize >= 2 ? 800 : 400}
-                  sizes={imgSizes}
-                  className="w-full h-full object-cover rounded-xl transition-opacity duration-300"
-                  loading={index < 4 ? "eager" : "lazy"}
-                  priority={index < 4} quality={75}
-                  onError={(e) => { (e.target as HTMLElement).closest('.tile-container')!.style.display = 'none' }} />
-              </div>
+              <Image src={item.url} alt={item.title || ''}
+                width={tileSize >= 2 ? 800 : 400} height={tileSize >= 2 ? 800 : 400}
+                sizes={imgSizes}
+                className="w-full h-full object-cover transition-opacity duration-300"
+                loading={index < 4 ? "eager" : "lazy"}
+                priority={index < 4} quality={75}
+                onError={(e) => { (e.target as HTMLElement).closest('.tile-container')!.style.display = 'none' }} />
             )
           ) : (
-            <div className="rounded-xl overflow-hidden border border-white/[0.06] w-full h-full">
-              <ContentCard content={item} isMobile={isMobile} tileSize={tileSize} />
-            </div>
+            <ContentCard content={item} isMobile={isMobile} tileSize={tileSize} />
           )}
         </div>
       </div>
@@ -272,9 +265,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             </a>
         </header>
 
-        {/* Room Tabs — sticky at top */}
+        {/* Room pills — sticky on mobile only */}
         {visibleRooms.length > 1 && (
-          <div className="sticky top-0 z-20 py-3 backdrop-blur-xl border-b border-white/[0.06]" style={{ background: 'rgba(255,255,255,0.04)' }}>
+          <div className="sticky md:relative top-0 z-20 py-3">
             <div className="flex items-center justify-center gap-2 flex-wrap max-w-7xl mx-auto px-3 md:px-5">
               {visibleRooms.map((room) => (
                 <button
