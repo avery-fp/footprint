@@ -337,10 +337,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   if (content.type === 'thought') {
     return (
-      <div
-        className="rounded-xl overflow-hidden p-8 border border-white/[0.06] hover:border-white/15 transition-all bg-white/[0.08] backdrop-blur-xl"
-      >
-        <p className="text-base leading-relaxed whitespace-pre-wrap text-white/90">
+      <div className="w-full h-full flex items-center justify-center p-6">
+        <p className="text-lg leading-relaxed whitespace-pre-wrap text-white/90 text-center font-light tracking-wide">
           {content.title || content.description || ''}
         </p>
       </div>

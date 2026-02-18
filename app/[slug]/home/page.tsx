@@ -229,14 +229,20 @@ function SortableTile({
               <Image src={content.thumbnail_url} alt="" width={200} height={200} sizes="(max-width: 640px) 50vw, 25vw" className="absolute inset-0 w-full h-full object-cover" loading="lazy" decoding="async" quality={75}
                 onError={(e) => { (e.target as HTMLElement).closest('[data-tile]')!.style.display = 'none' }} />
             ) : (
-              <>
-                <div className="text-2xl mb-1 opacity-60">
-                  {content.type === 'youtube' ? '▶' : content.type === 'spotify' ? '♫' : content.type === 'soundcloud' ? '♫' : content.type === 'thought' ? '💭' : content.type ? '🔗' : '?'}
-                </div>
-                <p className="text-[10px] text-white/50 text-center truncate w-full font-mono">
-                  {content.title || content.type || '?'}
+              content.type === 'thought' ? (
+                <p className="text-sm leading-relaxed text-white/80 text-center font-light tracking-wide line-clamp-4 px-2">
+                  {content.title || ''}
                 </p>
-              </>
+              ) : (
+                <>
+                  <div className="text-2xl mb-1 opacity-60">
+                    {content.type === 'youtube' ? '▶' : content.type === 'spotify' ? '♫' : content.type === 'soundcloud' ? '♫' : content.type ? '🔗' : '?'}
+                  </div>
+                  <p className="text-[10px] text-white/50 text-center truncate w-full font-mono">
+                    {content.title || content.type || '?'}
+                  </p>
+                </>
+              )
             )}
           </div>
         )}
