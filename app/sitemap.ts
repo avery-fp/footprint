@@ -1,6 +1,8 @@
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { MetadataRoute } from 'next'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * Dynamic sitemap for SEO.
  * Lists all published footprints for search engine discovery.
