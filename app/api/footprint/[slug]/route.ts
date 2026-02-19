@@ -1,26 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { verifySessionToken } from '@/lib/auth'
 
-// Force dynamic rendering - never cache API responses
 export const dynamic = 'force-dynamic'
 
 /**
  * GET /api/footprint/[slug]
  *
- * Returns footprint + tiles (merged from library + links)
- * No auth - we're the only user
+ * Returns footprint + tiles for the edit page.
+ * Requires auth — only the owner can access.
  */
 export async function GET(
   request: NextRequest,
   { params }: { params: { slug: string } }
 ) {
   try {
-    const username = params.slug
+    const userId = request.headers.get('x-user-id')
+    if (!userId) {
+      return NextResponse.json({ owned: false }, { status: 401 })
+    }
 
+    const username = params.slug
     const supabase = createServerSupabaseClient()
 
-    // Get footprint by username
     const { data: footprint, error: footprintError } = await supabase
       .from('footprints')
       .select('*')
@@ -28,13 +29,14 @@ export async function GET(
       .single()
 
     if (footprintError || !footprint) {
-      console.log('[Footprint GET] Footprint not found:', footprintError?.message)
       return NextResponse.json({ owned: false })
     }
 
-    console.log('[Footprint GET] Footprint found, serial_number:', footprint.serial_number)
+    // Ownership check — user must own this footprint
+    if (footprint.user_id !== userId) {
+      return NextResponse.json({ owned: false }, { status: 403 })
+    }
 
-    // User owns this footprint - fetch tiles from library + links
     const [libraryResult, linksResult] = await Promise.all([
       supabase
         .from('library')
@@ -48,7 +50,6 @@ export async function GET(
         .order('position', { ascending: true }),
     ])
 
-    // Merge and sort tiles by position - normalize structure for edit page
     const libraryTiles = (libraryResult.data || []).map(item => ({
       id: item.id,
       url: item.image_url,
@@ -86,7 +87,6 @@ export async function GET(
       footprint,
       tiles: allTiles,
     })
-
   } catch (error) {
     console.error('Footprint lookup error:', error)
     return NextResponse.json({ owned: false })
@@ -96,20 +96,35 @@ export async function GET(
 /**
  * PUT /api/footprint/[slug]
  *
- * Updates footprint settings (e.g., is_public).
- * No auth - we're the only user.
+ * Updates footprint settings. Requires auth + ownership.
  */
 export async function PUT(
   request: NextRequest,
   { params }: { params: { slug: string } }
 ) {
   try {
+    const userId = request.headers.get('x-user-id')
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const username = params.slug
+    const supabase = createServerSupabaseClient()
+
+    // Verify ownership
+    const { data: footprint } = await supabase
+      .from('footprints')
+      .select('user_id')
+      .eq('username', username)
+      .single()
+
+    if (!footprint || footprint.user_id !== userId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
 
     const body = await request.json()
     const { is_public, display_name, handle, bio, theme, grid_mode, background_url, background_blur } = body
 
-    // Build update object with only provided fields (map to real schema)
     const updates: any = {}
     if (typeof is_public === 'boolean') updates.published = is_public
     if (typeof display_name === 'string') updates.display_name = display_name
@@ -124,9 +139,6 @@ export async function PUT(
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
     }
 
-    const supabase = createServerSupabaseClient()
-
-    // Update footprint
     const { error: updateError } = await supabase
       .from('footprints')
       .update(updates)
@@ -137,7 +149,6 @@ export async function PUT(
     }
 
     return NextResponse.json({ success: true, ...updates })
-
   } catch (error) {
     console.error('Update footprint error:', error)
     return NextResponse.json({ error: 'Failed to update' }, { status: 500 })

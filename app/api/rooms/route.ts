@@ -2,6 +2,71 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 
 /**
+ * Verify the requesting user owns the footprint with this serial_number.
+ * Returns the serial_number if valid, or a NextResponse error.
+ */
+async function verifyOwnership(
+  request: NextRequest,
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  serialNumber: number
+): Promise<{ error?: NextResponse }> {
+  const userId = request.headers.get('x-user-id')
+  if (!userId) {
+    return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
+  }
+
+  const { data: footprint } = await supabase
+    .from('footprints')
+    .select('user_id')
+    .eq('serial_number', serialNumber)
+    .single()
+
+  if (!footprint || footprint.user_id !== userId) {
+    return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
+  }
+
+  return {}
+}
+
+/**
+ * Look up a room and verify the requesting user owns it.
+ */
+async function verifyRoomOwnership(
+  request: NextRequest,
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  roomId: string
+): Promise<{ error?: NextResponse; serialNumber?: number }> {
+  const userId = request.headers.get('x-user-id')
+  if (!userId) {
+    return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
+  }
+
+  // Get the room's serial_number
+  const { data: room } = await supabase
+    .from('rooms')
+    .select('serial_number')
+    .eq('id', roomId)
+    .single()
+
+  if (!room) {
+    return { error: NextResponse.json({ error: 'Room not found' }, { status: 404 }) }
+  }
+
+  // Verify the user owns the footprint with this serial_number
+  const { data: footprint } = await supabase
+    .from('footprints')
+    .select('user_id')
+    .eq('serial_number', room.serial_number)
+    .single()
+
+  if (!footprint || footprint.user_id !== userId) {
+    return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
+  }
+
+  return { serialNumber: room.serial_number }
+}
+
+/**
  * GET /api/rooms?serial_number=123
  *
  * Fetch rooms for a footprint by serial_number.
@@ -47,6 +112,12 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'id required' }, { status: 400 })
     }
 
+    const supabase = createServerSupabaseClient()
+
+    // Verify ownership
+    const auth = await verifyRoomOwnership(request, supabase, id)
+    if (auth.error) return auth.error
+
     const updates: Record<string, any> = {}
     if (typeof hidden === 'boolean') updates.hidden = hidden
     if (typeof name === 'string' && name.trim()) updates.name = name.trim()
@@ -54,8 +125,6 @@ export async function PATCH(request: NextRequest) {
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
     }
-
-    const supabase = createServerSupabaseClient()
 
     const { error } = await supabase
       .from('rooms')
@@ -74,8 +143,8 @@ export async function PATCH(request: NextRequest) {
 
 /**
  * DELETE /api/rooms?id=xxx
- * 
- * Permanently delete a room and its content.
+ *
+ * Permanently delete a room and unassign its content.
  */
 export async function DELETE(request: NextRequest) {
   try {
@@ -87,6 +156,10 @@ export async function DELETE(request: NextRequest) {
     }
 
     const supabase = createServerSupabaseClient()
+
+    // Verify ownership
+    const auth = await verifyRoomOwnership(request, supabase, id)
+    if (auth.error) return auth.error
 
     // Unassign tiles from this room (move to unassigned, don't delete them)
     await supabase.from('library').update({ room_id: null }).eq('room_id', id)
@@ -119,6 +192,10 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createServerSupabaseClient()
+
+    // Verify ownership
+    const auth = await verifyOwnership(request, supabase, serial_number)
+    if (auth.error) return auth.error
 
     const { data: room, error } = await supabase
       .from('rooms')

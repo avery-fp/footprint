@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { createSessionToken } from '@/lib/auth'
 import type { DraftFootprint } from '@/lib/draft-store'
 
 /**
@@ -185,11 +186,24 @@ export async function POST(request: NextRequest) {
 
     console.log(`✓ Published: ${slug} (FP #${serialNumber}) for ${email}`)
 
-    return NextResponse.json({
+    // Auto-sign in the user by setting session cookie
+    const sessionToken = await createSessionToken(userId, email.toLowerCase())
+
+    const response = NextResponse.json({
       success: true,
       serial_number: serialNumber,
       slug: slug,
     })
+
+    response.cookies.set('session', sessionToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+      path: '/',
+    })
+
+    return response
   } catch (error) {
     console.error('Import draft error:', error)
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })

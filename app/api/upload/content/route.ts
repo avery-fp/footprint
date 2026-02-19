@@ -10,6 +10,11 @@ const ALLOWED_TYPES = [...IMAGE_TYPES, ...VIDEO_TYPES]
 
 export async function POST(request: NextRequest) {
   try {
+    const userId = request.headers.get('x-user-id')
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const formData = await request.formData()
     const file = formData.get('file') as File | null
     const slug = formData.get('slug') as string | null
@@ -33,15 +38,19 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
-    // Get serial_number from slug
+    // Get footprint and verify ownership
     const { data: footprint } = await supabase
       .from('footprints')
-      .select('serial_number')
+      .select('serial_number, user_id')
       .eq('username', slug)
       .single()
 
     if (!footprint) {
       return NextResponse.json({ error: 'Footprint not found' }, { status: 404 })
+    }
+
+    if (footprint.user_id !== userId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const serialNumber = footprint.serial_number
@@ -61,9 +70,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Upload failed' }, { status: 500 })
     }
 
-        // Get public URL (sanitize — Supabase sometimes injects newlines)
+    // Get public URL (sanitize — Supabase sometimes injects newlines)
     const { data: urlData } = supabase.storage.from('content').getPublicUrl(filename)
-        const publicUrl = urlData.publicUrl.replace(/[\n\r]/g, '')
+    const publicUrl = urlData.publicUrl.replace(/[\n\r]/g, '')
 
     // Get next position
     const { data: maxPos } = await supabase
