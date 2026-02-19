@@ -134,7 +134,7 @@ function SortableTile({
     }
   }
 
-  const sizeClass = size === 3 ? 'col-span-3 row-span-3' : size === 2 ? 'col-span-2 row-span-2' : 'aspect-square'
+  const sizeClass = size === 3 ? 'col-span-2 row-span-2 md:col-span-3 md:row-span-3' : size === 2 ? 'col-span-2 row-span-2' : 'aspect-square'
 
   // Polaroid reveal — tile develops from frosted to crystal clear
   const isTemp = id.toString().startsWith('temp-')
@@ -744,11 +744,12 @@ export default function EditPage() {
     if (!imageUrl) return
 
     try {
-      await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
+      const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ background_url: imageUrl }),
       })
+      if (!res.ok) throw new Error(`Failed: ${res.status}`)
       setWallpaperUrl(imageUrl)
       closeTileMenu()
     } catch (e) {
@@ -758,11 +759,12 @@ export default function EditPage() {
 
   async function handleClearWallpaper() {
     try {
-      await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
+      const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ background_url: '' }),
       })
+      if (!res.ok) throw new Error(`Failed: ${res.status}`)
       setWallpaperUrl('')
     } catch (e) {
       console.error('Failed to clear wallpaper:', e)
@@ -772,11 +774,12 @@ export default function EditPage() {
   async function handleToggleBlur() {
     const newBlur = !backgroundBlur
     try {
-      await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
+      const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ background_blur: newBlur }),
       })
+      if (!res.ok) throw new Error(`Failed: ${res.status}`)
       setBackgroundBlur(newBlur)
     } catch (e) {
       console.error('Failed to toggle blur:', e)
@@ -883,11 +886,12 @@ export default function EditPage() {
     } : null)
 
     try {
-      await fetch('/api/tiles', {
+      const res = await fetch('/api/tiles', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, source, slug, size: newSize }),
       })
+      if (!res.ok) throw new Error(`PATCH failed: ${res.status}`)
     } catch (e) {
       console.error('Failed to update tile size:', e)
       setDraft(prev => prev ? {
@@ -1091,6 +1095,7 @@ export default function EditPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ slug, url: publicUrl, room_id: activeRoomId }),
         })
+        if (!res.ok) throw new Error(`Register failed: ${res.status}`)
         const data = await res.json()
 
         if (data.tile) {
