@@ -6,17 +6,13 @@ import type { DraftFootprint } from '@/lib/draft-store'
 /**
  * Import Draft API
  *
- * Atomic endpoint to persist a localStorage draft to Supabase after payment.
- * Called from /success page after Stripe checkout completes.
+ * Persists a localStorage draft to Supabase after Stripe payment.
+ * Called from /success page after checkout completes.
  *
- * REAL SCHEMA:
- * - footprints: serial_number (PK), username (=slug), display_name, dimension (=theme), bio, published
- * - users: id, email, serial_number
- * - purchases: email, serial_number, stripe_session_id (idempotency anchor), amount_cents, status
- * - library: serial_number, image_url, position (images)
- * - links: serial_number, platform, url, embed_url, title, position, thumbnail, metadata (embeds/urls)
- *
- * Tiles are stored in library + links tables (NOT gallery jsonb).
+ * Coordinates with the Stripe webhook:
+ * - Webhook may have already created user + footprint (race condition)
+ * - This route is idempotent — safe to call multiple times
+ * - Uses payments.stripe_session_id as idempotency anchor
  */
 export async function POST(request: NextRequest) {
   try {
@@ -42,11 +38,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Payment not completed' }, { status: 402 })
     }
 
-    // 2. Validate slug matches metadata (prevent pay-for-X-publish-Y)
-    if (session.metadata?.slug !== slug) {
-      return NextResponse.json({ error: 'Slug mismatch' }, { status: 403 })
-    }
-
     const email = session.customer_email || session.customer_details?.email
     if (!email) {
       return NextResponse.json({ error: 'No email in session' }, { status: 400 })
@@ -54,31 +45,79 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
-    // 3. Determine serial_number via purchases (idempotency anchor)
-    const { data: existingPurchase } = await supabase
-      .from('purchases')
-      .select('serial_number')
+    // 2. Check if webhook already processed this payment
+    //    payments table has stripe_session_id (UNIQUE) — our idempotency anchor
+    const { data: existingPayment } = await supabase
+      .from('payments')
+      .select('user_id')
       .eq('stripe_session_id', session_id)
       .single()
 
     let serialNumber: number
-    let isRetry = false
+    let userId: string
 
-    if (existingPurchase) {
-      // Session already processed - reuse serial_number
-      serialNumber = existingPurchase.serial_number
-      isRetry = true
-    } else {
-      // Claim next serial_number
-      const { data: serialData, error: serialError } = await supabase.rpc('get_next_serial')
-      if (serialError || !serialData) {
-        console.error('Failed to get serial:', serialError)
-        return NextResponse.json({ error: 'Failed to allocate serial number' }, { status: 500 })
+    if (existingPayment) {
+      // Webhook already ran — get serial from user record
+      const { data: user } = await supabase
+        .from('users')
+        .select('serial_number, id')
+        .eq('id', existingPayment.user_id)
+        .single()
+
+      if (!user || !user.serial_number) {
+        return NextResponse.json({ error: 'User record incomplete' }, { status: 500 })
       }
-      serialNumber = serialData as number
+      serialNumber = user.serial_number
+      userId = user.id
+    } else {
+      // Webhook hasn't fired yet — check if user exists by email
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('serial_number, id')
+        .eq('email', email.toLowerCase())
+        .single()
+
+      if (existingUser && existingUser.serial_number) {
+        serialNumber = existingUser.serial_number
+        userId = existingUser.id
+      } else {
+        // No user exists yet — claim serial and create user
+        const { data: serialData, error: serialError } = await supabase.rpc('claim_next_serial')
+        if (serialError || !serialData) {
+          console.error('Failed to claim serial:', serialError)
+          return NextResponse.json({ error: 'Failed to allocate serial number' }, { status: 500 })
+        }
+        serialNumber = serialData as number
+
+        const { data: newUser, error: userError } = await supabase
+          .from('users')
+          .insert({
+            email: email.toLowerCase(),
+            serial_number: serialNumber,
+            stripe_customer_id: session.customer || null,
+          })
+          .select('id')
+          .single()
+
+        if (userError || !newUser) {
+          console.error('Failed to create user:', userError)
+          return NextResponse.json({ error: 'Failed to create user' }, { status: 500 })
+        }
+        userId = newUser.id
+
+        // Record payment
+        await supabase.from('payments').insert({
+          user_id: userId,
+          stripe_session_id: session_id,
+          stripe_payment_intent: session.payment_intent,
+          amount: session.amount_total || 1000,
+          currency: session.currency || 'usd',
+          status: 'completed',
+        })
+      }
     }
 
-    // 4. Slug collision protection
+    // 3. Slug collision protection
     const { data: existingFp } = await supabase
       .from('footprints')
       .select('serial_number')
@@ -89,17 +128,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Slug already taken' }, { status: 409 })
     }
 
-    // 5. Idempotent delete before insert (safe retry)
-    await supabase.from('library').delete().eq('serial_number', serialNumber)
-    await supabase.from('links').delete().eq('serial_number', serialNumber)
+    // 4. Idempotent: clear existing tiles before re-inserting
+    await Promise.all([
+      supabase.from('library').delete().eq('serial_number', serialNumber),
+      supabase.from('links').delete().eq('serial_number', serialNumber),
+    ])
 
-    // 6. Upsert footprint by serial_number
+    // 5. Upsert footprint — update if webhook already created it
     const { error: fpError } = await supabase
       .from('footprints')
       .upsert({
+        user_id: userId,
         serial_number: serialNumber,
         username: slug,
-        name: draft.display_name || 'Untitled',
+        name: draft.display_name || 'Everything',
         display_name: draft.display_name || null,
         handle: draft.handle || null,
         dimension: draft.theme || 'midnight',
@@ -112,36 +154,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create footprint' }, { status: 500 })
     }
 
-    // 7. Insert user (if new)
-    if (!isRetry) {
-      const { error: userError } = await supabase
-        .from('users')
-        .insert({
-          email: email.toLowerCase(),
-          serial_number: serialNumber,
-        })
-
-      if (userError) {
-        console.error('Failed to create user:', userError)
-      }
-
-      // 8. Insert purchase record (unique on stripe_session_id)
-      const { error: purchaseError } = await supabase
-        .from('purchases')
-        .insert({
-          email: email.toLowerCase(),
-          serial_number: serialNumber,
-          stripe_session_id: session_id,
-          amount_cents: session.amount_total || 1000,
-          status: 'completed',
-        })
-
-      if (purchaseError) {
-        console.error('Failed to record purchase:', purchaseError)
-      }
-    }
-
-    // 9. Insert into library table (images)
+    // 6. Insert tiles into library (images)
     const imageItems = draft.content.filter(item => item.type === 'image')
     if (imageItems.length > 0) {
       const libraryRows = imageItems.map((item, index) => ({
@@ -152,14 +165,13 @@ export async function POST(request: NextRequest) {
       await supabase.from('library').insert(libraryRows)
     }
 
-    // 10. Insert into links table (embeds/urls)
+    // 7. Insert tiles into links (embeds/urls)
     const linkItems = draft.content.filter(item => item.type !== 'image')
     if (linkItems.length > 0) {
       const linkRows = linkItems.map((item, index) => ({
         serial_number: serialNumber,
         platform: item.type,
         url: item.url,
-        embed_url: item.embed_html ? item.url : null,
         title: item.title,
         position: index,
         thumbnail: item.thumbnail_url,

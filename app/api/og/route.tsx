@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     const { data: footprint } = await supabase
       .from('footprints')
       .select('*, users (serial_number)')
-      .eq('slug', slug)
+      .eq('username', slug)
       .single()
 
     if (!footprint) {
@@ -86,6 +86,10 @@ export async function GET(request: NextRequest) {
       for (const link of links) {
         if (link.thumbnail && tileUrls.length < 6) tileUrls.push(link.thumbnail)
       }
+    }
+
+    const headers = {
+      'Cache-Control': 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=3600',
     }
 
     return new ImageResponse(
@@ -230,7 +234,7 @@ export async function GET(request: NextRequest) {
           </div>
         </div>
       ),
-      { width: 1200, height: 630 }
+      { width: 1200, height: 630, headers }
     )
 
   } catch (error) {
