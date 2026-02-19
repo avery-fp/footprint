@@ -2,10 +2,21 @@ import { SignJWT, jwtVerify } from 'jose'
 import { createServerSupabaseClient } from './supabase'
 import { nanoid } from 'nanoid'
 
-// Secret key for JWT signing (use env var in production)
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'your-secret-key-min-32-chars-long!'
-)
+// Secret key for JWT signing — MUST be set via JWT_SECRET env var in production
+function getJwtSecret() {
+  const secret = process.env.JWT_SECRET
+  if (!secret && process.env.NODE_ENV === 'production') {
+    throw new Error('FATAL: JWT_SECRET environment variable is not set')
+  }
+  return new TextEncoder().encode(secret || 'dev-only-unsafe-key-do-not-use-in-prod')
+}
+
+// Lazy-init: deferred so the build step doesn't throw at module load time
+let _jwtSecret: Uint8Array | null = null
+function JWT_SECRET_KEY() {
+  if (!_jwtSecret) _jwtSecret = getJwtSecret()
+  return _jwtSecret
+}
 
 // Token expiration times
 const MAGIC_LINK_EXPIRY = '15m'  // Magic link valid for 15 minutes
@@ -64,35 +75,27 @@ export async function verifyMagicLink(token: string): Promise<{
   sessionToken: string
 } | null> {
   const supabase = createServerSupabaseClient()
-  
-  // Find the magic link
-  const { data: magicLink, error } = await supabase
-    .from('magic_links')
-    .select('*')
-    .eq('token', token)
-    .is('used_at', null)
-    .single()
 
-  if (error || !magicLink) {
-    return null
-  }
-
-  // Check if expired
-  if (new Date(magicLink.expires_at) < new Date()) {
-    return null
-  }
-
-  // Mark the magic link as used
-  await supabase
+  // Atomically consume the token: UPDATE where used_at IS NULL
+  // If two requests race, only one will succeed (the other gets 0 rows)
+  const { data: consumed, error: consumeError } = await supabase
     .from('magic_links')
     .update({ used_at: new Date().toISOString() })
-    .eq('id', magicLink.id)
+    .eq('token', token)
+    .is('used_at', null)
+    .gte('expires_at', new Date().toISOString())
+    .select('email')
+    .single()
 
-  // Get or create the user
-  let { data: user } = await supabase
+  if (consumeError || !consumed) {
+    return null
+  }
+
+  // Get the user
+  const { data: user } = await supabase
     .from('users')
     .select('*')
-    .eq('email', magicLink.email)
+    .eq('email', consumed.email)
     .single()
 
   // If no user exists, they haven't paid yet
@@ -120,7 +123,7 @@ export async function createSessionToken(userId: string, email: string): Promise
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(SESSION_EXPIRY)
-    .sign(JWT_SECRET)
+    .sign(JWT_SECRET_KEY())
 
   return token
 }
@@ -135,7 +138,7 @@ export async function verifySessionToken(token: string): Promise<{
   email: string
 } | null> {
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET)
+    const { payload } = await jwtVerify(token, JWT_SECRET_KEY())
     
     return {
       userId: payload.userId as string,

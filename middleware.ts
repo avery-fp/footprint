@@ -28,7 +28,7 @@ export async function middleware(request: NextRequest) {
     '/api/og',
     '/api/qr',
     '/api/embed',
-    '/api/v1',
+    '/api/v1/footprint',
     '/api/analytics',
     '/api/next-serial',
   ]
@@ -37,7 +37,7 @@ export async function middleware(request: NextRequest) {
     pathname === r || pathname.startsWith(r + '/')
   )
 
-  // Public footprint pages (e.g. /ae, /username)
+  // Public footprint pages (e.g. /ae, /username) — single segment only
   const isPublicFootprint = /^\/[a-zA-Z0-9_-]+$/.test(pathname) &&
     !pathname.startsWith('/dashboard') &&
     !pathname.startsWith('/auth') &&
@@ -49,19 +49,25 @@ export async function middleware(request: NextRequest) {
 
   const sessionToken = request.cookies.get('session')?.value
 
+  // Helper: build a safe login redirect URL (prevent open redirects)
+  function loginRedirect(returnPath: string) {
+    // Only allow relative paths starting with /
+    const safe = returnPath.startsWith('/') && !returnPath.startsWith('//') ? returnPath : '/dashboard'
+    return new URL(`/auth/login?redirect=${encodeURIComponent(safe)}`, request.url)
+  }
+
   // ── /[slug]/home — REQUIRE auth (edit page) ──
-  if (pathname.endsWith('/home') && !pathname.startsWith('/api')) {
+  // Use regex for exact match: /something/home (case-insensitive, no trailing segments)
+  const isEditPage = /^\/[a-zA-Z0-9_-]+\/home$/i.test(pathname)
+
+  if (isEditPage && !pathname.startsWith('/api')) {
     if (!sessionToken) {
-      return NextResponse.redirect(
-        new URL(`/auth/login?redirect=${encodeURIComponent(pathname)}`, request.url)
-      )
+      return NextResponse.redirect(loginRedirect(pathname))
     }
 
     const session = await verifySessionToken(sessionToken)
     if (!session) {
-      const res = NextResponse.redirect(
-        new URL(`/auth/login?redirect=${encodeURIComponent(pathname)}`, request.url)
-      )
+      const res = NextResponse.redirect(loginRedirect(pathname))
       res.cookies.delete('session')
       return res
     }
@@ -87,14 +93,12 @@ export async function middleware(request: NextRequest) {
 
   // ── All other pages — require auth ──
   if (!sessionToken) {
-    return NextResponse.redirect(
-      new URL(`/auth/login?redirect=${encodeURIComponent(pathname)}`, request.url)
-    )
+    return NextResponse.redirect(loginRedirect(pathname))
   }
 
   const session = await verifySessionToken(sessionToken)
   if (!session) {
-    const res = NextResponse.redirect(new URL('/auth/login', request.url))
+    const res = NextResponse.redirect(loginRedirect(pathname))
     res.cookies.delete('session')
     return res
   }
