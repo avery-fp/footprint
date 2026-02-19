@@ -42,13 +42,39 @@ async function handleCheckoutComplete(session: any) {
 
   if (!email) throw new Error('No email found in checkout session')
 
+  // Idempotency: check if this session was already processed
+  const { data: existingPayment } = await supabase
+    .from('payments')
+    .select('id')
+    .eq('stripe_session_id', session.id)
+    .single()
+
+  if (existingPayment) {
+    console.log(`⤴ Webhook already processed: ${session.id}`)
+    return
+  }
+
+  // Check if user already exists (import-draft may have run first)
   const { data: existingUser } = await supabase
     .from('users')
-    .select('id')
+    .select('id, serial_number')
     .eq('email', email)
     .single()
 
-  if (existingUser) return
+  if (existingUser) {
+    // User exists (import-draft created them) — just record payment if missing
+    await supabase.from('payments').insert({
+      user_id: existingUser.id,
+      stripe_session_id: session.id,
+      stripe_payment_intent: session.payment_intent,
+      amount: session.amount_total,
+      currency: session.currency,
+      status: 'completed',
+    }).onConflict('stripe_session_id').ignore()
+
+    console.log(`⤴ User already exists: ${email} #${existingUser.serial_number}`)
+    return
+  }
 
   const { data: serialData, error: serialError } = await supabase.rpc('claim_next_serial')
   if (serialError || !serialData) throw new Error('Failed to claim serial number')
@@ -127,14 +153,10 @@ async function handleCheckoutComplete(session: any) {
 
   console.log(`✓ New user: ${email} #${serialNumber}`)
 
-  // Send welcome email with magic link so they can log in immediately
-  try {
-    await sendWelcomeEmail(email, serialNumber, username)
-    console.log(`✓ Welcome email sent: ${email}`)
-  } catch (err) {
-    // Log but don't fail the webhook — user exists, they can request a link manually
-    console.error(`⚠ Welcome email failed for ${email}:`, err)
-  }
+  // Send welcome email — fire-and-forget, don't block webhook response
+  sendWelcomeEmail(email, serialNumber, username)
+    .then(() => console.log(`✓ Welcome email sent: ${email}`))
+    .catch((err) => console.error(`⚠ Welcome email failed for ${email}:`, err))
 }
 
 /**

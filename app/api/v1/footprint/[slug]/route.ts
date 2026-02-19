@@ -50,20 +50,20 @@ export async function GET(
       .from('footprints')
       .select(`
         id,
-        slug,
+        username,
         name,
         icon,
         display_name,
         handle,
         bio,
         avatar_url,
-        theme,
+        dimension,
+        serial_number,
         view_count,
-        created_at,
-        users (serial_number)
+        created_at
       `)
-      .eq('slug', slug)
-      .eq('is_public', true)
+      .eq('username', slug)
+      .eq('published', true)
       .single()
 
     if (error || !footprint) {
@@ -73,16 +73,29 @@ export async function GET(
       )
     }
 
-    // Fetch content separately with limit
-    const { data: content } = await supabase
-      .from('content')
-      .select(includeEmbeds 
-        ? 'id, url, type, title, description, thumbnail_url, embed_html, external_id, position, created_at'
-        : 'id, url, type, title, description, thumbnail_url, position, created_at'
-      )
-      .eq('footprint_id', footprint.id)
-      .order('position', { ascending: true })
-      .limit(limit)
+    // Fetch tiles from library + links (the real schema)
+    const serial = footprint.serial_number
+    const [{ data: images }, { data: links }] = await Promise.all([
+      supabase.from('library').select('id, image_url, title, position, created_at')
+        .eq('serial_number', serial).order('position').limit(limit),
+      supabase.from('links').select('id, url, platform, title, thumbnail, metadata, position, created_at')
+        .eq('serial_number', serial).order('position').limit(limit),
+    ])
+
+    const content = [
+      ...(images || []).map((img: any) => ({
+        id: img.id, url: img.image_url, type: 'image', title: img.title,
+        description: null, thumbnail_url: null,
+        embed_html: includeEmbeds ? null : undefined,
+        position: img.position, created_at: img.created_at,
+      })),
+      ...(links || []).map((link: any) => ({
+        id: link.id, url: link.url, type: link.platform, title: link.title,
+        description: link.metadata?.description || null, thumbnail_url: link.thumbnail,
+        embed_html: includeEmbeds ? (link.metadata?.embed_html || null) : undefined,
+        position: link.position, created_at: link.created_at,
+      })),
+    ].sort((a, b) => (a.position ?? 0) - (b.position ?? 0)).slice(0, limit)
 
     // Build the response
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://footprint.onl'
@@ -95,8 +108,8 @@ export async function GET(
       },
       
       // Footprint data
-      slug: footprint.slug,
-      url: `${baseUrl}/${footprint.slug}`,
+      slug: footprint.username,
+      url: `${baseUrl}/${footprint.username}`,
       
       profile: {
         name: footprint.display_name,
@@ -105,8 +118,8 @@ export async function GET(
         avatar_url: footprint.avatar_url,
       },
       
-      serial_number: footprint.users?.serial_number || 0,
-      theme: footprint.theme || 'midnight',
+      serial_number: serial,
+      theme: footprint.dimension || 'midnight',
       view_count: footprint.view_count || 0,
       created_at: footprint.created_at,
       

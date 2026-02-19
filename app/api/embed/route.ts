@@ -42,12 +42,11 @@ export async function GET(request: NextRequest) {
   const { data: footprint, error } = await supabase
     .from('footprints')
     .select(`
-      slug, display_name, handle, bio, avatar_url, theme,
-      users (serial_number),
-      content (id, type, title, thumbnail_url)
+      username, display_name, handle, bio, avatar_url, dimension,
+      serial_number
     `)
-    .eq('slug', slug)
-    .eq('is_public', true)
+    .eq('username', slug)
+    .eq('published', true)
     .single()
 
   if (error || !footprint) {
@@ -62,15 +61,15 @@ export async function GET(request: NextRequest) {
     baseUrl,
     slug,
     style,
-    theme: theme === 'auto' ? (footprint.theme || 'midnight') : theme,
+    theme: theme === 'auto' ? (footprint.dimension || 'midnight') : theme,
     data: {
       displayName: footprint.display_name || 'Untitled',
       handle: footprint.handle || '',
       bio: footprint.bio || '',
       avatarUrl: footprint.avatar_url,
-      serialNumber: footprint.users?.serial_number || 0,
-      contentCount: footprint.content?.length || 0,
-      contentPreview: (footprint.content || []).slice(0, 3),
+      serialNumber: footprint.serial_number || 0,
+      contentCount: 0,
+      contentPreview: [],
     },
   })
 

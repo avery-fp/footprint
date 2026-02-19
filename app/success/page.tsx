@@ -1,40 +1,38 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
-import Link from 'next/link'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { loadDraft, clearDraft } from '@/lib/draft-store'
 
-type Status = 'loading' | 'publishing' | 'success' | 'error'
+type Step = 'publishing' | 'welcome' | 'password' | 'error'
 
 export default function SuccessPage() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const sessionId = searchParams.get('session_id')
   const slug = searchParams.get('slug')
 
-  const [status, setStatus] = useState<Status>('loading')
+  const [step, setStep] = useState<Step>('publishing')
   const [serialNumber, setSerialNumber] = useState<number | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
+  const [password, setPassword] = useState('')
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     async function publishDraft() {
       if (!sessionId || !slug) {
         setErrorMessage('Missing session or page information')
-        setStatus('error')
+        setStep('error')
         return
       }
 
-      // Load draft from localStorage
       const draft = loadDraft(slug)
       if (!draft) {
         setErrorMessage('No draft found. You may have already published.')
-        setStatus('error')
+        setStep('error')
         return
       }
-
-      setStatus('publishing')
 
       try {
         const res = await fetch('/api/import-draft', {
@@ -52,138 +50,150 @@ export default function SuccessPage() {
         if (res.ok && data.success) {
           setSerialNumber(data.serial_number)
           clearDraft(slug)
-          setStatus('success')
-          toast.success('Your page is live!')
+          setStep('welcome')
         } else {
           setErrorMessage(data.error || 'Failed to publish')
-          setStatus('error')
+          setStep('error')
         }
-      } catch (error) {
-        console.error('Failed to publish:', error)
+      } catch {
         setErrorMessage('Network error. Please try again.')
-        setStatus('error')
+        setStep('error')
       }
     }
 
     publishDraft()
   }, [sessionId, slug])
 
-  const link = `${typeof window !== 'undefined' ? window.location.origin : ''}/${slug}`
-
-  const copyLink = () => {
-    navigator.clipboard.writeText(link)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+  const handleSetPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!password || password.length < 6) {
+      toast.error('6 characters minimum')
+      return
+    }
+    setSaving(true)
+    try {
+      const res = await fetch('/api/set-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      })
+      if (res.ok) {
+        router.push(`/${slug}/home`)
+      } else {
+        toast.error('Failed to set password')
+        setSaving(false)
+      }
+    } catch {
+      toast.error('Failed')
+      setSaving(false)
+    }
   }
 
-  if (status === 'loading' || status === 'publishing') {
+  const skipToPage = () => {
+    router.push(`/${slug}/home`)
+  }
+
+  // Publishing spinner
+  if (step === 'publishing') {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6">
-        <div className="w-16 h-16 rounded-full border-2 border-white/20 border-t-white/60 animate-spin mb-8" />
-        <p className="font-mono text-white/50">
-          {status === 'loading' ? 'Loading...' : 'Publishing your page...'}
-        </p>
+        <div className="w-12 h-12 rounded-full border-2 border-white/10 border-t-white/50 animate-spin" />
       </div>
     )
   }
 
-  if (status === 'error') {
+  // Error
+  if (step === 'error') {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6">
-        <div className="w-20 h-20 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-8">
-          <span className="text-4xl text-red-400">×</span>
-        </div>
-        <h1 className="text-3xl font-light mb-4">Something went wrong</h1>
-        <p className="text-white/50 mb-8">{errorMessage}</p>
-        <div className="flex gap-3">
-          {slug && (
-            <Link
-              href={`/${slug}/home`}
-              className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition"
-            >
-              Back to editor
-            </Link>
-          )}
+        <div className="w-full max-w-xs text-center">
+          <p
+            className="text-[22px] font-light tracking-[-0.01em] text-white/90 mb-3"
+            style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}
+          >
+            something went wrong
+          </p>
+          <p className="text-white/30 text-[13px] mb-8">{errorMessage}</p>
           <button
             onClick={() => window.location.reload()}
-            className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition"
+            className="w-full py-3.5 rounded-xl bg-white text-black text-[14px] font-medium hover:bg-white/90 transition-all"
           >
-            Try again
+            try again
           </button>
         </div>
       </div>
     )
   }
 
+  // Welcome → set password
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-24">
-      <div className="w-full max-w-md text-center">
-        {/* Success icon */}
-        <div className="w-20 h-20 rounded-full bg-green-400 flex items-center justify-center mx-auto mb-8 opacity-0 animate-pop-in">
-          <span className="text-4xl text-black">✓</span>
-        </div>
-
-        {/* Title */}
-        <h1 className="text-5xl font-light mb-4 opacity-0 animate-fade-up delay-200">
-          You're live
-        </h1>
-
-        <p className="text-white/60 text-lg mb-12 opacity-0 animate-fade-up delay-300">
-          Your page is now public. Share it with the world.
-        </p>
-
-        {/* FP Number Card */}
+    <div className="min-h-screen flex flex-col items-center justify-center px-6">
+      <div className="w-full max-w-xs text-center">
+        {/* Serial number */}
         {serialNumber && (
-          <div className="glass rounded-2xl p-8 mb-8 opacity-0 animate-fade-up delay-400">
-            <p className="font-mono text-xs tracking-widest uppercase text-white/40 mb-3">
-              Your Footprint Number
-            </p>
-            <p className="font-mono text-5xl font-medium mb-4">
-              FP #{serialNumber.toLocaleString()}
-            </p>
-            <p className="text-sm text-white/40">
-              This number is yours forever.
-            </p>
-          </div>
+          <p className="font-mono text-white/25 text-[11px] tracking-[0.2em] uppercase mb-6">
+            FP #{serialNumber.toLocaleString()}
+          </p>
         )}
 
-        {/* Link Box — THE MOST IMPORTANT ELEMENT. This starts the compound loop. */}
-        <div className="glass rounded-xl p-5 flex items-center gap-4 mb-4 opacity-0 animate-fade-up delay-500">
-          <a
-            href={link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-mono text-sm text-white/60 hover:text-white/80 flex-1 text-left truncate transition"
-          >
-            {link}
-          </a>
-          <button
-            onClick={copyLink}
-            className={`py-2 px-4 text-xs rounded-lg flex-shrink-0 transition ${copied ? 'bg-green-500 text-white' : 'bg-white text-black hover:bg-white/90'}`}
-          >
-            {copied ? 'Copied!' : 'Copy link'}
-          </button>
-        </div>
-
-        <p className="text-white/20 text-xs mb-10 opacity-0 animate-fade-up delay-500">
-          drop it in your bio. share it everywhere. it's yours.
+        <p
+          className="text-[22px] font-light tracking-[-0.01em] text-white/90 mb-3"
+          style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}
+        >
+          {step === 'welcome' ? "you're live" : 'set a password'}
         </p>
 
-        {/* Actions */}
-        <div className="flex gap-3 justify-center opacity-0 animate-fade-up delay-600">
-          <Link
-            href={`/${slug}`}
-            className="px-6 py-3 bg-green-500 hover:bg-green-400 text-white rounded-lg transition"
-          >
-            View your page
-          </Link>
-          <Link
-            href={`/${slug}/home`}
-            className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg transition"
-          >
-            Keep editing
-          </Link>
-        </div>
+        {step === 'welcome' && (
+          <>
+            <p className="text-white/30 text-[13px] leading-relaxed mb-10">
+              your page is public. set a password<br />so you can sign in and edit it.
+            </p>
+            <button
+              onClick={() => setStep('password')}
+              className="w-full py-3.5 rounded-xl bg-white text-black text-[14px] font-medium hover:bg-white/90 transition-all mb-3"
+            >
+              set password
+            </button>
+            <button
+              onClick={skipToPage}
+              className="w-full py-3 text-white/20 text-[12px] hover:text-white/40 transition-colors"
+            >
+              skip for now
+            </button>
+          </>
+        )}
+
+        {step === 'password' && (
+          <>
+            <p className="text-white/30 text-[13px] leading-relaxed mb-8">
+              you can also sign in with a magic link anytime.
+            </p>
+            <form onSubmit={handleSetPassword} className="space-y-3">
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="password (6+ characters)"
+                className="w-full bg-white/[0.05] border border-white/[0.06] rounded-xl px-4 py-3.5 text-white/90 placeholder:text-white/20 focus:outline-none focus:border-white/12 text-[14px] text-center"
+                autoFocus
+                minLength={6}
+              />
+              <button
+                type="submit"
+                disabled={saving}
+                className="w-full py-3.5 rounded-xl bg-white text-black text-[14px] font-medium hover:bg-white/90 transition-all disabled:opacity-40"
+              >
+                {saving ? '...' : 'continue'}
+              </button>
+            </form>
+            <button
+              onClick={skipToPage}
+              className="mt-4 text-white/15 text-[11px] hover:text-white/30 transition-colors"
+            >
+              skip
+            </button>
+          </>
+        )}
       </div>
     </div>
   )

@@ -5,6 +5,11 @@ import { createServerSupabaseClient } from '@/lib/supabase'
 // Used by client-side video uploads that bypass Vercel's body limit
 export async function POST(request: NextRequest) {
   try {
+    const userId = request.headers.get('x-user-id')
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { slug, url, room_id } = await request.json()
 
     if (!slug || !url) {
@@ -13,14 +18,19 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
+    // Get footprint and verify ownership
     const { data: footprint } = await supabase
       .from('footprints')
-      .select('serial_number')
+      .select('serial_number, user_id')
       .eq('username', slug)
       .single()
 
     if (!footprint) {
       return NextResponse.json({ error: 'Footprint not found' }, { status: 404 })
+    }
+
+    if (footprint.user_id !== userId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const serialNumber = footprint.serial_number

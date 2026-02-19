@@ -101,13 +101,14 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           <Image
             src={thumbnailUrl}
             alt=""
-            width={480}
-            height={270}
-            sizes="(max-width: 768px) 50vw, 25vw"
+            width={tileSize >= 2 ? 800 : 480}
+            height={tileSize >= 2 ? 800 : 270}
+            sizes={tileSize >= 3 ? '(max-width: 768px) 100vw, 75vw' : tileSize >= 2 ? '(max-width: 768px) 100vw, 50vw' : '(max-width: 768px) 50vw, 25vw'}
             className={`w-full h-full object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
             loading="lazy"
             quality={75}
             onLoad={() => setIsLoaded(true)}
+            onError={() => setIsLoaded(true)}
           />
           {/* Play button */}
           <div className="absolute inset-0 flex items-center justify-center">

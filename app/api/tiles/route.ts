@@ -2,24 +2,26 @@ import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { parseURL } from '@/lib/parser'
-import { verifySessionToken } from '@/lib/auth'
 
 /**
- * Get serial_number from slug
- * No auth - we're the only user
+ * Get serial_number from slug + verify the requesting user owns it.
+ * Returns null if not found or not owned.
  */
 async function getSerialNumber(
+  request: NextRequest,
   supabase: ReturnType<typeof createServerSupabaseClient>,
   slug: string
 ): Promise<number | null> {
-  // Get footprint by username (slug)
+  const userId = request.headers.get('x-user-id')
+  if (!userId) return null
+
   const { data: footprint } = await supabase
     .from('footprints')
-    .select('serial_number')
+    .select('serial_number, user_id')
     .eq('username', slug)
     .single()
 
-  if (!footprint) return null
+  if (!footprint || footprint.user_id !== userId) return null
 
   return footprint.serial_number
 }
@@ -42,10 +44,9 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
-    // Get serial_number from slug (no auth)
-    const serialNumber = await getSerialNumber(supabase, slug)
+    const serialNumber = await getSerialNumber(request, supabase, slug)
     if (!serialNumber) {
-      return NextResponse.json({ error: 'Footprint not found' }, { status: 404 })
+      return NextResponse.json({ error: 'Unauthorized or not found' }, { status: 403 })
     }
 
     // Parse the URL or create a thought
@@ -180,11 +181,9 @@ export async function DELETE(request: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
-    // Get serial_number from slug (no auth)
-    const serialNumber = await getSerialNumber(supabase, slug)
+    const serialNumber = await getSerialNumber(request, supabase, slug)
     if (!serialNumber) {
-      console.error('DELETE /api/tiles: Footprint not found', { slug })
-      return NextResponse.json({ error: 'Footprint not found' }, { status: 404 })
+      return NextResponse.json({ error: 'Unauthorized or not found' }, { status: 403 })
     }
 
     console.log('DELETE /api/tiles: Found footprint, serial_number:', serialNumber)
@@ -236,7 +235,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const supabase = createServerSupabaseClient()
-    const serialNumber = await getSerialNumber(supabase, slug)
+    const serialNumber = await getSerialNumber(request, supabase, slug)
     if (!serialNumber) {
       return NextResponse.json({ error: 'Footprint not found' }, { status: 404 })
     }
@@ -290,7 +289,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const supabase = createServerSupabaseClient()
-    const serialNumber = await getSerialNumber(supabase, slug)
+    const serialNumber = await getSerialNumber(request, supabase, slug)
     if (!serialNumber) {
       return NextResponse.json({ error: 'Footprint not found' }, { status: 404 })
     }
