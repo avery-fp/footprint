@@ -45,7 +45,7 @@ export default function ReferralBanner({ serial }: ReferralBannerProps) {
         </span>
         <span className="text-white/15 text-[10px]">·</span>
         <a
-          href={`/checkout?ref=FP-${serial}`}
+          href={`/checkout?ref=FP-${refSerial}`}
           className="text-white/40 hover:text-white/60 text-xs transition-colors"
           style={{ fontFamily: "'DM Sans', sans-serif" }}
           onClick={(e) => e.stopPropagation()}
