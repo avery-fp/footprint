@@ -149,7 +149,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     return (
       <div key={item.id}
         className={`${colSpan} group tile-enter tile-container`}>
-        <div className="aspect-square group-hover:scale-[1.02] transition-transform duration-300 will-change-transform rounded-xl overflow-hidden">
+        <div className="aspect-square rounded-xl overflow-hidden">
           {item.type === 'image' ? (
             isVideo ? (
               <VideoTile src={item.url} onWidescreen={() => {}} />
@@ -187,7 +187,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               filter: footprint.background_blur !== false ? wallpaperFilter : 'none',
               transform: footprint.background_blur !== false ? 'scale(1.05)' : 'none',
               transition: 'filter 0.8s ease',
-              willChange: 'transform',
             }}
             onLoad={() => setWallpaperLoaded(true)}
           />

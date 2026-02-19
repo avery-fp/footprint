@@ -5,7 +5,7 @@ import { audioManager } from '@/lib/audio-manager'
 
 export default function VideoTile({ src, onWidescreen }: { src: string; onWidescreen?: () => void }) {
   const [isMuted, setIsMuted] = useState(true)
-  const [isInView, setIsInView] = useState(false)
+  const [isNear, setIsNear] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
   const [isWide, setIsWide] = useState(false)
   const [isReady, setIsReady] = useState(false)
@@ -14,48 +14,48 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
   const videoRef = useRef<HTMLVideoElement>(null)
   const videoId = useRef(`video-${src}-${Math.random()}`).current
 
-  // IntersectionObserver — render when near, play/pause on visibility
+  // Two observers: one for "near" (load metadata), one for "visible" (play)
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsInView(true)
-          setIsVisible(true)
-        } else {
-          setIsVisible(false)
-        }
-      },
-      { rootMargin: '1000px' }
+
+    // Near viewport — mount the video element
+    const nearObs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setIsNear(true) },
+      { rootMargin: '200px' }
     )
-    observer.observe(el)
-    return () => observer.disconnect()
+    // Actually visible — play/pause
+    const visObs = new IntersectionObserver(
+      ([entry]) => setIsVisible(entry.isIntersecting),
+      { rootMargin: '0px' }
+    )
+    nearObs.observe(el)
+    visObs.observe(el)
+    return () => { nearObs.disconnect(); visObs.disconnect() }
   }, [])
 
-  // Play/pause based on viewport visibility
-  // Without autoPlay, we call .play() to initiate download + playback when visible
+  // Play only when visible, pause when off-screen
   useEffect(() => {
     if (!videoRef.current) return
     if (isVisible) {
       videoRef.current.play().catch(() => {})
-    } else if (isReady) {
+    } else {
       videoRef.current.pause()
     }
   }, [isVisible, isReady])
 
   // Timeout — if video doesn't load in 15s, hide it
   useEffect(() => {
-    if (!isInView) return
+    if (!isNear) return
     const timer = setTimeout(() => {
       if (!isReady) setHasFailed(true)
     }, 15000)
     return () => clearTimeout(timer)
-  }, [isInView, isReady])
+  }, [isNear, isReady])
 
   // Register with audio manager
   useEffect(() => {
-    if (!isInView) return
+    if (!isNear) return
     audioManager.register(videoId, () => {
       if (videoRef.current) {
         videoRef.current.muted = true
@@ -63,7 +63,7 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
       }
     })
     return () => audioManager.unregister(videoId)
-  }, [videoId, isInView])
+  }, [videoId, isNear])
 
   const handleClick = () => {
     if (videoRef.current) {
@@ -82,17 +82,17 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
   if (hasFailed) return null
 
   return (
-    <div ref={containerRef} className="relative group">
-      {isInView ? (
+    <div ref={containerRef} className="relative w-full h-full">
+      {isNear ? (
         <>
           <video
             ref={videoRef}
             src={src}
-            className={`w-full ${isWide ? 'aspect-video' : 'aspect-square'} object-cover rounded-xl cursor-pointer transition-opacity duration-300 ${isReady ? 'opacity-100' : 'opacity-0'}`}
+            className={`w-full h-full object-cover cursor-pointer transition-opacity duration-300 ${isReady ? 'opacity-100' : 'opacity-0'}`}
             muted
             loop
             playsInline
-            preload="none"
+            preload="metadata"
             onClick={handleClick}
             onError={() => setHasFailed(true)}
             onLoadedData={() => setIsReady(true)}

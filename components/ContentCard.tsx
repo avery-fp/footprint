@@ -99,7 +99,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           onClick={handleActivate}
         >
           <Image
-            src={isInView ? thumbnailUrl : ''}
+            src={thumbnailUrl}
             alt=""
             width={480}
             height={270}
@@ -281,21 +281,20 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   if (content.type === 'video') {
     return (
-      <div className="rounded-xl overflow-hidden relative">
-        <div
-          className={`absolute inset-0 rounded-xl ${isLoaded ? 'opacity-0' : ''} transition-opacity duration-500`}
-          style={{ aspectRatio: '1/1' }}
-        />
-        <video
-          src={content.url}
-          autoPlay
-          muted
-          loop
-          playsInline
-          controls
-          className={`w-full aspect-square object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
-          onLoadedData={() => setIsLoaded(true)}
-        />
+      <div ref={containerRef} className="rounded-xl overflow-hidden relative">
+        {isInView ? (
+          <video
+            src={content.url}
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            className={`w-full aspect-square object-cover transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+            onLoadedData={(e) => { setIsLoaded(true); (e.target as HTMLVideoElement).play().catch(() => {}) }}
+          />
+        ) : (
+          <div className="w-full aspect-square" />
+        )}
       </div>
     )
   }
@@ -311,7 +310,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         />
         <a href={content.url} target="_blank" rel="noopener noreferrer">
           <Image
-            src={isInView ? content.url : ''}
+            src={content.url}
             alt={content.title || ''}
             width={600}
             height={800}
@@ -337,10 +336,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   if (content.type === 'thought') {
     return (
-      <div
-        className="rounded-xl overflow-hidden p-8 border border-white/[0.06] hover:border-white/15 transition-all bg-white/[0.08] backdrop-blur-xl"
-      >
-        <p className="text-base leading-relaxed whitespace-pre-wrap text-white/90">
+      <div className="w-full h-full flex items-center justify-center p-6">
+        <p className="text-lg leading-relaxed whitespace-pre-wrap text-white/90 text-center font-light tracking-wide">
           {content.title || content.description || ''}
         </p>
       </div>
@@ -365,7 +362,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             style={{ aspectRatio: '1/1' }}
           />
           <Image
-            src={isInView ? content.thumbnail_url : ''}
+            src={content.thumbnail_url}
             alt=""
             width={400}
             height={400}
@@ -412,7 +409,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       >
         {content.thumbnail_url ? (
           <Image
-            src={isInView ? content.thumbnail_url : ''}
+            src={content.thumbnail_url}
             alt=""
             width={48}
             height={48}
