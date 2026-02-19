@@ -417,6 +417,17 @@ export default function EditPage() {
           cache: 'no-store',
           next: { revalidate: 0 },
         })
+
+        // Auth/ownership failure → redirect to login or show error
+        if (res.status === 401) {
+          router.push(`/auth/login?redirect=${encodeURIComponent(`/${slug}/home`)}`)
+          return
+        }
+        if (res.status === 403) {
+          router.push('/dashboard')
+          return
+        }
+
         const data = await res.json()
 
         if (data.footprint) {
@@ -465,6 +476,7 @@ export default function EditPage() {
             setActiveRoomId(roomsJson.rooms[0].id)
           }
         } else {
+          // No footprint data but no error — empty state for owner
           setIsOwner(true)
           setDraft({
             slug,
@@ -480,18 +492,9 @@ export default function EditPage() {
         }
       } catch (error) {
         console.error('Failed to load footprint:', error)
-        setIsOwner(true)
-        setDraft({
-          slug,
-          display_name: '',
-          handle: '',
-          bio: '',
-          theme: 'midnight',
-          grid_mode: 'edit',
-          avatar_url: null,
-          content: [],
-          updated_at: Date.now(),
-        })
+        // Network error — redirect to login as safest fallback
+        router.push(`/auth/login?redirect=${encodeURIComponent(`/${slug}/home`)}`)
+        return
       }
       setIsLoading(false)
     }

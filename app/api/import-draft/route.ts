@@ -27,6 +27,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
+    // Validate slug format: 1-40 chars, alphanumeric + hyphens + underscores only
+    const RESERVED_SLUGS = ['admin', 'api', 'auth', 'dashboard', 'checkout', 'success', 'welcome', 'docs', 'settings', 'home', 'app', 'www', 'mail', 'help', 'support']
+    const slugClean = slug.toLowerCase().trim()
+    if (!/^[a-zA-Z0-9_-]{1,40}$/.test(slugClean) || RESERVED_SLUGS.includes(slugClean)) {
+      return NextResponse.json({ error: 'Invalid username' }, { status: 400 })
+    }
+
     // 1. Validate Stripe session
     let session
     try {
@@ -106,15 +113,15 @@ export async function POST(request: NextRequest) {
         }
         userId = newUser.id
 
-        // Record payment
-        await supabase.from('payments').insert({
+        // Record payment (ignore conflict if webhook already inserted it)
+        await supabase.from('payments').upsert({
           user_id: userId,
           stripe_session_id: session_id,
           stripe_payment_intent: session.payment_intent,
           amount: session.amount_total || 1000,
           currency: session.currency || 'usd',
           status: 'completed',
-        })
+        }, { onConflict: 'stripe_session_id', ignoreDuplicates: true })
       }
     }
 
