@@ -1,6 +1,5 @@
 import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
-import HomePulse from './HomePulse'
 
 function getSupabase() {
   return createClient(
@@ -22,6 +21,9 @@ async function getWallpaper() {
 
 export default async function Home() {
   const wallpaper = await getWallpaper()
+
+  // Payment link — goes directly to Stripe. Apple Pay. Google Pay. Card. Done.
+  const paymentLink = 'https://buy.stripe.com/9B6cN40Ef0sG2z98b214400'
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -45,11 +47,11 @@ export default async function Home() {
       )}
 
       <div className="relative z-10 min-h-screen flex flex-col justify-end px-7 md:px-14 pb-14 md:pb-20">
-
+        
         <div className="max-w-xl">
           <h1
             className="text-white mb-4 leading-[0.92]"
-            style={{
+            style={{ 
               fontFamily: "'DM Sans', sans-serif",
               fontSize: 'clamp(52px, 9vw, 96px)',
               fontWeight: 400,
@@ -59,9 +61,9 @@ export default async function Home() {
             footprint
           </h1>
 
-          <p
+          <p 
             className="text-white/35 mb-10 leading-relaxed"
-            style={{
+            style={{ 
               fontFamily: "'DM Sans', sans-serif",
               fontSize: '15px',
               fontWeight: 400,
@@ -73,9 +75,9 @@ export default async function Home() {
 
           <div className="flex items-center gap-5">
             <a
-              href="/checkout"
+              href={paymentLink}
               className="rounded-full px-8 py-3 bg-white text-black/90 hover:bg-white/90 transition-all duration-200"
-              style={{
+              style={{ 
                 fontFamily: "'DM Sans', sans-serif",
                 fontSize: '14px',
                 fontWeight: 500,
@@ -88,7 +90,7 @@ export default async function Home() {
             <Link
               href="/ae"
               className="text-white/25 hover:text-white/50 transition-colors duration-300"
-              style={{
+              style={{ 
                 fontFamily: "'DM Sans', sans-serif",
                 fontSize: '13px',
                 fontWeight: 400,
@@ -97,9 +99,6 @@ export default async function Home() {
               See a footprint
             </Link>
           </div>
-
-          {/* Social proof — live pulse */}
-          <HomePulse />
         </div>
       </div>
     </div>

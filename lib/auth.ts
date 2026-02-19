@@ -22,15 +22,15 @@ const SESSION_EXPIRY = '30d'     // Session valid for 30 days
  * 
  * Simple. Secure. No passwords to remember.
  */
-export async function generateMagicLink(email: string): Promise<string> {
+export async function generateMagicLink(email: string, redirect?: string): Promise<string> {
   const supabase = createServerSupabaseClient()
-  
+
   // Generate a unique token
   const token = nanoid(32)
-  
+
   // Calculate expiry time (15 minutes from now)
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000)
-  
+
   // Store the magic link in the database
   const { error } = await supabase
     .from('magic_links')
@@ -49,7 +49,8 @@ export async function generateMagicLink(email: string): Promise<string> {
   const baseUrl = process.env.NODE_ENV === 'production'
     ? 'https://www.footprint.onl'
     : 'http://localhost:3000'
-  return `${baseUrl}/auth/verify?token=${token}`
+  const url = `${baseUrl}/auth/verify?token=${token}`
+  return redirect ? `${url}&redirect=${encodeURIComponent(redirect)}` : url
 }
 
 /**
@@ -169,28 +170,98 @@ export async function getUserFromSession(token: string) {
 }
 
 /**
- * Send magic link email
- * 
- * In production, use Resend, SendGrid, or similar.
- * For now, just console log it.
+ * Send an email via Resend's REST API (no SDK needed)
+ */
+async function sendEmail(params: { from: string; to: string; subject: string; html: string }) {
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(params),
+  })
+
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(`Resend API error (${res.status}): ${body}`)
+  }
+
+  return res.json()
+}
+
+/**
+ * Send magic link email via Resend
+ *
+ * Requires RESEND_API_KEY env var.
+ * Falls back to console.log in development if no key is set.
  */
 export async function sendMagicLinkEmail(email: string, magicLink: string) {
-  // TODO: Integrate with email service
-  // For now, log to console (useful for development)
-  console.log(`
-    ═══════════════════════════════════════════════
-    MAGIC LINK FOR: ${email}
-    ${magicLink}
-    ═══════════════════════════════════════════════
-  `)
-  
-  // In production:
-  // await resend.emails.send({
-  //   from: 'Footprint <noreply@footprint.onl>',
-  //   to: email,
-  //   subject: 'Your login link',
-  //   html: `<a href="${magicLink}">Click to sign in</a>`,
-  // })
-  
+  if (!process.env.RESEND_API_KEY) {
+    console.log(`[DEV] Magic link for ${email}: ${magicLink}`)
+    return true
+  }
+
+  await sendEmail({
+    from: 'Footprint <login@footprint.onl>',
+    to: email,
+    subject: 'Your Footprint login link',
+    html: `
+      <div style="font-family: -apple-system, sans-serif; max-width: 400px; margin: 0 auto; padding: 40px 20px;">
+        <p style="color: #666; font-size: 15px; line-height: 1.6;">
+          Tap below to sign in to your Footprint.
+        </p>
+        <a href="${magicLink}" style="display: inline-block; background: #000; color: #fff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-size: 15px; margin: 20px 0;">
+          Sign in
+        </a>
+        <p style="color: #999; font-size: 12px; margin-top: 30px;">
+          This link expires in 15 minutes. If you didn't request this, ignore this email.
+        </p>
+      </div>
+    `,
+  })
+
+  return true
+}
+
+/**
+ * Send welcome email with magic link after purchase
+ */
+export async function sendWelcomeEmail(email: string, serialNumber: number, username?: string) {
+  const redirect = username ? `/${username}/home` : '/dashboard'
+  const magicLink = await generateMagicLink(email, redirect)
+
+  if (!process.env.RESEND_API_KEY) {
+    console.log(`[DEV] Welcome email for ${email} (FP #${serialNumber}): ${magicLink}`)
+    return true
+  }
+
+  try {
+    await sendEmail({
+      from: 'Footprint <hello@footprint.onl>',
+      to: email,
+      subject: `Welcome — you're FP #${serialNumber}`,
+      html: `
+        <div style="font-family: -apple-system, sans-serif; max-width: 400px; margin: 0 auto; padding: 40px 20px;">
+          <p style="font-size: 28px; font-weight: 300; margin-bottom: 8px;">
+            You're FP #${serialNumber.toLocaleString()}
+          </p>
+          <p style="color: #666; font-size: 15px; line-height: 1.6;">
+            Your footprint is live. Tap below to sign in and start posting.
+          </p>
+          <a href="${magicLink}" style="display: inline-block; background: #000; color: #fff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-size: 15px; margin: 20px 0;">
+            Sign in &amp; start posting
+          </a>
+          <p style="color: #999; font-size: 12px; margin-top: 30px;">
+            This link expires in 15 minutes. You can always request a new one at footprint.onl.
+          </p>
+        </div>
+      `,
+    })
+  } catch (err) {
+    console.error('Welcome email failed:', err)
+    // Don't throw — user is already created, they can request a magic link manually
+  }
+
   return true
 }

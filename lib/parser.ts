@@ -100,10 +100,10 @@ export async function parseURL(rawUrl: string): Promise<ParsedContent> {
 /**
  * Route to type-specific parser
  */
-function parseByType(type: ContentType, url: string, match: RegExpMatchArray): ParsedContent {
+async function parseByType(type: ContentType, url: string, match: RegExpMatchArray): Promise<ParsedContent> {
   switch (type) {
     case 'youtube': return parseYouTube(url, match)
-    case 'spotify': return parseSpotify(url, match)
+    case 'spotify': return await parseSpotify(url, match)
     case 'applemusic': return parseAppleMusic(url, match)
     case 'twitter': return parseTwitter(url, match)
     case 'instagram': return parseInstagram(url, match)
@@ -135,20 +135,36 @@ function parseYouTube(url: string, match: RegExpMatchArray): ParsedContent {
 
 // ============================================
 // SPOTIFY
+// Fetches real title + album art via oEmbed (free, no API key)
 // ============================================
-function parseSpotify(url: string, match: RegExpMatchArray): ParsedContent {
-  const contentType = match[1] // track, album, playlist, etc.
+async function parseSpotify(url: string, match: RegExpMatchArray): Promise<ParsedContent> {
+  const contentType = match[1]
   const spotifyId = match[2]
-  const heightClass = contentType === 'track' ? 'h-[152px]' : 'h-[352px]'
+
+  let title = `Spotify ${contentType}`
+  let thumbnail: string | null = null
+
+  try {
+    const res = await fetch(`https://open.spotify.com/oembed?url=${encodeURIComponent(url)}`, {
+      signal: AbortSignal.timeout(3000),
+    })
+    if (res.ok) {
+      const data = await res.json()
+      if (data.title) title = data.title
+      if (data.thumbnail_url) thumbnail = data.thumbnail_url
+    }
+  } catch {
+    // oEmbed failed — use generic fallback, not a blocker
+  }
 
   return {
     type: 'spotify',
     url,
     external_id: spotifyId,
-    title: `Spotify ${contentType}`,
+    title,
     description: null,
-    thumbnail_url: null,
-    embed_html: `<iframe src="https://open.spotify.com/embed/${contentType}/${spotifyId}?theme=0" frameborder="0" allowtransparency="true" allow="encrypted-media" loading="lazy" class="w-full rounded-xl ${heightClass}"></iframe>`,
+    thumbnail_url: thumbnail,
+    embed_html: `<iframe src="https://open.spotify.com/embed/${contentType}/${spotifyId}?theme=0" frameborder="0" allowtransparency="true" allow="encrypted-media" loading="lazy" class="w-full rounded-xl"></iframe>`,
   }
 }
 

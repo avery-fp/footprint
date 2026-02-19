@@ -127,25 +127,6 @@ export default function DashboardPage() {
     }
   }
 
-  const [referralCount, setReferralCount] = useState(0)
-  const [shareUrl, setShareUrl] = useState('')
-  const [copied, setCopied] = useState(false)
-
-  // Fetch referral stats
-  useEffect(() => {
-    if (!user) return
-    const primarySlug = rooms.find(r => r.is_primary)?.slug
-    if (primarySlug) {
-      fetch(`/api/share?slug=${primarySlug}`)
-        .then(r => r.json())
-        .then(d => {
-          if (d.referral_count !== undefined) setReferralCount(d.referral_count)
-          if (d.share_url) setShareUrl(d.share_url)
-        })
-        .catch(() => {})
-    }
-  }, [user, rooms])
-
   // Calculate total stats
   const totalViews = rooms.reduce((sum, room) => sum + (room.view_count || 0), 0)
   const totalContent = rooms.reduce((sum, room) => sum + (room.content_count || 0), 0)
@@ -253,7 +234,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-3 gap-4 mb-12">
           <div className="glass rounded-xl p-6 text-center">
             <p className="text-3xl font-light mb-2">{rooms.length}</p>
             <p className="font-mono text-xs text-white/40 uppercase tracking-wider">Rooms</p>
@@ -266,29 +247,7 @@ export default function DashboardPage() {
             <p className="text-3xl font-light mb-2">{totalViews}</p>
             <p className="font-mono text-xs text-white/40 uppercase tracking-wider">Views</p>
           </div>
-          <div className="glass rounded-xl p-6 text-center">
-            <p className="text-3xl font-light mb-2">{referralCount}</p>
-            <p className="font-mono text-xs text-white/40 uppercase tracking-wider">Referrals</p>
-          </div>
         </div>
-
-        {/* Share Link */}
-        {shareUrl && (
-          <div className="glass rounded-xl p-5 flex items-center gap-3 mb-12">
-            <p className="font-mono text-xs text-white/40 flex-shrink-0">Share:</p>
-            <p className="font-mono text-sm text-white/50 truncate flex-1">{shareUrl}</p>
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(shareUrl)
-                setCopied(true)
-                setTimeout(() => setCopied(false), 2000)
-              }}
-              className={`px-4 py-2 text-xs rounded-lg flex-shrink-0 transition ${copied ? 'bg-green-500 text-white' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}
-            >
-              {copied ? 'Copied!' : 'Copy'}
-            </button>
-          </div>
-        )}
 
         {/* Quick Actions */}
         <div className="flex gap-4 justify-center mb-12">
