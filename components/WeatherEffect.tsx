@@ -13,7 +13,8 @@ export default function WeatherEffect({ type }: { type: 'rain' | 'snow' | null }
     canvas.height = window.innerHeight
 
     const particles: { x: number; y: number; speed: number; size: number; opacity: number }[] = []
-    const count = type === 'rain' ? 200 : 80
+    // Reduced counts: rain 80 (was 200), snow 40 (was 80)
+    const count = type === 'rain' ? 80 : 40
 
     for (let i = 0; i < count; i++) {
       particles.push({
@@ -26,7 +27,15 @@ export default function WeatherEffect({ type }: { type: 'rain' | 'snow' | null }
     }
 
     let animId: number
-    function animate() {
+    let lastTime = 0
+    const FRAME_INTERVAL = 1000 / 30 // Cap at 30fps
+
+    function animate(now: number) {
+      animId = requestAnimationFrame(animate)
+
+      if (now - lastTime < FRAME_INTERVAL) return
+      lastTime = now
+
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       particles.forEach((p) => {
         if (type === 'rain') {
@@ -51,9 +60,8 @@ export default function WeatherEffect({ type }: { type: 'rain' | 'snow' | null }
           p.x = Math.random() * canvas.width
         }
       })
-      animId = requestAnimationFrame(animate)
     }
-    animate()
+    animId = requestAnimationFrame(animate)
 
     const handleResize = () => {
       canvas.width = window.innerWidth

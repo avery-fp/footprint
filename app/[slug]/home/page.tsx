@@ -50,7 +50,9 @@ function SortableTile({
 }) {
   const [isMuted, setIsMuted] = useState(true)
   const [isLoaded, setIsLoaded] = useState(false)
+  const [videoVisible, setVideoVisible] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
+  const tileRef = useRef<HTMLDivElement>(null)
   const audioIdRef = useRef(`edit-${id}`)
   const pinchRef = useRef<{ startDist: number; fired: boolean } | null>(null)
 
@@ -78,11 +80,32 @@ function SortableTile({
     scale: isDragging ? '1.05' : undefined,
     boxShadow: isDragging ? '0 12px 32px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.3)' : undefined,
     zIndex: isDragging ? 50 : undefined,
-    contain: 'layout style paint',
-    willChange: isDragging ? 'transform' : 'auto',
+    willChange: isDragging ? 'transform' : undefined,
   }
 
   const isVideo = content.type === 'image' && content.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
+
+  // Video visibility — only play when on-screen, pause when off
+  useEffect(() => {
+    if (!isVideo) return
+    const el = tileRef.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      ([entry]) => setVideoVisible(entry.isIntersecting),
+      { rootMargin: '0px' }
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [isVideo])
+
+  useEffect(() => {
+    if (!isVideo || !videoRef.current) return
+    if (videoVisible) {
+      videoRef.current.play().catch(() => {})
+    } else {
+      videoRef.current.pause()
+    }
+  }, [videoVisible, isLoaded, isVideo])
 
   useEffect(() => {
     if (!isVideo) return
@@ -167,9 +190,15 @@ function SortableTile({
     },
   } : {}
 
+  // Compose dnd-kit ref with our tile ref for IntersectionObserver
+  const composedRef = useCallback((node: HTMLDivElement | null) => {
+    setNodeRef(node)
+    ;(tileRef as any).current = node
+  }, [setNodeRef])
+
   return (
     <div
-      ref={setNodeRef}
+      ref={composedRef}
       style={style}
       className={sizeClass}
       data-tile
@@ -194,12 +223,11 @@ function SortableTile({
               <video
                 ref={videoRef}
                 src={content.url}
-                className={`absolute inset-0 w-full h-full object-cover cursor-pointer transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+                className={`absolute inset-0 w-full h-full object-cover cursor-pointer transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
                 muted
                 loop
                 playsInline
-                autoPlay
-                preload="metadata"
+                preload="none"
                 onClick={handleVideoClick}
                 onLoadedData={() => setIsLoaded(true)} onError={(e) => { setIsLoaded(true); (e.target as HTMLVideoElement).style.display = 'none' }}
               />

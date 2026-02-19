@@ -18,7 +18,7 @@
 }
 
 html {
-  scroll-behavior: smooth;
+  /* No smooth scroll — causes jank on heavy pages */
 }
 
 body {
