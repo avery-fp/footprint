@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import TemplatePicker from '@/components/TemplatePicker'
 
 interface UserData {
   id: string
@@ -30,6 +31,7 @@ export default function BuildPage() {
   const [saving, setSaving] = useState(false)
   const [copied, setCopied] = useState(false)
   const [step, setStep] = useState<'profile' | 'content' | 'done'>('profile')
+  const [selectedTemplate, setSelectedTemplate] = useState('minimal')
 
   useEffect(() => {
     async function load() {
@@ -70,6 +72,7 @@ export default function BuildPage() {
           roomId: footprint.id,
           display_name: displayName,
           bio,
+          dimension: selectedTemplate,
         }),
       })
       if (res.ok) {
@@ -182,6 +185,11 @@ export default function BuildPage() {
                 rows={3}
                 className="w-full bg-white/[0.06] border border-white/[0.08] rounded-xl px-4 py-3.5 text-white/90 placeholder:text-white/20 focus:outline-none focus:border-white/20 text-sm transition-colors resize-none"
                 style={{ fontFamily: "'DM Sans', sans-serif" }}
+              />
+
+              <TemplatePicker
+                selected={selectedTemplate}
+                onSelect={(t) => setSelectedTemplate(t.id)}
               />
 
               <button

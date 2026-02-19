@@ -49,6 +49,8 @@ export async function middleware(request: NextRequest) {
     '/api/share',
     '/api/pulse',
     '/api/embed',
+    '/api/metadata',
+    '/deed',
   ]
 
   // Check if this is a fully public route

@@ -9,11 +9,6 @@ interface PulseData {
   recent: { serial: number; ago: string }[]
 }
 
-/**
- * HomePulse — client component that shows live social proof on the homepage.
- * Fetches from /api/pulse and displays recent claims + scarcity counter.
- * Renders with subtle animation, disappears if data is empty.
- */
 export default function HomePulse() {
   const [pulse, setPulse] = useState<PulseData | null>(null)
   const [tickerIndex, setTickerIndex] = useState(0)
@@ -25,7 +20,6 @@ export default function HomePulse() {
       .catch(() => {})
   }, [])
 
-  // Auto-rotate ticker
   useEffect(() => {
     if (!pulse || pulse.recent.length <= 1) return
     const interval = setInterval(() => {
@@ -36,19 +30,21 @@ export default function HomePulse() {
 
   if (!pulse || pulse.total_claimed === 0) return null
 
+  const current = pulse.recent[tickerIndex]
+
   return (
-    <div className="mt-10 flex items-center gap-4 animate-fade-up" style={{ animationDelay: '0.5s', animationFillMode: 'backwards' }}>
-      {/* Live dot */}
+    <div
+      className="mt-10 flex items-center gap-4"
+      style={{ animation: 'fadeUp 0.6s ease-out 0.5s backwards' }}
+    >
       <span className="w-1.5 h-1.5 rounded-full bg-green-400/60 animate-pulse flex-shrink-0" />
 
-      {/* Ticker */}
-      {pulse.recent.length > 0 && (
+      {current && (
         <p
-          className="text-white/15 text-xs"
+          className="text-white/15 text-xs transition-opacity duration-300"
           style={{ fontFamily: "'DM Sans', sans-serif" }}
-          key={tickerIndex}
         >
-          #{pulse.recent[tickerIndex]?.serial.toLocaleString()} claimed {pulse.recent[tickerIndex]?.ago}
+          #{current.serial.toLocaleString()} claimed {current.ago}
         </p>
       )}
 
@@ -60,6 +56,13 @@ export default function HomePulse() {
       >
         {pulse.remaining.toLocaleString()} left
       </p>
+
+      <style jsx>{`
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   )
 }
