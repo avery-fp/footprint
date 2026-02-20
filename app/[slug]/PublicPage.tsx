@@ -5,6 +5,9 @@ import Image from 'next/image'
 import ContentCard from '@/components/ContentCard'
 import VideoTile from '@/components/VideoTile'
 import WeatherEffect from '@/components/WeatherEffect'
+import { PlusButton } from '@/components/PlusButton'
+import { RemoveBubble } from '@/components/RemoveBubble'
+import { RolodexDrawer } from '@/components/RolodexDrawer'
 
 interface Room {
   id: string
@@ -54,6 +57,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   }, [rooms])
   const [wallpaperLoaded, setWallpaperLoaded] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [drawerOpen, setDrawerOpen] = useState(false)
   const [showToast, setShowToast] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [widescreenIds, setWidescreenIds] = useState<Set<string>>(new Set())
@@ -211,12 +215,18 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       )}
 
       <div className="relative z-10">
-        {/* Masthead */}
-        <header className="mb-12 md:mb-16 flex flex-col items-center pt-24 md:pt-32">
+        {/* Masthead — long-press zone for removal */}
+        <RemoveBubble slug={footprint.slug}>
+        <header className="relative mb-12 md:mb-16 flex flex-col items-center pt-24 md:pt-32">
+            {/* + button — top right */}
+            {!isLoggedIn && (
+              <div className="absolute top-6 right-4 md:right-8">
+                <PlusButton slug={footprint.slug} />
+              </div>
+            )}
             <h1
               className="text-4xl md:text-6xl tracking-[0.15em] font-normal text-white/90"
               style={{
-                fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
                 lineHeight: 1,
                 textShadow: '0 2px 16px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.5)',
               }}
@@ -237,7 +247,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 <p
                   className="mt-3 text-white/30 text-xs tracking-[0.15em] lowercase max-w-md text-center"
                   style={{
-                    fontFamily: '"Helvetica Neue", system-ui, sans-serif',
                     fontWeight: 300,
                     textShadow: '0 2px 16px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.5)',
                   }}
@@ -249,7 +258,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             <p
               className="mt-2 text-white/30 text-[11px] tracking-[0.25em] lowercase font-medium"
               style={{
-                fontFamily: '"Helvetica Neue", system-ui, sans-serif',
                 textShadow: '0 2px 16px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.5)',
               }}
             >
@@ -263,6 +271,19 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               make yours.
             </a>
         </header>
+        </RemoveBubble>
+
+        {/* Rolodex drawer + tab */}
+        {isLoggedIn && (
+          <>
+            <button
+              onClick={() => setDrawerOpen(true)}
+              aria-label="Open saved footprints"
+              className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-10 h-1 rounded-full bg-white/[0.12] hover:bg-white/[0.2] transition-colors duration-200"
+            />
+            <RolodexDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+          </>
+        )}
 
         {/* Room pills — sticky on mobile only */}
         {visibleRooms.length > 1 && (

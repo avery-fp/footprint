@@ -51,8 +51,7 @@ export default async function Home() {
         <div className="max-w-xl">
           <h1
             className="text-white mb-4 leading-[0.92]"
-            style={{ 
-              fontFamily: "'DM Sans', sans-serif",
+            style={{
               fontSize: 'clamp(52px, 9vw, 96px)',
               fontWeight: 400,
               letterSpacing: '-0.035em',
@@ -63,8 +62,7 @@ export default async function Home() {
 
           <p 
             className="text-white/35 mb-10 leading-relaxed"
-            style={{ 
-              fontFamily: "'DM Sans', sans-serif",
+            style={{
               fontSize: '15px',
               fontWeight: 400,
               letterSpacing: '-0.01em',
@@ -77,8 +75,7 @@ export default async function Home() {
             <a
               href={paymentLink}
               className="rounded-full px-8 py-3 bg-white text-black/90 hover:bg-white/90 transition-all duration-200"
-              style={{ 
-                fontFamily: "'DM Sans', sans-serif",
+              style={{
                 fontSize: '14px',
                 fontWeight: 500,
                 letterSpacing: '-0.01em',
@@ -90,8 +87,7 @@ export default async function Home() {
             <Link
               href="/ae"
               className="text-white/25 hover:text-white/50 transition-colors duration-300"
-              style={{ 
-                fontFamily: "'DM Sans', sans-serif",
+              style={{
                 fontSize: '13px',
                 fontWeight: 400,
               }}

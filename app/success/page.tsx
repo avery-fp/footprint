@@ -109,7 +109,6 @@ export default function SuccessPage() {
         <div className="w-full max-w-xs text-center">
           <p
             className="text-[22px] font-light tracking-[-0.01em] text-white/90 mb-3"
-            style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}
           >
             something went wrong
           </p>
@@ -138,7 +137,6 @@ export default function SuccessPage() {
 
         <p
           className="text-[22px] font-light tracking-[-0.01em] text-white/90 mb-3"
-          style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}
         >
           {step === 'welcome' ? "you're live" : 'set a password'}
         </p>

@@ -53,7 +53,7 @@ export default function CheckoutPage() {
         <div className="fixed inset-0 bg-[#0a0a0a]" />
       )}
 
-      <p className="relative z-10 text-white/30" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: '15px' }}>
+      <p className="relative z-10 text-white/30 text-[15px]">
         Redirecting to payment...
       </p>
     </div>
