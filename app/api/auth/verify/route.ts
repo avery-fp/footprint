@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     // Set the session cookie
     // HTTP-only, secure, same-site strict for security
-    response.cookies.set('session', sessionToken, {
+    response.cookies.set('fp_session', sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
