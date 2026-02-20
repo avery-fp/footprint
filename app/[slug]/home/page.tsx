@@ -1466,6 +1466,14 @@ export default function EditPage() {
                 if (e.key === 'Enter') handleAddContent()
                 if (e.key === 'Escape') stopAdding()
               }}
+              onPaste={e => {
+                const text = e.clipboardData.getData('text').trim()
+                if (text && (text.startsWith('http://') || text.startsWith('https://'))) {
+                  e.preventDefault()
+                  setPasteUrl(text)
+                  setTimeout(() => handleAddContent(), 100)
+                }
+              }}
               className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl font-mono text-sm focus:border-white/30 focus:outline-none text-white placeholder:text-white/30"
             />
             <div className="flex gap-2 mt-2">

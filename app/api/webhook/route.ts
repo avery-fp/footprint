@@ -151,6 +151,41 @@ async function handleCheckoutComplete(session: any) {
     }
   }
 
+  // Track referral from checkout metadata
+  const refCode = session.metadata?.ref
+  if (refCode) {
+    const refSerial = parseInt(refCode.replace('FP-', ''), 10)
+    if (!isNaN(refSerial)) {
+      await supabase.from('referrals').insert({
+        referrer_serial: refSerial,
+        referred_user_id: user.id,
+        referral_code: refCode,
+        converted: true,
+      }).catch(() => {})
+    }
+  }
+
+  // Record conversion event for analytics micro-brain
+  const { data: fp } = await supabase
+    .from('footprints')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('is_primary', true)
+    .single()
+
+  if (fp) {
+    await supabase.from('fp_events').insert({
+      footprint_id: fp.id,
+      event_type: 'conversion',
+      event_data: {
+        serial_number: serialNumber,
+        amount: session.amount_total,
+        ref: refCode || null,
+        source: 'stripe',
+      },
+    }).catch(() => {})
+  }
+
   console.log(`✓ New user: ${email} #${serialNumber}`)
 
   // Send welcome email — fire-and-forget, don't block webhook response

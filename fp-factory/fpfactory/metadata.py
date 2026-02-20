@@ -21,6 +21,14 @@ from typing import Optional
 
 from .config import HASHTAG_POOLS, CTA_TEMPLATES
 
+# Try to load the expanded content bank; fall back to built-in templates
+try:
+    from . import content_bank as _bank
+    _HAS_BANK = bool(_bank.all_hooks())
+except Exception:
+    _bank = None  # type: ignore
+    _HAS_BANK = False
+
 
 @dataclass
 class ClipMetadata:
@@ -53,6 +61,12 @@ class ClipMetadata:
     thumbnail_path: str = ""
     sidecar_path: str = ""
 
+    # Extended (content bank fields — populated when bank available)
+    hook: str = ""
+    hook_category: str = ""
+    comment_prompt: str = ""
+    cluster_index: int = 0
+
 
 # ─── Caption generation ─────────────────────────────────
 
@@ -71,6 +85,10 @@ CAPTION_TEMPLATES = [
 
 def generate_caption(clip_index: int, variant_index: int, slug_prefix: str = "fp") -> str:
     """Generate a short caption for a clip variant."""
+    if _HAS_BANK:
+        global_index = clip_index * 5 + variant_index
+        hook = _bank.get_hook(global_index)
+        return _bank.get_caption((global_index * 7) % 40, hook)
     return CAPTION_TEMPLATES[clip_index % len(CAPTION_TEMPLATES)]
 
 
@@ -80,8 +98,13 @@ def generate_hashtags(
     categories: list[str],
     max_tags: int = 15,
     shuffle: bool = True,
+    variant_index: int = 0,
+    platform: str = "tiktok",
 ) -> str:
-    """Build a hashtag string from category pools."""
+    """Build a hashtag string from category pools or content bank clusters."""
+    if _HAS_BANK:
+        return _bank.get_cluster_tags(variant_index, platform)
+
     tags = []
     for cat in categories:
         pool = HASHTAG_POOLS.get(cat, [])
@@ -100,6 +123,8 @@ def generate_hashtags(
 
 def get_cta(index: int = 0) -> str:
     """Get a CTA string by index."""
+    if _HAS_BANK:
+        return _bank.get_cta(index)
     return CTA_TEMPLATES[index % len(CTA_TEMPLATES)]
 
 
@@ -134,15 +159,33 @@ def build_metadata(
     thumbnail_path: str = "",
 ) -> ClipMetadata:
     """Build complete metadata for a single content piece."""
+    global_index = clip_index * 5 + variant_index
+
     caption = generate_caption(clip_index, variant_index, slug_prefix)
-    hashtags = generate_hashtags(hashtag_categories or ["core", "growth"])
-    cta = get_cta(cta_index)
+    hashtags = generate_hashtags(
+        hashtag_categories or ["core", "growth"],
+        variant_index=global_index,
+        platform=platform,
+    )
+    cta = get_cta(cta_index if not _HAS_BANK else (global_index * 13) % 40)
 
     full_parts = [p for p in [caption, hashtags, cta] if p]
     full_caption = "\n\n".join(full_parts)
 
     clip_id = f"{batch_id}_{clip_index:04d}_{variant_index:03d}"
     filename = os.path.basename(video_path)
+
+    # Extended fields from content bank
+    hook = ""
+    hook_category = ""
+    comment_prompt = ""
+    cluster_index = 0
+    if _HAS_BANK:
+        hook = _bank.get_hook(global_index)
+        hook_category = _bank.get_hook_category(global_index)
+        comment_prompt = _bank.get_comment_prompt(global_index % 12)
+        names = _bank.get_cluster_names()
+        cluster_index = global_index % len(names) if names else 0
 
     return ClipMetadata(
         clip_id=clip_id,
@@ -159,6 +202,10 @@ def build_metadata(
         batch_id=batch_id,
         video_path=video_path,
         thumbnail_path=thumbnail_path,
+        hook=hook,
+        hook_category=hook_category,
+        comment_prompt=comment_prompt,
+        cluster_index=cluster_index,
     )
 
 

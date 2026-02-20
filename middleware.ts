@@ -28,9 +28,20 @@ export async function middleware(request: NextRequest) {
     '/api/og',
     '/api/qr',
     '/api/embed',
+ claude/footprint-monetization-engine-ZDvAw
+    '/api/v1',
+    '/api/events',
+    '/api/aro-feed',
+    '/api/share',
+    '/api/pulse',
+    '/api/embed',
+    '/api/metadata',
+    '/deed',
+
     '/api/v1/footprint',
     '/api/analytics',
     '/api/next-serial',
+ main
   ]
 
   const isPublic = publicRoutes.some(r =>
@@ -91,9 +102,20 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next({ request: { headers } })
   }
 
+ claude/footprint-monetization-engine-ZDvAw
+  // Page routes: redirect to checkout/login if no session
+  if (!sessionToken) {
+    if (pathname === '/build') {
+      return NextResponse.redirect(new URL('/checkout', request.url))
+    }
+    const loginUrl = new URL('/auth/login', request.url)
+    loginUrl.searchParams.set('redirect', pathname)
+    return NextResponse.redirect(loginUrl)
+
   // ── All other pages — require auth ──
   if (!sessionToken) {
     return NextResponse.redirect(loginRedirect(pathname))
+ main
   }
 
   const session = await verifySessionToken(sessionToken)

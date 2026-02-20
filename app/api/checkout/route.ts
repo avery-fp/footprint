@@ -12,7 +12,7 @@ import { stripe, FOOTPRINT_PRICE, FOOTPRINT_CURRENCY } from '@/lib/stripe'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { email, slug, remix_source, remix_room } = body
+    const { email, slug, remix_source, remix_room, ref } = body
 
     if (!email && !remix_source) {
       return NextResponse.json(
@@ -23,16 +23,12 @@ export async function POST(request: NextRequest) {
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://footprint.onl'
 
-    // Build success URL with slug if provided
-    const successUrl = slug
-      ? `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}&slug=${encodeURIComponent(slug)}`
-      : `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`
+    const successUrl = `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`
 
     const cancelUrl = slug
       ? `${baseUrl}/${encodeURIComponent(slug)}/home`
       : `${baseUrl}/checkout`
 
-    // Create Stripe Checkout session with slug in metadata
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
@@ -55,9 +51,11 @@ export async function POST(request: NextRequest) {
       success_url: successUrl,
       cancel_url: cancelUrl,
       customer_creation: 'always',
+      allow_promotion_codes: true,
       metadata: {
         product: 'footprint',
         slug: slug || '',
+        ref: ref || '',
         ...(remix_source ? { remix_source } : {}),
         ...(remix_room ? { remix_room } : {}),
       },

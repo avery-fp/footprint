@@ -409,6 +409,66 @@ CREATE TABLE IF NOT EXISTS links (
 
 
 -- =====================================================
+-- MONETIZATION TABLES (002_monetization)
+-- =====================================================
+
+-- Referrals
+CREATE TABLE IF NOT EXISTS referrals (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    referrer_serial INTEGER NOT NULL,
+    referred_user_id UUID REFERENCES users(id),
+    referral_code VARCHAR(50) NOT NULL,
+    converted BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals (referrer_serial);
+CREATE INDEX IF NOT EXISTS idx_referrals_code ON referrals (referral_code);
+
+-- Promo codes
+CREATE TABLE IF NOT EXISTS promo_codes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    code VARCHAR(50) UNIQUE NOT NULL,
+    discount_cents INTEGER NOT NULL DEFAULT 1000,
+    max_uses INTEGER DEFAULT NULL,
+    times_used INTEGER DEFAULT 0,
+    active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+INSERT INTO promo_codes (code, discount_cents, max_uses, active)
+VALUES ('please', 1000, NULL, TRUE)
+ON CONFLICT (code) DO NOTHING;
+
+-- Login tokens (post-checkout auto-login)
+CREATE TABLE IF NOT EXISTS login_tokens (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id),
+    token VARCHAR(64) UNIQUE NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_login_tokens_token ON login_tokens (token);
+
+-- Analytics events (micro-brain for ARO)
+CREATE TABLE IF NOT EXISTS fp_events (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    footprint_id UUID REFERENCES footprints(id) ON DELETE CASCADE,
+    event_type VARCHAR(50) NOT NULL,
+    event_data JSONB DEFAULT '{}',
+    visitor_hash VARCHAR(64),
+    referrer TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_fp_events_footprint ON fp_events (footprint_id);
+CREATE INDEX IF NOT EXISTS idx_fp_events_type ON fp_events (event_type);
+CREATE INDEX IF NOT EXISTS idx_fp_events_date ON fp_events (created_at);
+CREATE INDEX IF NOT EXISTS idx_fp_events_composite ON fp_events (footprint_id, event_type, created_at);
+
+-- =====================================================
 -- INITIAL SETUP COMPLETE
 --
 -- Next serial available: 7777
