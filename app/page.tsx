@@ -80,7 +80,7 @@ export default async function Home() {
     getShowcaseRooms(),
   ])
 
-  const paymentLink = 'https://buy.stripe.com/9B6cN40Ef0sG2z98b214400'
+  const checkoutUrl = '/checkout'
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -126,7 +126,7 @@ export default async function Home() {
 
             <div className="flex items-center gap-5">
               <a
-                href={paymentLink}
+                href={checkoutUrl}
                 className="rounded-full px-8 py-3 bg-white text-black/90 hover:bg-white/90 transition-all duration-200"
                 style={{
                   fontFamily: "'DM Sans', sans-serif",
@@ -172,7 +172,7 @@ export default async function Home() {
               no subscriptions. no refunds. no bullshit.
             </p>
             <a
-              href={paymentLink}
+              href={checkoutUrl}
               className="text-white/20 hover:text-white/40 text-xs transition-colors"
               style={{ fontFamily: "'DM Sans', sans-serif" }}
             >

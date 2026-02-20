@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     if (existingUser) {
       const sessionToken = await createSessionToken(existingUser.id, existingUser.email)
       const response = NextResponse.json({ success: true, serial: existingUser.serial_number })
-      response.cookies.set('session', sessionToken, {
+      response.cookies.set('fp_session', sessionToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     const serialNumber = serialData
-    const slug = `fp-${serialNumber}-${nanoid(4).toLowerCase()}`
+    const username = `fp-${serialNumber}-${nanoid(4).toLowerCase()}`
 
     // Create user
     const { data: user, error: userError } = await supabase
@@ -81,14 +81,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Create default footprint
-    await supabase.from('footprints').insert({
+    const { error: fpError } = await supabase.from('footprints').insert({
       user_id: user.id,
-      slug,
+      username,
+      serial_number: serialNumber,
       name: 'Everything',
       icon: '◈',
       is_primary: true,
-      is_public: true,
+      published: true,
     })
+
+    if (fpError) {
+      console.error('CRITICAL: Free checkout footprint creation failed:', fpError)
+      return NextResponse.json({ error: 'Failed to create page' }, { status: 500 })
+    }
 
     // Record free payment
     await supabase.from('payments').insert({
@@ -142,9 +148,9 @@ export async function POST(request: NextRequest) {
 
     // Create session + set cookie
     const sessionToken = await createSessionToken(user.id, user.email)
-    const response = NextResponse.json({ success: true, serial: serialNumber, slug })
+    const response = NextResponse.json({ success: true, serial: serialNumber, slug: username })
 
-    response.cookies.set('session', sessionToken, {
+    response.cookies.set('fp_session', sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

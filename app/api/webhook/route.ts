@@ -95,7 +95,7 @@ async function handleCheckoutComplete(session: any) {
 
   if (userError || !user) throw new Error('Failed to create user')
 
-  await supabase.from('footprints').insert({
+  const { error: fpError } = await supabase.from('footprints').insert({
     user_id: user.id,
     username,
     serial_number: serialNumber,
@@ -105,7 +105,12 @@ async function handleCheckoutComplete(session: any) {
     published: true,
   })
 
-  await supabase.from('payments').insert({
+  if (fpError) {
+    console.error('CRITICAL: Webhook footprint creation failed:', fpError)
+    throw new Error(`Footprint creation failed for ${email}: ${fpError.message}`)
+  }
+
+  const { error: payError } = await supabase.from('payments').insert({
     user_id: user.id,
     stripe_session_id: session.id,
     stripe_payment_intent: session.payment_intent,
@@ -114,13 +119,18 @@ async function handleCheckoutComplete(session: any) {
     status: 'completed',
   })
 
+  if (payError) {
+    console.error('CRITICAL: Webhook payment record failed:', payError)
+    // Don't throw — user and footprint exist, payment record is secondary
+  }
+
   // Handle remix: clone room content from source footprint
   const remixSource = session.metadata?.remix_source
   const remixRoom = session.metadata?.remix_room
 
   if (remixSource) {
     try {
-      await cloneRemixContent(supabase, remixSource, remixRoom, serialNumber, slug)
+      await cloneRemixContent(supabase, remixSource, remixRoom, serialNumber, username)
       console.log(`✓ Remix from ${remixSource} → #${serialNumber}`)
     } catch (err) {
       console.error('Remix clone failed:', err)
