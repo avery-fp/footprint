@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     // Get primary footprint
     const { data: footprint } = await supabase
       .from('footprints')
-      .select('slug')
+      .select('username')
       .eq('user_id', user.id)
       .eq('is_primary', true)
       .single()
@@ -67,10 +67,10 @@ export async function POST(request: NextRequest) {
     const response = NextResponse.json({
       success: true,
       serial: user.serial_number,
-      slug: footprint?.slug || null,
+      slug: footprint?.username || null,
     })
 
-    response.cookies.set('session', sessionToken, {
+    response.cookies.set('fp_session', sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
