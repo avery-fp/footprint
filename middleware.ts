@@ -1,5 +1,14 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { jwtVerify } from 'jose'
+
+function getJwtSecret() {
+  const secret = process.env.JWT_SECRET
+  if (!secret && process.env.NODE_ENV === 'production') {
+    throw new Error('FATAL: JWT_SECRET environment variable is not set')
+  }
+  return new TextEncoder().encode(secret || 'dev-only-unsafe-key-do-not-use-in-prod')
+}
 
 const publicRoutes = [
   '/',
@@ -46,9 +55,20 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  const headers = new Headers(request.headers)
-  headers.set('x-user-id', session.value)
-  return NextResponse.next({ request: { headers } })
+  // Decode the JWT to extract the actual user ID
+  try {
+    const { payload } = await jwtVerify(session.value, getJwtSecret())
+    const headers = new Headers(request.headers)
+    headers.set('x-user-id', payload.userId as string)
+    return NextResponse.next({ request: { headers } })
+  } catch {
+    // Invalid or expired token — clear it and redirect to login
+    const url = request.nextUrl.clone()
+    url.pathname = '/auth/login'
+    const response = NextResponse.redirect(url)
+    response.cookies.delete('fp_session')
+    return response
+  }
 }
 
 export const config = {
