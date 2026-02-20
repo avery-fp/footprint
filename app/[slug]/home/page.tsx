@@ -477,7 +477,7 @@ export default function EditPage() {
             bio: data.footprint.bio || '',
             theme: data.footprint.dimension || 'midnight',
             grid_mode: 'edit',
-            avatar_url: data.footprint.background_url || null,
+            avatar_url: data.footprint.avatar_url || null,
             content,
             updated_at: Date.now(),
           })
@@ -1176,7 +1176,10 @@ export default function EditPage() {
   if (isLoading || !draft) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#07080A]">
-        <div className="font-mono text-white/50 animate-pulse">Loading...</div>
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-6 h-6 border-2 border-white/10 border-t-white/40 rounded-full animate-spin" />
+          <span className="text-xs text-white/30 font-mono">loading</span>
+        </div>
       </div>
     )
   }
@@ -1263,20 +1266,23 @@ export default function EditPage() {
           >
             all
           </button>
-          {rooms.map((room) => (
-            <button
-              key={room.id}
-              onClick={() => switchRoom(room.id)}
-              className={`text-xs px-4 py-2 rounded-full transition-all duration-300 whitespace-nowrap backdrop-blur-sm border-0 ${
-                activeRoomId === room.id
-                  ? 'bg-white/[0.12] text-white/90 scale-[1.05]'
-                  : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70 scale-100'
-              }`}
-              style={{ minHeight: '36px' }}
-            >
-              {room.name}
-            </button>
-          ))}
+          {rooms.map((room) => {
+            const count = draft?.content.filter(c => c.room_id === room.id).length || 0
+            return (
+              <button
+                key={room.id}
+                onClick={() => switchRoom(room.id)}
+                className={`text-xs px-4 py-2 rounded-full transition-all duration-300 whitespace-nowrap backdrop-blur-sm border-0 ${
+                  activeRoomId === room.id
+                    ? 'bg-white/[0.12] text-white/90 scale-[1.05]'
+                    : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70 scale-100'
+                }`}
+                style={{ minHeight: '36px' }}
+              >
+                {room.name}{count > 0 && <span className="ml-1.5 text-white/30">{count}</span>}
+              </button>
+            )
+          })}
           <button
             onClick={handleCreateRoom}
             className="text-xs px-4 py-2 rounded-full bg-white/[0.06] text-white/30 hover:text-white/60 hover:bg-white/[0.10] transition-all border-0"
@@ -1288,7 +1294,14 @@ export default function EditPage() {
       </div>
 
       {/* ═══ TILE GRID ═══ */}
-      <div className="max-w-7xl mx-auto px-3 md:px-6 pt-28 md:pt-24 pb-32 relative z-10">
+      <div className="max-w-7xl mx-auto px-3 md:px-6 pt-28 md:pt-24 pb-32 relative z-10"
+        onClick={(e) => {
+          // Tap background to deselect swap
+          if (swapSourceId && (e.target as HTMLElement).closest('[data-tile]') === null) {
+            setSwapSourceId(null)
+          }
+        }}
+      >
 
         {filteredContent.length > 0 ? (
           <DndContext
@@ -1414,6 +1427,24 @@ export default function EditPage() {
             </div>
 
             <div className="px-4 pb-6 overflow-y-auto" style={{ maxHeight: 'calc(60vh - 28px)' }}>
+              {/* Tile preview */}
+              <div className="flex items-center gap-3 pb-3 mb-1">
+                <div className="w-10 h-10 rounded-lg overflow-hidden bg-white/[0.06] flex-shrink-0">
+                  {selectedTile.type === 'image' && selectedTile.url && !selectedTile.url.match(/\.(mp4|mov|webm|m4v)($|\?)/i) ? (
+                    <img src={selectedTile.url} alt="" className="w-full h-full object-cover" />
+                  ) : selectedTile.thumbnail_url ? (
+                    <img src={selectedTile.thumbnail_url} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-white/30 text-xs">
+                      {selectedTile.type === 'thought' ? 'Aa' : '?'}
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-white/40 font-mono truncate">
+                  {selectedTile.title || selectedTile.type || 'tile'}
+                </p>
+              </div>
+
               {/* Resize — segmented control */}
               <div className="flex items-center justify-between py-3">
                 <span className="text-sm text-white/50 font-mono">size</span>
@@ -1490,7 +1521,7 @@ export default function EditPage() {
             <input
               ref={urlInputRef}
               type="text"
-              placeholder=""
+              placeholder="paste a link"
               value={pasteUrl}
               onChange={e => setPasteUrl(e.target.value)}
               onKeyDown={e => {
@@ -1522,16 +1553,17 @@ export default function EditPage() {
           <div className="w-80 bg-black/60 backdrop-blur-sm border border-white/20 rounded-2xl p-3 materialize">
             <textarea
               ref={thoughtInputRef}
-              placeholder=""
+              placeholder="write something"
               value={thoughtText}
               onChange={e => setThoughtText(e.target.value)}
               onKeyDown={e => {
-                if (e.key === 'Enter' && e.metaKey) handleAddThought()
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleAddThought()
                 if (e.key === 'Escape') stopAdding()
               }}
               rows={3}
               className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl font-mono text-sm focus:border-white/30 focus:outline-none text-white placeholder:text-white/30 resize-none"
             />
+            <p className="text-[10px] text-white/20 font-mono mt-1 px-1">⌘+enter to save</p>
             <div className="flex gap-2 mt-2">
               <button
                 onClick={handleAddThought}
