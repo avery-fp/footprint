@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
 
       // Redirect to dashboard with session cookie set
       const response = NextResponse.redirect(new URL(redirect, origin))
-      response.cookies.set('session', sessionToken, {
+      response.cookies.set('fp_session', sessionToken, {
         httpOnly: true,
         secure: true,
         sameSite: 'lax',

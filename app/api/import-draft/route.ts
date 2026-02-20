@@ -202,7 +202,7 @@ export async function POST(request: NextRequest) {
       slug: slug,
     })
 
-    response.cookies.set('session', sessionToken, {
+    response.cookies.set('fp_session', sessionToken, {
       httpOnly: true,
       secure: true,
       sameSite: 'lax',

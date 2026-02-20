@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     const sessionToken = await createSessionToken(user.id, user.email)
 
     const response = NextResponse.json({ success: true })
-    response.cookies.set('session', sessionToken, {
+    response.cookies.set('fp_session', sessionToken, {
       httpOnly: true,
       secure: true,
       sameSite: 'lax',
