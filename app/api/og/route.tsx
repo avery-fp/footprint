@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
           >
             <div style={{ fontSize: 96, fontWeight: 400, letterSpacing: '-0.04em', marginBottom: 16 }}>footprint</div>
             <div style={{ fontSize: 24, opacity: 0.35, fontWeight: 300 }}>
-              a room for your internet. $10.
+              one page for everything. $10.
             </div>
           </div>
         ),

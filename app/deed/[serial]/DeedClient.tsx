@@ -145,7 +145,7 @@ export default function DeedClient({
               className="block w-full py-3.5 rounded-xl text-sm font-medium transition-all bg-white text-black/90 hover:bg-white/90 text-center mt-6"
               style={{ fontFamily: DM }}
             >
-              Claim yours — $10
+              get yours  $10
             </a>
           )}
         </div>

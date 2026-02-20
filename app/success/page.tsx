@@ -135,7 +135,7 @@ export default function SuccessPage() {
         <div className="relative z-10 text-center">
           <div className="w-12 h-12 rounded-full border-2 border-white/10 border-t-white/50 animate-spin mx-auto mb-6" />
           <p className="text-white/20 text-xs" style={{ fontFamily: DM }}>
-            setting up your footprint...
+            one moment
           </p>
         </div>
       </div>
@@ -196,7 +196,7 @@ export default function SuccessPage() {
         {step === 'welcome' && (
           <>
             <p className="text-white/30 text-[13px] leading-relaxed mb-10" style={{ fontFamily: DM }}>
-              your page is public. set a password<br />so you can sign in and edit it.
+              set a password to sign in later
             </p>
             <button
               onClick={() => setStep('password')}

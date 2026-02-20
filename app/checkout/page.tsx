@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 
 const DM = "'DM Sans', sans-serif"
 
@@ -71,15 +72,25 @@ export default function CheckoutPage() {
       <div className="fixed inset-0 bg-[#080808]" />
 
       <div className="relative z-10 w-full max-w-sm px-6 pb-[env(safe-area-inset-bottom)]">
+        <div className="text-center mb-16">
+          <Link
+            href="/"
+            className="text-white/15 hover:text-white/30 text-xs transition-colors"
+            style={{ fontFamily: DM }}
+          >
+            footprint
+          </Link>
+        </div>
+
         <div className="text-center mb-10">
           <h1
             className="text-white/90 mb-2"
             style={{ fontFamily: DM, fontSize: '32px', fontWeight: 400, letterSpacing: '-0.03em' }}
           >
-            claim your footprint
+            get your page
           </h1>
           <p className="text-white/30" style={{ fontFamily: DM, fontSize: '14px' }}>
-            one page. all your things. $10 once.
+            everything in one place
           </p>
         </div>
 
@@ -130,7 +141,7 @@ export default function CheckoutPage() {
               ? '...'
               : promoCode.trim().toLowerCase() === 'please'
                 ? 'enter'
-                : 'continue — $10'
+                : 'continue · $10'
             }
           </button>
         </form>
@@ -139,7 +150,7 @@ export default function CheckoutPage() {
           className="text-center mt-6 text-white/15"
           style={{ fontFamily: DM, fontSize: '11px', letterSpacing: '0.02em' }}
         >
-          serial numbered. permanent. yours.
+          yours forever
         </p>
       </div>
     </div>

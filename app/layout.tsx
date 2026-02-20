@@ -6,10 +6,10 @@ export const dynamic = 'force-dynamic'
 
 export const metadata = {
   title: 'footprint',
-  description: 'a room for your internet. $10.',
+  description: 'one page for everything. $10.',
   openGraph: {
     title: 'footprint',
-    description: 'a room for your internet. $10.',
+    description: 'one page for everything. $10.',
     url: 'https://footprint.onl',
     siteName: 'footprint',
     images: [{ url: 'https://footprint.onl/api/og', width: 1200, height: 630 }],
@@ -17,7 +17,7 @@ export const metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'footprint',
-    description: 'a room for your internet. $10.',
+    description: 'one page for everything. $10.',
     images: ['https://footprint.onl/api/og'],
   },
 }
