@@ -33,7 +33,18 @@ export async function POST(request: NextRequest) {
 
     const sessionToken = await createSessionToken(user.id, user.email)
 
-    const response = NextResponse.json({ success: true })
+    // Find user's primary footprint slug for direct redirect to editor
+    const { data: primaryFp } = await supabase
+      .from('footprints')
+      .select('username')
+      .eq('user_id', user.id)
+      .eq('is_primary', true)
+      .single()
+
+    const response = NextResponse.json({
+      success: true,
+      slug: primaryFp?.username || null,
+    })
     response.cookies.set('fp_session', sessionToken, {
       httpOnly: true,
       secure: true,

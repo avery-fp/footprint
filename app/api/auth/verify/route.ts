@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyMagicLink } from '@/lib/auth'
+import { createServerSupabaseClient } from '@/lib/supabase'
 
 /**
  * POST /api/auth/verify
@@ -42,9 +43,19 @@ export async function POST(request: NextRequest) {
 
     const { user, sessionToken } = result
 
+    // Find user's primary footprint slug for direct redirect to editor
+    const supabase = createServerSupabaseClient()
+    const { data: primaryFp } = await supabase
+      .from('footprints')
+      .select('username')
+      .eq('user_id', user.id)
+      .eq('is_primary', true)
+      .single()
+
     // Create response with session cookie
     const response = NextResponse.json({
       success: true,
+      slug: primaryFp?.username || null,
       user: {
         id: user.id,
         email: user.email,

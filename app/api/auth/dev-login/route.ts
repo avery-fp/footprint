@@ -107,7 +107,16 @@ export async function GET(request: NextRequest) {
 
     const sessionToken = await createSessionToken(user.id, user.email)
 
-    const response = NextResponse.redirect(new URL('/dashboard', request.url))
+    // Find user's primary footprint slug for direct redirect to editor
+    const { data: primaryFp } = await supabase
+      .from('footprints')
+      .select('username')
+      .eq('user_id', user.id)
+      .eq('is_primary', true)
+      .single()
+
+    const destination = primaryFp ? `/${primaryFp.username}/home` : '/build'
+    const response = NextResponse.redirect(new URL(destination, request.url))
 
     response.cookies.set('fp_session', sessionToken, {
       httpOnly: true,

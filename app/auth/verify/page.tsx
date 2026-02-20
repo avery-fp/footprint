@@ -16,9 +16,8 @@ export default function VerifyPage() {
   const router = useRouter()
   
   const token = searchParams.get('token')
-  const rawRedirect = searchParams.get('redirect') || '/dashboard'
-  // Prevent open redirects: only allow relative paths, never protocol-relative
-  const redirect = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : '/dashboard'
+  const rawRedirect = searchParams.get('redirect') || ''
+  const customRedirect = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : ''
   
   const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying')
   const [error, setError] = useState('')
@@ -56,8 +55,9 @@ export default function VerifyPage() {
 
         if (data.success) {
           setStatus('success')
+          const dest = customRedirect || (data.slug ? `/${data.slug}/home` : '/dashboard')
           setTimeout(() => {
-            router.push(redirect)
+            router.push(dest)
           }, 1200)
         } else {
           setStatus('error')
