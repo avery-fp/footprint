@@ -39,11 +39,11 @@ export async function POST(request: NextRequest) {
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
-    // Check if user exists (i.e., has paid)
+    // Check if user exists (i.e., has paid) — case-insensitive
     const { data: user, error: userError } = await supabase
       .from('users')
       .select('id, email')
-      .eq('email', email)
+      .ilike('email', email)
       .single()
 
     if (userError || !user) {

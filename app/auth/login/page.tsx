@@ -14,11 +14,14 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
+  const [notFound, setNotFound] = useState(false)
+  const [promo, setPromo] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email) return
     setLoading(true)
+    setNotFound(false)
 
     try {
       if (password) {
@@ -39,7 +42,7 @@ export default function LoginPage() {
         return
       }
 
-      // No password — send magic link
+      // No password — send magic link (falls back to dev-login if email fails)
       const res = await fetch('/api/auth/magic-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -49,8 +52,38 @@ export default function LoginPage() {
       const data = await res.json()
       if (data.success) {
         setSent(true)
+      } else if (res.status === 404) {
+        // No account — show create account option
+        setNotFound(true)
       } else {
-        toast.error(data.error || 'Something went wrong')
+        // Magic link failed (Resend 403, etc.) — fall back to direct login
+        window.location.href = `/api/auth/dev-login?email=${encodeURIComponent(email)}`
+        return
+      }
+    } catch {
+      toast.error('Failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCreateAccount = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!promo) return
+    setLoading(true)
+
+    try {
+      const res = await fetch('/api/checkout/free', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, promo }),
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        router.push(redirect)
+      } else {
+        toast.error(data.error || 'Invalid promo code')
       }
     } catch {
       toast.error('Failed')
@@ -79,6 +112,51 @@ export default function LoginPage() {
             className="mt-8 text-white/15 text-[11px] hover:text-white/30 transition-colors"
           >
             try again
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // "No account found" — create one with promo code
+  if (notFound) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-6">
+        <div className="w-full max-w-xs">
+          <p
+            className="text-center text-[22px] font-light tracking-[-0.01em] text-white/90 mb-3"
+            style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}
+          >
+            no account found
+          </p>
+          <p className="text-center text-white/30 text-[13px] leading-relaxed mb-8">
+            <span className="text-white/50">{email}</span> doesn&apos;t have a footprint yet.
+            <br />enter a promo code to create one.
+          </p>
+
+          <form onSubmit={handleCreateAccount} className="space-y-3">
+            <input
+              type="text"
+              value={promo}
+              onChange={(e) => setPromo(e.target.value)}
+              placeholder="promo code"
+              className="w-full bg-white/[0.05] border border-white/[0.06] rounded-xl px-4 py-3.5 text-white/90 placeholder:text-white/20 focus:outline-none focus:border-white/12 text-[14px]"
+              autoFocus
+            />
+            <button
+              type="submit"
+              disabled={loading || !promo}
+              className="w-full py-3.5 rounded-xl bg-white text-black text-[14px] font-medium hover:bg-white/90 transition-all disabled:opacity-40"
+            >
+              {loading ? '...' : 'create account'}
+            </button>
+          </form>
+
+          <button
+            onClick={() => { setNotFound(false); setPromo('') }}
+            className="mt-6 w-full text-center text-white/15 text-[11px] hover:text-white/30 transition-colors"
+          >
+            back to sign in
           </button>
         </div>
       </div>
