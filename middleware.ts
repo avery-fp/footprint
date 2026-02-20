@@ -28,7 +28,7 @@ export async function middleware(request: NextRequest) {
     '/api/og',
     '/api/qr',
     '/api/embed',
- claude/footprint-monetization-engine-ZDvAw
+
     '/api/v1',
     '/api/events',
     '/api/aro-feed',
