@@ -15,7 +15,11 @@ const DM = "'DM Sans', sans-serif"
 
 export default function HomeShowcase({ rooms }: { rooms: Room[] }) {
   return (
-    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 max-w-5xl">
+    <div className={`grid gap-6 ${
+      rooms.length === 1 ? 'max-w-sm mx-auto' :
+      rooms.length === 2 ? 'md:grid-cols-2 max-w-2xl' :
+      'md:grid-cols-2 lg:grid-cols-3 max-w-5xl'
+    }`}>
       {rooms.map((room) => (
         <Link
           key={room.slug}

@@ -30,7 +30,7 @@ export async function createCheckoutSession(params: {
           currency: FOOTPRINT_CURRENCY,
           product_data: {
             name: 'Footprint',
-            description: 'a room for your internet.',
+            description: 'one page for everything.',
             images: ['https://footprint.onl/api/og'],
           },
           unit_amount: FOOTPRINT_PRICE,

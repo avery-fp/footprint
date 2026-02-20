@@ -33,16 +33,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return {
     title,
-    description: footprint.bio || 'a room for your internet. $10.',
+    description: footprint.bio || 'one page for everything. $10.',
     openGraph: {
       title,
-      description: footprint.bio || 'a room for your internet. $10.',
+      description: footprint.bio || 'one page for everything. $10.',
       images: [`https://footprint.onl/api/og?slug=${params.slug}`],
     },
     twitter: {
       card: 'summary_large_image',
       title,
-      description: footprint.bio || 'a room for your internet. $10.',
+      description: footprint.bio || 'one page for everything. $10.',
       images: [`https://footprint.onl/api/og?slug=${params.slug}`],
     },
   }

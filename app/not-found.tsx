@@ -25,14 +25,14 @@ export default function NotFound() {
             letterSpacing: '-0.03em',
           }}
         >
-          this room doesn't exist yet
+          this page doesn't exist yet
         </h1>
 
         <p
           className="text-white/25 text-sm mb-14 leading-relaxed"
           style={{ fontFamily: DM }}
         >
-          a room for your internet. $10. yours forever.
+          one page for everything. $10.
         </p>
 
         <div className="flex items-center justify-center gap-5">
@@ -41,7 +41,7 @@ export default function NotFound() {
             className="rounded-full px-8 py-3 bg-white text-black/90 hover:bg-white/90 transition-all duration-200 text-sm font-medium"
             style={{ fontFamily: DM }}
           >
-            Claim yours — $10
+            get yours  $10
           </a>
 
           <Link
@@ -49,7 +49,7 @@ export default function NotFound() {
             className="text-white/20 hover:text-white/40 transition-colors duration-300 text-sm"
             style={{ fontFamily: DM }}
           >
-            See a footprint
+            see one
           </Link>
         </div>
       </div>

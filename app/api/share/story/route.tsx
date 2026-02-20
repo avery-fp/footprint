@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
           fontFamily: 'system-ui', flexDirection: 'column',
         }}>
           <div style={{ fontSize: 72, fontWeight: 300, letterSpacing: '-0.04em' }}>footprint</div>
-          <div style={{ fontSize: 18, opacity: 0.3, marginTop: 16 }}>a room for your internet.</div>
+          <div style={{ fontSize: 18, opacity: 0.3, marginTop: 16 }}>one page for everything.</div>
         </div>
       ),
       { width: 1080, height: 1920 }

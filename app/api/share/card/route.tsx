@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
 
   const serial = fp?.users?.serial_number || fp?.serial_number || 0
   const name = fp?.display_name || fp?.name || slug
-  const bioText = fp?.bio || 'a room for your internet.'
+  const bioText = fp?.bio || 'one page for everything.'
   const wallpaper = fp?.background_url || ''
   const refCode = `FP-${serial}`
 

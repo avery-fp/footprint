@@ -14,18 +14,18 @@ function getSupabase() {
 export const revalidate = 300
 
 export const metadata: Metadata = {
-  title: 'Footprint — your internet room',
-  description: 'A permanent room for everything you love on the internet. One payment. Yours forever. $10.',
+  title: 'footprint',
+  description: 'one page for everything. $10.',
   openGraph: {
-    title: 'Footprint — your internet room',
-    description: 'A permanent room for everything you love on the internet. One payment. Yours forever. $10.',
+    title: 'footprint',
+    description: 'one page for everything. $10.',
     images: ['https://footprint.onl/api/og'],
     url: 'https://footprint.onl',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Footprint — your internet room',
-    description: 'A permanent room for everything you love on the internet. $10.',
+    title: 'footprint',
+    description: 'one page for everything. $10.',
     images: ['https://footprint.onl/api/og'],
   },
 }
@@ -40,20 +40,21 @@ async function getWallpaper() {
 }
 
 async function getShowcaseRooms() {
-  const slugs = ['ae']
   const supabase = getSupabase()
 
+  // Fetch published footprints that have content, most recently updated first
+  const { data: fps } = await supabase
+    .from('footprints')
+    .select('username, display_name, bio, background_url, serial_number')
+    .eq('published', true)
+    .not('display_name', 'is', null)
+    .order('updated_at', { ascending: false })
+    .limit(6)
+
+  if (!fps || fps.length === 0) return []
+
   const rooms = []
-  for (const slug of slugs) {
-    const { data: fp } = await supabase
-      .from('footprints')
-      .select('username, display_name, bio, background_url, serial_number')
-      .eq('username', slug)
-      .eq('published', true)
-      .single()
-
-    if (!fp) continue
-
+  for (const fp of fps) {
     const { data: tiles } = await supabase
       .from('library')
       .select('image_url')
@@ -61,13 +62,16 @@ async function getShowcaseRooms() {
       .order('position')
       .limit(3)
 
+    const tileUrls = (tiles || []).map(t => t.image_url).filter(Boolean)
+    if (tileUrls.length === 0) continue
+
     rooms.push({
       slug: fp.username,
-      name: fp.display_name || slug,
+      name: fp.display_name || fp.username,
       bio: fp.bio || '',
       wallpaper: fp.background_url,
       serial: fp.serial_number,
-      tiles: (tiles || []).map(t => t.image_url).filter(Boolean),
+      tiles: tileUrls,
     })
   }
 
@@ -121,7 +125,7 @@ export default async function Home() {
                 letterSpacing: '-0.01em',
               }}
             >
-              a room for your internet.
+              one page for everything
             </p>
 
             <div className="flex items-center gap-5">
@@ -135,7 +139,7 @@ export default async function Home() {
                   letterSpacing: '-0.01em',
                 }}
               >
-                Claim yours — $10
+                get yours  $10
               </a>
 
               <Link
@@ -147,7 +151,7 @@ export default async function Home() {
                   fontWeight: 400,
                 }}
               >
-                See a footprint
+                see one
               </Link>
             </div>
 
@@ -169,15 +173,15 @@ export default async function Home() {
               className="text-white/12 text-sm leading-relaxed mb-12"
               style={{ fontFamily: "'DM Sans', sans-serif" }}
             >
-              no subscriptions. no refunds. no bullshit.
+              $10 once and it's yours forever
             </p>
-            <a
-              href={checkoutUrl}
+            <Link
+              href="/auth/login"
               className="text-white/20 hover:text-white/40 text-xs transition-colors"
               style={{ fontFamily: "'DM Sans', sans-serif" }}
             >
-              Claim your footprint — $10
-            </a>
+              sign in
+            </Link>
           </div>
         </section>
       </div>
