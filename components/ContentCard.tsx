@@ -333,13 +333,27 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }
 
   // ════════════════════════════════════════
-  // THOUGHT — glass text card
+  // THOUGHT — text tile with adaptive typography
   // ════════════════════════════════════════
   if (content.type === 'thought') {
+    const text = content.title || content.description || ''
+    const len = text.length
+    // Short text → large, bold. Long text → smaller, lighter.
+    const typo = len <= 6
+      ? 'text-3xl font-semibold tracking-tight'
+      : len <= 20
+      ? 'text-xl font-medium tracking-[-0.01em]'
+      : len <= 60
+      ? 'text-base font-normal leading-snug tracking-[-0.005em]'
+      : 'text-sm font-normal leading-relaxed'
+
     return (
-      <div className="w-full h-full flex items-center justify-center p-6">
-        <p className="text-lg leading-relaxed whitespace-pre-wrap text-white/90 text-center font-light tracking-wide">
-          {content.title || content.description || ''}
+      <div className="w-full h-full flex items-center justify-center p-5">
+        <p
+          className={`whitespace-pre-wrap text-white/90 text-center ${typo}`}
+          style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}
+        >
+          {text}
         </p>
       </div>
     )
