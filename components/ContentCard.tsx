@@ -333,26 +333,23 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }
 
   // ════════════════════════════════════════
-  // THOUGHT — text tile with adaptive typography
+  // THOUGHT — text tile with glass background
   // ════════════════════════════════════════
   if (content.type === 'thought') {
     const text = content.title || content.description || ''
     const len = text.length
-    // Short text → large, bold. Long text → smaller, lighter.
+    // Adaptive sizing: short → big and bold, long → smaller
     const typo = len <= 6
-      ? 'text-3xl font-semibold tracking-tight'
+      ? 'text-[28px] font-bold tracking-[-0.03em] leading-none'
       : len <= 20
-      ? 'text-xl font-medium tracking-[-0.01em]'
+      ? 'text-[18px] font-semibold tracking-[-0.02em] leading-tight'
       : len <= 60
-      ? 'text-base font-normal leading-snug tracking-[-0.005em]'
-      : 'text-sm font-normal leading-relaxed'
+      ? 'text-[14px] font-medium leading-snug'
+      : 'text-[13px] font-normal leading-relaxed'
 
     return (
-      <div className="w-full h-full flex items-center justify-center p-5">
-        <p
-          className={`whitespace-pre-wrap text-white/90 text-center ${typo}`}
-          style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}
-        >
+      <div className="w-full h-full rounded-xl bg-white/[0.07] backdrop-blur-md flex items-center justify-center p-5">
+        <p className={`whitespace-pre-wrap text-white text-center ${typo}`}>
           {text}
         </p>
       </div>
