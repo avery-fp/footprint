@@ -258,11 +258,11 @@ function SortableTile({
                 onError={(e) => { (e.target as HTMLElement).closest('[data-tile]')!.style.display = 'none' }} />
             ) : (
               content.type === 'thought' ? (
-                <p className={`text-white/85 text-center line-clamp-4 px-2 ${
-                  (content.title || '').length <= 6 ? 'text-xl font-semibold tracking-tight'
-                  : (content.title || '').length <= 20 ? 'text-base font-medium tracking-[-0.01em]'
-                  : 'text-xs font-normal leading-relaxed'
-                }`} style={{ fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
+                <p className={`text-white text-center line-clamp-4 px-2 ${
+                  (content.title || '').length <= 6 ? 'text-lg font-bold tracking-[-0.03em]'
+                  : (content.title || '').length <= 20 ? 'text-sm font-semibold tracking-[-0.02em]'
+                  : 'text-xs font-medium leading-relaxed'
+                }`}>
                   {content.title || ''}
                 </p>
               ) : (
