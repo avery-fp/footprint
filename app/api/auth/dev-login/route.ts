@@ -13,101 +13,116 @@ import { nanoid } from 'nanoid'
  * DELETE THIS ROUTE once Resend domain is verified.
  */
 export async function GET(request: NextRequest) {
-  const rawEmail = request.nextUrl.searchParams.get('email')
-  const linkFootprint = request.nextUrl.searchParams.get('link_footprint')
+  try {
+    const rawEmail = request.nextUrl.searchParams.get('email')
+    const linkFootprint = request.nextUrl.searchParams.get('link_footprint')
 
-  if (!rawEmail) {
-    return NextResponse.json({ error: 'email query param required' }, { status: 400 })
-  }
-
-  const email = rawEmail.toLowerCase().trim()
-  const supabase = createServerSupabaseClient()
-
-  // Look up existing user (case-insensitive)
-  let { data: user } = await supabase
-    .from('users')
-    .select('*')
-    .ilike('email', email)
-    .single()
-
-  // Auto-create user if not found
-  if (!user) {
-    const { data: serialData, error: serialError } = await supabase.rpc('claim_next_serial')
-    if (serialError || !serialData) {
-      return NextResponse.json({ error: 'No serials available' }, { status: 500 })
+    if (!rawEmail) {
+      return NextResponse.json({ error: 'email query param required' }, { status: 400 })
     }
 
-    const serialNumber = serialData
-    const username = `fp-${serialNumber}-${nanoid(4).toLowerCase()}`
+    const email = rawEmail.toLowerCase().trim()
+    const supabase = createServerSupabaseClient()
 
-    const { data: newUser, error: userError } = await supabase
+    // Look up existing user
+    let { data: user } = await supabase
       .from('users')
-      .insert({
-        email,
-        serial_number: serialNumber,
-      })
-      .select()
+      .select('*')
+      .ilike('email', email)
       .single()
 
-    if (userError || !newUser) {
-      return NextResponse.json({ error: `Failed to create user: ${userError?.message}` }, { status: 500 })
+    // Auto-create user if not found
+    if (!user) {
+      // Try claim_next_serial RPC first; fall back to max+1 if it doesn't exist
+      let serialNumber: number
+      const { data: serialData, error: serialError } = await supabase.rpc('claim_next_serial')
+
+      if (serialError || !serialData) {
+        // Fallback: grab max serial and increment
+        const { data: maxRow } = await supabase
+          .from('users')
+          .select('serial_number')
+          .order('serial_number', { ascending: false })
+          .limit(1)
+          .single()
+        serialNumber = (maxRow?.serial_number || 0) + 1
+      } else {
+        serialNumber = serialData
+      }
+
+      const username = `fp-${serialNumber}-${nanoid(4).toLowerCase()}`
+
+      const { data: newUser, error: userError } = await supabase
+        .from('users')
+        .insert({ email, serial_number: serialNumber })
+        .select()
+        .single()
+
+      if (userError || !newUser) {
+        return NextResponse.json(
+          { error: `Failed to create user: ${userError?.message}` },
+          { status: 500 }
+        )
+      }
+
+      user = newUser
+
+      // Only create a default footprint if we're not about to link an existing one
+      if (!linkFootprint) {
+        await supabase.from('footprints').insert({
+          user_id: user.id,
+          username,
+          serial_number: serialNumber,
+          name: 'Everything',
+          icon: '◈',
+          is_primary: true,
+          published: true,
+        })
+      }
     }
 
-    user = newUser
-
-    // Only create a default footprint if we're not about to link an existing one
-    if (!linkFootprint) {
-      await supabase.from('footprints').insert({
-        user_id: user.id,
-        username,
-        serial_number: serialNumber,
-        name: 'Everything',
-        icon: '◈',
-        is_primary: true,
-        published: true,
-      })
-    }
-
-    console.log(`✓ Dev-login created user: ${email} #${serialNumber}`)
-  }
-
-  // Link an existing footprint to this user
-  if (linkFootprint) {
-    const { data: fp } = await supabase
-      .from('footprints')
-      .select('id, user_id')
-      .eq('username', linkFootprint)
-      .single()
-
-    if (fp) {
-      await supabase
+    // Link an existing footprint to this user
+    if (linkFootprint) {
+      const { data: fp } = await supabase
         .from('footprints')
-        .update({ user_id: user.id, is_primary: true })
-        .eq('id', fp.id)
+        .select('id, user_id')
+        .eq('username', linkFootprint)
+        .single()
 
-      // Demote any other primary footprints for this user
-      await supabase
-        .from('footprints')
-        .update({ is_primary: false })
-        .eq('user_id', user.id)
-        .neq('id', fp.id)
-        .eq('is_primary', true)
+      if (fp) {
+        await supabase
+          .from('footprints')
+          .update({ user_id: user.id, is_primary: true })
+          .eq('id', fp.id)
 
-      console.log(`✓ Linked footprint "${linkFootprint}" to ${email}`)
+        // Demote any other primary footprints for this user
+        await supabase
+          .from('footprints')
+          .update({ is_primary: false })
+          .eq('user_id', user.id)
+          .neq('id', fp.id)
+          .eq('is_primary', true)
+      }
     }
+
+    const sessionToken = await createSessionToken(user.id, user.email)
+
+    const response = NextResponse.redirect(new URL('/dashboard', request.url))
+
+    response.cookies.set('fp_session', sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 30,
+      path: '/',
+    })
+
+    return response
+  } catch (err: any) {
+    console.error('Dev-login error:', err)
+    return NextResponse.json(
+      { error: err?.message || 'Internal error', stack: process.env.NODE_ENV !== 'production' ? err?.stack : undefined },
+      { status: 500 }
+    )
   }
-
-  const sessionToken = await createSessionToken(user.id, user.email)
-
-  const response = NextResponse.redirect(new URL('/dashboard', request.url))
-
-  response.cookies.set('fp_session', sessionToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 30,
-    path: '/',
-  })
-
-  return response
 }
