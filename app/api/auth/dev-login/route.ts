@@ -11,18 +11,19 @@ import { createServerSupabaseClient } from '@/lib/supabase'
  * DELETE THIS ROUTE once Resend domain is verified.
  */
 export async function GET(request: NextRequest) {
-  const email = request.nextUrl.searchParams.get('email')
+  const rawEmail = request.nextUrl.searchParams.get('email')
 
-  if (!email) {
+  if (!rawEmail) {
     return NextResponse.json({ error: 'email query param required' }, { status: 400 })
   }
 
+  const email = rawEmail.toLowerCase().trim()
   const supabase = createServerSupabaseClient()
 
   const { data: user, error } = await supabase
     .from('users')
     .select('*')
-    .eq('email', email)
+    .ilike('email', email)
     .single()
 
   if (error || !user) {

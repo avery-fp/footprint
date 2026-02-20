@@ -38,9 +38,10 @@ export async function POST(request: NextRequest) {
 
 async function handleCheckoutComplete(session: any) {
   const supabase = createServerSupabaseClient()
-  const email = session.customer_email || session.customer_details?.email
+  const rawEmail = session.customer_email || session.customer_details?.email
 
-  if (!email) throw new Error('No email found in checkout session')
+  if (!rawEmail) throw new Error('No email found in checkout session')
+  const email = rawEmail.toLowerCase().trim()
 
   // Idempotency: check if this session was already processed
   const { data: existingPayment } = await supabase

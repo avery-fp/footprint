@@ -25,12 +25,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Payment not confirmed' }, { status: 400 })
     }
 
-    const email = session.customer_email || session.customer_details?.email
+    const rawEmail = session.customer_email || session.customer_details?.email
 
-    if (!email) {
+    if (!rawEmail) {
       return NextResponse.json({ error: 'No email found' }, { status: 400 })
     }
 
+    const email = rawEmail.toLowerCase().trim()
     const supabase = createServerSupabaseClient()
 
     // Poll briefly — webhook may be slightly behind
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
       const { data } = await supabase
         .from('users')
         .select('id, email, serial_number')
-        .eq('email', email)
+        .ilike('email', email)
         .single()
 
       if (data) {

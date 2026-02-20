@@ -17,6 +17,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email required' }, { status: 400 })
     }
 
+    const normalizedEmail = email.toLowerCase().trim()
     const normalizedPromo = (promo || '').trim().toLowerCase()
     const supabase = createServerSupabaseClient()
 
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
     const { data: existingUser } = await supabase
       .from('users')
       .select('id, email, serial_number')
-      .eq('email', email)
+      .ilike('email', normalizedEmail)
       .single()
 
     if (existingUser) {
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
     const { data: user, error: userError } = await supabase
       .from('users')
       .insert({
-        email,
+        email: normalizedEmail,
         serial_number: serialNumber,
         referred_by: ref || null,
       })

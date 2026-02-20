@@ -4,16 +4,17 @@ import { nanoid } from 'nanoid'
 
 export async function POST(request: NextRequest) {
   try {
-    const { email } = await request.json()
-    if (!email) return NextResponse.json({ error: 'Email required' }, { status: 400 })
+    const { email: rawEmail } = await request.json()
+    if (!rawEmail) return NextResponse.json({ error: 'Email required' }, { status: 400 })
 
+    const email = rawEmail.toLowerCase().trim()
     const supabase = createServerSupabaseClient()
 
     // Check if user already exists
     const { data: existing } = await supabase
       .from('users')
       .select('id, serial_number')
-      .eq('email', email)
+      .ilike('email', email)
       .single()
 
     if (existing) {
