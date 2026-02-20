@@ -7,8 +7,8 @@ import { toast } from 'sonner'
 export default function LoginPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const rawRedirect = searchParams.get('redirect') || '/dashboard'
-  const redirect = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : '/dashboard'
+  const rawRedirect = searchParams.get('redirect') || ''
+  const customRedirect = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : ''
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -32,7 +32,9 @@ export default function LoginPage() {
         })
 
         if (res.ok) {
-          router.push(redirect)
+          const data = await res.json()
+          const dest = customRedirect || (data.slug ? `/${data.slug}/home` : '/dashboard')
+          router.push(dest)
           return
         }
 
@@ -46,7 +48,7 @@ export default function LoginPage() {
       const res = await fetch('/api/auth/magic-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, redirect }),
+        body: JSON.stringify({ email, redirect: customRedirect || undefined }),
       })
 
       const data = await res.json()
@@ -81,7 +83,9 @@ export default function LoginPage() {
 
       const data = await res.json()
       if (data.success) {
-        router.push(redirect)
+        // After promo signup, dev-login will handle redirect to editor
+        window.location.href = `/api/auth/dev-login?email=${encodeURIComponent(email)}`
+        return
       } else {
         toast.error(data.error || 'Invalid promo code')
       }
