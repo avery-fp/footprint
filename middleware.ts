@@ -2,31 +2,15 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { verifySessionToken } from './lib/auth'
 
-/**
- * Next.js Middleware
- *
- * Runs before every request. Handles:
- * 1. Protected route authentication
- * 2. Redirects for unauthenticated users
- * 3. Session validation
- * 4. Setting x-user-id header for API routes
- *
- * Protected routes are under /[slug]/home and /dashboard
- * These require a valid session cookie.
- *
- * API routes get x-user-id header if authenticated,
- * but don't redirect (they return 401 themselves).
- */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Let OG image routes through for crawlers
   if (pathname.endsWith('/opengraph-image')) {
     return NextResponse.next()
   }
 
-  // Fully public routes - no auth check at all
-  const fullyPublicRoutes = [
+  // Fully public — no auth
+  const publicRoutes = [
     '/',
     '/checkout',
     '/success',
@@ -35,6 +19,7 @@ export async function middleware(request: NextRequest) {
     '/auth/login',
     '/auth/callback',
     '/welcome',
+    '/docs',
     '/api/checkout',
     '/api/webhook',
     '/api/create-user',
@@ -43,6 +28,7 @@ export async function middleware(request: NextRequest) {
     '/api/og',
     '/api/qr',
     '/api/embed',
+ claude/footprint-monetization-engine-ZDvAw
     '/api/v1',
     '/api/events',
     '/api/aro-feed',
@@ -51,70 +37,72 @@ export async function middleware(request: NextRequest) {
     '/api/embed',
     '/api/metadata',
     '/deed',
+
+    '/api/v1/footprint',
+    '/api/analytics',
+    '/api/next-serial',
+ main
   ]
 
-  // Check if this is a fully public route
-  const isFullyPublic = fullyPublicRoutes.some(route =>
-    pathname === route || pathname.startsWith(route + '/')
+  const isPublic = publicRoutes.some(r =>
+    pathname === r || pathname.startsWith(r + '/')
   )
 
-  // Check if this is a public footprint page (dynamic route like /ae, /username)
-  const isPublicFootprint = /^\/[a-zA-Z0-9-]+$/.test(pathname) &&
-    !pathname.endsWith('/home') &&
+  // Public footprint pages (e.g. /ae, /username) — single segment only
+  const isPublicFootprint = /^\/[a-zA-Z0-9_-]+$/.test(pathname) &&
     !pathname.startsWith('/dashboard') &&
     !pathname.startsWith('/auth') &&
     !pathname.startsWith('/api')
 
-  // Fully public routes pass through without any processing
-  if (isFullyPublic || isPublicFootprint) {
+  if (isPublic || isPublicFootprint) {
     return NextResponse.next()
   }
 
-  // Check for session
   const sessionToken = request.cookies.get('session')?.value
 
-  // /[slug]/home routes: optional auth - set headers if authenticated, allow through if not
-  if (pathname.endsWith('/home')) {
+  // Helper: build a safe login redirect URL (prevent open redirects)
+  function loginRedirect(returnPath: string) {
+    // Only allow relative paths starting with /
+    const safe = returnPath.startsWith('/') && !returnPath.startsWith('//') ? returnPath : '/dashboard'
+    return new URL(`/auth/login?redirect=${encodeURIComponent(safe)}`, request.url)
+  }
+
+  // ── /[slug]/home — REQUIRE auth (edit page) ──
+  // Use regex for exact match: /something/home (case-insensitive, no trailing segments)
+  const isEditPage = /^\/[a-zA-Z0-9_-]+\/home$/i.test(pathname)
+
+  if (isEditPage && !pathname.startsWith('/api')) {
     if (!sessionToken) {
-      return NextResponse.next() // Allow unauthenticated access
+      return NextResponse.redirect(loginRedirect(pathname))
     }
 
     const session = await verifySessionToken(sessionToken)
     if (!session) {
-      return NextResponse.next() // Invalid session, allow through (edit page handles it)
+      const res = NextResponse.redirect(loginRedirect(pathname))
+      res.cookies.delete('session')
+      return res
     }
 
-    // Valid session - add user info to headers
-    const requestHeaders = new Headers(request.headers)
-    requestHeaders.set('x-user-id', session.userId)
-    requestHeaders.set('x-user-email', session.email)
-
-    return NextResponse.next({
-      request: { headers: requestHeaders },
-    })
+    const headers = new Headers(request.headers)
+    headers.set('x-user-id', session.userId)
+    headers.set('x-user-email', session.email)
+    return NextResponse.next({ request: { headers } })
   }
 
-  // API routes: set headers if authenticated, pass through if not (let API handle 401)
+  // ── API routes — pass auth headers if present ──
   if (pathname.startsWith('/api/')) {
-    if (!sessionToken) {
-      return NextResponse.next()
-    }
+    if (!sessionToken) return NextResponse.next()
 
     const session = await verifySessionToken(sessionToken)
-    if (!session) {
-      return NextResponse.next()
-    }
+    if (!session) return NextResponse.next()
 
-    // Set user headers for authenticated API calls
-    const requestHeaders = new Headers(request.headers)
-    requestHeaders.set('x-user-id', session.userId)
-    requestHeaders.set('x-user-email', session.email)
-
-    return NextResponse.next({
-      request: { headers: requestHeaders },
-    })
+    const headers = new Headers(request.headers)
+    headers.set('x-user-id', session.userId)
+    headers.set('x-user-email', session.email)
+    return NextResponse.next({ request: { headers } })
   }
 
+ claude/footprint-monetization-engine-ZDvAw
   // Page routes: redirect to checkout/login if no session
   if (!sessionToken) {
     if (pathname === '/build') {
@@ -123,38 +111,28 @@ export async function middleware(request: NextRequest) {
     const loginUrl = new URL('/auth/login', request.url)
     loginUrl.searchParams.set('redirect', pathname)
     return NextResponse.redirect(loginUrl)
+
+  // ── All other pages — require auth ──
+  if (!sessionToken) {
+    return NextResponse.redirect(loginRedirect(pathname))
+ main
   }
 
-  // Verify the session token
   const session = await verifySessionToken(sessionToken)
-
   if (!session) {
-    // Invalid session - clear cookie and redirect
-    const response = NextResponse.redirect(new URL('/auth/login', request.url))
-    response.cookies.delete('session')
-    return response
+    const res = NextResponse.redirect(loginRedirect(pathname))
+    res.cookies.delete('session')
+    return res
   }
 
-  // Valid session - add user info to headers
-  const requestHeaders = new Headers(request.headers)
-  requestHeaders.set('x-user-id', session.userId)
-  requestHeaders.set('x-user-email', session.email)
-
-  return NextResponse.next({
-    request: { headers: requestHeaders },
-  })
+  const headers = new Headers(request.headers)
+  headers.set('x-user-id', session.userId)
+  headers.set('x-user-email', session.email)
+  return NextResponse.next({ request: { headers } })
 }
 
-// Configure which routes the middleware runs on
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
     '/((?!_next/static|_next/image|favicon.ico|.*\\..*|public).*)',
   ],
 }

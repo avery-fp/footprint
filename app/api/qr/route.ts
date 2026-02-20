@@ -37,9 +37,9 @@ export async function GET(request: NextRequest) {
     
     const { data: footprint, error } = await supabase
       .from('footprints')
-      .select('slug, is_public')
-      .eq('slug', slug)
-      .eq('is_public', true)
+      .select('username, published')
+      .eq('username', slug)
+      .eq('published', true)
       .single()
 
     if (error || !footprint) {

@@ -16,7 +16,9 @@ export default function VerifyPage() {
   const router = useRouter()
   
   const token = searchParams.get('token')
-  const redirect = searchParams.get('redirect') || '/dashboard'
+  const rawRedirect = searchParams.get('redirect') || '/dashboard'
+  // Prevent open redirects: only allow relative paths, never protocol-relative
+  const redirect = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : '/dashboard'
   
   const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying')
   const [error, setError] = useState('')

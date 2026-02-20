@@ -238,6 +238,12 @@ CREATE TABLE page_views (
 
 CREATE INDEX idx_page_views_footprint ON page_views (footprint_id);
 CREATE INDEX idx_page_views_date ON page_views (created_at);
+-- Composite: analytics date-range queries
+CREATE INDEX idx_page_views_footprint_date ON page_views (footprint_id, created_at);
+
+-- Composite: ordered tile queries (used by public page + edit page)
+CREATE INDEX idx_library_serial_pos ON library (serial_number, position);
+CREATE INDEX idx_links_serial_pos ON links (serial_number, position);
 
 
 -- =====================================================

@@ -4,17 +4,37 @@ import { createServerSupabaseClient } from '@/lib/supabase'
 /**
  * POST /api/seed-rooms
  *
- * One-shot: Create 5 rooms for serial_number 1001 (slug: ae)
- * and distribute existing content randomly across them.
+ * Create default rooms for a footprint and distribute existing content.
+ * Requires auth + ownership.
  *
- * Body: { serial_number: 1001 } (or omit for default 1001)
+ * Body: { serial_number: 1001 }
  */
 export async function POST(request: NextRequest) {
   try {
+    const userId = request.headers.get('x-user-id')
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const body = await request.json().catch(() => ({}))
-    const serialNumber = body.serial_number || 1001
+    const serialNumber = body.serial_number
+
+    if (!serialNumber) {
+      return NextResponse.json({ error: 'serial_number required' }, { status: 400 })
+    }
 
     const supabase = createServerSupabaseClient()
+
+    // Verify ownership
+    const { data: footprint } = await supabase
+      .from('footprints')
+      .select('user_id')
+      .eq('serial_number', serialNumber)
+      .single()
+
+    if (!footprint || footprint.user_id !== userId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
 
     // 1. Check existing rooms
     const { data: existingRooms } = await supabase
@@ -67,7 +87,6 @@ export async function POST(request: NextRequest) {
     const roomIds = rooms!.map(r => r.id)
     const shuffled = allItems.sort(() => Math.random() - 0.5)
 
-    // Batch updates by table
     const libraryUpdates: { id: string; room_id: string }[] = []
     const linksUpdates: { id: string; room_id: string }[] = []
 
@@ -80,7 +99,6 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Update each tile's room_id
     const updatePromises: Promise<any>[] = []
     for (const u of libraryUpdates) {
       updatePromises.push(

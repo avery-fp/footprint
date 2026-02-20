@@ -141,9 +141,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const renderTile = (item: any, index: number) => {
     const isVideo = item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
     const tileSize = item.size || 1
-    const colSpan = tileSize === 4 ? 'col-span-2 md:col-span-4'
-      : tileSize === 3 ? 'col-span-2 md:col-span-3'
-      : tileSize === 2 ? 'col-span-2'
+    const colSpan = tileSize === 4 ? 'col-span-2 row-span-2 md:col-span-4 md:row-span-4'
+      : tileSize === 3 ? 'col-span-2 row-span-2 md:col-span-3 md:row-span-3'
+      : tileSize === 2 ? 'col-span-2 row-span-2'
       : ''
     const imgSizes = getImageSizes(tileSize)
     return (
@@ -290,6 +290,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           <div
             className="grid grid-cols-2 md:grid-cols-4 gap-2"
             style={{
+              gridAutoRows: 'minmax(0, 1fr)',
+              gridAutoFlow: 'dense',
               opacity: roomFade === 'out' ? 0 : 1,
               transition: 'opacity 200ms ease-out',
             }}
