@@ -286,23 +286,58 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Share section */}
-        {shareUrl && (
-          <div className="glass rounded-xl p-4 flex items-center gap-3 mb-12">
-            <p className="font-mono text-xs text-white/30 flex-shrink-0">Share:</p>
-            <p className="font-mono text-sm text-white/40 truncate flex-1">{shareUrl}</p>
+        {/* Primary Actions - Edit Page */}
+        {primaryRoom && (
+          <div className="mb-8">
+            <Link
+              href={`/${primaryRoom.slug}/home`}
+              className="group block w-full rounded-2xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] transition-all p-6"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-medium text-white/90 mb-1">Edit Your Page</h2>
+                  <p className="text-sm text-white/40">Add tiles, change wallpaper, manage rooms</p>
+                </div>
+                <span className="text-2xl text-white/30 group-hover:text-white/60 group-hover:translate-x-1 transition-all">→</span>
+              </div>
+            </Link>
+          </div>
+        )}
+
+        {/* Quick links row */}
+        {primaryRoom && (
+          <div className="flex gap-3 mb-8">
+            <Link
+              href={`/${primaryRoom.slug}`}
+              className="flex-1 text-center rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] transition-all px-4 py-3 text-sm text-white/50 hover:text-white/70"
+            >
+              View public page
+            </Link>
             <button
               onClick={() => {
-                navigator.clipboard.writeText(shareUrl)
-                setCopied(true)
-                setTimeout(() => setCopied(false), 2000)
+                const url = shareUrl || (primaryRoom ? `https://footprint.onl/${primaryRoom.slug}` : '')
+                if (url) {
+                  navigator.clipboard.writeText(url)
+                  setCopied(true)
+                  setTimeout(() => setCopied(false), 2000)
+                }
               }}
-              className={`px-4 py-2 text-xs rounded-lg flex-shrink-0 transition ${
-                copied ? 'bg-green-500/80 text-white' : 'bg-white/10 text-white/60 hover:bg-white/20'
+              className={`flex-1 text-center rounded-xl border transition-all px-4 py-3 text-sm ${
+                copied
+                  ? 'border-green-500/40 bg-green-500/10 text-green-400'
+                  : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06] text-white/50 hover:text-white/70'
               }`}
             >
-              {copied ? 'Copied!' : 'Copy'}
+              {copied ? 'Copied!' : 'Copy link'}
             </button>
+          </div>
+        )}
+
+        {/* Share URL display */}
+        {shareUrl && (
+          <div className="glass rounded-xl p-4 flex items-center gap-3 mb-12">
+            <p className="font-mono text-xs text-white/30 flex-shrink-0">URL:</p>
+            <p className="font-mono text-sm text-white/40 truncate flex-1">{shareUrl}</p>
           </div>
         )}
 
@@ -317,23 +352,6 @@ export default function DashboardPage() {
               className="inline-block rounded-xl px-6 py-3 bg-white/10 text-white/60 text-sm hover:bg-white/15 transition"
             >
               Set up your room
-            </Link>
-          </div>
-        )}
-
-        {/* Quick Actions */}
-        {rooms.length > 0 && (
-          <div className="flex gap-4 justify-center mb-12">
-            {primaryRoom && (
-              <Link href={`/${primaryRoom.slug}/home`} className="btn-primary rounded-lg">
-                Edit your Footprint
-              </Link>
-            )}
-            <Link
-              href={primaryRoom ? `/${primaryRoom.slug}` : '/'}
-              className="btn-primary bg-transparent border border-white/20 text-paper rounded-lg"
-            >
-              View public page
             </Link>
           </div>
         )}
@@ -370,9 +388,9 @@ export default function DashboardPage() {
                       <span>{room.content_count || 0} items</span>
                       <span>{room.view_count || 0} views</span>
                     </div>
-                    <div className="mt-4 flex items-center text-white/40 group-hover:text-paper transition-colors">
-                      <span className="font-mono text-sm">Edit</span>
-                      <span className="ml-2 group-hover:translate-x-1 transition-transform">→</span>
+                    <div className="mt-4 inline-flex items-center gap-2 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] px-3 py-1.5 text-white/50 group-hover:text-white/80 transition-all">
+                      <span className="font-mono text-sm">Edit room</span>
+                      <span className="group-hover:translate-x-1 transition-transform">→</span>
                     </div>
                   </Link>
                   <div className="absolute top-3 right-3 flex items-center gap-2">
