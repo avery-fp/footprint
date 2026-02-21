@@ -74,6 +74,7 @@ export async function POST(request: NextRequest) {
         position: tile.position,
         source: 'library',
         room_id: tile.room_id || null,
+        size: tile.size || 1,
       }
     })
   } catch (error) {

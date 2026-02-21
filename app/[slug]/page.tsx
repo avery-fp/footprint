@@ -8,8 +8,8 @@ import EventTracker from '@/components/EventTracker'
 import ReferralBanner from '@/components/ReferralBanner'
 import PublicPage from './PublicPage'
 
-// ISR — cache page at the edge, revalidate every 60 seconds
-export const revalidate = 60
+// No caching — edits must appear instantly on public page
+export const revalidate = 0
 
 interface Props {
   params: { slug: string }
