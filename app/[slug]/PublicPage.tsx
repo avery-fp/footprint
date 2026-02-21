@@ -204,19 +204,18 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         {/* Masthead — long-press zone for removal */}
         <RemoveBubble slug={footprint.slug}>
         <header className="relative mb-12 md:mb-16 flex flex-col items-center pt-24 md:pt-32">
-            {/* Top-right action — home (logged in) or + (logged out) */}
-            {isLoggedIn ? (
-              <a
-                href={`/${footprint.username}/home`}
-                className="absolute top-6 right-4 md:right-8 w-9 h-9 flex items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.15] backdrop-blur-sm transition"
-              >
-                <svg className="w-4 h-4 text-white/50" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-                </svg>
-              </a>
-            ) : (
-              <div className="absolute top-6 right-4 md:right-8">
+            {/* Top-right actions — only visible when signed in */}
+            {isLoggedIn && (
+              <div className="absolute top-6 right-4 md:right-8 flex items-center gap-2">
                 <PlusButton slug={footprint.slug} />
+                <a
+                  href={`/${footprint.username}/home`}
+                  className="w-9 h-9 flex items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.15] backdrop-blur-sm transition"
+                >
+                  <svg className="w-4 h-4 text-white/50" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+                  </svg>
+                </a>
               </div>
             )}
             <h1
