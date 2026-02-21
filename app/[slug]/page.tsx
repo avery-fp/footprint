@@ -3,10 +3,13 @@ import { notFound } from 'next/navigation'
 import { Metadata } from 'next'
 import { getTheme } from '@/lib/themes'
 import AnalyticsTracker from '@/components/AnalyticsTracker'
+import ShareEngine from '@/components/ShareEngine'
+import EventTracker from '@/components/EventTracker'
+import ReferralBanner from '@/components/ReferralBanner'
 import PublicPage from './PublicPage'
 
-// ISR — cache page at the edge, revalidate every 10 seconds
-export const revalidate = 10
+// ISR — cache page at the edge, revalidate every 60 seconds
+export const revalidate = 60
 
 interface Props {
   params: { slug: string }
@@ -30,16 +33,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return {
     title,
-    description: footprint.bio || 'a room for your internet. $10.',
+    description: footprint.bio || 'one page for everything.',
     openGraph: {
       title,
-      description: footprint.bio || 'a room for your internet. $10.',
+      description: footprint.bio || 'one page for everything.',
       images: [`https://footprint.onl/api/og?slug=${params.slug}`],
     },
     twitter: {
       card: 'summary_large_image',
       title,
-      description: footprint.bio || 'a room for your internet. $10.',
+      description: footprint.bio || 'one page for everything.',
       images: [`https://footprint.onl/api/og?slug=${params.slug}`],
     },
   }
@@ -104,6 +107,9 @@ export default async function FootprintPage({ params }: Props) {
   return (
     <>
       <AnalyticsTracker footprintId={footprint.id} serialNumber={footprint.serial_number} />
+      <EventTracker footprintId={footprint.id} />
+      <ReferralBanner serial={serial} />
+      <ShareEngine slug={params.slug} />
       <PublicPage
         footprint={footprint}
         content={content}

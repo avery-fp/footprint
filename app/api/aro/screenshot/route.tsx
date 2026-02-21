@@ -373,7 +373,7 @@ function renderRoom({
             color: 'rgba(255,255,255,0.3)',
           }}
         >
-          $10 · yours forever
+          yours forever
         </div>
       </div>
     </div>

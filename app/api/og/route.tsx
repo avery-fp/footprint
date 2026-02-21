@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
           >
             <div style={{ fontSize: 96, fontWeight: 400, letterSpacing: '-0.04em', marginBottom: 16 }}>footprint</div>
             <div style={{ fontSize: 24, opacity: 0.35, fontWeight: 300 }}>
-              a room for your internet. $10.
+              one page for everything.
             </div>
           </div>
         ),
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     const { data: footprint } = await supabase
       .from('footprints')
       .select('*, users (serial_number)')
-      .eq('slug', slug)
+      .eq('username', slug)
       .single()
 
     if (!footprint) {
@@ -86,6 +86,10 @@ export async function GET(request: NextRequest) {
       for (const link of links) {
         if (link.thumbnail && tileUrls.length < 6) tileUrls.push(link.thumbnail)
       }
+    }
+
+    const headers = {
+      'Cache-Control': 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=3600',
     }
 
     return new ImageResponse(
@@ -224,13 +228,13 @@ export async function GET(request: NextRequest) {
                 </div>
               </div>
               <div style={{ fontSize: 14, opacity: 0.25 }}>
-                $10 · yours
+                yours forever
               </div>
             </div>
           </div>
         </div>
       ),
-      { width: 1200, height: 630 }
+      { width: 1200, height: 630, headers }
     )
 
   } catch (error) {
