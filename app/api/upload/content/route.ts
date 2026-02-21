@@ -56,6 +56,22 @@ export async function POST(request: NextRequest) {
 
     const serialNumber = footprint.serial_number
 
+    // 8 uploaded-video cap (only counts library rows with video extensions, not YouTube/Vimeo embeds)
+    if (isVideo) {
+      const { data: libraryRows } = await supabase
+        .from('library')
+        .select('image_url')
+        .eq('serial_number', serialNumber)
+
+      const uploadedVideoCount = (libraryRows || []).filter(row =>
+        /\.(mp4|mov|webm|m4v)($|\?)/i.test(row.image_url)
+      ).length
+
+      if (uploadedVideoCount >= 8) {
+        return NextResponse.json({ error: '8 video limit reached' }, { status: 400 })
+      }
+    }
+
     // Generate unique filename
     const ext = file.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg')
     const filename = `${serialNumber}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
