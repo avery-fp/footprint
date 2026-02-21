@@ -217,10 +217,10 @@ export default function RemixPage() {
                 : '#000000',
           }}
         >
-          {checkingOut ? 'Loading...' : 'Claim this style — $10'}
+          {checkingOut ? 'Loading...' : 'Make yours'}
         </button>
         <p style={{ ...styles.ctaNote, color: data.theme.colors.textMuted }}>
-          One-time payment. Yours forever. Customize everything.
+          Yours forever. Customize everything.
         </p>
       </div>
 
