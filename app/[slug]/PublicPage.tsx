@@ -152,7 +152,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     const imgSizes = getImageSizes(tileSize)
     return (
       <div key={item.id}
-        className={`${colSpan} group tile-enter tile-container`}>
+        className={`${colSpan} group tile-enter tile-container`}
+        style={{ animationDelay: `${index * 40}ms` }}>
         <div className="aspect-square rounded-xl overflow-hidden">
           {item.type === 'image' ? (
             isVideo ? (
