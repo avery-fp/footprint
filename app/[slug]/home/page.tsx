@@ -134,7 +134,8 @@ function SortableTile({
     }
   }
 
-  const sizeClass = size === 3 ? 'col-span-2 row-span-2 md:col-span-3 md:row-span-3' : size === 2 ? 'col-span-2 row-span-2' : 'aspect-square'
+  // All sizes get aspect-square so height is always defined (not just grid-row dependent)
+  const sizeClass = size === 3 ? 'col-span-2 row-span-2 md:col-span-3 md:row-span-3 aspect-square' : size === 2 ? 'col-span-2 row-span-2 aspect-square' : 'aspect-square'
 
   // Polaroid reveal — tile develops from frosted to crystal clear
   const isTemp = id.toString().startsWith('temp-')
@@ -223,7 +224,7 @@ function SortableTile({
               <video
                 ref={videoRef}
                 src={content.url}
-                className={`absolute inset-0 w-full h-full object-cover cursor-pointer transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+                className={`absolute inset-0 w-full h-full object-cover cursor-pointer transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${isArranging ? 'pointer-events-none' : ''}`}
                 muted
                 loop
                 playsInline
@@ -893,11 +894,15 @@ export default function EditPage() {
     const tile = draft.content.find(c => c.id === id)
     if (!tile) return
     const source = tileSources[id]
-    if (!source) return
+    if (!source) {
+      console.warn('setTileSize: no source for tile', id, '— tileSources keys:', Object.keys(tileSources).length)
+      return
+    }
 
     const currentSize = tile.size || 1
     if (currentSize === newSize) return
 
+    // Optimistic — apply immediately, don't roll back (server is best-effort)
     setDraft(prev => prev ? {
       ...prev,
       content: prev.content.map(c => c.id === id ? { ...c, size: newSize } : c),
@@ -910,14 +915,12 @@ export default function EditPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, source, slug, size: newSize }),
       })
-      if (!res.ok) throw new Error(`PATCH failed: ${res.status}`)
+      if (!res.ok) {
+        const body = await res.text().catch(() => '')
+        console.error('Tile size PATCH failed:', res.status, body)
+      }
     } catch (e) {
-      console.error('Failed to update tile size:', e)
-      setDraft(prev => prev ? {
-        ...prev,
-        content: prev.content.map(c => c.id === id ? { ...c, size: currentSize } : c),
-        updated_at: Date.now(),
-      } : null)
+      console.error('Tile size PATCH network error:', e)
     }
   }
 
