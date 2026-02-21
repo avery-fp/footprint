@@ -1046,10 +1046,10 @@ export default function EditPage() {
       return
     }
 
-    // 8 video cap
-    const existingVideos = draft.content.filter(c =>
+    // 8 uploaded-video cap (YouTube/Vimeo/embed tiles are free — only count direct uploads)
+    const isUploadedVideo = (c: DraftContent) =>
       c.type === 'image' && c.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
-    ).length
+    const existingVideos = draft.content.filter(isUploadedVideo).length
     const incomingVideos = files.filter(f =>
       VIDEO_MIME.includes(f.type) || /\.(mp4|mov|webm|m4v)$/i.test(f.name)
     ).length
