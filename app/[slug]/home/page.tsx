@@ -1271,9 +1271,7 @@ export default function EditPage() {
           >
             all
           </button>
-          {rooms.map((room) => {
-            const count = draft?.content.filter(c => c.room_id === room.id).length || 0
-            return (
+          {rooms.map((room) => (
               <button
                 key={room.id}
                 onClick={() => switchRoom(room.id)}
@@ -1284,10 +1282,9 @@ export default function EditPage() {
                 }`}
                 style={{ minHeight: '36px' }}
               >
-                {room.name}{count > 0 && <span className="ml-1.5 text-white/30">{count}</span>}
+                {room.name}
               </button>
-            )
-          })}
+          ))}
           <button
             onClick={handleCreateRoom}
             className="text-xs px-4 py-2 rounded-full bg-white/[0.06] text-white/30 hover:text-white/60 hover:bg-white/[0.10] transition-all border-0"

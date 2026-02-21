@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import Image from 'next/image'
 import ContentCard from '@/components/ContentCard'
 import VideoTile from '@/components/VideoTile'
@@ -23,6 +23,8 @@ interface PublicPageProps {
   serial: string
   pageUrl: string
 }
+
+const noop = () => {}
 
 // Wallpaper filter per room - derived from room index
 const ROOM_FILTERS = [
@@ -60,29 +62,25 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [showToast, setShowToast] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
-  const [widescreenIds, setWidescreenIds] = useState<Set<string>>(new Set())
   const [roomFade, setRoomFade] = useState<'visible' | 'out' | 'in'>('visible')
 
-  const markWidescreen = useCallback((id: string) => {
-    setWidescreenIds(prev => {
-      if (prev.has(id)) return prev
-      const next = new Set(prev)
-      next.add(id)
-      return next
-    })
-  }, [])
+  // Memoize content filtering — avoids O(n) recalc on every state change
+  const validContent = useMemo(() =>
+    allContent.filter(item =>
+      (item.type === 'thought' && item.title) ||
+      (item.url && item.url !== '')
+    ), [allContent])
 
-  // Filter out ghost tiles (empty URLs with no title/content)
-  const isValidTile = (item: any) =>
-    (item.type === 'thought' && item.title) ||
-    (item.url && item.url !== '')
-
-  const validContent = allContent.filter(isValidTile)
-
-  // Filter orphan rooms (empty/whitespace-only names)
-  const visibleRooms = rooms
-    .filter(r => r.name && r.name.trim().length > 0)
-    .map(r => ({ ...r, content: r.content.filter(isValidTile) }))
+  const visibleRooms = useMemo(() =>
+    rooms
+      .filter(r => r.name && r.name.trim().length > 0)
+      .map(r => ({
+        ...r,
+        content: r.content.filter((item: any) =>
+          (item.type === 'thought' && item.title) ||
+          (item.url && item.url !== '')
+        )
+      })), [rooms])
 
   const content = activeRoomId
     ? visibleRooms.find(r => r.id === activeRoomId)?.content || []
@@ -157,7 +155,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         <div className="aspect-square rounded-xl overflow-hidden">
           {item.type === 'image' ? (
             isVideo ? (
-              <VideoTile src={item.url} onWidescreen={() => {}} />
+              <VideoTile src={item.url} onWidescreen={noop} />
             ) : (
               <Image src={item.url} alt={item.title || ''}
                 width={tileSize >= 2 ? 800 : 400} height={tileSize >= 2 ? 800 : 400}
@@ -190,7 +188,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             className={`object-cover transition-opacity duration-700 ${wallpaperLoaded ? 'opacity-100' : 'opacity-0'}`}
             style={{
               filter: footprint.background_blur !== false ? wallpaperFilter : 'none',
-              transform: footprint.background_blur !== false ? 'scale(1.05)' : 'none',
               transition: 'filter 0.8s ease',
             }}
             onLoad={() => setWallpaperLoaded(true)}
@@ -203,24 +200,21 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       )}
       <WeatherEffect type={footprint.weather_effect || null} />
 
-      {isLoggedIn && (
-        <a
-          href={`/${footprint.username}/home`}
-          className="fixed top-4 right-4 z-30 w-9 h-9 flex items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.15] backdrop-blur-sm transition"
-          style={{ marginTop: 'env(safe-area-inset-top)' }}
-        >
-          <svg className="w-4 h-4 text-white/50" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-          </svg>
-        </a>
-      )}
-
       <div className="relative z-10">
         {/* Masthead — long-press zone for removal */}
         <RemoveBubble slug={footprint.slug}>
         <header className="relative mb-12 md:mb-16 flex flex-col items-center pt-24 md:pt-32">
-            {/* + button — top right */}
-            {!isLoggedIn && (
+            {/* Top-right action — home (logged in) or + (logged out) */}
+            {isLoggedIn ? (
+              <a
+                href={`/${footprint.username}/home`}
+                className="absolute top-6 right-4 md:right-8 w-9 h-9 flex items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.15] backdrop-blur-sm transition"
+              >
+                <svg className="w-4 h-4 text-white/50" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+                </svg>
+              </a>
+            ) : (
               <div className="absolute top-6 right-4 md:right-8">
                 <PlusButton slug={footprint.slug} />
               </div>
