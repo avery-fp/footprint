@@ -134,7 +134,8 @@ function SortableTile({
     }
   }
 
-  const sizeClass = size === 3 ? 'col-span-2 row-span-2 md:col-span-3 md:row-span-3' : size === 2 ? 'col-span-2 row-span-2' : 'aspect-square'
+  // All sizes get aspect-square so height is always defined (not just grid-row dependent)
+  const sizeClass = size === 3 ? 'col-span-2 row-span-2 md:col-span-3 md:row-span-3 aspect-square' : size === 2 ? 'col-span-2 row-span-2 aspect-square' : 'aspect-square'
 
   // Polaroid reveal — tile develops from frosted to crystal clear
   const isTemp = id.toString().startsWith('temp-')
@@ -223,7 +224,7 @@ function SortableTile({
               <video
                 ref={videoRef}
                 src={content.url}
-                className={`absolute inset-0 w-full h-full object-cover cursor-pointer transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+                className={`absolute inset-0 w-full h-full object-cover cursor-pointer transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${isArranging ? 'pointer-events-none' : ''}`}
                 muted
                 loop
                 playsInline
@@ -351,6 +352,18 @@ export default function EditPage() {
     return () => window.removeEventListener('resize', check)
   }, [])
 
+  // Keyboard shortcuts — Escape to dismiss, step by step
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return
+      if (mode.type === 'adding') { stopAdding(); setPasteUrl(''); setThoughtText('') }
+      else if (mode.type === 'tile_menu') closeTileMenu()
+      else if (mode.type === 'arranging') exitEdit()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [mode.type])
+
   // Long-press: viewing → enter edit mode, arranging → open tile menu
   const handleTouchStart = useCallback((e: React.TouchEvent, tileId?: string) => {
     if (!isMobile) return
@@ -465,7 +478,7 @@ export default function EditPage() {
             bio: data.footprint.bio || '',
             theme: data.footprint.dimension || 'midnight',
             grid_mode: 'edit',
-            avatar_url: data.footprint.background_url || null,
+            avatar_url: data.footprint.avatar_url || null,
             content,
             updated_at: Date.now(),
           })
@@ -881,11 +894,15 @@ export default function EditPage() {
     const tile = draft.content.find(c => c.id === id)
     if (!tile) return
     const source = tileSources[id]
-    if (!source) return
+    if (!source) {
+      console.warn('setTileSize: no source for tile', id, '— tileSources keys:', Object.keys(tileSources).length)
+      return
+    }
 
     const currentSize = tile.size || 1
     if (currentSize === newSize) return
 
+    // Optimistic — apply immediately, don't roll back (server is best-effort)
     setDraft(prev => prev ? {
       ...prev,
       content: prev.content.map(c => c.id === id ? { ...c, size: newSize } : c),
@@ -898,14 +915,12 @@ export default function EditPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, source, slug, size: newSize }),
       })
-      if (!res.ok) throw new Error(`PATCH failed: ${res.status}`)
+      if (!res.ok) {
+        const body = await res.text().catch(() => '')
+        console.error('Tile size PATCH failed:', res.status, body)
+      }
     } catch (e) {
-      console.error('Failed to update tile size:', e)
-      setDraft(prev => prev ? {
-        ...prev,
-        content: prev.content.map(c => c.id === id ? { ...c, size: currentSize } : c),
-        updated_at: Date.now(),
-      } : null)
+      console.error('Tile size PATCH network error:', e)
     }
   }
 
@@ -1166,7 +1181,10 @@ export default function EditPage() {
   if (isLoading || !draft) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#07080A]">
-        <div className="font-mono text-white/50 animate-pulse">Loading...</div>
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-6 h-6 border-2 border-white/10 border-t-white/40 rounded-full animate-spin" />
+          <span className="text-xs text-white/30 font-mono">loading</span>
+        </div>
       </div>
     )
   }
@@ -1202,38 +1220,34 @@ export default function EditPage() {
           >
             ←
           </Link>
-          {isArranging && activeRoomId ? (
+          {isArranging ? (
             <div className="flex items-center gap-2">
+              {activeRoomId && (
+                <>
+                  <button
+                    onClick={() => handleRenameRoom(activeRoomId)}
+                    className="text-xs text-white/60 hover:text-white/90 transition font-mono px-3 rounded-full bg-white/[0.06] hover:bg-white/[0.12]"
+                    style={{ minHeight: '36px' }}
+                  >
+                    rename
+                  </button>
+                  <button
+                    onClick={() => handleDeleteRoom(activeRoomId)}
+                    className="text-xs text-red-400/80 hover:text-red-400 transition font-mono px-3 rounded-full bg-white/[0.06] hover:bg-red-500/[0.15]"
+                    style={{ minHeight: '36px' }}
+                  >
+                    delete
+                  </button>
+                </>
+              )}
               <button
-                onClick={() => handleRenameRoom(activeRoomId)}
-                className="text-xs text-white/60 hover:text-white/90 transition font-mono px-3 rounded-full bg-white/[0.06] hover:bg-white/[0.12]"
-                style={{ minHeight: '36px' }}
+                onClick={exitEdit}
+                className="text-sm text-white/90 hover:text-white transition font-mono flex items-center justify-center px-5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
+                style={{ minHeight: '36px', minWidth: '44px' }}
               >
-                rename
-              </button>
-              <button
-                onClick={() => handleClearRoom(activeRoomId)}
-                className="text-xs text-white/60 hover:text-white/90 transition font-mono px-3 rounded-full bg-white/[0.06] hover:bg-white/[0.12]"
-                style={{ minHeight: '36px' }}
-              >
-                clear
-              </button>
-              <button
-                onClick={() => handleDeleteRoom(activeRoomId)}
-                className="text-xs text-red-400/80 hover:text-red-400 transition font-mono px-3 rounded-full bg-white/[0.06] hover:bg-red-500/[0.15]"
-                style={{ minHeight: '36px' }}
-              >
-                delete
+                done
               </button>
             </div>
-          ) : isArranging ? (
-            <button
-              onClick={exitEdit}
-              className="text-sm text-white/90 hover:text-white transition font-mono flex items-center justify-center px-5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
-              style={{ minHeight: '44px', minWidth: '44px' }}
-            >
-              done
-            </button>
           ) : (
             <button
               onClick={enterEdit}
@@ -1257,20 +1271,23 @@ export default function EditPage() {
           >
             all
           </button>
-          {rooms.map((room) => (
-            <button
-              key={room.id}
-              onClick={() => switchRoom(room.id)}
-              className={`text-xs px-4 py-2 rounded-full transition-all duration-300 whitespace-nowrap backdrop-blur-sm border-0 ${
-                activeRoomId === room.id
-                  ? 'bg-white/[0.12] text-white/90 scale-[1.05]'
-                  : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70 scale-100'
-              }`}
-              style={{ minHeight: '36px' }}
-            >
-              {room.name}
-            </button>
-          ))}
+          {rooms.map((room) => {
+            const count = draft?.content.filter(c => c.room_id === room.id).length || 0
+            return (
+              <button
+                key={room.id}
+                onClick={() => switchRoom(room.id)}
+                className={`text-xs px-4 py-2 rounded-full transition-all duration-300 whitespace-nowrap backdrop-blur-sm border-0 ${
+                  activeRoomId === room.id
+                    ? 'bg-white/[0.12] text-white/90 scale-[1.05]'
+                    : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70 scale-100'
+                }`}
+                style={{ minHeight: '36px' }}
+              >
+                {room.name}{count > 0 && <span className="ml-1.5 text-white/30">{count}</span>}
+              </button>
+            )
+          })}
           <button
             onClick={handleCreateRoom}
             className="text-xs px-4 py-2 rounded-full bg-white/[0.06] text-white/30 hover:text-white/60 hover:bg-white/[0.10] transition-all border-0"
@@ -1282,7 +1299,14 @@ export default function EditPage() {
       </div>
 
       {/* ═══ TILE GRID ═══ */}
-      <div className="max-w-7xl mx-auto px-3 md:px-6 pt-28 md:pt-24 pb-32 relative z-10">
+      <div className="max-w-7xl mx-auto px-3 md:px-6 pt-28 md:pt-24 pb-32 relative z-10"
+        onClick={(e) => {
+          // Tap background to deselect swap
+          if (swapSourceId && (e.target as HTMLElement).closest('[data-tile]') === null) {
+            setSwapSourceId(null)
+          }
+        }}
+      >
 
         {filteredContent.length > 0 ? (
           <DndContext
@@ -1330,8 +1354,25 @@ export default function EditPage() {
             </SortableContext>
           </DndContext>
         ) : (
-          <div className="text-center py-32">
-            <p className="text-white/30 text-sm font-mono">nothing here.</p>
+          <div className="text-center py-32 flex flex-col items-center gap-4">
+            <p className="text-white/30 text-sm font-mono">
+              {activeRoomId ? 'this room is empty.' : 'nothing here yet.'}
+            </p>
+            {isArranging ? (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="text-xs text-white/50 hover:text-white/80 font-mono px-5 py-2.5 rounded-full bg-white/[0.06] hover:bg-white/[0.10] border border-white/10 transition-all"
+              >
+                add something
+              </button>
+            ) : (
+              <button
+                onClick={enterEdit}
+                className="text-xs text-white/50 hover:text-white/80 font-mono px-5 py-2.5 rounded-full bg-white/[0.06] hover:bg-white/[0.10] border border-white/10 transition-all"
+              >
+                tap to start
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -1391,18 +1432,36 @@ export default function EditPage() {
             </div>
 
             <div className="px-4 pb-6 overflow-y-auto" style={{ maxHeight: 'calc(60vh - 28px)' }}>
-              {/* Resize */}
-              <div className="flex items-center justify-between" style={{ minHeight: '48px' }}>
+              {/* Tile preview */}
+              <div className="flex items-center gap-3 pb-3 mb-1">
+                <div className="w-10 h-10 rounded-lg overflow-hidden bg-white/[0.06] flex-shrink-0">
+                  {selectedTile.type === 'image' && selectedTile.url && !selectedTile.url.match(/\.(mp4|mov|webm|m4v)($|\?)/i) ? (
+                    <img src={selectedTile.url} alt="" className="w-full h-full object-cover" />
+                  ) : selectedTile.thumbnail_url ? (
+                    <img src={selectedTile.thumbnail_url} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-white/30 text-xs">
+                      {selectedTile.type === 'thought' ? 'Aa' : '?'}
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-white/40 font-mono truncate">
+                  {selectedTile.title || selectedTile.type || 'tile'}
+                </p>
+              </div>
+
+              {/* Resize — segmented control */}
+              <div className="flex items-center justify-between py-3">
                 <span className="text-sm text-white/50 font-mono">size</span>
-                <div className="flex gap-1.5">
+                <div className="flex gap-1 bg-white/[0.04] rounded-lg p-0.5">
                   {[1, 2, 3].map(s => (
                     <button
                       key={s}
                       onClick={() => setTileSize(mode.tileId, s)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-mono transition ${
+                      className={`w-10 py-1.5 rounded-md text-xs font-mono transition-all ${
                         (selectedTile.size || 1) === s
-                          ? 'bg-white/20 text-white'
-                          : 'bg-white/[0.06] text-white/40 hover:bg-white/[0.10]'
+                          ? 'bg-white/20 text-white shadow-sm'
+                          : 'text-white/40 hover:text-white/60'
                       }`}
                     >
                       {s}x
@@ -1413,12 +1472,12 @@ export default function EditPage() {
 
               {/* Room assign */}
               {rooms.length > 0 && (
-                <div className="flex items-center justify-between" style={{ minHeight: '48px' }}>
+                <div className="flex items-center justify-between py-3 border-t border-white/[0.06]">
                   <span className="text-sm text-white/50 font-mono">room</span>
                   <select
                     value={selectedTile.room_id || ''}
                     onChange={(e) => assignTileRoom(mode.tileId, e.target.value || null)}
-                    className="bg-white/10 text-white text-xs font-mono rounded-lg px-3 py-2 border border-white/20 outline-none"
+                    className="bg-white/[0.08] text-white text-xs font-mono rounded-lg px-3 py-2 border border-white/10 outline-none"
                   >
                     <option value="">none</option>
                     {rooms.map(r => (
@@ -1432,26 +1491,30 @@ export default function EditPage() {
               {(selectedIsImage || selectedHasThumbnail) && (
                 <button
                   onClick={() => handleSetWallpaper(mode.tileId)}
-                  className="w-full text-left text-sm text-white/60 hover:text-white/90 transition font-mono border-t border-white/[0.06]"
-                  style={{ minHeight: '48px', display: 'flex', alignItems: 'center' }}
+                  className="w-full text-left text-sm text-white/50 hover:text-white/80 transition font-mono py-3 border-t border-white/[0.06] flex items-center gap-2"
                 >
-                  wallpaper
+                  <span className="text-white/30 text-xs">◐</span> set as wallpaper
                 </button>
               )}
 
-              {/* Delete — separated, red text only */}
-              <div className="mt-4">
-                <button
-                  onClick={() => { handleDelete(mode.tileId); closeTileMenu() }}
-                  className="w-full text-left text-sm transition font-mono border-t border-white/[0.06]"
-                  style={{ minHeight: '48px', display: 'flex', alignItems: 'center', color: '#ef4444' }}
-                >
-                  delete
-                </button>
-              </div>
+              {/* Delete — visually separated */}
+              <button
+                onClick={() => { handleDelete(mode.tileId); closeTileMenu() }}
+                className="w-full text-left text-sm transition font-mono py-3 mt-2 border-t border-white/[0.06] flex items-center"
+                style={{ color: 'rgba(239, 68, 68, 0.7)' }}
+              >
+                delete
+              </button>
             </div>
           </div>
         </>
+      )}
+
+      {/* Swap hint — shown when a tile is selected for swap on mobile */}
+      {isMobile && isArranging && swapSourceId && mode.type !== 'tile_menu' && (
+        <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-black/70 backdrop-blur-sm rounded-full border border-white/10 animate-overlay-fade">
+          <span className="text-xs text-white/70 font-mono">tap another to swap</span>
+        </div>
       )}
 
       {/* ═══ BOTTOM BAR — only in arranging/adding ═══ */}
@@ -1463,7 +1526,7 @@ export default function EditPage() {
             <input
               ref={urlInputRef}
               type="text"
-              placeholder=""
+              placeholder="paste a link"
               value={pasteUrl}
               onChange={e => setPasteUrl(e.target.value)}
               onKeyDown={e => {
@@ -1503,16 +1566,17 @@ export default function EditPage() {
           <div className="w-80 bg-black/60 backdrop-blur-sm border border-white/20 rounded-2xl p-3 materialize">
             <textarea
               ref={thoughtInputRef}
-              placeholder=""
+              placeholder="write something"
               value={thoughtText}
               onChange={e => setThoughtText(e.target.value)}
               onKeyDown={e => {
-                if (e.key === 'Enter' && e.metaKey) handleAddThought()
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleAddThought()
                 if (e.key === 'Escape') stopAdding()
               }}
               rows={3}
               className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl font-mono text-sm focus:border-white/30 focus:outline-none text-white placeholder:text-white/30 resize-none"
             />
+            <p className="text-[10px] text-white/20 font-mono mt-1 px-1">⌘+enter to save</p>
             <div className="flex gap-2 mt-2">
               <button
                 onClick={handleAddThought}
@@ -1531,29 +1595,47 @@ export default function EditPage() {
           </div>
         )}
 
-        {/* Default pill: upload | link | thought */}
+        {/* Default pill: upload | link | thought + wallpaper controls */}
         {pillMode === 'idle' && (
-          <div className="flex items-center gap-0 bg-black/50 backdrop-blur-sm rounded-full border border-white/20 overflow-hidden">
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all"
-            >
-              <span className="text-white/60 text-sm font-bold">↑</span>
-            </button>
-            <div className="w-px h-6 bg-white/10" />
-            <button
-              onClick={() => startAdding('url')}
-              className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-white/60"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-            </button>
-            <div className="w-px h-6 bg-white/10" />
-            <button
-              onClick={() => startAdding('thought')}
-              className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all"
-            >
-              <span className="text-white/60 text-sm font-medium">Aa</span>
-            </button>
+          <div className="flex flex-col items-center gap-2">
+            {wallpaperUrl && (
+              <div className="flex items-center gap-1.5 bg-black/40 backdrop-blur-sm rounded-full border border-white/10 overflow-hidden px-1">
+                <button
+                  onClick={handleToggleBlur}
+                  className={`text-[10px] font-mono px-3 py-1.5 rounded-full transition-all ${backgroundBlur ? 'text-white/80 bg-white/10' : 'text-white/40 hover:text-white/60'}`}
+                >
+                  blur
+                </button>
+                <button
+                  onClick={handleClearWallpaper}
+                  className="text-[10px] font-mono text-white/40 hover:text-red-400/80 px-3 py-1.5 rounded-full transition-all"
+                >
+                  clear bg
+                </button>
+              </div>
+            )}
+            <div className="flex items-center gap-0 bg-black/50 backdrop-blur-sm rounded-full border border-white/20 overflow-hidden">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all"
+              >
+                <span className="text-white/60 text-sm font-bold">↑</span>
+              </button>
+              <div className="w-px h-6 bg-white/10" />
+              <button
+                onClick={() => startAdding('url')}
+                className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-white/60"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              </button>
+              <div className="w-px h-6 bg-white/10" />
+              <button
+                onClick={() => startAdding('thought')}
+                className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all"
+              >
+                <span className="text-white/60 text-sm font-medium">Aa</span>
+              </button>
+            </div>
           </div>
         )}
       </div>

@@ -1,0 +1,39 @@
+// ═══════════════════════════════════════════
+// Motion + timing constants — single source of truth
+// Designers: tweak durations and easing here.
+// ═══════════════════════════════════════════
+
+export const MOTION = {
+  // PlusButton tap ritual
+  plus: {
+    duration: 0.15,           // 150ms total
+    scale: [1, 1.1, 0],
+    opacity: [1, 1, 0],
+    rotate: [0, 90],
+    easing: [0.22, 1, 0.36, 1],  // custom ease-out
+  },
+
+  // RemoveBubble
+  bubble: {
+    fadeIn: 0.1,              // 100ms
+    fadeOut: 0.2,             // 200ms
+    linger: 1000,             // 1000ms auto-dismiss
+    offsetX: 12,              // px from press point
+    offsetY: 12,
+  },
+
+  // RolodexDrawer
+  drawer: {
+    duration: 0.25,           // 250ms
+    easing: [0.33, 1, 0.68, 1],  // ease-out
+    backdropBlur: 16,         // px
+  },
+
+  // Long press
+  longPress: {
+    threshold: 450,           // ms
+    moveCancel: 10,           // px — cancel if finger moves beyond this
+  },
+} as const
+
+export type MotionConfig = typeof MOTION
