@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { getUserIdFromRequest } from '@/lib/auth'
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024  // 10MB
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024  // 50MB
@@ -10,7 +11,7 @@ const ALLOWED_TYPES = [...IMAGE_TYPES, ...VIDEO_TYPES]
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = request.headers.get('x-user-id')
+    const userId = await getUserIdFromRequest(request)
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

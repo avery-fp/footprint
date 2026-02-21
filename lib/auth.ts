@@ -1,6 +1,7 @@
 import { SignJWT, jwtVerify } from 'jose'
 import { createServerSupabaseClient } from './supabase'
 import { nanoid } from 'nanoid'
+import type { NextRequest } from 'next/server'
 
 // Secret key for JWT signing — MUST be set via JWT_SECRET env var in production
 function getJwtSecret() {
@@ -267,4 +268,15 @@ export async function sendWelcomeEmail(email: string, serialNumber: number, user
   }
 
   return true
+}
+
+/**
+ * Extract userId from fp_session cookie on an incoming request.
+ * Returns null if cookie is missing or JWT is invalid/expired.
+ */
+export async function getUserIdFromRequest(request: NextRequest): Promise<string | null> {
+  const token = request.cookies.get('fp_session')?.value
+  if (!token) return null
+  const session = await verifySessionToken(token)
+  return session?.userId ?? null
 }

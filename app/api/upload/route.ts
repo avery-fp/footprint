@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { getUserIdFromRequest } from '@/lib/auth'
 
 /**
  * POST /api/upload
@@ -26,7 +27,7 @@ const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
 export async function POST(request: NextRequest) {
   try {
     // Get user ID from middleware
-    const userId = request.headers.get('x-user-id')
+    const userId = await getUserIdFromRequest(request)
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

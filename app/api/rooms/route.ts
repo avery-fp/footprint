@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { getUserIdFromRequest } from '@/lib/auth'
 
 /**
  * Verify the requesting user owns the footprint with this serial_number.
@@ -11,7 +12,7 @@ async function verifyOwnership(
   supabase: ReturnType<typeof createServerSupabaseClient>,
   serialNumber: number
 ): Promise<{ error?: NextResponse }> {
-  const userId = request.headers.get('x-user-id')
+  const userId = await getUserIdFromRequest(request)
   if (!userId) {
     return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
   }
@@ -37,7 +38,7 @@ async function verifyRoomOwnership(
   supabase: ReturnType<typeof createServerSupabaseClient>,
   roomId: string
 ): Promise<{ error?: NextResponse; serialNumber?: number }> {
-  const userId = request.headers.get('x-user-id')
+  const userId = await getUserIdFromRequest(request)
   if (!userId) {
     return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
   }

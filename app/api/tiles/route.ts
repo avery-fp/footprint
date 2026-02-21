@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { parseURL } from '@/lib/parser'
+import { getUserIdFromRequest } from '@/lib/auth'
 
 /**
  * Get serial_number from slug + verify the requesting user owns it.
@@ -12,7 +13,7 @@ async function getSerialNumber(
   supabase: ReturnType<typeof createServerSupabaseClient>,
   slug: string
 ): Promise<number | null> {
-  const userId = request.headers.get('x-user-id')
+  const userId = await getUserIdFromRequest(request)
   if (!userId) return null
 
   const { data: footprint } = await supabase
