@@ -1,14 +1,18 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { jwtVerify } from 'jose'
 
-function getJwtSecret() {
-  const secret = process.env.JWT_SECRET
-  if (!secret && process.env.NODE_ENV === 'production') {
-    throw new Error('FATAL: JWT_SECRET environment variable is not set')
-  }
-  return new TextEncoder().encode(secret || 'dev-only-unsafe-key-do-not-use-in-prod')
-}
+/**
+ * Middleware: canonical host redirect + session gate.
+ *
+ * Rules:
+ * 1. Redirect bare "footprint.onl" → "www.footprint.onl" (301)
+ * 2. Public routes → pass through
+ * 3. Auth-required routes → check fp_session cookie exists
+ *    - present  → allow through
+ *    - missing  → redirect to /auth/login
+ *
+ * Middleware does NOT verify/decode the JWT. API routes handle that.
+ */
 
 const publicRoutes = [
   '/',
@@ -18,85 +22,54 @@ const publicRoutes = [
   '/checkout',
   '/success',
   '/deed',
-  '/api/auth',
-  '/api/checkout',
-  '/api/checkout/free',
-  '/api/checkout/activate',
-  '/api/webhook',
-  '/api/og',
-  '/api/qr',
-  '/api/embed',
-  '/api/v1',
-  '/api/events',
-  '/api/aro-feed',
-  '/api/share',
-  '/api/pulse',
-  '/api/health',
-  '/api/metadata',
+  '/api/',
+  '/public',
 ]
 
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
+export function middleware(request: NextRequest) {
+  const { pathname, search } = request.nextUrl
+  const host = request.headers.get('host') || ''
 
-  const isPublic = publicRoutes.some(route => pathname.startsWith(route))
-  if (isPublic) {
+  // ── 1. Canonical host: redirect apex → www ──
+  if (host === 'footprint.onl') {
+    const canonical = new URL(`https://www.footprint.onl${pathname}${search}`)
+    return NextResponse.redirect(canonical, 301)
+  }
+
+  // ── 2. Public routes ──
+  if (publicRoutes.some(route => pathname === route || pathname.startsWith(route + '/'))) {
     return NextResponse.next()
   }
 
+  // All /api routes are public (handled by their own auth)
+  if (pathname.startsWith('/api/') || pathname.startsWith('/api')) {
+    return NextResponse.next()
+  }
+
+  // Public profile pages: /{slug} (single segment, no sub-path)
   const isPublicProfile = /^\/[a-zA-Z0-9_-]+$/.test(pathname)
-  const isEditorHome = /^\/[a-zA-Z0-9_-]+\/home$/.test(pathname)
   if (isPublicProfile) {
     return NextResponse.next()
   }
 
-  // /{slug}/home is the editor — requires auth but don't block if session exists
-  if (isEditorHome) {
-    const session = request.cookies.get('fp_session')
-    if (session?.value) {
-      try {
-        const { payload } = await jwtVerify(session.value, getJwtSecret())
-        const headers = new Headers(request.headers)
-        headers.set('x-user-id', payload.userId as string)
-        return NextResponse.next({ request: { headers } })
-      } catch {
-        const url = request.nextUrl.clone()
-        url.pathname = '/auth/login'
-        const response = NextResponse.redirect(url)
-        response.cookies.delete('fp_session')
-        return response
-      }
-    }
-    // No session — redirect to login
-    const url = request.nextUrl.clone()
-    url.pathname = '/auth/login'
-    return NextResponse.redirect(url)
-  }
-
+  // ── 3. Auth-required routes ──
+  // Everything below here requires a session cookie.
+  // /{slug}/home and any other sub-paths are auth-required.
   const session = request.cookies.get('fp_session')
-  if (!session?.value) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/checkout'
-    return NextResponse.redirect(url)
+
+  if (session?.value) {
+    // Cookie exists → let them through. API routes validate the JWT.
+    return NextResponse.next()
   }
 
-  // Decode the JWT to extract the actual user ID
-  try {
-    const { payload } = await jwtVerify(session.value, getJwtSecret())
-    const headers = new Headers(request.headers)
-    headers.set('x-user-id', payload.userId as string)
-    return NextResponse.next({ request: { headers } })
-  } catch {
-    // Invalid or expired token — clear it and redirect to login
-    const url = request.nextUrl.clone()
-    url.pathname = '/auth/login'
-    const response = NextResponse.redirect(url)
-    response.cookies.delete('fp_session')
-    return response
-  }
+  // No session → redirect to login
+  const loginUrl = request.nextUrl.clone()
+  loginUrl.pathname = '/auth/login'
+  return NextResponse.redirect(loginUrl)
 }
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\..*|public).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|ico|css|js|woff|woff2|ttf|eot)$).*)',
   ],
 }

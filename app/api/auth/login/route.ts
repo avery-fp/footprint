@@ -4,6 +4,10 @@ import { createSessionToken } from '@/lib/auth'
 import * as bcrypt from 'bcryptjs'
 
 export async function POST(request: NextRequest) {
+  if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'JWT_SECRET not configured' }, { status: 500 })
+  }
+
   try {
     const { email, password } = await request.json()
     if (!email || !password) {

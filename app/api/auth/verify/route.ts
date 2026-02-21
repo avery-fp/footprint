@@ -20,6 +20,10 @@ import { createServerSupabaseClient } from '@/lib/supabase'
  * - SameSite: Prevents CSRF attacks
  */
 export async function POST(request: NextRequest) {
+  if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'JWT_SECRET not configured' }, { status: 500 })
+  }
+
   try {
     const body = await request.json()
     const { token } = body
