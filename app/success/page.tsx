@@ -111,7 +111,7 @@ export default function SuccessPage() {
         body: JSON.stringify({ password }),
       })
       if (res.ok) {
-        router.push(userSlug ? `/${userSlug}/home` : '/dashboard')
+        router.push(userSlug ? `/${userSlug}/home` : '/build')
       } else {
         toast.error('Failed to set password')
         setSaving(false)
@@ -123,7 +123,7 @@ export default function SuccessPage() {
   }
 
   const skipToPage = () => {
-    router.push(userSlug ? `/${userSlug}/home` : '/dashboard')
+    router.push(userSlug ? `/${userSlug}/home` : '/build')
   }
 
   // Processing spinner

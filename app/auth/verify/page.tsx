@@ -55,7 +55,7 @@ export default function VerifyPage() {
 
         if (data.success) {
           setStatus('success')
-          const dest = customRedirect || (data.slug ? `/${data.slug}/home` : '/dashboard')
+          const dest = customRedirect || (data.slug ? `/${data.slug}/home` : '/build')
           setTimeout(() => {
             router.push(dest)
           }, 1200)

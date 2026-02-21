@@ -428,7 +428,7 @@ export default function EditPage() {
           return
         }
         if (res.status === 403) {
-          router.push('/dashboard')
+          router.push('/auth/login')
           return
         }
 
