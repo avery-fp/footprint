@@ -44,8 +44,32 @@ export async function middleware(request: NextRequest) {
   }
 
   const isPublicProfile = /^\/[a-zA-Z0-9_-]+$/.test(pathname)
+  const isEditorHome = /^\/[a-zA-Z0-9_-]+\/home$/.test(pathname)
   if (isPublicProfile) {
     return NextResponse.next()
+  }
+
+  // /{slug}/home is the editor — requires auth but don't block if session exists
+  if (isEditorHome) {
+    const session = request.cookies.get('fp_session')
+    if (session?.value) {
+      try {
+        const { payload } = await jwtVerify(session.value, getJwtSecret())
+        const headers = new Headers(request.headers)
+        headers.set('x-user-id', payload.userId as string)
+        return NextResponse.next({ request: { headers } })
+      } catch {
+        const url = request.nextUrl.clone()
+        url.pathname = '/auth/login'
+        const response = NextResponse.redirect(url)
+        response.cookies.delete('fp_session')
+        return response
+      }
+    }
+    // No session — redirect to login
+    const url = request.nextUrl.clone()
+    url.pathname = '/auth/login'
+    return NextResponse.redirect(url)
   }
 
   const session = request.cookies.get('fp_session')
