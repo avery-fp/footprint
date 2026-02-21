@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { jwtVerify } from 'jose'
 
 /**
  * Middleware: canonical host redirect + session gate.
@@ -7,12 +8,24 @@ import type { NextRequest } from 'next/server'
  * Rules:
  * 1. Redirect bare "footprint.onl" → "www.footprint.onl" (301)
  * 2. Public routes → pass through
- * 3. Auth-required routes → check fp_session cookie exists
- *    - present  → allow through
- *    - missing  → redirect to /auth/login
- *
- * Middleware does NOT verify/decode the JWT. API routes handle that.
+ * 3. Auth-required routes → verify fp_session JWT signature
+ *    - valid    → allow through
+ *    - invalid  → clear cookie + redirect to /auth/login
  */
+
+function getJwtSecret() {
+  const secret = process.env.JWT_SECRET
+  if (!secret && process.env.NODE_ENV === 'production') {
+    throw new Error('FATAL: JWT_SECRET environment variable is not set')
+  }
+  return new TextEncoder().encode(secret || 'dev-only-unsafe-key-do-not-use-in-prod')
+}
+
+let _jwtSecret: Uint8Array | null = null
+function jwtSecret() {
+  if (!_jwtSecret) _jwtSecret = getJwtSecret()
+  return _jwtSecret
+}
 
 const publicRoutes = [
   '/',
@@ -26,7 +39,7 @@ const publicRoutes = [
   '/public',
 ]
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl
   const host = request.headers.get('host') || ''
 
@@ -53,13 +66,22 @@ export function middleware(request: NextRequest) {
   }
 
   // ── 3. Auth-required routes ──
-  // Everything below here requires a session cookie.
+  // Everything below here requires a valid JWT session.
   // /{slug}/home and any other sub-paths are auth-required.
-  const session = request.cookies.get('fp_session')
+  const sessionCookie = request.cookies.get('fp_session')
 
-  if (session?.value) {
-    // Cookie exists → let them through. API routes validate the JWT.
-    return NextResponse.next()
+  if (sessionCookie?.value) {
+    try {
+      await jwtVerify(sessionCookie.value, jwtSecret())
+      return NextResponse.next()
+    } catch {
+      // Invalid/expired JWT — clear the stale cookie and redirect
+      const loginUrl = request.nextUrl.clone()
+      loginUrl.pathname = '/auth/login'
+      const response = NextResponse.redirect(loginUrl)
+      response.cookies.delete('fp_session')
+      return response
+    }
   }
 
   // No session → redirect to login

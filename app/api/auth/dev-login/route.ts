@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSessionToken } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { setSessionCookie } from '@/lib/cookies'
 import { nanoid } from 'nanoid'
 
 /**
@@ -10,11 +11,11 @@ import { nanoid } from 'nanoid'
  * Creates the user if they don't exist yet.
  * Optionally re-links an existing footprint via ?link_footprint=slug.
  *
- * DELETE THIS ROUTE once Resend domain is verified.
+ * DEVELOPMENT ONLY — blocked in production.
  */
 export async function GET(request: NextRequest) {
-  if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
-    return NextResponse.json({ error: 'JWT_SECRET not configured' }, { status: 500 })
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not available in production' }, { status: 404 })
   }
 
   try {
@@ -122,20 +123,7 @@ export async function GET(request: NextRequest) {
     const destination = primaryFp ? `/${primaryFp.username}/home` : '/build'
     const response = NextResponse.redirect(new URL(destination, request.url))
 
-    const hostname = new URL(request.url).hostname
-    const cookieDomain = hostname.endsWith('.footprint.onl') || hostname === 'footprint.onl'
-      ? '.footprint.onl'
-      : undefined
-    console.log('[dev-login] cookie domain:', cookieDomain, '| hostname:', hostname)
-
-    response.cookies.set('fp_session', sessionToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30,
-      path: '/',
-      ...(cookieDomain && { domain: cookieDomain }),
-    })
+    setSessionCookie(response, sessionToken, new URL(request.url).hostname)
 
     return response
   } catch (err: any) {

@@ -22,7 +22,10 @@ async function mintRoom(payload: MintPayload): Promise<MintResult> {
 
   const response = await fetch(`${config.FP_BASE_URL}/api/aro/mint`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${config.ARO_KEY}`,
+    },
     body: JSON.stringify(payload),
   })
 

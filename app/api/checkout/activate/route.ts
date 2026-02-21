@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { createSessionToken } from '@/lib/auth'
+import { setSessionCookie } from '@/lib/cookies'
 import { stripe } from '@/lib/stripe'
 
 /**
@@ -71,19 +72,7 @@ export async function POST(request: NextRequest) {
       slug: footprint?.username || null,
     })
 
-    const hostname = new URL(request.url).hostname
-    const cookieDomain = hostname.endsWith('.footprint.onl') || hostname === 'footprint.onl'
-      ? '.footprint.onl'
-      : undefined
-
-    response.cookies.set('fp_session', sessionToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30,
-      path: '/',
-      ...(cookieDomain && { domain: cookieDomain }),
-    })
+    setSessionCookie(response, sessionToken, new URL(request.url).hostname)
 
     return response
   } catch (error: any) {

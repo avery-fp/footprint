@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createSessionToken } from '@/lib/auth'
+import { setSessionCookie } from '@/lib/cookies'
 
 export async function GET(request: NextRequest) {
   const { searchParams, hash, origin } = new URL(request.url)
@@ -65,19 +66,7 @@ export async function GET(request: NextRequest) {
       const destination = customRedirect || (primaryFp ? `/${primaryFp.username}/home` : '/build')
 
       const response = NextResponse.redirect(new URL(destination, origin))
-      const hostname = new URL(request.url).hostname
-      const cookieDomain = hostname.endsWith('.footprint.onl') || hostname === 'footprint.onl'
-        ? '.footprint.onl'
-        : undefined
-
-      response.cookies.set('fp_session', sessionToken, {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 30, // 30 days
-        path: '/',
-        ...(cookieDomain && { domain: cookieDomain }),
-      })
+      setSessionCookie(response, sessionToken, new URL(request.url).hostname)
 
       return response
     } catch (err) {

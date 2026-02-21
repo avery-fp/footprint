@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { verifyAroKey } from '@/lib/aro-auth'
 import { parseURL } from '@/lib/parser'
 
 /**
@@ -23,13 +24,15 @@ function getTileSize(index: number): number {
  * Produces pages that look hand-curated: wallpaper backgrounds,
  * music embeds, varied tile sizes, theme styling — all automatic.
  *
- * Machine-to-machine auth via ARO_KEY.
+ * Auth: Authorization: Bearer <aro_key>
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+    const authError = verifyAroKey(request, body.aro_key)
+    if (authError) return authError
+
     const {
-      aro_key,
       slug,
       room_name,
       image_urls,
@@ -41,11 +44,6 @@ export async function POST(request: NextRequest) {
       bio,
       metadata,
     } = body
-
-    // 1. Auth
-    if (!aro_key || aro_key !== process.env.ARO_KEY) {
-      return NextResponse.json({ error: 'Invalid aro_key' }, { status: 401 })
-    }
 
     // 2. Validate
     if (!slug || !room_name) {

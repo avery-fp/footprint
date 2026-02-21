@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyMagicLink } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { setSessionCookie } from '@/lib/cookies'
 
 /**
  * POST /api/auth/verify
@@ -67,20 +68,7 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Set the session cookie
-    const hostname = new URL(request.url).hostname
-    const cookieDomain = hostname.endsWith('.footprint.onl') || hostname === 'footprint.onl'
-      ? '.footprint.onl'
-      : undefined
-
-    response.cookies.set('fp_session', sessionToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30, // 30 days
-      path: '/',
-      ...(cookieDomain && { domain: cookieDomain }),
-    })
+    setSessionCookie(response, sessionToken, new URL(request.url).hostname)
 
     return response
 

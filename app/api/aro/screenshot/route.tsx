@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { verifyAroKey } from '@/lib/aro-auth'
 import { ImageResponse } from '@vercel/og'
 
 /**
@@ -25,12 +26,10 @@ const VALID_FORMATS = Object.keys(FORMAT_DIMENSIONS)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { aro_key, slug, room_name, formats } = body
+    const authError = verifyAroKey(request, body.aro_key)
+    if (authError) return authError
 
-    // 1. Auth
-    if (!aro_key || aro_key !== process.env.ARO_KEY) {
-      return NextResponse.json({ error: 'Invalid aro_key' }, { status: 401 })
-    }
+    const { slug, room_name, formats } = body
 
     if (!slug) {
       return NextResponse.json({ error: 'slug required' }, { status: 400 })

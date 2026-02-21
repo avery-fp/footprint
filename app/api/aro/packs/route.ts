@@ -1,21 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { verifyAroKey } from '@/lib/aro-auth'
 
 /**
- * GET /api/aro/packs?aro_key=xxx
+ * GET /api/aro/packs
  *
  * List all deployment packs.
+ * Auth: Authorization: Bearer <aro_key>
  * Optional: ?status=pending to filter by status.
  */
 export async function GET(request: NextRequest) {
   try {
+    const authError = verifyAroKey(request)
+    if (authError) return authError
+
     const { searchParams } = new URL(request.url)
-    const aroKey = searchParams.get('aro_key')
-
-    if (!aroKey || aroKey !== process.env.ARO_KEY) {
-      return NextResponse.json({ error: 'Invalid aro_key' }, { status: 401 })
-    }
-
     const status = searchParams.get('status')
     const supabase = createServerSupabaseClient()
 
@@ -48,13 +47,16 @@ export async function GET(request: NextRequest) {
  * POST /api/aro/packs
  *
  * Create a new deployment pack.
- * Body: { aro_key, pack_id, name, slug, room_name?, cluster?, captions?, targets?, score? }
+ * Auth: Authorization: Bearer <aro_key>
+ * Body: { pack_id, name, slug, room_name?, cluster?, captions?, targets?, score? }
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+    const authError = verifyAroKey(request, body.aro_key)
+    if (authError) return authError
+
     const {
-      aro_key,
       pack_id,
       name,
       slug,
@@ -64,10 +66,6 @@ export async function POST(request: NextRequest) {
       targets,
       score,
     } = body
-
-    if (!aro_key || aro_key !== process.env.ARO_KEY) {
-      return NextResponse.json({ error: 'Invalid aro_key' }, { status: 401 })
-    }
 
     if (!pack_id || !name || !slug) {
       return NextResponse.json(
@@ -112,16 +110,16 @@ export async function POST(request: NextRequest) {
  * PATCH /api/aro/packs
  *
  * Update a pack (e.g., mark targets as posted, update status).
- * Body: { aro_key, pack_id, targets?, status?, score? }
+ * Auth: Authorization: Bearer <aro_key>
+ * Body: { pack_id, targets?, status?, score? }
  */
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json()
-    const { aro_key, pack_id, targets, status, score } = body
+    const authError = verifyAroKey(request, body.aro_key)
+    if (authError) return authError
 
-    if (!aro_key || aro_key !== process.env.ARO_KEY) {
-      return NextResponse.json({ error: 'Invalid aro_key' }, { status: 401 })
-    }
+    const { pack_id, targets, status, score } = body
 
     if (!pack_id) {
       return NextResponse.json(
@@ -166,19 +164,18 @@ export async function PATCH(request: NextRequest) {
 }
 
 /**
- * DELETE /api/aro/packs?aro_key=xxx&pack_id=yyy
+ * DELETE /api/aro/packs?pack_id=yyy
  *
  * Delete a deployment pack.
+ * Auth: Authorization: Bearer <aro_key>
  */
 export async function DELETE(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const aroKey = searchParams.get('aro_key')
-    const packId = searchParams.get('pack_id')
+    const authError = verifyAroKey(request)
+    if (authError) return authError
 
-    if (!aroKey || aroKey !== process.env.ARO_KEY) {
-      return NextResponse.json({ error: 'Invalid aro_key' }, { status: 401 })
-    }
+    const { searchParams } = new URL(request.url)
+    const packId = searchParams.get('pack_id')
 
     if (!packId) {
       return NextResponse.json(

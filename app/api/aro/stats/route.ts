@@ -1,23 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { verifyAroKey } from '@/lib/aro-auth'
 
 /**
- * GET /api/aro/stats?aro_key=xxx
+ * GET /api/aro/stats
  *
  * Returns conversion data grouped by channel, surface, pack_id.
- * Shows which placements are performing.
+ * Auth: Authorization: Bearer <aro_key>
  *
  * Optional filters: ?channel=reddit&pack_id=nba-allstar&days=7
  */
 export async function GET(request: NextRequest) {
   try {
+    const authError = verifyAroKey(request)
+    if (authError) return authError
+
     const { searchParams } = new URL(request.url)
-    const aroKey = searchParams.get('aro_key')
-
-    if (!aroKey || aroKey !== process.env.ARO_KEY) {
-      return NextResponse.json({ error: 'Invalid aro_key' }, { status: 401 })
-    }
-
     const channel = searchParams.get('channel')
     const packId = searchParams.get('pack_id')
     const days = parseInt(searchParams.get('days') || '30', 10)
@@ -117,13 +115,16 @@ export async function GET(request: NextRequest) {
  * POST /api/aro/stats
  *
  * Record a deployment event (mark something as posted).
- * Body: { aro_key, serial_number, channel, surface?, pack_id?, placement_url?, caption_tone?, room_id?, notes? }
+ * Auth: Authorization: Bearer <aro_key>
+ * Body: { serial_number, channel, surface?, pack_id?, placement_url?, caption_tone?, room_id?, notes? }
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+    const authError = verifyAroKey(request, body.aro_key)
+    if (authError) return authError
+
     const {
-      aro_key,
       serial_number,
       channel,
       surface,
@@ -133,10 +134,6 @@ export async function POST(request: NextRequest) {
       room_id,
       notes,
     } = body
-
-    if (!aro_key || aro_key !== process.env.ARO_KEY) {
-      return NextResponse.json({ error: 'Invalid aro_key' }, { status: 401 })
-    }
 
     if (!serial_number || !channel) {
       return NextResponse.json(
@@ -180,17 +177,16 @@ export async function POST(request: NextRequest) {
  * PATCH /api/aro/stats
  *
  * Update an event (e.g., add placement_url after posting, increment clicks).
- * Body: { aro_key, event_id, placement_url?, clicks?, conversions?, notes? }
+ * Auth: Authorization: Bearer <aro_key>
+ * Body: { event_id, placement_url?, clicks?, conversions?, notes? }
  */
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json()
-    const { aro_key, event_id, placement_url, clicks, conversions, notes } =
-      body
+    const authError = verifyAroKey(request, body.aro_key)
+    if (authError) return authError
 
-    if (!aro_key || aro_key !== process.env.ARO_KEY) {
-      return NextResponse.json({ error: 'Invalid aro_key' }, { status: 401 })
-    }
+    const { event_id, placement_url, clicks, conversions, notes } = body
 
     if (!event_id) {
       return NextResponse.json(
