@@ -129,9 +129,21 @@ body::before {
   animation: materialize 800ms ease-out forwards;
 }
 
-/* Tiles materialize — fast uniform dissolve */
+/* Tiles materialize — staggered dissolve, 40ms between each tile */
 .tile-enter {
-  opacity: 1;
+  opacity: 0;
+  animation: materialize 200ms linear forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile-enter {
+    opacity: 1;
+    animation: none;
+  }
+  .materialize {
+    opacity: 1;
+    animation: none;
+  }
 }
 
 .vapor-box {
