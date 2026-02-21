@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { parseURL } from '@/lib/parser'
+import { getUserIdFromRequest } from '@/lib/auth'
 
 /**
  * GET /api/content?footprint_id=xxx
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify user owns this footprint
-    const userId = request.headers.get('x-user-id')
+    const userId = await getUserIdFromRequest(request)
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -135,7 +136,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'id required' }, { status: 400 })
     }
 
-    const userId = request.headers.get('x-user-id')
+    const userId = await getUserIdFromRequest(request)
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

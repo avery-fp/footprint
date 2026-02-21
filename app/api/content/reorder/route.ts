@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { getUserIdFromRequest } from '@/lib/auth'
 
 /**
  * POST /api/content/reorder
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify user owns this footprint
-    const userId = request.headers.get('x-user-id')
+    const userId = await getUserIdFromRequest(request)
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

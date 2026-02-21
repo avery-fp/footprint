@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { getUserIdFromRequest } from '@/lib/auth'
 
 // Lightweight endpoint: register a file already uploaded to Supabase Storage
 // Used by client-side video uploads that bypass Vercel's body limit
 export async function POST(request: NextRequest) {
   try {
-    const userId = request.headers.get('x-user-id')
+    const userId = await getUserIdFromRequest(request)
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
