@@ -1,93 +1,102 @@
-import { createServerSupabaseClient } from '@/lib/supabase'
-import { getTheme } from '@/lib/themes'
-import AnalyticsTracker from '@/components/AnalyticsTracker'
-import ShareEngine from '@/components/ShareEngine'
-import EventTracker from '@/components/EventTracker'
-import ReferralBanner from '@/components/ReferralBanner'
-import PublicPage from './[slug]/PublicPage'
-import { mediaTypeFromUrl } from '@/lib/media'
+import Link from 'next/link'
+import { createClient } from '@supabase/supabase-js'
 
-export const dynamic = 'force-dynamic'
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
-const AE_SLUG = 'ae'
+export const revalidate = 3600
+
+async function getWallpaper() {
+  const { data } = await getSupabase()
+    .from('footprints')
+    .select('background_url')
+    .eq('serial_number', 1001)
+    .single()
+  return data?.background_url || null
+}
 
 export default async function Home() {
-  const supabase = createServerSupabaseClient()
+  const wallpaper = await getWallpaper()
 
-  // Fetch the ae footprint
-  const { data: footprint } = await supabase
-    .from('footprints')
-    .select('*')
-    .eq('username', AE_SLUG)
-    .single()
-
-  if (!footprint) {
-    // Fallback: minimal dark screen if ae doesn't exist
-    return (
-      <div className="min-h-screen bg-[#080808] flex items-center justify-center">
-        <p className="text-white/20 text-sm font-mono">footprint</p>
-      </div>
-    )
-  }
-
-  // Fetch tiles + rooms
-  const [{ data: images }, { data: links }, { data: roomsData }] = await Promise.all([
-    supabase.from('library').select('*').eq('serial_number', footprint.serial_number).order('position'),
-    supabase.from('links').select('*').eq('serial_number', footprint.serial_number).order('position'),
-    supabase.from('rooms').select('*').eq('serial_number', footprint.serial_number).neq('hidden', true).order('position'),
-  ])
-
-  // Merge and sort
-  const content = [
-    ...(images || []).map((img: any) => ({
-      id: img.id,
-      type: mediaTypeFromUrl(img.image_url),
-      url: img.image_url,
-      position: img.position,
-      room_id: img.room_id,
-      size: img.size || 1,
-      caption: img.caption || null,
-    })),
-    ...(links || []).map((link: any) => ({
-      id: link.id,
-      type: link.platform,
-      url: link.url,
-      title: link.title,
-      thumbnail_url: link.thumbnail,
-      embed_html: link.metadata?.embed_html,
-      description: link.metadata?.description,
-      position: link.position,
-      room_id: link.room_id,
-      size: link.size || 1,
-    })),
-  ].sort((a, b) => a.position - b.position)
-
-  // Group content by rooms
-  const rooms = (roomsData || []).map((room: any) => ({
-    id: room.id,
-    name: room.name,
-    content: content.filter(item => item.room_id === room.id),
-  }))
-
-  const serial = footprint.serial_number.toString().padStart(4, '0')
-  const theme = getTheme(footprint.dimension || 'midnight')
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://footprint.onl'
-  const pageUrl = `${baseUrl}/${AE_SLUG}`
+  // Payment link — goes directly to Stripe. Apple Pay. Google Pay. Card. Done.
+  const paymentLink = 'https://buy.stripe.com/9B6cN40Ef0sG2z98b214400'
 
   return (
-    <>
-      <AnalyticsTracker footprintId={footprint.id} serialNumber={footprint.serial_number} />
-      <EventTracker footprintId={footprint.id} />
-      <ReferralBanner serial={serial} />
-      <ShareEngine slug={AE_SLUG} />
-      <PublicPage
-        footprint={footprint}
-        content={content}
-        rooms={rooms}
-        theme={theme}
-        serial={serial}
-        pageUrl={pageUrl}
-      />
-    </>
+    <div className="min-h-screen relative overflow-hidden">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
+      `}</style>
+
+      {wallpaper && (
+        <>
+          <img
+            src={wallpaper}
+            alt=""
+            className="fixed inset-0 w-full h-full object-cover"
+          />
+          <div className="fixed inset-0" style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.5) 45%, rgba(0,0,0,0.92) 100%)' }} />
+        </>
+      )}
+
+      {!wallpaper && (
+        <div className="fixed inset-0 bg-[#080808]" />
+      )}
+
+      <div className="relative z-10 min-h-screen flex flex-col justify-end px-7 md:px-14 pb-14 md:pb-20">
+        
+        <div className="max-w-xl">
+          <h1
+            className="text-white mb-4 leading-[0.92]"
+            style={{
+              fontSize: 'clamp(52px, 9vw, 96px)',
+              fontWeight: 400,
+              letterSpacing: '-0.035em',
+            }}
+          >
+            footprint
+          </h1>
+
+          <p 
+            className="text-white/35 mb-10 leading-relaxed"
+            style={{
+              fontSize: '15px',
+              fontWeight: 400,
+              letterSpacing: '-0.01em',
+            }}
+          >
+            a room for your internet.
+          </p>
+
+          <div className="flex items-center gap-5">
+            <a
+              href={paymentLink}
+              className="rounded-full px-8 py-3 bg-white text-black/90 hover:bg-white/90 transition-all duration-200"
+              style={{
+                fontSize: '14px',
+                fontWeight: 500,
+                letterSpacing: '-0.01em',
+              }}
+            >
+              Claim your footprint
+            </a>
+
+            <Link
+              href="/ae"
+              className="text-white/25 hover:text-white/50 transition-colors duration-300"
+              style={{
+                fontSize: '13px',
+                fontWeight: 400,
+              }}
+            >
+              See a footprint
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
