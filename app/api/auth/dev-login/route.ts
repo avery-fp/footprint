@@ -13,6 +13,10 @@ import { nanoid } from 'nanoid'
  * DELETE THIS ROUTE once Resend domain is verified.
  */
 export async function GET(request: NextRequest) {
+  if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'JWT_SECRET not configured' }, { status: 500 })
+  }
+
   try {
     const rawEmail = request.nextUrl.searchParams.get('email')
     const linkFootprint = request.nextUrl.searchParams.get('link_footprint')

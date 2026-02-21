@@ -44,6 +44,11 @@ export async function POST(request: NextRequest) {
       .ilike('email', normalizedEmail)
       .single()
 
+    const hostname = new URL(request.url).hostname
+    const cookieDomain = hostname.endsWith('.footprint.onl') || hostname === 'footprint.onl'
+      ? '.footprint.onl'
+      : undefined
+
     if (existingUser) {
       const sessionToken = await createSessionToken(existingUser.id, existingUser.email)
       const response = NextResponse.json({ success: true, serial: existingUser.serial_number })
@@ -53,6 +58,7 @@ export async function POST(request: NextRequest) {
         sameSite: 'lax',
         maxAge: 60 * 60 * 24 * 30,
         path: '/',
+        ...(cookieDomain && { domain: cookieDomain }),
       })
       return response
     }
@@ -157,6 +163,7 @@ export async function POST(request: NextRequest) {
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30,
       path: '/',
+      ...(cookieDomain && { domain: cookieDomain }),
     })
 
     return response
