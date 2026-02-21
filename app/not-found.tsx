@@ -32,7 +32,7 @@ export default function NotFound() {
           className="text-white/25 text-sm mb-14 leading-relaxed"
           style={{ fontFamily: DM }}
         >
-          one page for everything. $10.
+          one page for everything.
         </p>
 
         <div className="flex items-center justify-center gap-5">
@@ -41,7 +41,7 @@ export default function NotFound() {
             className="rounded-full px-8 py-3 bg-white text-black/90 hover:bg-white/90 transition-all duration-200 text-sm font-medium"
             style={{ fontFamily: DM }}
           >
-            get yours  $10
+            get yours
           </a>
 
           <Link

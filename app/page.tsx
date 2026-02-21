@@ -81,7 +81,7 @@ export default async function Home() {
                 letterSpacing: '-0.01em',
               }}
             >
-              Claim yours — $10
+              Claim your footprint
             </a>
 
             <Link
