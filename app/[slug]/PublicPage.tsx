@@ -200,7 +200,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
       {isLoggedIn && (
         <a
-          href="/dashboard"
+          href={`/${footprint.username}/home`}
           className="fixed top-4 right-4 z-30 w-9 h-9 flex items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.15] backdrop-blur-sm transition"
           style={{ marginTop: 'env(safe-area-inset-top)' }}
         >

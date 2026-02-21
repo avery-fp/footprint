@@ -118,7 +118,7 @@ export default function BuildPage() {
     if (footprint) {
       router.push(`/${footprint.slug}/home`)
     } else {
-      router.push('/dashboard')
+      router.push('/build')
     }
   }
 

@@ -231,7 +231,7 @@ export async function sendMagicLinkEmail(email: string, magicLink: string) {
  * Send welcome email with magic link after purchase
  */
 export async function sendWelcomeEmail(email: string, serialNumber: number, username?: string) {
-  const redirect = username ? `/${username}/home` : '/dashboard'
+  const redirect = username ? `/${username}/home` : '/build'
   const magicLink = await generateMagicLink(email, redirect)
 
   if (!process.env.RESEND_API_KEY) {

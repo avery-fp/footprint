@@ -41,7 +41,7 @@ export default function CheckoutPage() {
         if (data.slug) {
           window.location.href = `/${data.slug}/home`
         } else {
-          window.location.href = '/dashboard'
+          window.location.href = '/build'
         }
         return
       }

@@ -8,9 +8,9 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code')
   const error = searchParams.get('error')
   const errorDescription = searchParams.get('error_description')
-  const rawRedirect = searchParams.get('redirect') || '/dashboard'
+  const rawRedirect = searchParams.get('redirect') || ''
   // Prevent open redirects: only allow relative paths, never protocol-relative
-  const redirect = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : '/dashboard'
+  const customRedirect = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : ''
 
   // Handle errors
   if (error) {
@@ -62,9 +62,7 @@ export async function GET(request: NextRequest) {
         .eq('is_primary', true)
         .single()
 
-      const destination = redirect !== '/dashboard'
-        ? redirect
-        : primaryFp ? `/${primaryFp.username}/home` : '/build'
+      const destination = customRedirect || (primaryFp ? `/${primaryFp.username}/home` : '/build')
 
       const response = NextResponse.redirect(new URL(destination, origin))
       const hostname = new URL(request.url).hostname

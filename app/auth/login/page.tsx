@@ -33,7 +33,7 @@ export default function LoginPage() {
 
         if (res.ok) {
           const data = await res.json()
-          const dest = customRedirect || (data.slug ? `/${data.slug}/home` : '/dashboard')
+          const dest = customRedirect || (data.slug ? `/${data.slug}/home` : '/build')
           router.push(dest)
           return
         }
