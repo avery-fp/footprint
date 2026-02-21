@@ -340,16 +340,16 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     const len = text.length
     // Adaptive sizing: short → big and bold, long → smaller
     const typo = len <= 6
-      ? 'text-[28px] font-bold tracking-[-0.03em] leading-none'
+      ? 'text-[28px] font-normal tracking-[-0.035em] leading-none'
       : len <= 20
-      ? 'text-[18px] font-semibold tracking-[-0.02em] leading-tight'
+      ? 'text-[18px] font-normal tracking-[-0.025em] leading-tight'
       : len <= 60
-      ? 'text-[14px] font-medium leading-snug'
-      : 'text-[13px] font-normal leading-relaxed'
+      ? 'text-[14px] font-normal tracking-[-0.01em] leading-snug'
+      : 'text-[13px] font-normal tracking-[-0.01em] leading-relaxed'
 
     return (
-      <div className="w-full h-full rounded-xl bg-white/[0.07] backdrop-blur-md flex items-center justify-center p-5">
-        <p className={`whitespace-pre-wrap text-white text-center ${typo}`}>
+      <div className="w-full h-full rounded-xl bg-white/[0.07] backdrop-blur-md flex items-center justify-center p-5" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+        <p className={`whitespace-pre-wrap text-white/90 text-center ${typo}`}>
           {text}
         </p>
       </div>
