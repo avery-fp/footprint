@@ -72,7 +72,7 @@ export default function VerifyPage() {
     verify()
   }, [token, redirect, router])
 
-  const f = "'DM Sans', -apple-system, sans-serif"
+  const f = 'inherit'
 
   return (
     <div className="min-h-screen relative overflow-hidden flex items-center justify-center">
