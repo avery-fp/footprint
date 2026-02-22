@@ -58,7 +58,8 @@ export default function LoginPage() {
         // No account — show create account option
         setNotFound(true)
       } else {
-        // Magic link failed (Resend 403, etc.) — fall back to direct login
+        // Magic link failed — log in directly via dev-login
+        toast('signing you in directly...')
         window.location.href = `/api/auth/dev-login?email=${encodeURIComponent(email)}`
         return
       }
