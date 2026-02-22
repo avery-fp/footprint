@@ -1,7 +1,9 @@
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { cookies } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { Metadata } from 'next'
 import { getTheme } from '@/lib/themes'
+import { verifySessionToken } from '@/lib/auth'
 import AnalyticsTracker from '@/components/AnalyticsTracker'
 import ShareEngine from '@/components/ShareEngine'
 import EventTracker from '@/components/EventTracker'
@@ -21,7 +23,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .from('footprints')
     .select('display_name, bio, dimension, serial_number')
     .eq('username', params.slug)
-    .eq('published', true)
     .single()
 
   if (!footprint) return { title: 'Footprint' }
@@ -51,15 +52,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function FootprintPage({ params }: Props) {
   const supabase = createServerSupabaseClient()
 
-  // Fetch footprint by username + published
+  // Fetch footprint by username (don't filter by published — we check ownership for drafts)
   const { data: footprint } = await supabase
     .from('footprints')
     .select('*')
     .eq('username', params.slug)
-    .eq('published', true)
     .single()
 
   if (!footprint) notFound()
+
+  // If not published, only the owner can see it
+  let isDraft = false
+  if (!footprint.published) {
+    const cookieStore = cookies()
+    const token = cookieStore.get('fp_session')?.value
+    if (!token) notFound()
+    const session = await verifySessionToken(token)
+    if (!session || session.userId !== footprint.user_id) notFound()
+    isDraft = true
+  }
 
   // Fetch tiles + rooms in parallel (single round-trip, no waterfall)
   const [{ data: images }, { data: links }, { data: roomsData }] = await Promise.all([
@@ -117,6 +128,7 @@ export default async function FootprintPage({ params }: Props) {
         theme={theme}
         serial={serial}
         pageUrl={pageUrl}
+        isDraft={isDraft}
       />
     </>
   )

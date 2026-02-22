@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import Image from 'next/image'
+import { DndContext, closestCenter, MouseSensor, TouchSensor, useSensor, useSensors, DragOverlay, DragStartEvent, DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, rectSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import ContentCard from '@/components/ContentCard'
 import VideoTile from '@/components/VideoTile'
 import WeatherEffect from '@/components/WeatherEffect'
@@ -22,6 +25,23 @@ interface PublicPageProps {
   theme: any
   serial: string
   pageUrl: string
+  isDraft?: boolean
+}
+
+// Sortable wrapper for public page tiles
+function SortableTile({ id, children, className }: { id: string; children: React.ReactNode; className?: string }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.35 : 1,
+    cursor: 'grab',
+  }
+  return (
+    <div ref={setNodeRef} style={style} className={className} {...attributes} {...listeners}>
+      {children}
+    </div>
+  )
 }
 
 const noop = () => {}
@@ -47,8 +67,17 @@ const ROOM_OVERLAYS = [
 ]
 const DEFAULT_OVERLAY = 'rgba(0,0,0,0.35)'
 
-export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl }: PublicPageProps) {
+export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl, isDraft }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
+  const [localOrder, setLocalOrder] = useState<Record<string, string[]>>({})
+  const [activeDragId, setActiveDragId] = useState<string | null>(null)
+
+  const interactive = footprint.interactive !== false // default true
+
+  // Sensors: desktop = click+drag (8px threshold), mobile = long-press (200ms)
+  const mouseSensor = useSensor(MouseSensor, { activationConstraint: { distance: 8 } })
+  const touchSensor = useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
+  const sensors = useSensors(mouseSensor, touchSensor)
 
   // Default to first room on mount
   useEffect(() => {
@@ -82,9 +111,18 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         )
       })), [rooms])
 
-  const content = activeRoomId
+  const baseContent = activeRoomId
     ? visibleRooms.find(r => r.id === activeRoomId)?.content || []
     : validContent
+
+  // Apply local drag order if user has rearranged tiles in this room
+  const orderKey = activeRoomId || '__all__'
+  const content = useMemo(() => {
+    const order = localOrder[orderKey]
+    if (!order) return baseContent
+    const byId = new Map(baseContent.map((item: any) => [item.id, item]))
+    return order.map(id => byId.get(id)).filter(Boolean)
+  }, [baseContent, localOrder, orderKey])
 
   // Wallpaper filter derived from active room
   const activeRoomIndex = activeRoomId ? visibleRooms.findIndex(r => r.id === activeRoomId) : -1
@@ -126,6 +164,23 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     }, 200)
   }, [activeRoomId, roomFade])
 
+  // Drag handlers — purely client-side, resets on refresh
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActiveDragId(String(event.active.id))
+  }, [])
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    setActiveDragId(null)
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const ids = content.map((item: any) => item.id)
+    const oldIndex = ids.indexOf(String(active.id))
+    const newIndex = ids.indexOf(String(over.id))
+    if (oldIndex === -1 || newIndex === -1) return
+    const newIds = arrayMove(ids, oldIndex, newIndex)
+    setLocalOrder(prev => ({ ...prev, [orderKey]: newIds }))
+  }, [content, orderKey])
+
   useEffect(() => {
     if (!showToast) return
     const t = setTimeout(() => setShowToast(false), 2000)
@@ -139,39 +194,41 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     return isMobile ? '50vw' : '(max-width: 768px) 50vw, 25vw'
   }
 
+  // Tile col-span class based on size
+  const getColSpan = (size: number) =>
+    size === 4 ? 'col-span-2 row-span-2 md:col-span-4 md:row-span-4'
+    : size === 3 ? 'col-span-2 row-span-2 md:col-span-3 md:row-span-3'
+    : size === 2 ? 'col-span-2 row-span-2'
+    : ''
+
   // Reusable tile renderer - size-aware col-span in CSS Grid
-  const renderTile = (item: any, index: number) => {
+  const renderTileContent = (item: any, index: number) => {
     const isVideo = item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
     const tileSize = item.size || 1
-    const colSpan = tileSize === 4 ? 'col-span-2 row-span-2 md:col-span-4 md:row-span-4'
-      : tileSize === 3 ? 'col-span-2 row-span-2 md:col-span-3 md:row-span-3'
-      : tileSize === 2 ? 'col-span-2 row-span-2'
-      : ''
     const imgSizes = getImageSizes(tileSize)
     return (
-      <div key={item.id}
-        className={`${colSpan} group tile-enter tile-container`}
-        style={{ animationDelay: `${index * 40}ms` }}>
-        <div className="aspect-square rounded-xl overflow-hidden">
-          {item.type === 'image' ? (
-            isVideo ? (
-              <VideoTile src={item.url} onWidescreen={noop} />
-            ) : (
-              <Image src={item.url} alt={item.title || ''}
-                width={tileSize >= 2 ? 800 : 400} height={tileSize >= 2 ? 800 : 400}
-                sizes={imgSizes}
-                className="w-full h-full object-cover transition-opacity duration-300"
-                loading={index < 4 ? "eager" : "lazy"}
-                priority={index < 4} quality={75}
-                onError={(e) => { (e.target as HTMLElement).closest('.tile-container')!.style.display = 'none' }} />
-            )
+      <div className="aspect-square rounded-xl overflow-hidden">
+        {item.type === 'image' ? (
+          isVideo ? (
+            <VideoTile src={item.url} onWidescreen={noop} />
           ) : (
-            <ContentCard content={item} isMobile={isMobile} tileSize={tileSize} />
-          )}
-        </div>
+            <Image src={item.url} alt={item.title || ''}
+              width={tileSize >= 2 ? 800 : 400} height={tileSize >= 2 ? 800 : 400}
+              sizes={imgSizes}
+              className="w-full h-full object-cover transition-opacity duration-300"
+              loading={index < 4 ? "eager" : "lazy"}
+              priority={index < 4} quality={75}
+              onError={(e) => { (e.target as HTMLElement).closest('.tile-container')!.style.display = 'none' }} />
+          )
+        ) : (
+          <ContentCard content={item} isMobile={isMobile} tileSize={tileSize} />
+        )}
       </div>
     )
   }
+
+  // Active drag item for overlay
+  const activeDragItem = activeDragId ? content.find((item: any) => item.id === activeDragId) : null
 
   return (
     <div className="min-h-screen relative" style={{ background: theme.colors.background, color: theme.colors.text }}>
@@ -199,6 +256,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
       )}
       <WeatherEffect type={footprint.weather_effect || null} />
+
+      {/* Draft banner — only visible to owner */}
+      {isDraft && (
+        <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center py-2 bg-white/[0.06] backdrop-blur-sm border-b border-white/[0.08]">
+          <span className="text-[11px] text-white/40 tracking-[0.15em] font-mono lowercase">draft — only you can see this</span>
+        </div>
+      )}
 
       <div className="relative z-10">
         {/* Masthead — long-press zone for removal */}
@@ -303,17 +367,53 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
         {/* Content grid */}
         <div className="max-w-7xl mx-auto px-3 md:px-5">
-          <div
-            className="grid grid-cols-2 md:grid-cols-4 gap-2"
-            style={{
-              gridAutoRows: 'minmax(0, 1fr)',
-              gridAutoFlow: 'dense',
-              opacity: roomFade === 'out' ? 0 : 1,
-              transition: 'opacity 200ms ease-out',
-            }}
-          >
-            {content.map((item, idx) => renderTile(item, idx))}
-          </div>
+          {interactive ? (
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+              <SortableContext items={content.map((item: any) => item.id)} strategy={rectSortingStrategy}>
+                <div
+                  className="grid grid-cols-2 md:grid-cols-4 gap-2"
+                  style={{
+                    gridAutoRows: 'minmax(0, 1fr)',
+                    gridAutoFlow: 'dense',
+                    opacity: roomFade === 'out' ? 0 : 1,
+                    transition: 'opacity 200ms ease-out',
+                  }}
+                >
+                  {content.map((item: any, idx: number) => (
+                    <SortableTile key={item.id} id={item.id} className={`${getColSpan(item.size || 1)} group tile-enter tile-container`}>
+                      {renderTileContent(item, idx)}
+                    </SortableTile>
+                  ))}
+                </div>
+              </SortableContext>
+              <DragOverlay>
+                {activeDragItem ? (
+                  <div
+                    className={`${getColSpan(activeDragItem.size || 1)} tile-container`}
+                    style={{ transform: 'rotate(2deg)', boxShadow: '0 12px 40px rgba(0,0,0,0.5)', borderRadius: '12px', overflow: 'hidden' }}
+                  >
+                    {renderTileContent(activeDragItem, 0)}
+                  </div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+          ) : (
+            <div
+              className="grid grid-cols-2 md:grid-cols-4 gap-2"
+              style={{
+                gridAutoRows: 'minmax(0, 1fr)',
+                gridAutoFlow: 'dense',
+                opacity: roomFade === 'out' ? 0 : 1,
+                transition: 'opacity 200ms ease-out',
+              }}
+            >
+              {content.map((item: any, idx: number) => (
+                <div key={item.id} className={`${getColSpan(item.size || 1)} group tile-enter tile-container`} style={{ animationDelay: `${idx * 40}ms` }}>
+                  {renderTileContent(item, idx)}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {content.length === 0 && (
