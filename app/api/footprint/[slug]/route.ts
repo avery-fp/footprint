@@ -125,10 +125,11 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { is_public, display_name, handle, bio, theme, grid_mode, background_url, background_blur } = body
+    const { is_public, interactive, display_name, handle, bio, theme, grid_mode, background_url, background_blur } = body
 
     const updates: any = {}
     if (typeof is_public === 'boolean') updates.published = is_public
+    if (typeof interactive === 'boolean') updates.interactive = interactive
     if (typeof display_name === 'string') updates.display_name = display_name
     if (typeof handle === 'string') updates.handle = handle
     if (typeof bio === 'string') updates.bio = bio

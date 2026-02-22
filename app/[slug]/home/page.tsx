@@ -315,6 +315,10 @@ export default function EditPage() {
   const [pasteUrl, setPasteUrl] = useState('')
   const [thoughtText, setThoughtText] = useState('')
   const [isMobile, setIsMobile] = useState(false)
+  const [isPublished, setIsPublished] = useState(true)
+  const [isInteractive, setIsInteractive] = useState(true)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [statusToast, setStatusToast] = useState<string | null>(null)
   const urlInputRef = useRef<HTMLInputElement>(null)
   const thoughtInputRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -451,6 +455,8 @@ export default function EditPage() {
           setIsOwner(true)
           setWallpaperUrl(data.footprint.background_url || '')
           setBackgroundBlur(data.footprint.background_blur ?? true)
+          setIsPublished(data.footprint.published ?? true)
+          setIsInteractive(data.footprint.interactive ?? true)
 
           const sources: Record<string, 'library' | 'links'> = {}
           const content = (data.tiles || []).map((tile: any) => {
@@ -537,6 +543,40 @@ export default function EditPage() {
       console.error('Failed to save profile:', error)
     }
   }, [isOwner, slug])
+
+  // Published / Interactive toggles — optimistic with rollback
+  const togglePublished = useCallback(async () => {
+    const next = !isPublished
+    setIsPublished(next)
+    setStatusToast(next ? 'published' : 'draft')
+    try {
+      await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_public: next }),
+      })
+    } catch { setIsPublished(!next) }
+  }, [isPublished, slug])
+
+  const toggleInteractive = useCallback(async () => {
+    const next = !isInteractive
+    setIsInteractive(next)
+    setStatusToast(next ? 'interactive' : 'locked')
+    try {
+      await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ interactive: next }),
+      })
+    } catch { setIsInteractive(!next) }
+  }, [isInteractive, slug])
+
+  // Auto-dismiss status toast
+  useEffect(() => {
+    if (!statusToast) return
+    const t = setTimeout(() => setStatusToast(null), 1500)
+    return () => clearTimeout(t)
+  }, [statusToast])
 
   useEffect(() => {
     if (draft && !isLoading) {
@@ -1249,13 +1289,45 @@ export default function EditPage() {
               </button>
             </div>
           ) : (
-            <button
-              onClick={enterEdit}
-              className="text-sm text-white/90 hover:text-white transition font-mono flex items-center justify-center px-5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
-              style={{ minHeight: '44px', minWidth: '44px' }}
-            >
-              edit
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Published toggle — eye icon */}
+              <button
+                onClick={togglePublished}
+                className="flex items-center justify-center rounded-full transition-all duration-200 hover:bg-white/[0.08]"
+                style={{ minWidth: '44px', minHeight: '44px' }}
+                title={isPublished ? 'Published — tap to make draft' : 'Draft — tap to publish'}
+              >
+                {isPublished ? (
+                  <svg className="w-4 h-4 text-white/50" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4 text-white/30" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                  </svg>
+                )}
+              </button>
+              {/* Settings gear */}
+              <button
+                onClick={() => setSettingsOpen(true)}
+                className="flex items-center justify-center rounded-full transition-all duration-200 hover:bg-white/[0.08]"
+                style={{ minWidth: '44px', minHeight: '44px' }}
+                title="Settings"
+              >
+                <svg className="w-4 h-4 text-white/40" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </button>
+              <button
+                onClick={enterEdit}
+                className="text-sm text-white/90 hover:text-white transition font-mono flex items-center justify-center px-5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
+                style={{ minHeight: '44px', minWidth: '44px' }}
+              >
+                edit
+              </button>
+            </div>
           )}
         </div>
         {/* Room pills */}
@@ -1639,6 +1711,38 @@ export default function EditPage() {
           </div>
         )}
       </div>
+
+      {/* Settings drawer */}
+      {settingsOpen && (
+        <>
+          <div className="fixed inset-0 z-[60] bg-black/40" onClick={() => setSettingsOpen(false)} />
+          <div className="fixed bottom-0 left-0 right-0 z-[61] bg-black/80 backdrop-blur-md border-t border-white/[0.08] rounded-t-2xl p-6 pb-10 materialize"
+            style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 2.5rem)' }}>
+            <div className="w-10 h-1 rounded-full bg-white/[0.12] mx-auto mb-6" />
+            <div className="max-w-sm mx-auto space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-white/80 font-mono">interactive tiles</p>
+                  <p className="text-[10px] text-white/30 font-mono mt-0.5">visitors can rearrange tiles</p>
+                </div>
+                <button
+                  onClick={toggleInteractive}
+                  className={`w-11 h-6 rounded-full transition-all duration-200 relative ${isInteractive ? 'bg-white/20' : 'bg-white/[0.06]'}`}
+                >
+                  <div className={`w-4 h-4 rounded-full bg-white transition-all duration-200 absolute top-1 ${isInteractive ? 'left-6' : 'left-1'} ${isInteractive ? 'opacity-90' : 'opacity-40'}`} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Status toast */}
+      {statusToast && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[70] bg-black/60 backdrop-blur-sm rounded-full px-5 py-2 text-white/60 text-xs font-mono tracking-[0.15em] materialize">
+          {statusToast}
+        </div>
+      )}
     </div>
   )
 }

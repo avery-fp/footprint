@@ -1,7 +1,9 @@
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { notFound } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { Metadata } from 'next'
 import { getTheme } from '@/lib/themes'
+import { verifySessionToken } from '@/lib/auth'
 import AnalyticsTracker from '@/components/AnalyticsTracker'
 import ShareEngine from '@/components/ShareEngine'
 import EventTracker from '@/components/EventTracker'
@@ -52,12 +54,33 @@ export default async function FootprintPage({ params }: Props) {
   const supabase = createServerSupabaseClient()
 
   // Fetch footprint by username + published
-  const { data: footprint } = await supabase
+  let { data: footprint } = await supabase
     .from('footprints')
     .select('*')
     .eq('username', params.slug)
     .eq('published', true)
     .single()
+
+  // Owner preview — if unpublished, let owner see their own page
+  let isDraft = false
+  if (!footprint) {
+    const cookieStore = cookies()
+    const token = cookieStore.get('fp_session')?.value
+    if (token) {
+      const session = await verifySessionToken(token)
+      if (session) {
+        const { data: ownedFootprint } = await supabase
+          .from('footprints')
+          .select('*')
+          .eq('username', params.slug)
+          .single()
+        if (ownedFootprint && ownedFootprint.user_id === session.userId) {
+          footprint = ownedFootprint
+          isDraft = true
+        }
+      }
+    }
+  }
 
   if (!footprint) notFound()
 
@@ -117,6 +140,7 @@ export default async function FootprintPage({ params }: Props) {
         theme={theme}
         serial={serial}
         pageUrl={pageUrl}
+        isDraft={isDraft}
       />
     </>
   )

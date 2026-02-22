@@ -42,6 +42,7 @@ interface PublicPageProps {
   theme: any
   serial: string
   pageUrl: string
+  isDraft?: boolean
 }
 
 // Wallpaper filter per room - derived from room index
@@ -96,7 +97,7 @@ function SortableTile({ id, className, children, isDragging }: { id: string; cla
   )
 }
 
-export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl }: PublicPageProps) {
+export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl, isDraft }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
   const [dragActiveId, setDragActiveId] = useState<string | null>(null)
   const [localOrder, setLocalOrder] = useState<Record<string, any[]>>({})
@@ -286,6 +287,15 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       )}
       <WeatherEffect type={footprint.weather_effect || null} />
 
+      {isDraft && (
+        <div className="fixed top-0 left-0 right-0 z-40 flex items-center justify-center py-2 bg-black/40 backdrop-blur-sm"
+          style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+          <span className="text-white/30 text-[10px] tracking-[0.25em] lowercase font-mono">
+            draft — only you can see this
+          </span>
+        </div>
+      )}
+
       {isLoggedIn && (
         <a
           href={`/${footprint.username}/home`}
@@ -390,43 +400,62 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </div>
         )}
 
-        {/* Content grid — draggable tiles for viewers */}
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          onDragCancel={handleDragCancel}
-        >
-          <SortableContext items={content.map((i: any) => i.id)} strategy={rectSortingStrategy}>
-            <div className="max-w-7xl mx-auto px-3 md:px-5">
-              <div
-                className="grid grid-cols-2 md:grid-cols-4 gap-2"
-                style={{
-                  gridAutoRows: 'minmax(0, 1fr)',
-                  gridAutoFlow: 'dense',
-                  opacity: roomFade === 'out' ? 0 : 1,
-                  transition: 'opacity 200ms ease-out',
-                }}
-              >
-                {content.map((item: any, idx: number) => (
-                  <SortableTile key={item.id} id={item.id} isDragging={item.id === dragActiveId} className={getColSpan(item.size || 1)}>
-                    {renderTile(item, idx)}
-                  </SortableTile>
-                ))}
+        {/* Content grid */}
+        {footprint.interactive !== false ? (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
+          >
+            <SortableContext items={content.map((i: any) => i.id)} strategy={rectSortingStrategy}>
+              <div className="max-w-7xl mx-auto px-3 md:px-5">
+                <div
+                  className="grid grid-cols-2 md:grid-cols-4 gap-2"
+                  style={{
+                    gridAutoRows: 'minmax(0, 1fr)',
+                    gridAutoFlow: 'dense',
+                    opacity: roomFade === 'out' ? 0 : 1,
+                    transition: 'opacity 200ms ease-out',
+                  }}
+                >
+                  {content.map((item: any, idx: number) => (
+                    <SortableTile key={item.id} id={item.id} isDragging={item.id === dragActiveId} className={getColSpan(item.size || 1)}>
+                      {renderTile(item, idx)}
+                    </SortableTile>
+                  ))}
+                </div>
               </div>
-            </div>
-          </SortableContext>
+            </SortableContext>
 
-          {/* Drag overlay — the floating tile while dragging */}
-          <DragOverlay dropAnimation={{ duration: 200, easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)' }}>
-            {dragActiveItem ? (
-              <div className="rotate-2 scale-[1.04] shadow-2xl shadow-black/60 ring-1 ring-white/20 rounded-xl pointer-events-none">
-                {renderTile(dragActiveItem, 0)}
-              </div>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
+            <DragOverlay dropAnimation={{ duration: 200, easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)' }}>
+              {dragActiveItem ? (
+                <div className="rotate-2 scale-[1.04] shadow-2xl shadow-black/60 ring-1 ring-white/20 rounded-xl pointer-events-none">
+                  {renderTile(dragActiveItem, 0)}
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        ) : (
+          <div className="max-w-7xl mx-auto px-3 md:px-5">
+            <div
+              className="grid grid-cols-2 md:grid-cols-4 gap-2"
+              style={{
+                gridAutoRows: 'minmax(0, 1fr)',
+                gridAutoFlow: 'dense',
+                opacity: roomFade === 'out' ? 0 : 1,
+                transition: 'opacity 200ms ease-out',
+              }}
+            >
+              {content.map((item: any, idx: number) => (
+                <div key={item.id} className={getColSpan(item.size || 1)}>
+                  {renderTile(item, idx)}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {content.length === 0 && (
           <p className="text-center py-16" style={{ color: theme.colors.textMuted }}>

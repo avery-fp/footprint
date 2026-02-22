@@ -469,6 +469,12 @@ CREATE INDEX IF NOT EXISTS idx_fp_events_date ON fp_events (created_at);
 CREATE INDEX IF NOT EXISTS idx_fp_events_composite ON fp_events (footprint_id, event_type, created_at);
 
 -- =====================================================
+-- VIEWER INTERACTIVITY
+-- Controls whether visitors can drag-rearrange tiles
+-- =====================================================
+ALTER TABLE footprints ADD COLUMN IF NOT EXISTS interactive BOOLEAN DEFAULT TRUE;
+
+-- =====================================================
 -- INITIAL SETUP COMPLETE
 --
 -- Next serial available: 7777
