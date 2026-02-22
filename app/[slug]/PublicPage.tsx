@@ -2,6 +2,26 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  rectSortingStrategy,
+  useSortable,
+  sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import ContentCard from '@/components/ContentCard'
 import VideoTile from '@/components/VideoTile'
 import WeatherEffect from '@/components/WeatherEffect'
@@ -45,8 +65,48 @@ const ROOM_OVERLAYS = [
 ]
 const DEFAULT_OVERLAY = 'rgba(0,0,0,0.35)'
 
+/* ── Sortable tile wrapper for viewer drag-and-drop ── */
+function SortableTile({ id, className, children, isDragging }: { id: string; className?: string; children: React.ReactNode; isDragging: boolean }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging: isSortableDragging,
+  } = useSortable({ id })
+
+  const active = isDragging || isSortableDragging
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: active ? 0.35 : 1,
+        zIndex: active ? 50 : 'auto',
+      }}
+      className={`cursor-grab active:cursor-grabbing ${active ? 'scale-[0.97]' : ''} ${className || ''}`}
+      {...attributes}
+      {...listeners}
+    >
+      {children}
+    </div>
+  )
+}
+
 export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
+  const [dragActiveId, setDragActiveId] = useState<string | null>(null)
+  const [localOrder, setLocalOrder] = useState<Record<string, any[]>>({})
+
+  // dnd-kit sensors — touch needs delay so scrolling works
+  const sensors = useSensors(
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
 
   // Default to first room on mount
   useEffect(() => {
@@ -84,9 +144,31 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     .filter(r => r.name && r.name.trim().length > 0)
     .map(r => ({ ...r, content: r.content.filter(isValidTile) }))
 
-  const content = activeRoomId
+  const roomKey = activeRoomId || '__all__'
+  const sourceContent = activeRoomId
     ? visibleRooms.find(r => r.id === activeRoomId)?.content || []
     : validContent
+  const content = localOrder[roomKey] || sourceContent
+
+  // Drag handlers — local reorder only, resets on refresh
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setDragActiveId(event.active.id as string)
+  }, [])
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event
+    setDragActiveId(null)
+    if (!over || active.id === over.id) return
+    const items = localOrder[roomKey] || sourceContent
+    const oldIndex = items.findIndex((i: any) => i.id === active.id)
+    const newIndex = items.findIndex((i: any) => i.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+    setLocalOrder(prev => ({ ...prev, [roomKey]: arrayMove(items, oldIndex, newIndex) }))
+  }, [roomKey, sourceContent, localOrder])
+
+  const handleDragCancel = useCallback(() => setDragActiveId(null), [])
+
+  const dragActiveItem = dragActiveId ? content.find((i: any) => i.id === dragActiveId) : null
 
   // Wallpaper filter derived from active room
   const activeRoomIndex = activeRoomId ? visibleRooms.findIndex(r => r.id === activeRoomId) : -1
@@ -141,18 +223,20 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     return isMobile ? '50vw' : '(max-width: 768px) 50vw, 25vw'
   }
 
-  // Reusable tile renderer - size-aware col-span in CSS Grid
+  // Col-span classes for grid sizing
+  const getColSpan = (size: number) =>
+    size === 4 ? 'col-span-2 row-span-2 md:col-span-4 md:row-span-4'
+    : size === 3 ? 'col-span-2 row-span-2 md:col-span-3 md:row-span-3'
+    : size === 2 ? 'col-span-2 row-span-2'
+    : ''
+
+  // Reusable tile renderer
   const renderTile = (item: any, index: number) => {
     const isVideo = item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
     const tileSize = item.size || 1
-    const colSpan = tileSize === 4 ? 'col-span-2 row-span-2 md:col-span-4 md:row-span-4'
-      : tileSize === 3 ? 'col-span-2 row-span-2 md:col-span-3 md:row-span-3'
-      : tileSize === 2 ? 'col-span-2 row-span-2'
-      : ''
     const imgSizes = getImageSizes(tileSize)
     return (
-      <div key={item.id}
-        className={`${colSpan} group tile-enter tile-container`}>
+      <div className="group tile-enter tile-container">
         <div className="aspect-square rounded-xl overflow-hidden">
           {item.type === 'image' ? (
             isVideo ? (
@@ -306,20 +390,43 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </div>
         )}
 
-        {/* Content grid */}
-        <div className="max-w-7xl mx-auto px-3 md:px-5">
-          <div
-            className="grid grid-cols-2 md:grid-cols-4 gap-2"
-            style={{
-              gridAutoRows: 'minmax(0, 1fr)',
-              gridAutoFlow: 'dense',
-              opacity: roomFade === 'out' ? 0 : 1,
-              transition: 'opacity 200ms ease-out',
-            }}
-          >
-            {content.map((item, idx) => renderTile(item, idx))}
-          </div>
-        </div>
+        {/* Content grid — draggable tiles for viewers */}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
+        >
+          <SortableContext items={content.map((i: any) => i.id)} strategy={rectSortingStrategy}>
+            <div className="max-w-7xl mx-auto px-3 md:px-5">
+              <div
+                className="grid grid-cols-2 md:grid-cols-4 gap-2"
+                style={{
+                  gridAutoRows: 'minmax(0, 1fr)',
+                  gridAutoFlow: 'dense',
+                  opacity: roomFade === 'out' ? 0 : 1,
+                  transition: 'opacity 200ms ease-out',
+                }}
+              >
+                {content.map((item: any, idx: number) => (
+                  <SortableTile key={item.id} id={item.id} isDragging={item.id === dragActiveId} className={getColSpan(item.size || 1)}>
+                    {renderTile(item, idx)}
+                  </SortableTile>
+                ))}
+              </div>
+            </div>
+          </SortableContext>
+
+          {/* Drag overlay — the floating tile while dragging */}
+          <DragOverlay dropAnimation={{ duration: 200, easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)' }}>
+            {dragActiveItem ? (
+              <div className="rotate-2 scale-[1.04] shadow-2xl shadow-black/60 ring-1 ring-white/20 rounded-xl pointer-events-none">
+                {renderTile(dragActiveItem, 0)}
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
 
         {content.length === 0 && (
           <p className="text-center py-16" style={{ color: theme.colors.textMuted }}>
