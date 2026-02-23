@@ -242,6 +242,7 @@ export default function PublishPage() {
                   setAvailable(null)
                 }}
                 placeholder="username"
+                aria-label="Username"
                 className="flex-1 bg-transparent py-3.5 pr-4 text-white/90 placeholder:text-white/20 focus:outline-none text-[14px]"
                 autoFocus
               />
@@ -265,6 +266,7 @@ export default function PublishPage() {
             value={promo}
             onChange={(e) => setPromo(e.target.value)}
             placeholder="promo code (optional)"
+            aria-label="Promo code"
             className="w-full bg-white/[0.05] border border-white/[0.06] rounded-xl px-4 py-3.5 text-white/90 placeholder:text-white/20 focus:outline-none focus:border-white/12 text-[14px]"
           />
 

@@ -70,7 +70,7 @@ export default function VerifyPage() {
     }
 
     verify()
-  }, [token, redirect, router])
+  }, [token, customRedirect, router])
 
   const f = 'inherit'
 

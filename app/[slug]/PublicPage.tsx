@@ -252,7 +252,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     // For 'auto' images — render at natural aspect ratio, no forced container
     if (tileAspect === 'auto' && item.type === 'image' && !isVideo) {
       return (
-        <div className="rounded-xl overflow-hidden">
+        <div className="rounded-xl overflow-hidden" data-tile-id={item.id} data-tile-type={item.type}>
           <Image src={item.url} alt={item.title || ''}
             width={tileSize >= 2 ? 800 : 400} height={tileSize >= 2 ? 800 : 400}
             sizes={imgSizes}
@@ -265,7 +265,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     }
 
     return (
-      <div className={`${aspectCls} rounded-xl overflow-hidden`}>
+      <div className={`${aspectCls} rounded-xl overflow-hidden`} data-tile-id={item.id} data-tile-type={item.type}>
         {item.type === 'image' ? (
           isVideo ? (
             <VideoTile src={item.url} onWidescreen={noop} aspect={tileAspect} />

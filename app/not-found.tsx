@@ -1,7 +1,7 @@
 import Link from 'next/link'
 
 const DM = "'DM Sans', sans-serif"
-const paymentLink = 'https://buy.stripe.com/9B6cN40Ef0sG2z98b214400'
+const signupLink = '/signup'
 
 export default function NotFound() {
   return (
@@ -36,13 +36,13 @@ export default function NotFound() {
         </p>
 
         <div className="flex items-center justify-center gap-5">
-          <a
-            href={paymentLink}
+          <Link
+            href={signupLink}
             className="rounded-full px-8 py-3 bg-white text-black/90 hover:bg-white/90 transition-all duration-200 text-sm font-medium"
             style={{ fontFamily: DM }}
           >
             get yours
-          </a>
+          </Link>
 
           <Link
             href="/ae"

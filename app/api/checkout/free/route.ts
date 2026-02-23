@@ -33,7 +33,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid promo code' }, { status: 400 })
     }
 
-    if (promoCode.max_uses !== null && promoCode.times_used >= promoCode.max_uses) {
+    // Atomically claim a promo usage slot (prevents race condition on max_uses)
+    const { data: promoResult, error: promoUpdateError } = await supabase.rpc('increment_promo_usage', {
+      promo_id: promoCode.id,
+    })
+    if (promoUpdateError || promoResult === -1) {
       return NextResponse.json({ error: 'Promo code expired' }, { status: 400 })
     }
 
@@ -103,35 +107,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create page' }, { status: 500 })
     }
 
-    // Record free payment
-    await supabase.from('payments').insert({
-      user_id: user.id,
-      stripe_session_id: `free_${nanoid(16)}`,
-      amount: 0,
-      currency: 'usd',
-      status: 'completed',
-    })
+    // Record free payment (non-critical)
+    try {
+      await supabase.from('payments').insert({
+        user_id: user.id,
+        stripe_session_id: `free_${nanoid(16)}`,
+        amount: 0,
+        currency: 'usd',
+        status: 'completed',
+      })
+    } catch {}
 
-    // Increment promo usage
-    await supabase
-      .from('promo_codes')
-      .update({ times_used: promoCode.times_used + 1 })
-      .eq('id', promoCode.id)
-
-    // Track referral
+    // Track referral (non-critical)
     if (ref) {
       const refSerial = parseInt(ref.replace('FP-', ''), 10)
       if (!isNaN(refSerial)) {
-        await supabase.from('referrals').insert({
-          referrer_serial: refSerial,
-          referred_user_id: user.id,
-          referral_code: ref,
-          converted: true,
-        }).catch(() => {})
+        try {
+          await supabase.from('referrals').insert({
+            referrer_serial: refSerial,
+            referred_user_id: user.id,
+            referral_code: ref,
+            converted: true,
+          })
+        } catch {}
       }
     }
 
-    // Record conversion event for analytics micro-brain
+    // Record conversion event (non-critical)
     const { data: fp } = await supabase
       .from('footprints')
       .select('id')
@@ -140,17 +142,19 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (fp) {
-      await supabase.from('fp_events').insert({
-        footprint_id: fp.id,
-        event_type: 'conversion',
-        event_data: {
-          serial_number: serialNumber,
-          amount: 0,
-          ref: ref || null,
-          source: 'promo',
-          promo_code: normalizedPromo,
-        },
-      }).catch(() => {})
+      try {
+        await supabase.from('fp_events').insert({
+          footprint_id: fp.id,
+          event_type: 'conversion',
+          event_data: {
+            serial_number: serialNumber,
+            amount: 0,
+            ref: ref || null,
+            source: 'promo',
+            promo_code: normalizedPromo,
+          },
+        })
+      } catch {}
     }
 
     // Create session + set cookie

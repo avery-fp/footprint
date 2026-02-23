@@ -57,10 +57,8 @@ export async function generateMagicLink(email: string, redirect?: string): Promi
     throw new Error(`Failed to create magic link: ${error.message}`)
   }
 
-  // Build the magic link URL - hardcoded to production URL
-  const baseUrl = process.env.NODE_ENV === 'production'
-    ? 'https://www.footprint.onl'
-    : 'http://localhost:3000'
+  // Build the magic link URL
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
   const url = `${baseUrl}/auth/verify?token=${token}`
   return redirect ? `${url}&redirect=${encodeURIComponent(redirect)}` : url
 }
