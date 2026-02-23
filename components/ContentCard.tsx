@@ -28,6 +28,7 @@ interface ContentCardProps {
   onWidescreen?: () => void
   isMobile?: boolean
   tileSize?: number
+  aspect?: string
 }
 
 /**
@@ -39,7 +40,9 @@ interface ContentCardProps {
  * One Sound Policy: AudioManager integration
  * ALL iframes: lazy loaded via IntersectionObserver
  */
-export default function ContentCard({ content, onWidescreen, isMobile = false, tileSize = 1 }: ContentCardProps) {
+export default function ContentCard({ content, onWidescreen, isMobile = false, tileSize = 1, aspect = 'square' }: ContentCardProps) {
+  const aspectClass = aspect === 'wide' ? 'aspect-video' : aspect === 'tall' ? 'aspect-[9/16]' : aspect === 'auto' ? '' : 'aspect-square'
+  const fitClass = aspect === 'auto' ? 'object-contain' : 'object-cover'
   const icon = getContentIcon(content.type)
   const customBg = getContentBackground(content.type)
   const [isActivated, setIsActivated] = useState(false)
@@ -95,7 +98,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       return (
         <div
           ref={containerRef}
-          className="w-full aspect-square rounded-xl overflow-hidden cursor-pointer relative group"
+          className={`w-full ${aspectClass} rounded-xl overflow-hidden cursor-pointer relative group`}
           onClick={handleActivate}
         >
           <Image
@@ -104,7 +107,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             width={tileSize >= 2 ? 800 : 480}
             height={tileSize >= 2 ? 800 : 270}
             sizes={tileSize >= 3 ? '(max-width: 768px) 100vw, 75vw' : tileSize >= 2 ? '(max-width: 768px) 100vw, 50vw' : '(max-width: 768px) 50vw, 25vw'}
-            className={`w-full h-full object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+            className={`w-full h-full ${fitClass} transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
             loading="lazy"
             quality={75}
             onLoad={() => setIsLoaded(true)}
@@ -124,7 +127,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     // Activated — clean iframe with autoplay
     if (videoId) {
       return (
-        <div className="w-full aspect-square rounded-xl overflow-hidden relative materialize">
+        <div className={`w-full ${aspectClass} rounded-xl overflow-hidden relative materialize`}>
           <iframe
             src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`}
             className="absolute inset-0 w-full h-full"
@@ -151,7 +154,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             href={content.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="block w-full aspect-square rounded-xl overflow-hidden relative bg-[#191414] cursor-pointer group"
+            className={`block w-full ${aspectClass} rounded-xl overflow-hidden relative bg-[#191414] cursor-pointer group`}
           >
             {content.thumbnail_url && isInView && (
               <Image
@@ -159,7 +162,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 alt=""
                 fill
                 sizes="(max-width: 768px) 50vw, 25vw"
-                className={`object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+                className={`${fitClass} transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
                 loading="lazy"
                 quality={75}
                 onLoad={() => setIsLoaded(true)}
@@ -216,7 +219,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     if (!isActivated) {
       return (
         <div
-          className="w-full aspect-square rounded-xl overflow-hidden cursor-pointer relative group bg-black"
+          className={`w-full ${aspectClass} rounded-xl overflow-hidden cursor-pointer relative group bg-black`}
           onClick={handleActivate}
         >
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
@@ -233,7 +236,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     if (content.embed_html) {
       return (
         <div
-          className="w-full aspect-square rounded-xl overflow-hidden materialize bg-black [&_iframe]:!h-full"
+          className={`w-full ${aspectClass} rounded-xl overflow-hidden materialize bg-black [&_iframe]:!h-full`}
           dangerouslySetInnerHTML={{ __html: content.embed_html }}
         />
       )
@@ -250,7 +253,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     )
     darkEmbed = darkEmbed.replace(/<iframe /g, '<iframe scrolling="no" ')
     return (
-      <div ref={containerRef} className="w-full aspect-square rounded-xl overflow-hidden bg-black">
+      <div ref={containerRef} className={`w-full ${aspectClass} rounded-xl overflow-hidden bg-black`}>
         {isInView ? (
           <div
             className="w-full h-full overflow-hidden [&_iframe]:!w-full [&_iframe]:!h-full [&_iframe]:!min-h-0 [&_iframe]:!border-0 [&_iframe]:!overflow-hidden"
@@ -266,7 +269,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   if (content.type === 'vimeo' && content.embed_html) {
     return (
-      <div ref={containerRef} className="w-full aspect-square rounded-xl overflow-hidden relative bg-black">
+      <div ref={containerRef} className={`w-full ${aspectClass} rounded-xl overflow-hidden relative bg-black`}>
         {isInView ? (
           <div
             className="absolute inset-0 [&_iframe]:!w-full [&_iframe]:!h-full materialize"
@@ -290,11 +293,11 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             loop
             playsInline
             preload="metadata"
-            className={`w-full aspect-square object-cover transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+            className={`w-full ${aspectClass} ${fitClass} transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
             onLoadedData={(e) => { setIsLoaded(true); (e.target as HTMLVideoElement).play().catch(() => {}) }}
           />
         ) : (
-          <div className="w-full aspect-square" />
+          <div className={`w-full ${aspectClass}`} />
         )}
       </div>
     )
@@ -371,7 +374,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         >
           <div
             className={`absolute inset-0 vapor-box rounded-xl ${isLoaded ? 'opacity-0' : ''} transition-opacity duration-500`}
-            style={{ aspectRatio: '1/1' }}
+            style={{ aspectRatio: aspect === 'wide' ? '16/9' : aspect === 'tall' ? '9/16' : '1/1' }}
           />
           <Image
             src={content.thumbnail_url}
@@ -379,7 +382,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             width={400}
             height={400}
             sizes="(max-width: 768px) 50vw, 25vw"
-            className={`w-full aspect-square object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+            className={`w-full ${aspectClass} ${fitClass} transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
             loading="lazy"
             quality={75}
             onLoad={() => setIsLoaded(true)}
@@ -395,7 +398,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         href={content.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="block rounded-xl overflow-hidden aspect-square border border-white/[0.08] hover:border-white/15 transition-all flex items-center justify-center bg-white/[0.08]"
+        className={`block rounded-xl overflow-hidden ${aspectClass} border border-white/[0.08] hover:border-white/15 transition-all flex items-center justify-center bg-white/[0.08]`}
       >
         <div className="text-4xl opacity-40">
           {icon}
