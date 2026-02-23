@@ -274,12 +274,12 @@ export async function PUT(request: NextRequest) {
 /**
  * PATCH /api/tiles
  *
- * Update a tile's size or caption.
- * Body: { id, source, slug, size? , caption? }
+ * Update a tile's size, caption, or room_id.
+ * Body: { id, source, slug, size?, caption?, room_id? }
  */
 export async function PATCH(request: NextRequest) {
   try {
-    const { id, source, slug, size, caption } = await request.json()
+    const { id, source, slug, size, caption, room_id } = await request.json()
 
     if (!id || !source || !slug || !['library', 'links'].includes(source)) {
       return NextResponse.json({ error: 'id, source, and slug required' }, { status: 400 })
@@ -298,6 +298,7 @@ export async function PATCH(request: NextRequest) {
     const updates: Record<string, any> = {}
     if (size !== undefined) updates.size = size
     if (caption !== undefined) updates.caption = caption || null
+    if (room_id !== undefined) updates.room_id = room_id || null
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
