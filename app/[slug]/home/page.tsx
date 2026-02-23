@@ -38,8 +38,8 @@ function resolveAspect(explicitAspect: string | undefined | null, type: string, 
   if (explicitAspect === 'square') return 'square'
   // No explicit choice — use content-type defaults
   if (type === 'youtube' || type === 'vimeo') return 'wide'
-  if (type === 'video') return 'wide'
-  if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return 'wide'
+  if (type === 'video') return 'auto'
+  if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return 'auto'
   if (type === 'image') return 'auto'
   // embeds, thoughts, social — square works well
   return 'square'
@@ -65,13 +65,12 @@ function getGridClass(size: number, aspect: string) {
 function getAspectClass(aspect: string) {
   if (aspect === 'wide') return 'aspect-video'
   if (aspect === 'tall') return 'aspect-[9/16]'
-  // Edit page always needs a defined container height for drag-and-drop
-  if (aspect === 'auto') return 'aspect-[4/3]'
+  if (aspect === 'auto') return ''
   return 'aspect-square'
 }
 
 function getObjectFit(aspect: string) {
-  if (aspect === 'auto') return 'object-cover'
+  if (aspect === 'auto') return 'object-contain'
   return 'object-cover'
 }
 
