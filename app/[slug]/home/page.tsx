@@ -1704,6 +1704,18 @@ export default function EditPage() {
         )}
       </div>
 
+      {/* ═══ PUBLISH BUTTON — appears when unpublished + 3+ tiles ═══ */}
+      {!isPublished && draft.content.length >= 3 && mode.type === 'viewing' && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40">
+          <a
+            href="/publish"
+            className="px-6 py-3 bg-white/[0.08] hover:bg-white/[0.14] backdrop-blur-sm text-white/50 hover:text-white/80 text-[13px] font-mono tracking-[0.1em] rounded-full border border-white/[0.1] hover:border-white/[0.2] transition-all duration-500"
+          >
+            publish
+          </a>
+        </div>
+      )}
+
       {/* ═══ SETTINGS DRAWER ═══ */}
       {showSettings && (
         <>
