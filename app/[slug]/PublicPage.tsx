@@ -200,8 +200,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     if (explicitAspect === 'square') return 'square'
     // No explicit choice — use content-type defaults
     if (type === 'youtube' || type === 'vimeo') return 'wide'
-    if (type === 'video') return 'wide'
-    if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return 'wide'
+    if (type === 'video') return 'auto'
+    if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return 'auto'
     if (type === 'image') return 'auto'
     return 'square'
   }
