@@ -253,7 +253,7 @@ function SortableTile({
       data-tile
     >
       <div
-        className={`tile-inner relative rounded-xl overflow-hidden w-full h-full ${
+        className={`tile-inner relative rounded-xl overflow-hidden w-full ${aspect !== 'auto' ? 'h-full' : ''} ${
           isArranging
             ? isMobile
               ? 'tile-arranging ring-1 ring-white/20'
@@ -272,7 +272,7 @@ function SortableTile({
               <video
                 ref={videoRef}
                 src={content.url}
-                className={`absolute inset-0 w-full h-full ${getObjectFit(aspect)} cursor-pointer transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${isArranging ? 'pointer-events-none' : ''}`}
+                className={`${aspect === 'auto' ? 'w-full h-auto' : 'absolute inset-0 w-full h-full'} ${getObjectFit(aspect)} cursor-pointer transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${isArranging ? 'pointer-events-none' : ''}`}
                 muted
                 loop
                 playsInline
@@ -285,7 +285,7 @@ function SortableTile({
               )}
             </>
           ) : content.url?.startsWith('data:') ? (
-            <img src={content.url} alt="" className={`absolute inset-0 w-full h-full ${getObjectFit(aspect)}`} />
+            <img src={content.url} alt="" className={`${aspect === 'auto' ? 'w-full h-auto' : 'absolute inset-0 w-full h-full'} ${getObjectFit(aspect)}`} />
           ) : (
             <Image
               src={content.url} unoptimized={content.url?.startsWith('data:')}
@@ -293,7 +293,7 @@ function SortableTile({
               width={400}
               height={400}
               sizes="(max-width: 640px) 50vw, 25vw"
-              className={`absolute inset-0 w-full h-full ${getObjectFit(aspect)}`}
+              className={`${aspect === 'auto' ? 'w-full h-auto' : 'absolute inset-0 w-full h-full'} ${getObjectFit(aspect)}`}
               loading="lazy"
               decoding="async"
               quality={75}
@@ -301,9 +301,9 @@ function SortableTile({
             />
           )
         ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/[0.05] p-2">
+          <div className={`${aspect === 'auto' ? 'w-full min-h-[80px]' : 'absolute inset-0'} flex flex-col items-center justify-center bg-white/[0.05] p-2`}>
             {content.thumbnail_url ? (
-              <Image src={content.thumbnail_url} alt="" width={200} height={200} sizes="(max-width: 640px) 50vw, 25vw" className={`absolute inset-0 w-full h-full ${getObjectFit(aspect)}`} loading="lazy" decoding="async" quality={75}
+              <Image src={content.thumbnail_url} alt="" width={200} height={200} sizes="(max-width: 640px) 50vw, 25vw" className={`${aspect === 'auto' ? 'w-full h-auto' : 'absolute inset-0 w-full h-full'} ${getObjectFit(aspect)}`} loading="lazy" decoding="async" quality={75}
                 onError={(e) => { (e.target as HTMLElement).closest('[data-tile]')!.style.display = 'none' }} />
             ) : (
               content.type === 'thought' ? (
