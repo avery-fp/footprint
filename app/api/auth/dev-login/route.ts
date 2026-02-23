@@ -13,8 +13,9 @@ import { nanoid } from 'nanoid'
  * DELETE THIS ROUTE once Resend domain is verified.
  */
 export async function GET(request: NextRequest) {
-  if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
-    return NextResponse.json({ error: 'JWT_SECRET not configured' }, { status: 500 })
+  // Block in production — this route is for local development only
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not available' }, { status: 404 })
   }
 
   try {
@@ -126,8 +127,6 @@ export async function GET(request: NextRequest) {
     const cookieDomain = hostname.endsWith('.footprint.onl') || hostname === 'footprint.onl'
       ? '.footprint.onl'
       : undefined
-    console.log('[dev-login] cookie domain:', cookieDomain, '| hostname:', hostname)
-
     response.cookies.set('fp_session', sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

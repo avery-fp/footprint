@@ -191,8 +191,6 @@ export async function POST(request: NextRequest) {
       await supabase.from('links').insert(linkRows)
     }
 
-    console.log(`✓ Published: ${slug} (FP #${serialNumber}) for ${email}`)
-
     // Auto-sign in the user by setting session cookie
     const sessionToken = await createSessionToken(userId, email.toLowerCase())
 
