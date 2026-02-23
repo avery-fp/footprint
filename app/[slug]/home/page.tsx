@@ -9,9 +9,7 @@ import { loadDraft, saveDraft, clearDraft, DraftFootprint, DraftContent } from '
 import ContentCard from '@/components/ContentCard'
 import { audioManager } from '@/lib/audio-manager'
 import { getTheme } from '@/lib/themes'
-import Link from 'next/link'
 import Image from 'next/image'
-import { createBrowserSupabaseClient } from '@/lib/supabase'
 
 interface TileContent extends DraftContent {
   source?: 'library' | 'links'
@@ -324,8 +322,43 @@ export default function EditPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const pendingOpsRef = useRef<Set<Promise<any>>>(new Set())
   const longPressRef = useRef<NodeJS.Timeout | null>(null)
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
+
+  // Track a fire-and-forget save so we can flush before navigating
+  const trackOp = useCallback((p: Promise<any>) => {
+    pendingOpsRef.current.add(p)
+    p.finally(() => pendingOpsRef.current.delete(p))
+  }, [])
+
+  // Flush debounced profile save + pending tile ops, then full-page navigate
+  const navigateToPublic = useCallback(async () => {
+    // Flush debounced profile save immediately
+    if (saveTimeoutRef.current && draft && isOwner) {
+      clearTimeout(saveTimeoutRef.current)
+      saveTimeoutRef.current = null
+      try {
+        await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            display_name: draft.display_name,
+            handle: draft.handle,
+            bio: draft.bio,
+            theme: draft.theme,
+            grid_mode: draft.grid_mode,
+          }),
+        })
+      } catch {}
+    }
+    // Wait for any in-flight tile saves (reorder, resize, etc.)
+    if (pendingOpsRef.current.size > 0) {
+      await Promise.allSettled([...pendingOpsRef.current])
+    }
+    // Full page load — bypasses Next.js Router Cache, guarantees fresh server render
+    window.location.href = `/${slug}`
+  }, [slug, draft, isOwner])
 
   // Mode transition helpers
   const enterEdit = () => setMode({ type: 'arranging' })
@@ -742,11 +775,12 @@ export default function EditPage() {
       position: item.position,
     }))
 
-    fetch('/api/tiles', {
+    const op = fetch('/api/tiles', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ slug, positions }),
     }).catch(e => console.error('Failed to save tile order:', e))
+    trackOp(op)
   }
 
   // ── Tap-to-swap (mobile only) ──
@@ -780,11 +814,12 @@ export default function EditPage() {
       source: tileSources[item.id] || 'library',
       position: item.position,
     }))
-    fetch('/api/tiles', {
+    const op = fetch('/api/tiles', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ slug, positions }),
     }).catch(e => console.error('Failed to save tile order:', e))
+    trackOp(op)
   }
 
   // ── Wallpaper from tile ──
@@ -887,17 +922,22 @@ export default function EditPage() {
     const tilesInRoom = draft.content.filter(c => c.room_id === roomId)
     if (tilesInRoom.length === 0) return
     if (!confirm(`Remove ${tilesInRoom.length} tile${tilesInRoom.length > 1 ? 's' : ''} from this room? They won't be deleted.`)) return
-    const sb = createBrowserSupabaseClient()
-    for (const tile of tilesInRoom) {
-      const source = tileSources[tile.id]
-      if (source) {
-        await sb.from(source).update({ room_id: null }).eq('id', tile.id)
-      }
-    }
+    // Optimistic update
     setDraft(prev => prev ? {
       ...prev,
       content: prev.content.map(c => c.room_id === roomId ? { ...c, room_id: null } : c),
     } : null)
+    // Unassign via API (triggers revalidatePath on server)
+    for (const tile of tilesInRoom) {
+      const source = tileSources[tile.id]
+      if (source) {
+        fetch('/api/tiles', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: tile.id, source, slug, room_id: null }),
+        }).catch(e => console.error('Failed to clear tile room:', e))
+      }
+    }
   }
 
   async function handleDeleteRoom(roomId: string) {
@@ -963,18 +1003,20 @@ export default function EditPage() {
   async function assignTileRoom(tileId: string, newRoomId: string | null) {
     const source = tileSources[tileId]
     if (!source) return
+    // Optimistic update
+    setDraft(prev => prev ? {
+      ...prev,
+      content: prev.content.map(c =>
+        c.id === tileId ? { ...c, room_id: newRoomId } : c
+      ),
+      updated_at: Date.now(),
+    } : null)
     try {
-      const supabase = createBrowserSupabaseClient()
-      await supabase.from(source).update({ room_id: newRoomId }).eq('id', tileId)
-      setDraft(prev => prev ? {
-        ...prev,
-        content: prev.content.map(c =>
-          c.id === tileId ? { ...c, room_id: newRoomId } : c
-        ),
-        updated_at: Date.now(),
-      } : null)
-      // Revalidate public page
-      fetch(`/api/revalidate?path=/${encodeURIComponent(slug)}`).catch(() => {})
+      await fetch('/api/tiles', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: tileId, source, slug, room_id: newRoomId }),
+      })
     } catch (err) {
       console.error('Failed to assign room:', err)
     }
@@ -1247,13 +1289,13 @@ export default function EditPage() {
       <div className="fixed top-0 left-0 right-0 z-50 bg-black/60 backdrop-blur-sm border-b border-white/[0.06]"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="flex items-center justify-between px-4 pt-4 pb-2" style={{ minHeight: '52px' }}>
-          <Link
-            href={`/${slug}`}
+          <button
+            onClick={navigateToPublic}
             className="text-sm text-white/60 hover:text-white/90 transition font-mono flex items-center justify-center"
             style={{ minWidth: '44px', minHeight: '44px' }}
           >
             ←
-          </Link>
+          </button>
           {isArranging ? (
             <div className="flex items-center gap-2">
               {activeRoomId && (
