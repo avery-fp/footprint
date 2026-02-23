@@ -369,7 +369,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         <RemoveBubble slug={footprint.slug}>
           <header className="pt-16 md:pt-20 pb-6 md:pb-8 flex flex-col items-center">
             <h1
-              className="text-2xl md:text-4xl tracking-[0.2em] font-light uppercase"
+              className="text-2xl md:text-5xl tracking-[0.2em] font-normal uppercase"
               style={{
                 color: theme.colors.text,
                 opacity: 0.9,
@@ -381,28 +381,30 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </header>
         </RemoveBubble>
 
-        {/* Room pills — minimal, inline */}
+        {/* Room pills — dot-separated, geometric */}
         {visibleRooms.length > 1 && (
-          <div className="flex items-center justify-center gap-1 mb-4 md:mb-6">
-            {visibleRooms.map((room) => (
-              <button
-                key={room.id}
-                onClick={() => goToRoom(room.id)}
-                className={`px-3 py-1 text-[11px] tracking-[0.1em] lowercase transition-all duration-300 ${
-                  activeRoomId === room.id
-                    ? 'text-white/80'
-                    : 'text-white/25 hover:text-white/50'
-                }`}
-              >
-                {room.name}
-              </button>
+          <div className="flex items-center justify-center mb-3 md:mb-5">
+            {visibleRooms.map((room, i) => (
+              <span key={room.id} className="flex items-center">
+                {i > 0 && <span className="text-white/10 text-[10px] mx-2 select-none">&middot;</span>}
+                <button
+                  onClick={() => goToRoom(room.id)}
+                  className={`text-[11px] tracking-[0.12em] lowercase font-mono transition-all duration-300 ${
+                    activeRoomId === room.id
+                      ? 'text-white/70'
+                      : 'text-white/20 hover:text-white/45'
+                  }`}
+                >
+                  {room.name}
+                </button>
+              </span>
             ))}
           </div>
         )}
 
         {/* The Grid — the product */}
-        <div className="fp-grid-container mx-auto w-full px-0 md:px-0" style={{ maxWidth: isMobile ? '100vw' : '720px' }}>
-          <div className="fp-grid-block">
+        <div className="fp-grid-container mx-auto w-full px-3 md:px-0" style={{ maxWidth: isMobile ? undefined : '880px' }}>
+          <div className="fp-grid-block fp-grid-arrive">
             {interactive ? (
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
                 <SortableContext items={content.map((item: any) => item.id)} strategy={rectSortingStrategy}>
@@ -431,14 +433,17 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </p>
         )}
 
-        {/* Footer — one element */}
+        {/* Footer — one icon */}
         <div className="flex-1" />
         <div className="py-10 flex items-center justify-center">
           <button
             onClick={handleShare}
-            className="group flex items-center gap-2 text-white/[0.06] hover:text-white/20 transition-colors duration-500"
+            className="text-white/[0.12] hover:text-white/40 transition-colors duration-300"
+            aria-label="Copy link"
           >
-            <span className="text-[10px] tracking-[0.3em] uppercase group-hover:text-white/15 transition-colors">share</span>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.12 7.48l-4.5 2.598a4.5 4.5 0 01-4.5-7.794l.87-.502M10.82 15.312a4.5 4.5 0 01-1.12-7.48l4.5-2.598a4.5 4.5 0 014.5 7.794l-.87.502" />
+            </svg>
           </button>
         </div>
       </div>
