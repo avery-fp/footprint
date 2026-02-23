@@ -41,15 +41,17 @@ export async function POST(request: NextRequest) {
       // Already has account — find their footprint and log them in
       const { data: fp } = await supabase
         .from('footprints')
-        .select('username')
+        .select('username, published')
         .eq('user_id', existingUser.id)
         .eq('is_primary', true)
         .single()
 
+      // Only return the slug if the footprint is published;
+      // unpublished users should go to /build instead
       const sessionToken = await createSessionToken(existingUser.id, existingUser.email)
       const response = NextResponse.json({
         success: true,
-        slug: fp?.username || null,
+        slug: fp?.published ? fp.username : null,
         existing: true,
       })
 

@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
       published: footprint.published,
     })
   } catch (error) {
-    return NextResponse.json({ error: 'Failed' }, { status: 500 })
+    console.error('Footprint-for-user error:', error)
+    return NextResponse.json({ error: 'Something went wrong' }, { status: 500 })
   }
 }

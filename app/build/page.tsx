@@ -16,15 +16,12 @@ export default function BuildPage() {
   useEffect(() => {
     async function redirect() {
       try {
-        // Check auth
-        const userRes = await fetch('/api/user')
-        if (!userRes.ok) {
+        // Fetch user's primary footprint (returns 401 if not authenticated)
+        const fpRes = await fetch('/api/footprint-for-user')
+        if (fpRes.status === 401) {
           router.push('/signup')
           return
         }
-
-        // Find the user's primary footprint slug
-        const fpRes = await fetch('/api/footprint-for-user')
         if (fpRes.ok) {
           const data = await fpRes.json()
           if (data.slug) {
