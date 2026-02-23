@@ -365,15 +365,15 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       </div>
 
       <div className="relative z-10 flex-1 flex flex-col">
-        {/* Masthead — stripped to the bone */}
+        {/* Masthead — name commands the space */}
         <RemoveBubble slug={footprint.slug}>
-          <header className="pt-16 md:pt-20 pb-6 md:pb-8 flex flex-col items-center">
+          <header className="pt-16 md:pt-20 pb-5 md:pb-7 flex flex-col items-center">
             <h1
-              className="text-2xl md:text-4xl tracking-[0.2em] font-light uppercase"
+              className="text-3xl md:text-5xl tracking-[0.18em] font-normal uppercase"
               style={{
                 color: theme.colors.text,
-                opacity: 0.9,
-                textShadow: footprint.background_url ? '0 2px 16px rgba(0,0,0,0.9)' : 'none',
+                opacity: 0.92,
+                textShadow: footprint.background_url ? '0 2px 20px rgba(0,0,0,0.9)' : 'none',
               }}
             >
               {footprint.display_name || '\u00e6'}
@@ -381,28 +381,30 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </header>
         </RemoveBubble>
 
-        {/* Room pills — minimal, inline */}
+        {/* Room nav — dot-separated, typographic */}
         {visibleRooms.length > 1 && (
-          <div className="flex items-center justify-center gap-1 mb-4 md:mb-6">
-            {visibleRooms.map((room) => (
-              <button
-                key={room.id}
-                onClick={() => goToRoom(room.id)}
-                className={`px-3 py-1 text-[11px] tracking-[0.1em] lowercase transition-all duration-300 ${
-                  activeRoomId === room.id
-                    ? 'text-white/80'
-                    : 'text-white/25 hover:text-white/50'
-                }`}
-              >
-                {room.name}
-              </button>
+          <div className="flex items-center justify-center gap-0 mb-4 md:mb-6 font-mono">
+            {visibleRooms.map((room, i) => (
+              <span key={room.id} className="flex items-center">
+                {i > 0 && <span className="text-white/15 text-[9px] mx-2.5">·</span>}
+                <button
+                  onClick={() => goToRoom(room.id)}
+                  className={`text-[11px] tracking-[0.12em] lowercase transition-all duration-300 ${
+                    activeRoomId === room.id
+                      ? 'text-white/75'
+                      : 'text-white/20 hover:text-white/45'
+                  }`}
+                >
+                  {room.name}
+                </button>
+              </span>
             ))}
           </div>
         )}
 
         {/* The Grid — the product */}
-        <div className="fp-grid-container mx-auto w-full px-0 md:px-0" style={{ maxWidth: isMobile ? '100vw' : '720px' }}>
-          <div className="fp-grid-block">
+        <div className="fp-grid-container mx-auto w-full px-3 md:px-0" style={{ maxWidth: '880px' }}>
+          <div className="fp-grid-block fp-grid-arrive">
             {interactive ? (
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
                 <SortableContext items={content.map((item: any) => item.id)} strategy={rectSortingStrategy}>
@@ -431,14 +433,17 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </p>
         )}
 
-        {/* Footer — one element */}
+        {/* Footer — quiet share icon */}
         <div className="flex-1" />
         <div className="py-10 flex items-center justify-center">
           <button
             onClick={handleShare}
-            className="group flex items-center gap-2 text-white/[0.06] hover:text-white/20 transition-colors duration-500"
+            className="group text-white/[0.12] hover:text-white/40 transition-colors duration-500"
+            aria-label="Share"
           >
-            <span className="text-[10px] tracking-[0.3em] uppercase group-hover:text-white/15 transition-colors">share</span>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-2.06a4.5 4.5 0 00-1.242-7.244l-4.5-4.5a4.5 4.5 0 00-6.364 6.364L4.25 8.81" />
+            </svg>
           </button>
         </div>
       </div>
