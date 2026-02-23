@@ -4,21 +4,27 @@ import { Toaster } from 'sonner'
 // Force dynamic rendering for all routes
 export const dynamic = 'force-dynamic'
 
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://footprint.onl'
+
 export const metadata = {
   title: 'footprint',
   description: 'one page for everything.',
+  metadataBase: new URL(baseUrl),
   openGraph: {
     title: 'footprint',
     description: 'one page for everything.',
-    url: 'https://footprint.onl',
+    url: baseUrl,
     siteName: 'footprint',
-    images: [{ url: 'https://footprint.onl/api/og', width: 1200, height: 630 }],
+    images: [{ url: `${baseUrl}/api/og`, width: 1200, height: 630 }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'footprint',
     description: 'one page for everything.',
-    images: ['https://footprint.onl/api/og'],
+    images: [`${baseUrl}/api/og`],
+  },
+  icons: {
+    icon: '/favicon.svg',
   },
 }
 
