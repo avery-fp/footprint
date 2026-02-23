@@ -42,7 +42,7 @@ interface ContentCardProps {
  */
 export default function ContentCard({ content, onWidescreen, isMobile = false, tileSize = 1, aspect = 'square' }: ContentCardProps) {
   const aspectClass = aspect === 'wide' ? 'aspect-video' : aspect === 'tall' ? 'aspect-[9/16]' : aspect === 'auto' ? '' : 'aspect-square'
-  const fitClass = aspect === 'auto' ? 'object-contain' : 'object-cover'
+  const fitClass = 'object-cover'
   const icon = getContentIcon(content.type)
   const customBg = getContentBackground(content.type)
   const [isActivated, setIsActivated] = useState(false)

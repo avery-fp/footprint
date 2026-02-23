@@ -9,6 +9,7 @@ module.exports = {
     'aspect-square',
     'aspect-video',
     'aspect-[9/16]',
+    'aspect-[4/3]',
   ],
   theme: {
     extend: {
