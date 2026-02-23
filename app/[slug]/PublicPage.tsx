@@ -322,13 +322,15 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             >
               footprint
             </p>
-            {/* CTA */}
-            <a
-              href={`/checkout?ref=FP-${serial}`}
-              className="mt-5 inline-flex items-center gap-2 rounded-full px-5 py-2 text-[10px] tracking-[0.2em] lowercase text-white/50 hover:text-white/80 bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] hover:border-white/[0.15] transition-all duration-500"
-            >
-              make yours.
-            </a>
+            {/* CTA — only visible to non-logged-in users */}
+            {!isLoggedIn && (
+              <a
+                href="/signup"
+                className="mt-5 inline-flex items-center gap-2 rounded-full px-5 py-2 text-[10px] tracking-[0.2em] lowercase text-white/50 hover:text-white/80 bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] hover:border-white/[0.15] transition-all duration-500"
+              >
+                make yours.
+              </a>
+            )}
         </header>
         </RemoveBubble>
 

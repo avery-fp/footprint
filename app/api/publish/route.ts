@@ -1,0 +1,332 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createServerSupabaseClient } from '@/lib/supabase'
+import { getUserIdFromRequest } from '@/lib/auth'
+import { stripe, FOOTPRINT_PRICE, FOOTPRINT_CURRENCY } from '@/lib/stripe'
+
+/**
+ * POST /api/publish
+ *
+ * The publish gate. Handles:
+ * 1. Username availability check (action: 'check-username')
+ * 2. Free publish with promo code (action: 'publish-free')
+ * 3. Create Stripe checkout for paid publish (action: 'publish-paid')
+ * 4. Finalize after Stripe payment (action: 'finalize')
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const userId = await getUserIdFromRequest(request)
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { action } = body
+
+    const supabase = createServerSupabaseClient()
+
+    // Get user's unpublished footprint
+    const { data: footprint } = await supabase
+      .from('footprints')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('is_primary', true)
+      .single()
+
+    if (!footprint) {
+      return NextResponse.json({ error: 'No footprint found' }, { status: 404 })
+    }
+
+    switch (action) {
+      case 'check-username': {
+        const { username } = body
+        if (!username || typeof username !== 'string') {
+          return NextResponse.json({ error: 'Username required' }, { status: 400 })
+        }
+
+        const clean = username.toLowerCase().trim()
+        if (clean.length < 2 || clean.length > 30) {
+          return NextResponse.json({ available: false, reason: '2-30 characters' })
+        }
+        if (!/^[a-z0-9][a-z0-9._-]*[a-z0-9]$/.test(clean) && clean.length > 1) {
+          return NextResponse.json({ available: false, reason: 'letters, numbers, dots, dashes only' })
+        }
+
+        // Reserved slugs
+        const reserved = ['admin', 'api', 'auth', 'build', 'checkout', 'signup', 'publish', 'success', 'docs', 'welcome', 'settings', 'home', 'about', 'help', 'support', 'aro', 'example', 'deed', 'remix']
+        if (reserved.includes(clean)) {
+          return NextResponse.json({ available: false, reason: 'reserved' })
+        }
+
+        // Check against existing footprints
+        const { data: existing } = await supabase
+          .from('footprints')
+          .select('id')
+          .eq('username', clean)
+          .single()
+
+        if (existing) {
+          return NextResponse.json({ available: false, reason: 'taken' })
+        }
+
+        return NextResponse.json({ available: true })
+      }
+
+      case 'publish-free': {
+        const { username, promo } = body
+        if (!username || !promo) {
+          return NextResponse.json({ error: 'Username and promo code required' }, { status: 400 })
+        }
+
+        const cleanUsername = username.toLowerCase().trim()
+        const cleanPromo = promo.trim().toLowerCase()
+
+        // Validate promo
+        const { data: promoCode } = await supabase
+          .from('promo_codes')
+          .select('*')
+          .eq('code', cleanPromo)
+          .eq('active', true)
+          .single()
+
+        if (!promoCode || promoCode.discount_cents < 1000) {
+          return NextResponse.json({ error: 'Invalid promo code' }, { status: 400 })
+        }
+
+        if (promoCode.max_uses !== null && promoCode.times_used >= promoCode.max_uses) {
+          return NextResponse.json({ error: 'Promo code expired' }, { status: 400 })
+        }
+
+        // Check username availability again
+        const { data: taken } = await supabase
+          .from('footprints')
+          .select('id')
+          .eq('username', cleanUsername)
+          .neq('id', footprint.id)
+          .single()
+
+        if (taken) {
+          return NextResponse.json({ error: 'Username taken' }, { status: 409 })
+        }
+
+        // Claim serial
+        const { data: serialData, error: serialError } = await supabase.rpc('claim_next_serial')
+        if (serialError || !serialData) {
+          return NextResponse.json({ error: 'No serials available' }, { status: 500 })
+        }
+
+        const serialNumber = serialData
+
+        // Update user with serial
+        await supabase
+          .from('users')
+          .update({ serial_number: serialNumber })
+          .eq('id', userId)
+
+        // Publish footprint
+        const { error: publishError } = await supabase
+          .from('footprints')
+          .update({
+            username: cleanUsername,
+            serial_number: serialNumber,
+            published: true,
+          })
+          .eq('id', footprint.id)
+
+        if (publishError) {
+          console.error('Publish error:', publishError)
+          return NextResponse.json({ error: 'Failed to publish' }, { status: 500 })
+        }
+
+        // Record free payment
+        await supabase.from('payments').insert({
+          user_id: userId,
+          stripe_session_id: `free_publish_${Date.now()}`,
+          amount: 0,
+          currency: 'usd',
+          status: 'completed',
+        })
+
+        // Increment promo usage
+        await supabase
+          .from('promo_codes')
+          .update({ times_used: promoCode.times_used + 1 })
+          .eq('id', promoCode.id)
+
+        // Record conversion event
+        await supabase.from('fp_events').insert({
+          footprint_id: footprint.id,
+          event_type: 'conversion',
+          event_data: {
+            serial_number: serialNumber,
+            amount: 0,
+            source: 'promo',
+            promo_code: cleanPromo,
+          },
+        }).catch(() => {})
+
+        return NextResponse.json({
+          success: true,
+          serial: serialNumber,
+          slug: cleanUsername,
+        })
+      }
+
+      case 'publish-paid': {
+        const { username } = body
+        if (!username) {
+          return NextResponse.json({ error: 'Username required' }, { status: 400 })
+        }
+
+        const cleanUsername = username.toLowerCase().trim()
+
+        // Check username availability
+        const { data: taken } = await supabase
+          .from('footprints')
+          .select('id')
+          .eq('username', cleanUsername)
+          .neq('id', footprint.id)
+          .single()
+
+        if (taken) {
+          return NextResponse.json({ error: 'Username taken' }, { status: 409 })
+        }
+
+        // Get user email for Stripe
+        const { data: user } = await supabase
+          .from('users')
+          .select('email')
+          .eq('id', userId)
+          .single()
+
+        if (!user) {
+          return NextResponse.json({ error: 'User not found' }, { status: 404 })
+        }
+
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://footprint.onl'
+
+        // Create Stripe Checkout session
+        const session = await stripe.checkout.sessions.create({
+          mode: 'payment',
+          payment_method_types: ['card'],
+          customer_email: user.email,
+          line_items: [
+            {
+              price_data: {
+                currency: FOOTPRINT_CURRENCY,
+                product_data: {
+                  name: 'Footprint',
+                  description: `Publish footprint.onl/${cleanUsername}`,
+                },
+                unit_amount: FOOTPRINT_PRICE,
+              },
+              quantity: 1,
+            },
+          ],
+          success_url: `${baseUrl}/publish?session_id={CHECKOUT_SESSION_ID}&username=${encodeURIComponent(cleanUsername)}`,
+          cancel_url: `${baseUrl}/publish`,
+          customer_creation: 'always',
+          metadata: {
+            product: 'footprint_publish',
+            footprint_id: footprint.id,
+            user_id: userId,
+            username: cleanUsername,
+          },
+        })
+
+        return NextResponse.json({ url: session.url })
+      }
+
+      case 'finalize': {
+        const { session_id, username } = body
+        if (!session_id || !username) {
+          return NextResponse.json({ error: 'Missing session_id or username' }, { status: 400 })
+        }
+
+        const cleanUsername = username.toLowerCase().trim()
+
+        // Verify Stripe payment
+        const session = await stripe.checkout.sessions.retrieve(session_id)
+        if (!session || session.payment_status !== 'paid') {
+          return NextResponse.json({ error: 'Payment not confirmed' }, { status: 400 })
+        }
+
+        // Check username again
+        const { data: taken } = await supabase
+          .from('footprints')
+          .select('id')
+          .eq('username', cleanUsername)
+          .neq('id', footprint.id)
+          .single()
+
+        if (taken) {
+          return NextResponse.json({ error: 'Username was claimed while you were paying' }, { status: 409 })
+        }
+
+        // Claim serial
+        const { data: serialData, error: serialError } = await supabase.rpc('claim_next_serial')
+        if (serialError || !serialData) {
+          return NextResponse.json({ error: 'No serials available' }, { status: 500 })
+        }
+
+        const serialNumber = serialData
+
+        // Update user with serial
+        await supabase
+          .from('users')
+          .update({
+            serial_number: serialNumber,
+            stripe_customer_id: session.customer as string,
+          })
+          .eq('id', userId)
+
+        // Publish footprint
+        const { error: publishError } = await supabase
+          .from('footprints')
+          .update({
+            username: cleanUsername,
+            serial_number: serialNumber,
+            published: true,
+          })
+          .eq('id', footprint.id)
+
+        if (publishError) {
+          console.error('Finalize publish error:', publishError)
+          return NextResponse.json({ error: 'Failed to publish' }, { status: 500 })
+        }
+
+        // Record payment
+        await supabase.from('payments').insert({
+          user_id: userId,
+          stripe_session_id: session.id,
+          stripe_payment_intent: session.payment_intent as string,
+          amount: session.amount_total,
+          currency: session.currency,
+          status: 'completed',
+        }).catch(() => {})
+
+        // Record conversion event
+        await supabase.from('fp_events').insert({
+          footprint_id: footprint.id,
+          event_type: 'conversion',
+          event_data: {
+            serial_number: serialNumber,
+            amount: session.amount_total,
+            source: 'stripe_publish',
+          },
+        }).catch(() => {})
+
+        return NextResponse.json({
+          success: true,
+          serial: serialNumber,
+          slug: cleanUsername,
+        })
+      }
+
+      default:
+        return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
+    }
+  } catch (error: any) {
+    console.error('Publish error:', error)
+    return NextResponse.json({ error: 'Something went wrong' }, { status: 500 })
+  }
+}
