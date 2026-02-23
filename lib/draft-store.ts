@@ -16,6 +16,8 @@ export interface DraftContent {
   embed_html: string | null
   position: number
   room_id?: string | null
+  size?: number
+  aspect?: string | null
 }
 
 export interface DraftFootprint {

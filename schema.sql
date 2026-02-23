@@ -150,6 +150,7 @@ CREATE TABLE library (
     caption TEXT,
     position INTEGER DEFAULT 0,
     size INTEGER DEFAULT 1,
+    aspect VARCHAR(10),
     room_id UUID REFERENCES rooms(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -173,6 +174,7 @@ CREATE TABLE links (
     metadata JSONB DEFAULT '{}',
     position INTEGER DEFAULT 0,
     size INTEGER DEFAULT 1,
+    aspect VARCHAR(10),
     room_id UUID REFERENCES rooms(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
