@@ -588,32 +588,30 @@ export default function EditPage() {
   }, [draft, isLoading, saveData])
 
   // Toggle published/draft
-  const togglePublished = useCallback(async () => {
+  const togglePublished = useCallback(() => {
     const next = !isPublished
     setIsPublished(next)
     setStatusToast(next ? 'published' : 'draft')
     setTimeout(() => setStatusToast(null), 1500)
-    try {
-      await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ published: next }),
-      })
-    } catch (e) { console.error('Failed to toggle published:', e) }
-  }, [isPublished, slug])
+    const op = fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ published: next }),
+    }).catch(e => console.error('Failed to toggle published:', e))
+    trackOp(op)
+  }, [isPublished, slug, trackOp])
 
   // Toggle interactive tiles
-  const toggleInteractive = useCallback(async () => {
+  const toggleInteractive = useCallback(() => {
     const next = !isInteractive
     setIsInteractive(next)
-    try {
-      await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ interactive: next }),
-      })
-    } catch (e) { console.error('Failed to toggle interactive:', e) }
-  }, [isInteractive, slug])
+    const op = fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ interactive: next }),
+    }).catch(e => console.error('Failed to toggle interactive:', e))
+    trackOp(op)
+  }, [isInteractive, slug, trackOp])
 
   useEffect(() => {
     if (pillMode === 'url') {
