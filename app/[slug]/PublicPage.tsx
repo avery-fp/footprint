@@ -388,24 +388,32 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </header>
         </RemoveBubble>
 
-        {/* Room nav — dot-separated, typographic */}
+        {/* Room nav — dot-separated, typographic, sticky on scroll */}
         {visibleRooms.length > 1 && (
-          <div className="flex items-center justify-center gap-0 mb-4 md:mb-6 font-mono">
-            {visibleRooms.map((room, i) => (
-              <span key={room.id} className="flex items-center">
-                {i > 0 && <span className="text-white/15 text-[9px] mx-2.5">·</span>}
-                <button
-                  onClick={() => goToRoom(room.id)}
-                  className={`text-[11px] tracking-[0.12em] lowercase transition-all duration-300 ${
-                    activeRoomId === room.id
-                      ? 'text-white/75'
-                      : 'text-white/20 hover:text-white/45'
-                  }`}
-                >
-                  {room.name}
-                </button>
-              </span>
-            ))}
+          <div
+            className="sticky top-0 z-30 py-3 md:py-4 mb-1 md:mb-2"
+            style={{
+              backdropFilter: 'blur(16px) saturate(130%)',
+              WebkitBackdropFilter: 'blur(16px) saturate(130%)',
+            }}
+          >
+            <div className="flex items-center justify-center gap-0 font-mono">
+              {visibleRooms.map((room, i) => (
+                <span key={room.id} className="flex items-center">
+                  {i > 0 && <span className="text-white/15 text-[9px] mx-2.5">·</span>}
+                  <button
+                    onClick={() => goToRoom(room.id)}
+                    className={`text-[11px] tracking-[0.12em] lowercase transition-all duration-300 ${
+                      activeRoomId === room.id
+                        ? 'text-white/75'
+                        : 'text-white/20 hover:text-white/45'
+                    }`}
+                  >
+                    {room.name}
+                  </button>
+                </span>
+              ))}
+            </div>
           </div>
         )}
 
