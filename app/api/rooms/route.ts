@@ -104,11 +104,11 @@ export async function GET(request: NextRequest) {
  * PATCH /api/rooms
  *
  * Update room properties (hidden, name).
- * Body: { id, hidden?, name? }
+ * Body: { id, slug?, hidden?, name? }
  */
 export async function PATCH(request: NextRequest) {
   try {
-    const { id, hidden, name } = await request.json()
+    const { id, slug, hidden, name } = await request.json()
 
     if (!id) {
       return NextResponse.json({ error: 'id required' }, { status: 400 })
@@ -137,6 +137,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    if (slug) revalidatePath(`/${slug}`)
     return NextResponse.json({ success: true })
   } catch (error) {
     return NextResponse.json({ error: 'Failed to update room' }, { status: 500 })

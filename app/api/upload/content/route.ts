@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getUserIdFromRequest } from '@/lib/auth'
 
@@ -117,6 +118,8 @@ export async function POST(request: NextRequest) {
     if (insertError) {
       return NextResponse.json({ error: insertError.message }, { status: 500 })
     }
+
+    revalidatePath(`/${slug}`)
 
     return NextResponse.json({
       tile: {
