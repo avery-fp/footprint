@@ -137,6 +137,23 @@ body::before {
   animation: materialize 200ms linear forwards;
 }
 
+/* Upload placeholder — breathing pulse */
+@keyframes upload-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}
+
+/* Upload error — shake then fade */
+@keyframes upload-shake {
+  0%, 100% { transform: translateX(0); }
+  15%, 45%, 75% { transform: translateX(-4px); }
+  30%, 60%, 90% { transform: translateX(4px); }
+}
+
+.upload-error {
+  animation: upload-shake 0.5s ease-in-out forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tile-enter {
     opacity: 1;
@@ -149,6 +166,9 @@ body::before {
   .fp-grid-arrive {
     animation: none;
     opacity: 1;
+  }
+  .upload-error {
+    animation: none;
   }
 }
 

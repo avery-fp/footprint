@@ -185,14 +185,12 @@ function SortableTile({
   const aspectClass = getAspectClass(aspect)
   const sizeClass = `${gridClass} ${aspectClass}`.trim()
 
-  // Polaroid reveal — tile develops from frosted to crystal clear
+  // Upload placeholder state
   const isTemp = id.toString().startsWith('temp-')
   const progress = (content as any)?._progress ?? 0
-  const revealStyle: React.CSSProperties | undefined = isTemp ? {
-    filter: `blur(${Math.round((1 - progress / 100) * 8)}px)`,
-    opacity: 0.4 + (progress / 100) * 0.6,
-    transition: 'filter 0.4s ease-out, opacity 0.4s ease-out',
-  } : undefined
+  const isUploadError = (content as any)?._error
+  const isUploading = isTemp && !isUploadError && progress < 100
+  const uploadBlur = isTemp && !isUploadError ? Math.max(0, Math.round((1 - progress / 100) * 12)) : 0
 
   // dnd-kit handlers for arrange mode (pointer-based)
   const tileHandlers = isArranging
@@ -259,8 +257,8 @@ function SortableTile({
               ? 'tile-arranging ring-1 ring-white/20'
               : 'tile-arranging tile-jiggle'
             : ''
-        } ${selected ? 'ring-2 ring-white/60' : ''}`}
-        style={revealStyle}
+        } ${selected ? 'ring-2 ring-white/60' : ''} ${isUploadError ? 'upload-error' : ''}`}
+        style={isUploading ? { animation: 'upload-pulse 2s ease-in-out infinite' } : isTemp && !isUploadError ? { opacity: 1, transition: 'opacity 200ms ease-out' } : undefined}
         {...tileHandlers}
         {...touchHandlers}
         onContextMenu={(e) => e.preventDefault()}
@@ -268,22 +266,38 @@ function SortableTile({
         {/* Tile content — absolute fill, object-fit based on aspect */}
         {content.type === 'image' ? (
           isVideo ? (
-            <>
-              <video
-                ref={videoRef}
-                src={content.url}
-                className={`${aspect === 'auto' ? 'w-full h-auto' : 'absolute inset-0 w-full h-full'} ${getObjectFit(aspect)} cursor-pointer transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${isArranging ? 'pointer-events-none' : ''}`}
-                muted
-                loop
-                playsInline
-                preload="none"
-                onClick={handleVideoClick}
-                onLoadedData={() => setIsLoaded(true)} onError={(e) => { setIsLoaded(true); (e.target as HTMLVideoElement).style.display = 'none' }}
-              />
-              {!isMuted && (
-                <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60 z-10" />
-              )}
-            </>
+            isTemp ? (
+              content.url ? (
+                <img src={content.url} alt="" className={`${aspect === 'auto' ? 'w-full h-auto min-h-[120px]' : 'absolute inset-0 w-full h-full'} object-cover`}
+                  style={{ filter: `blur(${uploadBlur}px)`, transition: 'filter 0.3s ease-out' }} />
+              ) : (
+                <div className={`${aspect === 'auto' ? 'w-full min-h-[120px]' : 'absolute inset-0'} flex items-center justify-center bg-white/[0.03]`}>
+                  <svg className="w-6 h-6 text-white/15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                  </svg>
+                </div>
+              )
+            ) : (
+              <>
+                <video
+                  ref={videoRef}
+                  src={content.url}
+                  className={`${aspect === 'auto' ? 'w-full h-auto' : 'absolute inset-0 w-full h-full'} ${getObjectFit(aspect)} cursor-pointer transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${isArranging ? 'pointer-events-none' : ''}`}
+                  muted
+                  loop
+                  playsInline
+                  preload="none"
+                  onClick={handleVideoClick}
+                  onLoadedData={() => setIsLoaded(true)} onError={(e) => { setIsLoaded(true); (e.target as HTMLVideoElement).style.display = 'none' }}
+                />
+                {!isMuted && (
+                  <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60 z-10" />
+                )}
+              </>
+            )
+          ) : isTemp ? (
+            <img src={content.url} alt="" className={`${aspect === 'auto' ? 'w-full h-auto' : 'absolute inset-0 w-full h-full'} object-cover`}
+              style={{ filter: `blur(${uploadBlur}px)`, transition: 'filter 0.3s ease-out' }} />
           ) : content.url?.startsWith('data:') ? (
             <img src={content.url} alt="" className={`${aspect === 'auto' ? 'w-full h-auto' : 'absolute inset-0 w-full h-full'} ${getObjectFit(aspect)}`} />
           ) : (
@@ -326,6 +340,16 @@ function SortableTile({
               )
             )}
           </div>
+        )}
+        {/* Upload progress bar */}
+        {isTemp && !isUploadError && (
+          <div className="absolute bottom-0 left-0 right-0 h-[3px] z-10 bg-white/[0.06]">
+            <div className="h-full bg-white/60 transition-[width] duration-300 ease-out" style={{ width: `${progress}%` }} />
+          </div>
+        )}
+        {/* Upload error overlay */}
+        {isUploadError && (
+          <div className="absolute inset-0 bg-red-500/20 z-10" />
         )}
       </div>
     </div>
@@ -1213,8 +1237,6 @@ export default function EditPage() {
       return
     }
 
-    setIsAdding(true)
-
     const tempIds = files.map((_, i) => `temp-${Date.now()}-${i}`)
 
     const tempTiles = files.map((file, i) => {
@@ -1227,7 +1249,7 @@ export default function EditPage() {
         description: null,
         thumbnail_url: null,
         embed_html: null,
-        position: (draft?.content.length || 0) + i,
+        position: 0,
         room_id: activeRoomId || null,
         aspect: null,
         _temp: true,
@@ -1235,9 +1257,10 @@ export default function EditPage() {
       }
     })
 
+    // Prepend at top of grid for immediate visibility
     setDraft(prev => prev ? {
       ...prev,
-      content: [...prev.content, ...tempTiles],
+      content: [...tempTiles, ...prev.content],
       updated_at: Date.now(),
     } : null)
 
@@ -1278,13 +1301,27 @@ export default function EditPage() {
         const data = await res.json()
 
         if (data.tile) {
+          // Set progress to 100 — clears blur, stops pulse
           setDraft(prev => prev ? {
             ...prev,
             content: prev.content.map(c => c.id === tempId ? { ...c, _progress: 100 } : c),
           } : null)
 
+          // Preload the real image so crossfade is instant
+          if (!isVideo) {
+            await new Promise<void>(resolve => {
+              const preloadImg = new window.Image()
+              preloadImg.onload = () => resolve()
+              preloadImg.onerror = () => resolve()
+              setTimeout(() => resolve(), 3000)
+              preloadImg.src = data.tile.url
+            })
+          }
+
+          // Brief pause for the 100% state to render
           await new Promise(r => setTimeout(r, 200))
 
+          // Crossfade to real tile data
           setTileSources(prev => ({ ...prev, [data.tile.id]: data.tile.source }))
           setDraft(prev => prev ? {
             ...prev,
@@ -1311,19 +1348,26 @@ export default function EditPage() {
           if (thumb?.startsWith('blob:')) URL.revokeObjectURL(thumb)
         }
       } catch (err) {
+        console.error(`Upload failed for ${file.name}:`, err)
+        // Show error state — red flash + shake
+        setDraft(prev => prev ? {
+          ...prev,
+          content: prev.content.map(c => c.id === tempId ? { ...c, _error: true } : c),
+        } : null)
+        // Wait for shake animation, then remove
+        await new Promise(r => setTimeout(r, 600))
         setDraft(prev => prev ? {
           ...prev,
           content: prev.content.filter(c => c.id !== tempId),
           updated_at: Date.now(),
         } : null)
-        console.error(`Upload failed for ${file.name}:`, err)
       }
     }
 
-    await Promise.allSettled(files.map((file, idx) => uploadOne(file, idx)))
-
-    setIsAdding(false)
-    if (fileInputRef.current) fileInputRef.current.value = ''
+    // Fire all uploads concurrently — grid stays interactive
+    Promise.allSettled(files.map((file, idx) => uploadOne(file, idx))).then(() => {
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    })
   }
 
   // ── Derived values ──
