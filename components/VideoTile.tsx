@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { audioManager } from '@/lib/audio-manager'
 
-export default function VideoTile({ src, onWidescreen }: { src: string; onWidescreen?: () => void }) {
+export default function VideoTile({ src, onWidescreen, aspect = 'square' }: { src: string; onWidescreen?: () => void; aspect?: string }) {
+  const fitClass = aspect === 'auto' ? 'object-contain' : 'object-cover'
   const [isMuted, setIsMuted] = useState(true)
   const [isNear, setIsNear] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
@@ -88,7 +89,7 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
           <video
             ref={videoRef}
             src={src}
-            className={`w-full h-full object-cover cursor-pointer transition-opacity duration-300 ${isReady ? 'opacity-100' : 'opacity-0'}`}
+            className={`w-full h-full ${fitClass} cursor-pointer transition-opacity duration-300 ${isReady ? 'opacity-100' : 'opacity-0'}`}
             muted
             loop
             playsInline

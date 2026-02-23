@@ -5,6 +5,11 @@ module.exports = {
     './components/**/*.{js,ts,jsx,tsx,mdx}',
     './app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
+  safelist: [
+    'aspect-square',
+    'aspect-video',
+    'aspect-[9/16]',
+  ],
   theme: {
     extend: {
       colors: {

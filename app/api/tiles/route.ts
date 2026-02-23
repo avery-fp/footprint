@@ -279,7 +279,7 @@ export async function PUT(request: NextRequest) {
  */
 export async function PATCH(request: NextRequest) {
   try {
-    const { id, source, slug, size, caption, room_id } = await request.json()
+    const { id, source, slug, size, caption, room_id, aspect } = await request.json()
 
     if (!id || !source || !slug || !['library', 'links'].includes(source)) {
       return NextResponse.json({ error: 'id, source, and slug required' }, { status: 400 })
@@ -287,6 +287,10 @@ export async function PATCH(request: NextRequest) {
 
     if (size !== undefined && ![1, 2, 3].includes(size)) {
       return NextResponse.json({ error: 'size must be 1, 2, or 3' }, { status: 400 })
+    }
+
+    if (aspect !== undefined && !['square', 'wide', 'tall', 'auto'].includes(aspect)) {
+      return NextResponse.json({ error: 'aspect must be square, wide, tall, or auto' }, { status: 400 })
     }
 
     const supabase = createServerSupabaseClient()
@@ -297,6 +301,7 @@ export async function PATCH(request: NextRequest) {
 
     const updates: Record<string, any> = {}
     if (size !== undefined) updates.size = size
+    if (aspect !== undefined) updates.aspect = aspect
     if (caption !== undefined) updates.caption = caption || null
     if (room_id !== undefined) updates.room_id = room_id || null
 
