@@ -639,32 +639,30 @@ export default function EditPage() {
   }, [draft, isLoading, saveData])
 
   // Toggle published/draft
-  const togglePublished = useCallback(async () => {
+  const togglePublished = useCallback(() => {
     const next = !isPublished
     setIsPublished(next)
     setStatusToast(next ? 'published' : 'draft')
     setTimeout(() => setStatusToast(null), 1500)
-    try {
-      await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ published: next }),
-      })
-    } catch (e) { console.error('Failed to toggle published:', e) }
-  }, [isPublished, slug])
+    const op = fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ published: next }),
+    }).catch(e => console.error('Failed to toggle published:', e))
+    trackOp(op)
+  }, [isPublished, slug, trackOp])
 
   // Toggle interactive tiles
-  const toggleInteractive = useCallback(async () => {
+  const toggleInteractive = useCallback(() => {
     const next = !isInteractive
     setIsInteractive(next)
-    try {
-      await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ interactive: next }),
-      })
-    } catch (e) { console.error('Failed to toggle interactive:', e) }
-  }, [isInteractive, slug])
+    const op = fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ interactive: next }),
+    }).catch(e => console.error('Failed to toggle interactive:', e))
+    trackOp(op)
+  }, [isInteractive, slug, trackOp])
 
   useEffect(() => {
     if (pillMode === 'url') {
@@ -961,7 +959,7 @@ export default function EditPage() {
       const res = await fetch('/api/rooms', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: roomId, name: name.trim() }),
+        body: JSON.stringify({ id: roomId, name: name.trim(), slug }),
       })
       if (!res.ok) { alert('Failed to rename room'); return }
       setRooms(prev => prev.map(r => r.id === roomId ? { ...r, name: name.trim() } : r))
@@ -984,11 +982,12 @@ export default function EditPage() {
     for (const tile of tilesInRoom) {
       const source = tileSources[tile.id]
       if (source) {
-        fetch('/api/tiles', {
+        const op = fetch('/api/tiles', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: tile.id, source, slug, room_id: null }),
         }).catch(e => console.error('Failed to clear tile room:', e))
+        trackOp(op)
       }
     }
   }
@@ -1036,19 +1035,14 @@ export default function EditPage() {
       updated_at: Date.now(),
     } : null)
 
-    try {
-      const res = await fetch('/api/tiles', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, source, slug, size: newSize }),
-      })
-      if (!res.ok) {
-        const body = await res.text().catch(() => '')
-        console.error('Tile size PATCH failed:', res.status, body)
-      }
-    } catch (e) {
-      console.error('Tile size PATCH network error:', e)
-    }
+    const op = fetch('/api/tiles', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, source, slug, size: newSize }),
+    }).then(res => {
+      if (!res.ok) res.text().then(body => console.error('Tile size PATCH failed:', res.status, body)).catch(() => {})
+    }).catch(e => console.error('Tile size PATCH network error:', e))
+    trackOp(op)
   }
 
   // ── Tile aspect ──
@@ -1098,15 +1092,12 @@ export default function EditPage() {
       ),
       updated_at: Date.now(),
     } : null)
-    try {
-      await fetch('/api/tiles', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: tileId, source, slug, room_id: newRoomId }),
-      })
-    } catch (err) {
-      console.error('Failed to assign room:', err)
-    }
+    const op = fetch('/api/tiles', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: tileId, source, slug, room_id: newRoomId }),
+    }).catch(err => console.error('Failed to assign room:', err))
+    trackOp(op)
   }
 
   // ── File upload ──

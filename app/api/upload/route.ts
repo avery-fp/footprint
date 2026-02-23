@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getUserIdFromRequest } from '@/lib/auth'
 
@@ -66,7 +67,7 @@ export async function POST(request: NextRequest) {
     // Verify user owns this footprint
     const { data: footprint } = await supabase
       .from('footprints')
-      .select('user_id')
+      .select('user_id, username')
       .eq('id', footprintId)
       .single()
 
@@ -113,9 +114,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to save avatar' }, { status: 500 })
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      avatar_url: avatarUrl 
+    if (footprint.username) revalidatePath(`/${footprint.username}`)
+
+    return NextResponse.json({
+      success: true,
+      avatar_url: avatarUrl
     })
 
   } catch (error) {

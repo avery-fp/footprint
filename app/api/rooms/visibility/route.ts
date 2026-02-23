@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getUserIdFromRequest } from '@/lib/auth'
 
@@ -30,7 +31,7 @@ export async function PATCH(request: NextRequest) {
 
     const { data: footprint } = await supabase
       .from('footprints')
-      .select('user_id')
+      .select('user_id, username')
       .eq('serial_number', room.serial_number)
       .single()
 
@@ -47,6 +48,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    if (footprint.username) revalidatePath(`/${footprint.username}`)
     return NextResponse.json({ success: true })
   } catch {
     return NextResponse.json({ error: 'Failed to update visibility' }, { status: 500 })
