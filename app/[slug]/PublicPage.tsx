@@ -194,34 +194,92 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     return isMobile ? '50vw' : '(max-width: 768px) 50vw, 25vw'
   }
 
-  // Tile col-span class based on size
-  const getColSpan = (size: number) =>
-    size === 4 ? 'col-span-2 row-span-2 md:col-span-4 md:row-span-4'
-    : size === 3 ? 'col-span-2 row-span-2 md:col-span-3 md:row-span-3'
-    : size === 2 ? 'col-span-2 row-span-2'
-    : ''
+  // Smart default: when user hasn't explicitly set an aspect, pick one based on content type
+  const resolveAspect = (explicitAspect: string | undefined | null, type: string, url?: string): string => {
+    if (explicitAspect && explicitAspect !== 'square') return explicitAspect
+    if (explicitAspect === 'square') return 'square'
+    // No explicit choice — use content-type defaults
+    if (type === 'youtube' || type === 'vimeo') return 'wide'
+    if (type === 'video') return 'auto'
+    if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return 'auto'
+    if (type === 'image') return 'auto'
+    return 'square'
+  }
+
+  // Grid class helpers — size × aspect → col-span, row-span, aspect-ratio
+  const getAspectClass = (aspect: string) => {
+    if (aspect === 'wide') return 'aspect-video'
+    if (aspect === 'tall') return 'aspect-[9/16]'
+    if (aspect === 'auto') return ''
+    return 'aspect-square'
+  }
+
+  const getObjectFit = (aspect: string) => {
+    if (aspect === 'auto') return 'object-cover'
+    return 'object-cover'
+  }
+
+  // Tile col-span class based on size and aspect
+  const getColSpan = (size: number, aspect: string = 'square') => {
+    if (aspect === 'wide') {
+      if (size >= 4) return 'col-span-2 row-span-1 md:col-span-4 md:row-span-2'
+      if (size >= 3) return 'col-span-2 row-span-1 md:col-span-4 md:row-span-2'
+      if (size >= 2) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-1'
+      return 'col-span-2 row-span-1'
+    }
+    if (aspect === 'tall') {
+      if (size >= 4) return 'col-span-2 row-span-3 md:col-span-2 md:row-span-5'
+      if (size >= 3) return 'col-span-2 row-span-3 md:col-span-2 md:row-span-4'
+      if (size >= 2) return 'col-span-1 row-span-3 md:col-span-2 md:row-span-3'
+      return 'col-span-1 row-span-2'
+    }
+    // square or auto — original behavior
+    return size === 4 ? 'col-span-2 row-span-2 md:col-span-4 md:row-span-4'
+      : size === 3 ? 'col-span-2 row-span-2 md:col-span-3 md:row-span-3'
+      : size === 2 ? 'col-span-2 row-span-2'
+      : ''
+  }
 
   // Reusable tile renderer - size-aware col-span in CSS Grid
   const renderTileContent = (item: any, index: number) => {
     const isVideo = item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
     const tileSize = item.size || 1
+    const tileAspect = resolveAspect(item.aspect, item.type, item.url)
     const imgSizes = getImageSizes(tileSize)
+    const aspectCls = getAspectClass(tileAspect)
+    const fitCls = getObjectFit(tileAspect)
+
+    // For 'auto' images — render at natural aspect ratio, no forced container
+    if (tileAspect === 'auto' && item.type === 'image' && !isVideo) {
+      return (
+        <div className="rounded-xl overflow-hidden" data-tile-id={item.id} data-tile-type={item.type}>
+          <Image src={item.url} alt={item.title || ''}
+            width={tileSize >= 2 ? 800 : 400} height={tileSize >= 2 ? 800 : 400}
+            sizes={imgSizes}
+            className="w-full h-auto object-cover transition-opacity duration-300"
+            loading={index < 4 ? "eager" : "lazy"}
+            priority={index < 4} quality={75}
+            onError={(e) => { (e.target as HTMLElement).closest('.tile-container')!.style.display = 'none' }} />
+        </div>
+      )
+    }
+
     return (
-      <div className="aspect-square rounded-xl overflow-hidden" data-tile-id={item.id} data-tile-type={item.type}>
+      <div className={`${aspectCls} rounded-xl overflow-hidden`} data-tile-id={item.id} data-tile-type={item.type}>
         {item.type === 'image' ? (
           isVideo ? (
-            <VideoTile src={item.url} onWidescreen={noop} />
+            <VideoTile src={item.url} onWidescreen={noop} aspect={tileAspect} />
           ) : (
             <Image src={item.url} alt={item.title || ''}
               width={tileSize >= 2 ? 800 : 400} height={tileSize >= 2 ? 800 : 400}
               sizes={imgSizes}
-              className="w-full h-full object-cover transition-opacity duration-300"
+              className={`w-full h-full ${fitCls} transition-opacity duration-300`}
               loading={index < 4 ? "eager" : "lazy"}
               priority={index < 4} quality={75}
               onError={(e) => { (e.target as HTMLElement).closest('.tile-container')!.style.display = 'none' }} />
           )
         ) : (
-          <ContentCard content={item} isMobile={isMobile} tileSize={tileSize} />
+          <ContentCard content={item} isMobile={isMobile} tileSize={tileSize} aspect={tileAspect} />
         )}
       </div>
     )
@@ -375,14 +433,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 <div
                   className="grid grid-cols-2 md:grid-cols-4 gap-2"
                   style={{
-                    gridAutoRows: 'minmax(0, 1fr)',
+                    gridAutoRows: 'auto',
                     gridAutoFlow: 'dense',
                     opacity: roomFade === 'out' ? 0 : 1,
                     transition: 'opacity 200ms ease-out',
                   }}
                 >
                   {content.map((item: any, idx: number) => (
-                    <SortableTile key={item.id} id={item.id} className={`${getColSpan(item.size || 1)} group tile-enter tile-container`}>
+                    <SortableTile key={item.id} id={item.id} className={`${getColSpan(item.size || 1, resolveAspect(item.aspect, item.type, item.url))} group tile-enter tile-container`}>
                       {renderTileContent(item, idx)}
                     </SortableTile>
                   ))}
@@ -391,7 +449,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               <DragOverlay>
                 {activeDragItem ? (
                   <div
-                    className={`${getColSpan(activeDragItem.size || 1)} tile-container`}
+                    className={`${getColSpan(activeDragItem.size || 1, resolveAspect(activeDragItem.aspect, activeDragItem.type, activeDragItem.url))} tile-container`}
                     style={{ transform: 'rotate(2deg)', boxShadow: '0 12px 40px rgba(0,0,0,0.5)', borderRadius: '12px', overflow: 'hidden' }}
                   >
                     {renderTileContent(activeDragItem, 0)}
@@ -403,14 +461,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             <div
               className="grid grid-cols-2 md:grid-cols-4 gap-2"
               style={{
-                gridAutoRows: 'minmax(0, 1fr)',
+                gridAutoRows: 'auto',
                 gridAutoFlow: 'dense',
                 opacity: roomFade === 'out' ? 0 : 1,
                 transition: 'opacity 200ms ease-out',
               }}
             >
               {content.map((item: any, idx: number) => (
-                <div key={item.id} className={`${getColSpan(item.size || 1)} group tile-enter tile-container`} style={{ animationDelay: `${idx * 40}ms` }}>
+                <div key={item.id} className={`${getColSpan(item.size || 1, resolveAspect(item.aspect, item.type, item.url))} group tile-enter tile-container`} style={{ animationDelay: `${idx * 40}ms` }}>
                   {renderTileContent(item, idx)}
                 </div>
               ))}

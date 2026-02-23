@@ -9,9 +9,7 @@ import { loadDraft, saveDraft, clearDraft, DraftFootprint, DraftContent } from '
 import ContentCard from '@/components/ContentCard'
 import { audioManager } from '@/lib/audio-manager'
 import { getTheme } from '@/lib/themes'
-import Link from 'next/link'
 import Image from 'next/image'
-import { createBrowserSupabaseClient } from '@/lib/supabase'
 
 interface TileContent extends DraftContent {
   source?: 'library' | 'links'
@@ -29,14 +27,62 @@ type PageMode =
 // ═══════════════════════════════════════════
 // Sortable Tile
 // ═══════════════════════════════════════════
+// ═══════════════════════════════════════════
+// Grid class helpers — size × aspect → col-span, row-span, aspect-ratio
+// ═══════════════════════════════════════════
+
+// Smart default: when user hasn't explicitly set an aspect, pick one based on content type
+function resolveAspect(explicitAspect: string | undefined | null, type: string, url?: string): string {
+  if (explicitAspect && explicitAspect !== 'square') return explicitAspect
+  // If user explicitly chose square, respect it
+  if (explicitAspect === 'square') return 'square'
+  // No explicit choice — use content-type defaults
+  if (type === 'youtube' || type === 'vimeo') return 'wide'
+  if (type === 'video') return 'auto'
+  if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return 'auto'
+  if (type === 'image') return 'auto'
+  // embeds, thoughts, social — square works well
+  return 'square'
+}
+
+function getGridClass(size: number, aspect: string) {
+  if (aspect === 'wide') {
+    if (size >= 3) return 'col-span-2 row-span-1 md:col-span-4 md:row-span-2'
+    if (size >= 2) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-1'
+    return 'col-span-2 row-span-1'
+  }
+  if (aspect === 'tall') {
+    if (size >= 3) return 'col-span-2 row-span-3 md:col-span-2 md:row-span-4'
+    if (size >= 2) return 'col-span-1 row-span-3 md:col-span-2 md:row-span-3'
+    return 'col-span-1 row-span-2'
+  }
+  // square or auto — same spanning as before
+  if (size >= 3) return 'col-span-2 row-span-2 md:col-span-3 md:row-span-3'
+  if (size >= 2) return 'col-span-2 row-span-2'
+  return ''
+}
+
+function getAspectClass(aspect: string) {
+  if (aspect === 'wide') return 'aspect-video'
+  if (aspect === 'tall') return 'aspect-[9/16]'
+  if (aspect === 'auto') return ''
+  return 'aspect-square'
+}
+
+function getObjectFit(aspect: string) {
+  if (aspect === 'auto') return 'object-contain'
+  return 'object-cover'
+}
+
 function SortableTile({
-  id, content, deleting, size, isArranging, isViewing, isMobile, selected, anyDragging, onTap,
+  id, content, deleting, size, aspect, isArranging, isViewing, isMobile, selected, anyDragging, onTap,
   onLongPressStart, onLongPressMove, onLongPressEnd, onPinchResize,
 }: {
   id: string
   content: any
   deleting: boolean
   size: number
+  aspect: string
   isArranging: boolean
   isViewing: boolean
   isMobile: boolean
@@ -134,8 +180,10 @@ function SortableTile({
     }
   }
 
-  // All sizes get aspect-square so height is always defined (not just grid-row dependent)
-  const sizeClass = size === 3 ? 'col-span-2 row-span-2 md:col-span-3 md:row-span-3 aspect-square' : size === 2 ? 'col-span-2 row-span-2 aspect-square' : 'aspect-square'
+  // Grid class based on size × aspect — determines col/row spanning and aspect ratio
+  const gridClass = getGridClass(size, aspect)
+  const aspectClass = getAspectClass(aspect)
+  const sizeClass = `${gridClass} ${aspectClass}`.trim()
 
   // Polaroid reveal — tile develops from frosted to crystal clear
   const isTemp = id.toString().startsWith('temp-')
@@ -217,14 +265,14 @@ function SortableTile({
         {...touchHandlers}
         onContextMenu={(e) => e.preventDefault()}
       >
-        {/* Tile content — absolute fill to enforce square */}
+        {/* Tile content — absolute fill, object-fit based on aspect */}
         {content.type === 'image' ? (
           isVideo ? (
             <>
               <video
                 ref={videoRef}
                 src={content.url}
-                className={`absolute inset-0 w-full h-full object-cover cursor-pointer transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${isArranging ? 'pointer-events-none' : ''}`}
+                className={`absolute inset-0 w-full h-full ${getObjectFit(aspect)} cursor-pointer transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${isArranging ? 'pointer-events-none' : ''}`}
                 muted
                 loop
                 playsInline
@@ -237,7 +285,7 @@ function SortableTile({
               )}
             </>
           ) : content.url?.startsWith('data:') ? (
-            <img src={content.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            <img src={content.url} alt="" className={`absolute inset-0 w-full h-full ${getObjectFit(aspect)}`} />
           ) : (
             <Image
               src={content.url} unoptimized={content.url?.startsWith('data:')}
@@ -245,7 +293,7 @@ function SortableTile({
               width={400}
               height={400}
               sizes="(max-width: 640px) 50vw, 25vw"
-              className="absolute inset-0 w-full h-full object-cover"
+              className={`absolute inset-0 w-full h-full ${getObjectFit(aspect)}`}
               loading="lazy"
               decoding="async"
               quality={75}
@@ -255,7 +303,7 @@ function SortableTile({
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/[0.05] p-2">
             {content.thumbnail_url ? (
-              <Image src={content.thumbnail_url} alt="" width={200} height={200} sizes="(max-width: 640px) 50vw, 25vw" className="absolute inset-0 w-full h-full object-cover" loading="lazy" decoding="async" quality={75}
+              <Image src={content.thumbnail_url} alt="" width={200} height={200} sizes="(max-width: 640px) 50vw, 25vw" className={`absolute inset-0 w-full h-full ${getObjectFit(aspect)}`} loading="lazy" decoding="async" quality={75}
                 onError={(e) => { (e.target as HTMLElement).closest('[data-tile]')!.style.display = 'none' }} />
             ) : (
               content.type === 'thought' ? (
@@ -324,8 +372,43 @@ export default function EditPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const pendingOpsRef = useRef<Set<Promise<any>>>(new Set())
   const longPressRef = useRef<NodeJS.Timeout | null>(null)
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
+
+  // Track a fire-and-forget save so we can flush before navigating
+  const trackOp = useCallback((p: Promise<any>) => {
+    pendingOpsRef.current.add(p)
+    p.finally(() => pendingOpsRef.current.delete(p))
+  }, [])
+
+  // Flush debounced profile save + pending tile ops, then full-page navigate
+  const navigateToPublic = useCallback(async () => {
+    // Flush debounced profile save immediately
+    if (saveTimeoutRef.current && draft && isOwner) {
+      clearTimeout(saveTimeoutRef.current)
+      saveTimeoutRef.current = null
+      try {
+        await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            display_name: draft.display_name,
+            handle: draft.handle,
+            bio: draft.bio,
+            theme: draft.theme,
+            grid_mode: draft.grid_mode,
+          }),
+        })
+      } catch {}
+    }
+    // Wait for any in-flight tile saves (reorder, resize, etc.)
+    if (pendingOpsRef.current.size > 0) {
+      await Promise.allSettled([...pendingOpsRef.current])
+    }
+    // Full page load — bypasses Next.js Router Cache, guarantees fresh server render
+    window.location.href = `/${slug}`
+  }, [slug, draft, isOwner])
 
   // Mode transition helpers
   const enterEdit = () => setMode({ type: 'arranging' })
@@ -472,6 +555,7 @@ export default function EditPage() {
               position: tile.position,
               room_id: tile.room_id || null,
               size: tile.size || 1,
+              aspect: tile.aspect || null,
               caption: tile.caption || null,
             }
           })
@@ -617,6 +701,7 @@ export default function EditPage() {
             position: data.tile.position,
             room_id: data.tile.room_id || null,
             size: data.tile.size || 1,
+            aspect: data.tile.aspect || null,
           }],
           updated_at: Date.now(),
         } : null)
@@ -655,6 +740,7 @@ export default function EditPage() {
             position: data.tile.position,
             room_id: data.tile.room_id || null,
             size: data.tile.size || 1,
+            aspect: data.tile.aspect || null,
           }],
           updated_at: Date.now(),
         } : null)
@@ -742,11 +828,12 @@ export default function EditPage() {
       position: item.position,
     }))
 
-    fetch('/api/tiles', {
+    const op = fetch('/api/tiles', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ slug, positions }),
     }).catch(e => console.error('Failed to save tile order:', e))
+    trackOp(op)
   }
 
   // ── Tap-to-swap (mobile only) ──
@@ -780,11 +867,12 @@ export default function EditPage() {
       source: tileSources[item.id] || 'library',
       position: item.position,
     }))
-    fetch('/api/tiles', {
+    const op = fetch('/api/tiles', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ slug, positions }),
     }).catch(e => console.error('Failed to save tile order:', e))
+    trackOp(op)
   }
 
   // ── Wallpaper from tile ──
@@ -887,17 +975,22 @@ export default function EditPage() {
     const tilesInRoom = draft.content.filter(c => c.room_id === roomId)
     if (tilesInRoom.length === 0) return
     if (!confirm(`Remove ${tilesInRoom.length} tile${tilesInRoom.length > 1 ? 's' : ''} from this room? They won't be deleted.`)) return
-    const sb = createBrowserSupabaseClient()
-    for (const tile of tilesInRoom) {
-      const source = tileSources[tile.id]
-      if (source) {
-        await sb.from(source).update({ room_id: null }).eq('id', tile.id)
-      }
-    }
+    // Optimistic update
     setDraft(prev => prev ? {
       ...prev,
       content: prev.content.map(c => c.room_id === roomId ? { ...c, room_id: null } : c),
     } : null)
+    // Unassign via API (triggers revalidatePath on server)
+    for (const tile of tilesInRoom) {
+      const source = tileSources[tile.id]
+      if (source) {
+        fetch('/api/tiles', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: tile.id, source, slug, room_id: null }),
+        }).catch(e => console.error('Failed to clear tile room:', e))
+      }
+    }
   }
 
   async function handleDeleteRoom(roomId: string) {
@@ -958,23 +1051,59 @@ export default function EditPage() {
     }
   }
 
+  // ── Tile aspect ──
+
+  async function setTileAspect(id: string, newAspect: string) {
+    if (!draft) return
+    const tile = draft.content.find(c => c.id === id)
+    if (!tile) return
+    const source = tileSources[id]
+    if (!source) return
+
+    const currentResolved = resolveAspect(tile.aspect, tile.type, tile.url)
+    if (currentResolved === newAspect) return
+
+    // Optimistic update
+    setDraft(prev => prev ? {
+      ...prev,
+      content: prev.content.map(c => c.id === id ? { ...c, aspect: newAspect } : c),
+      updated_at: Date.now(),
+    } : null)
+
+    try {
+      const res = await fetch('/api/tiles', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, source, slug, aspect: newAspect }),
+      })
+      if (!res.ok) {
+        const body = await res.text().catch(() => '')
+        console.error('Tile aspect PATCH failed:', res.status, body)
+      }
+    } catch (e) {
+      console.error('Tile aspect PATCH network error:', e)
+    }
+  }
+
   // ── Room assign ──
 
   async function assignTileRoom(tileId: string, newRoomId: string | null) {
     const source = tileSources[tileId]
     if (!source) return
+    // Optimistic update
+    setDraft(prev => prev ? {
+      ...prev,
+      content: prev.content.map(c =>
+        c.id === tileId ? { ...c, room_id: newRoomId } : c
+      ),
+      updated_at: Date.now(),
+    } : null)
     try {
-      const supabase = createBrowserSupabaseClient()
-      await supabase.from(source).update({ room_id: newRoomId }).eq('id', tileId)
-      setDraft(prev => prev ? {
-        ...prev,
-        content: prev.content.map(c =>
-          c.id === tileId ? { ...c, room_id: newRoomId } : c
-        ),
-        updated_at: Date.now(),
-      } : null)
-      // Revalidate public page
-      fetch(`/api/revalidate?path=/${encodeURIComponent(slug)}`).catch(() => {})
+      await fetch('/api/tiles', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: tileId, source, slug, room_id: newRoomId }),
+      })
     } catch (err) {
       console.error('Failed to assign room:', err)
     }
@@ -1109,6 +1238,7 @@ export default function EditPage() {
         embed_html: null,
         position: (draft?.content.length || 0) + i,
         room_id: activeRoomId || null,
+        aspect: null,
         _temp: true,
         _progress: 0,
       }
@@ -1178,6 +1308,7 @@ export default function EditPage() {
               position: data.tile.position,
               room_id: data.tile.room_id || c.room_id || null,
               size: (c as any).size || 1,
+              aspect: (c as any).aspect || null,
               caption: (c as any).caption || null,
             } : c),
             updated_at: Date.now(),
@@ -1247,13 +1378,13 @@ export default function EditPage() {
       <div className="fixed top-0 left-0 right-0 z-50 bg-black/60 backdrop-blur-sm border-b border-white/[0.06]"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="flex items-center justify-between px-4 pt-4 pb-2" style={{ minHeight: '52px' }}>
-          <Link
-            href={`/${slug}`}
+          <button
+            onClick={navigateToPublic}
             className="text-sm text-white/60 hover:text-white/90 transition font-mono flex items-center justify-center"
             style={{ minWidth: '44px', minHeight: '44px' }}
           >
             ←
-          </Link>
+          </button>
           {isArranging ? (
             <div className="flex items-center gap-2">
               {activeRoomId && (
@@ -1384,7 +1515,7 @@ export default function EditPage() {
               strategy={rectSortingStrategy}
             >
               <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5" style={{
-                gridAutoRows: 'minmax(180px, 1fr)',
+                gridAutoRows: 'auto',
                 gridAutoFlow: 'dense',
                 opacity: gridFade === 'out' ? 0 : 1,
                 transition: 'opacity 150ms ease-out',
@@ -1408,6 +1539,7 @@ export default function EditPage() {
                     }}
                     deleting={deletingIds.has(item.id)}
                     size={item.size || 1}
+                    aspect={resolveAspect(item.aspect, item.type, item.url)}
                     onLongPressStart={(e: React.TouchEvent) => handleTouchStart(e, item.id)}
                     onLongPressMove={handleTouchMove}
                     onLongPressEnd={handleTouchEnd}
@@ -1533,6 +1665,36 @@ export default function EditPage() {
                   ))}
                 </div>
               </div>
+
+              {/* Aspect ratio — segmented control */}
+              {(() => {
+                const resolvedAspect = resolveAspect(selectedTile.aspect, selectedTile.type, selectedTile.url)
+                return (
+                  <div className="flex items-center justify-between py-3 border-t border-white/[0.06]">
+                    <span className="text-sm text-white/50 font-mono">ratio</span>
+                    <div className="flex gap-1 bg-white/[0.04] rounded-lg p-0.5">
+                      {([
+                        { value: 'square', label: '1:1' },
+                        { value: 'wide', label: '16:9' },
+                        { value: 'tall', label: '9:16' },
+                        { value: 'auto', label: 'auto' },
+                      ] as const).map(opt => (
+                        <button
+                          key={opt.value}
+                          onClick={() => setTileAspect(mode.tileId, opt.value)}
+                          className={`px-2.5 py-1.5 rounded-md text-xs font-mono transition-all ${
+                            resolvedAspect === opt.value
+                              ? 'bg-white/20 text-white shadow-sm'
+                              : 'text-white/40 hover:text-white/60'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
 
               {/* Room assign */}
               {rooms.length > 0 && (

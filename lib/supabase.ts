@@ -58,5 +58,7 @@ export interface Content {
   embed_html: string | null
   external_id: string | null
   position: number
+  size?: number
+  aspect?: string | null
   created_at: string
 }
