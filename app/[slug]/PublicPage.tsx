@@ -93,7 +93,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [isMobile, setIsMobile] = useState(false)
   const [roomFade, setRoomFade] = useState<'visible' | 'out' | 'in'>('visible')
 
-  // Memoize content filtering — avoids O(n) recalc on every state change
+  // Memoize content filtering
   const validContent = useMemo(() =>
     allContent.filter(item =>
       (item.type === 'thought' && item.title) ||
@@ -153,7 +153,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       .catch(() => {})
   }, [])
 
-  // Navigate to room — with smooth crossfade for pill taps
+  // Navigate to room
   const goToRoom = useCallback((roomId: string | null) => {
     if (roomId === activeRoomId || roomFade !== 'visible') return
     setRoomFade('out')
@@ -164,7 +164,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     }, 200)
   }, [activeRoomId, roomFade])
 
-  // Drag handlers — purely client-side, resets on refresh
+  // Drag handlers
   const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveDragId(String(event.active.id))
   }, [])
@@ -187,18 +187,17 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     return () => clearTimeout(t)
   }, [showToast])
 
-  // Image sizes based on tile size for proper srcset selection
+  // Image sizes based on tile size
   const getImageSizes = (tileSize: number) => {
     if (tileSize >= 3) return isMobile ? '100vw' : '(max-width: 768px) 100vw, 75vw'
     if (tileSize === 2) return isMobile ? '100vw' : '(max-width: 768px) 100vw, 50vw'
     return isMobile ? '50vw' : '(max-width: 768px) 50vw, 25vw'
   }
 
-  // Smart default: when user hasn't explicitly set an aspect, pick one based on content type
+  // Smart default aspect
   const resolveAspect = (explicitAspect: string | undefined | null, type: string, url?: string): string => {
     if (explicitAspect && explicitAspect !== 'square') return explicitAspect
     if (explicitAspect === 'square') return 'square'
-    // No explicit choice — use content-type defaults
     if (type === 'youtube' || type === 'vimeo') return 'wide'
     if (type === 'video') return 'auto'
     if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return 'auto'
@@ -206,7 +205,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     return 'square'
   }
 
-  // Grid class helpers — size × aspect → col-span, row-span, aspect-ratio
+  // Grid class helpers
   const getAspectClass = (aspect: string) => {
     if (aspect === 'wide') return 'aspect-video'
     if (aspect === 'tall') return 'aspect-[9/16]'
@@ -215,7 +214,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   }
 
   const getObjectFit = (aspect: string) => {
-    if (aspect === 'auto') return 'object-cover'
     return 'object-cover'
   }
 
@@ -233,14 +231,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       if (size >= 2) return 'col-span-1 row-span-3 md:col-span-2 md:row-span-3'
       return 'col-span-1 row-span-2'
     }
-    // square or auto — original behavior
     return size === 4 ? 'col-span-2 row-span-2 md:col-span-4 md:row-span-4'
       : size === 3 ? 'col-span-2 row-span-2 md:col-span-3 md:row-span-3'
       : size === 2 ? 'col-span-2 row-span-2'
       : ''
   }
 
-  // Reusable tile renderer - size-aware col-span in CSS Grid
+  // Reusable tile renderer
   const renderTileContent = (item: any, index: number) => {
     const isVideo = item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
     const tileSize = item.size || 1
@@ -249,10 +246,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     const aspectCls = getAspectClass(tileAspect)
     const fitCls = getObjectFit(tileAspect)
 
-    // For 'auto' images — render at natural aspect ratio, no forced container
+    // For 'auto' images
     if (tileAspect === 'auto' && item.type === 'image' && !isVideo) {
       return (
-        <div className="rounded-xl overflow-hidden" data-tile-id={item.id} data-tile-type={item.type}>
+        <div className="fp-tile overflow-hidden" data-tile-id={item.id} data-tile-type={item.type}>
           <Image src={item.url} alt={item.title || ''}
             width={tileSize >= 2 ? 800 : 400} height={tileSize >= 2 ? 800 : 400}
             sizes={imgSizes}
@@ -265,7 +262,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     }
 
     return (
-      <div className={`${aspectCls} rounded-xl overflow-hidden`} data-tile-id={item.id} data-tile-type={item.type}>
+      <div className={`${aspectCls} fp-tile overflow-hidden`} data-tile-id={item.id} data-tile-type={item.type}>
         {item.type === 'image' ? (
           isVideo ? (
             <VideoTile src={item.url} onWidescreen={noop} aspect={tileAspect} />
@@ -288,8 +285,37 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // Active drag item for overlay
   const activeDragItem = activeDragId ? content.find((item: any) => item.id === activeDragId) : null
 
+  // The grid — the entire product
+  const gridElement = (
+    <div
+      className="grid grid-cols-2 md:grid-cols-4 gap-[2px]"
+      style={{
+        gridAutoRows: 'auto',
+        gridAutoFlow: 'dense',
+        opacity: roomFade === 'out' ? 0 : 1,
+        transition: 'opacity 200ms ease-out',
+      }}
+    >
+      {content.map((item: any, idx: number) => {
+        const tileClass = `${getColSpan(item.size || 1, resolveAspect(item.aspect, item.type, item.url))} group tile-enter tile-container`
+        if (interactive) {
+          return (
+            <SortableTile key={item.id} id={item.id} className={tileClass}>
+              {renderTileContent(item, idx)}
+            </SortableTile>
+          )
+        }
+        return (
+          <div key={item.id} className={tileClass} style={{ animationDelay: `${idx * 40}ms` }}>
+            {renderTileContent(item, idx)}
+          </div>
+        )
+      })}
+    </div>
+  )
+
   return (
-    <div className="min-h-screen relative" style={{ background: theme.colors.background, color: theme.colors.text }}>
+    <div className="min-h-screen relative flex flex-col" style={{ background: theme.colors.background, color: theme.colors.text }}>
       {/* Wallpaper layer */}
       {footprint.background_url && (
         <div className="fixed inset-0 z-0">
@@ -315,188 +341,119 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       )}
       <WeatherEffect type={footprint.weather_effect || null} />
 
-      {/* Draft banner — only visible to owner */}
+      {/* Draft banner */}
       {isDraft && (
         <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center py-2 bg-white/[0.06] backdrop-blur-sm border-b border-white/[0.08]">
-          <span className="text-[11px] text-white/40 tracking-[0.15em] font-mono lowercase">draft — only you can see this</span>
+          <span className="text-[11px] text-white/40 tracking-[0.15em] font-mono lowercase">draft</span>
         </div>
       )}
 
-      <div className="relative z-10">
-        {/* Masthead — long-press zone for removal */}
+      {/* Top-right action */}
+      <div className="fixed top-5 right-4 md:right-6 z-30">
+        {isLoggedIn ? (
+          <a
+            href={`/${footprint.username}/home`}
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-white/[0.06] hover:bg-white/[0.12] transition"
+          >
+            <svg className="w-3.5 h-3.5 text-white/40" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+            </svg>
+          </a>
+        ) : (
+          <PlusButton slug={footprint.slug} />
+        )}
+      </div>
+
+      <div className="relative z-10 flex-1 flex flex-col">
+        {/* Masthead — stripped to the bone */}
         <RemoveBubble slug={footprint.slug}>
-        <header className="relative mb-12 md:mb-16 flex flex-col items-center pt-24 md:pt-32">
-            {/* Top-right action — home (logged in) or + (logged out) */}
-            {isLoggedIn ? (
-              <a
-                href={`/${footprint.username}/home`}
-                className="absolute top-6 right-4 md:right-8 w-9 h-9 flex items-center justify-center rounded-full bg-white/[0.08] hover:bg-white/[0.15] backdrop-blur-sm transition"
-              >
-                <svg className="w-4 h-4 text-white/50" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-                </svg>
-              </a>
-            ) : (
-              <div className="absolute top-6 right-4 md:right-8">
-                <PlusButton slug={footprint.slug} />
-              </div>
-            )}
+          <header className="pt-16 md:pt-20 pb-6 md:pb-8 flex flex-col items-center">
             <h1
-              className="text-4xl md:text-6xl tracking-[0.15em] font-normal text-white/90"
+              className="text-2xl md:text-4xl tracking-[0.2em] font-light uppercase"
               style={{
-                lineHeight: 1,
-                textShadow: '0 2px 16px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.5)',
+                color: theme.colors.text,
+                opacity: 0.9,
+                textShadow: footprint.background_url ? '0 2px 16px rgba(0,0,0,0.9)' : 'none',
               }}
             >
               {footprint.display_name || '\u00e6'}
             </h1>
-            <span className="text-white/30 tracking-[0.3em] uppercase text-[10px] font-light mt-2"
-              style={{
-                textShadow: '0 2px 16px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.5)',
-              }}
-            >
-              #{serial}
-            </span>
-            {(() => {
-              const bio = (footprint.bio || '').trim().toLowerCase()
-              const hide = !bio || bio === 'personal internet' || bio === 'footprint'
-              return hide ? null : (
-                <p
-                  className="mt-3 text-white/30 text-xs tracking-[0.15em] lowercase max-w-md text-center"
-                  style={{
-                    fontWeight: 300,
-                    textShadow: '0 2px 16px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.5)',
-                  }}
-                >
-                  {footprint.bio}
-                </p>
-              )
-            })()}
-            <p
-              className="mt-2 text-white/30 text-[11px] tracking-[0.25em] lowercase font-medium"
-              style={{
-                textShadow: '0 2px 16px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.5)',
-              }}
-            >
-              footprint
-            </p>
-            {/* CTA — only visible to non-logged-in users */}
-            {!isLoggedIn && (
-              <a
-                href="/signup"
-                className="mt-5 inline-flex items-center gap-2 rounded-full px-5 py-2 text-[10px] tracking-[0.2em] lowercase text-white/50 hover:text-white/80 bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] hover:border-white/[0.15] transition-all duration-500"
-              >
-                make yours.
-              </a>
-            )}
-        </header>
+          </header>
         </RemoveBubble>
 
-        {/* Rolodex drawer + tab */}
-        {isLoggedIn && (
-          <>
-            <button
-              onClick={() => setDrawerOpen(true)}
-              aria-label="Open saved footprints"
-              className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-10 h-1 rounded-full bg-white/[0.12] hover:bg-white/[0.2] transition-colors duration-200"
-            />
-            <RolodexDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
-          </>
-        )}
-
-        {/* Room pills — sticky on mobile only */}
+        {/* Room pills — minimal, inline */}
         {visibleRooms.length > 1 && (
-          <div className="sticky md:relative top-0 z-20 py-3">
-            <div className="flex items-center justify-center gap-2 flex-wrap max-w-7xl mx-auto px-3 md:px-5">
-              {visibleRooms.map((room) => (
-                <button
-                  key={room.id}
-                  onClick={() => goToRoom(room.id)}
-                  className={`px-4 py-1.5 rounded-full text-sm border-0 transition-all duration-300 ${
-                    activeRoomId === room.id
-                      ? 'bg-white/[0.15] text-white/90 scale-[1.05]'
-                      : 'bg-white/[0.06] text-white/50 hover:bg-white/[0.10] hover:text-white/70 scale-100'
-                  }`}
-                >
-                  {room.name}
-                </button>
-              ))}
-            </div>
+          <div className="flex items-center justify-center gap-1 mb-4 md:mb-6">
+            {visibleRooms.map((room) => (
+              <button
+                key={room.id}
+                onClick={() => goToRoom(room.id)}
+                className={`px-3 py-1 text-[11px] tracking-[0.1em] lowercase transition-all duration-300 ${
+                  activeRoomId === room.id
+                    ? 'text-white/80'
+                    : 'text-white/25 hover:text-white/50'
+                }`}
+              >
+                {room.name}
+              </button>
+            ))}
           </div>
         )}
 
-        {/* Content grid */}
-        <div className="max-w-7xl mx-auto px-3 md:px-5">
-          {interactive ? (
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-              <SortableContext items={content.map((item: any) => item.id)} strategy={rectSortingStrategy}>
-                <div
-                  className="grid grid-cols-2 md:grid-cols-4 gap-2"
-                  style={{
-                    gridAutoRows: 'auto',
-                    gridAutoFlow: 'dense',
-                    opacity: roomFade === 'out' ? 0 : 1,
-                    transition: 'opacity 200ms ease-out',
-                  }}
-                >
-                  {content.map((item: any, idx: number) => (
-                    <SortableTile key={item.id} id={item.id} className={`${getColSpan(item.size || 1, resolveAspect(item.aspect, item.type, item.url))} group tile-enter tile-container`}>
-                      {renderTileContent(item, idx)}
-                    </SortableTile>
-                  ))}
-                </div>
-              </SortableContext>
-              <DragOverlay>
-                {activeDragItem ? (
-                  <div
-                    className={`${getColSpan(activeDragItem.size || 1, resolveAspect(activeDragItem.aspect, activeDragItem.type, activeDragItem.url))} tile-container`}
-                    style={{ transform: 'rotate(2deg)', boxShadow: '0 12px 40px rgba(0,0,0,0.5)', borderRadius: '12px', overflow: 'hidden' }}
-                  >
-                    {renderTileContent(activeDragItem, 0)}
-                  </div>
-                ) : null}
-              </DragOverlay>
-            </DndContext>
-          ) : (
-            <div
-              className="grid grid-cols-2 md:grid-cols-4 gap-2"
-              style={{
-                gridAutoRows: 'auto',
-                gridAutoFlow: 'dense',
-                opacity: roomFade === 'out' ? 0 : 1,
-                transition: 'opacity 200ms ease-out',
-              }}
-            >
-              {content.map((item: any, idx: number) => (
-                <div key={item.id} className={`${getColSpan(item.size || 1, resolveAspect(item.aspect, item.type, item.url))} group tile-enter tile-container`} style={{ animationDelay: `${idx * 40}ms` }}>
-                  {renderTileContent(item, idx)}
-                </div>
-              ))}
-            </div>
-          )}
+        {/* The Grid — the product */}
+        <div className="fp-grid-container mx-auto w-full px-0 md:px-0" style={{ maxWidth: isMobile ? '100vw' : '720px' }}>
+          <div className="fp-grid-block">
+            {interactive ? (
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+                <SortableContext items={content.map((item: any) => item.id)} strategy={rectSortingStrategy}>
+                  {gridElement}
+                </SortableContext>
+                <DragOverlay>
+                  {activeDragItem ? (
+                    <div
+                      className={`${getColSpan(activeDragItem.size || 1, resolveAspect(activeDragItem.aspect, activeDragItem.type, activeDragItem.url))} tile-container`}
+                      style={{ transform: 'rotate(1deg)', boxShadow: '0 12px 40px rgba(0,0,0,0.5)', overflow: 'hidden' }}
+                    >
+                      {renderTileContent(activeDragItem, 0)}
+                    </div>
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
+            ) : (
+              gridElement
+            )}
+          </div>
         </div>
 
         {content.length === 0 && (
-          <p className="text-center py-16" style={{ color: theme.colors.textMuted }}>
+          <p className="text-center py-16 text-sm" style={{ color: theme.colors.textMuted }}>
             nothing here.
           </p>
         )}
 
-        {/* Footer */}
-        <div className="mt-24 mb-12 flex items-center justify-center gap-3">
-          <a href="https://footprint.onl" className="text-white/[0.08] text-xs tracking-[0.3em] hover:text-white/20 transition-colors">
-            footprint.onl
-          </a>
+        {/* Footer — one element */}
+        <div className="flex-1" />
+        <div className="py-10 flex items-center justify-center">
           <button
             onClick={handleShare}
-            className="text-white/[0.08] hover:text-white/20 transition-colors"
+            className="group flex items-center gap-2 text-white/[0.06] hover:text-white/20 transition-colors duration-500"
           >
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-            </svg>
+            <span className="text-[10px] tracking-[0.3em] uppercase group-hover:text-white/15 transition-colors">share</span>
           </button>
         </div>
       </div>
+
+      {/* Rolodex drawer */}
+      {isLoggedIn && (
+        <>
+          <button
+            onClick={() => setDrawerOpen(true)}
+            aria-label="Open saved footprints"
+            className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-10 h-1 rounded-full bg-white/[0.08] hover:bg-white/[0.15] transition-colors duration-200"
+          />
+          <RolodexDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+        </>
+      )}
 
       {/* Copied toast */}
       {showToast && (
