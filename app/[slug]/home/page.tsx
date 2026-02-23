@@ -253,7 +253,7 @@ function SortableTile({
       data-tile
     >
       <div
-        className={`tile-inner relative rounded-xl overflow-hidden w-full ${aspect !== 'auto' ? 'h-full' : ''} ${
+        className={`tile-inner relative fp-tile overflow-hidden w-full ${aspect !== 'auto' ? 'h-full' : ''} ${
           isArranging
             ? isMobile
               ? 'tile-arranging ring-1 ring-white/20'
@@ -1505,7 +1505,7 @@ export default function EditPage() {
               items={filteredContent.map(item => item.id)}
               strategy={rectSortingStrategy}
             >
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5" style={{
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-[2px]" style={{
                 gridAutoRows: 'auto',
                 gridAutoFlow: 'dense',
                 opacity: gridFade === 'out' ? 0 : 1,

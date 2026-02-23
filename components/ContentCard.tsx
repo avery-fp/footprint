@@ -98,7 +98,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       return (
         <div
           ref={containerRef}
-          className={`w-full ${aspectClass} rounded-xl overflow-hidden cursor-pointer relative group`}
+          className={`w-full ${aspectClass} fp-tile overflow-hidden cursor-pointer relative group`}
           onClick={handleActivate}
         >
           <Image
@@ -115,8 +115,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           />
           {/* Play button */}
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center group-hover:scale-110 transition-transform">
-              <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+            <div className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <svg className="w-3 h-3 text-white/80 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M8 5v14l11-7z"/>
               </svg>
             </div>
@@ -127,7 +127,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     // Activated — clean iframe with autoplay
     if (videoId) {
       return (
-        <div className={`w-full ${aspectClass} rounded-xl overflow-hidden relative materialize`}>
+        <div className={`w-full ${aspectClass} fp-tile overflow-hidden relative materialize`}>
           <iframe
             src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`}
             className="absolute inset-0 w-full h-full"
@@ -154,7 +154,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             href={content.url}
             target="_blank"
             rel="noopener noreferrer"
-            className={`block w-full ${aspectClass} rounded-xl overflow-hidden relative bg-[#191414] cursor-pointer group`}
+            className={`block w-full ${aspectClass} fp-tile overflow-hidden relative bg-[#191414] cursor-pointer group`}
           >
             {content.thumbnail_url && isInView && (
               <Image
@@ -176,8 +176,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               </p>
             </div>
             <div className="absolute top-2.5 right-2.5">
-              <div className="w-9 h-9 rounded-full bg-[#1DB954] flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg">
-                <svg className="w-4 h-4 text-black ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+              <div className="w-7 h-7 rounded-full bg-[#1DB954]/80 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <svg className="w-3 h-3 text-black ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M8 5v14l11-7z"/>
                 </svg>
               </div>
@@ -187,10 +187,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       }
       // Desktop or size 2+: lazy load iframe
       return (
-        <div ref={containerRef} className="w-full h-full rounded-xl overflow-hidden flex items-center justify-center bg-transparent">
+        <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden flex items-center justify-center bg-transparent">
           {isInView ? (
             <iframe
-              style={{ border: 'none', borderRadius: '12px', background: 'transparent' }}
+              style={{ border: 'none', borderRadius: '2px', background: 'transparent' }}
               src={`https://open.spotify.com/embed/${spotifyInfo.type}/${spotifyInfo.id}?theme=0`}
               width="100%"
               height="100%"
@@ -198,14 +198,14 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               loading="lazy"
             />
           ) : (
-            <div className="w-full h-full bg-[#191414] rounded-xl" />
+            <div className="w-full h-full bg-[#191414] fp-tile" />
           )}
         </div>
       )
     }
     return (
       <a href={content.url} target="_blank" rel="noopener noreferrer"
-        className="block w-full h-full rounded-xl overflow-hidden flex items-center justify-center">
+        className="block w-full h-full fp-tile overflow-hidden flex items-center justify-center">
         <span className="text-white/40 text-xs tracking-wider">spotify</span>
       </a>
     )
@@ -219,16 +219,16 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     if (!isActivated) {
       return (
         <div
-          className={`w-full ${aspectClass} rounded-xl overflow-hidden cursor-pointer relative group bg-black`}
+          className={`w-full ${aspectClass} fp-tile overflow-hidden cursor-pointer relative group bg-black`}
           onClick={handleActivate}
         >
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[#ff5500] flex items-center justify-center group-hover:scale-110 transition-transform">
-              <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-[#ff5500]/80 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <svg className="w-3 h-3 text-white/80 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M8 5v14l11-7z"/>
               </svg>
             </div>
-            <p className="text-white/50 text-[10px] font-medium truncate max-w-[80%]">{content.title || 'SoundCloud'}</p>
+            <p className="text-white/40 text-[10px] font-medium truncate max-w-[80%]">{content.title || 'SoundCloud'}</p>
           </div>
         </div>
       )
@@ -236,7 +236,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     if (content.embed_html) {
       return (
         <div
-          className={`w-full ${aspectClass} rounded-xl overflow-hidden materialize bg-black [&_iframe]:!h-full`}
+          className={`w-full ${aspectClass} fp-tile overflow-hidden materialize bg-black [&_iframe]:!h-full`}
           dangerouslySetInnerHTML={{ __html: content.embed_html }}
         />
       )
@@ -253,7 +253,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     )
     darkEmbed = darkEmbed.replace(/<iframe /g, '<iframe scrolling="no" ')
     return (
-      <div ref={containerRef} className={`w-full ${aspectClass} rounded-xl overflow-hidden bg-black`}>
+      <div ref={containerRef} className={`w-full ${aspectClass} fp-tile overflow-hidden bg-black`}>
         {isInView ? (
           <div
             className="w-full h-full overflow-hidden [&_iframe]:!w-full [&_iframe]:!h-full [&_iframe]:!min-h-0 [&_iframe]:!border-0 [&_iframe]:!overflow-hidden"
@@ -269,7 +269,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   if (content.type === 'vimeo' && content.embed_html) {
     return (
-      <div ref={containerRef} className={`w-full ${aspectClass} rounded-xl overflow-hidden relative bg-black`}>
+      <div ref={containerRef} className={`w-full ${aspectClass} fp-tile overflow-hidden relative bg-black`}>
         {isInView ? (
           <div
             className="absolute inset-0 [&_iframe]:!w-full [&_iframe]:!h-full materialize"
@@ -285,7 +285,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   if (content.type === 'video') {
     return (
-      <div ref={containerRef} className="rounded-xl overflow-hidden relative">
+      <div ref={containerRef} className="fp-tile overflow-hidden relative">
         {isInView ? (
           <video
             src={content.url}
@@ -308,9 +308,9 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   if (content.type === 'image') {
     return (
-      <div ref={containerRef} className="rounded-xl overflow-hidden relative">
+      <div ref={containerRef} className="fp-tile overflow-hidden relative">
         <div
-          className={`absolute inset-0 vapor-box rounded-xl ${isLoaded ? 'opacity-0' : ''} transition-opacity duration-500`}
+          className={`absolute inset-0 vapor-box fp-tile ${isLoaded ? 'opacity-0' : ''} transition-opacity duration-500`}
         />
         <a href={content.url} target="_blank" rel="noopener noreferrer">
           <Image
@@ -351,8 +351,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       : 'text-[13px] font-normal tracking-[-0.01em] leading-relaxed'
 
     return (
-      <div className="w-full h-full rounded-xl bg-white/[0.07] backdrop-blur-md flex items-center justify-center p-5" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-        <p className={`whitespace-pre-wrap text-white/90 text-center ${typo}`}>
+      <div className="w-full h-full fp-tile bg-white/[0.05] flex items-center justify-center p-5" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+        <p className={`whitespace-pre-wrap text-white/85 text-center ${typo}`}>
           {text}
         </p>
       </div>
@@ -370,10 +370,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           target="_blank"
           rel="noopener noreferrer"
           ref={containerRef as any}
-          className="block rounded-xl overflow-hidden relative"
+          className="block fp-tile overflow-hidden relative"
         >
           <div
-            className={`absolute inset-0 vapor-box rounded-xl ${isLoaded ? 'opacity-0' : ''} transition-opacity duration-500`}
+            className={`absolute inset-0 vapor-box fp-tile ${isLoaded ? 'opacity-0' : ''} transition-opacity duration-500`}
             style={{ aspectRatio: aspect === 'wide' ? '16/9' : aspect === 'tall' ? '9/16' : '1/1' }}
           />
           <Image
@@ -398,7 +398,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         href={content.url}
         target="_blank"
         rel="noopener noreferrer"
-        className={`block rounded-xl overflow-hidden ${aspectClass} border border-white/[0.08] hover:border-white/15 transition-all flex items-center justify-center bg-white/[0.08]`}
+        className={`block fp-tile overflow-hidden ${aspectClass} transition-all flex items-center justify-center bg-white/[0.05]`}
       >
         <div className="text-4xl opacity-40">
           {icon}
@@ -416,7 +416,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       target="_blank"
       rel="noopener noreferrer"
       ref={containerRef as any}
-      className="rounded-xl overflow-hidden flex items-center gap-4 p-5 border border-white/[0.08] hover:border-white/15 transition-all bg-white/[0.08]"
+      className="fp-tile overflow-hidden flex items-center gap-4 p-4 transition-all bg-white/[0.05]"
     >
       <div
         className="w-12 h-12 rounded-lg flex items-center justify-center text-xl flex-shrink-0"
@@ -445,7 +445,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           {hostname}
         </p>
       </div>
-      <span className="text-white/30 text-lg flex-shrink-0">→</span>
+      <span className="text-white/15 text-sm flex-shrink-0">→</span>
     </a>
   )
 }
