@@ -146,6 +146,10 @@ body::before {
     opacity: 1;
     animation: none;
   }
+  .fp-grid-arrive {
+    animation: none;
+    opacity: 1;
+  }
 }
 
 /* ═══════════════════════════════════════════
@@ -162,6 +166,23 @@ body::before {
 .fp-grid-block {
   border-radius: 6px;
   overflow: hidden;
+  box-shadow: 0 8px 60px rgba(0, 0, 0, 0.35), 0 2px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Block arrival — the whole grid fades up as one object */
+@keyframes grid-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fp-grid-arrive {
+  animation: grid-arrive 600ms ease-out both;
 }
 
 /* Grid container — centered, constrained */
@@ -244,8 +265,10 @@ body::before {
 
 /* Desktop tile hover — subtle brightness on pointer devices */
 @media (hover: hover) {
-  .tile-inner:not(.tile-arranging):hover {
-    filter: brightness(1.08);
+  .fp-tile {
     transition: filter 0.15s ease;
+  }
+  .tile-container:not(.tile-arranging):hover .fp-tile {
+    filter: brightness(1.06);
   }
 }
