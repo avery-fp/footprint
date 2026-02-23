@@ -11,6 +11,7 @@ import WeatherEffect from '@/components/WeatherEffect'
 import { PlusButton } from '@/components/PlusButton'
 import { RemoveBubble } from '@/components/RemoveBubble'
 import { RolodexDrawer } from '@/components/RolodexDrawer'
+import FloatingCtaBar from '@/components/FloatingCtaBar'
 
 interface Room {
   id: string
@@ -464,6 +465,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           />
           <RolodexDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
         </>
+      )}
+
+      {/* Floating CTA bar — non-authenticated visitors only */}
+      {!isLoggedIn && (
+        <FloatingCtaBar username={footprint.username} serial={serial} />
       )}
 
       {/* Copied toast */}
