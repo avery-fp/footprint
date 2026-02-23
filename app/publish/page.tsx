@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
+import { FOOTPRINT_PRICE_DISPLAY } from '@/lib/constants'
 
 type Step = 'username' | 'processing' | 'done'
 
@@ -22,9 +23,15 @@ export default function PublishPage() {
   const [serial, setSerial] = useState<number | null>(null)
   const [finalSlug, setFinalSlug] = useState('')
 
-  // Finalize after Stripe payment redirect
+  // Finalize after Stripe payment redirect (with timeout + dedup guard)
+  const finalizeCalledRef = useRef(false)
   useEffect(() => {
     if (!sessionId || !presetUsername) return
+    if (finalizeCalledRef.current) return
+    finalizeCalledRef.current = true
+
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 30_000)
 
     async function finalize() {
       try {
@@ -36,6 +43,7 @@ export default function PublishPage() {
             session_id: sessionId,
             username: presetUsername,
           }),
+          signal: controller.signal,
         })
 
         const data = await res.json()
@@ -47,9 +55,15 @@ export default function PublishPage() {
           toast.error(data.error || 'Failed to publish')
           setStep('username')
         }
-      } catch {
-        toast.error('Network error')
+      } catch (err: any) {
+        if (err?.name === 'AbortError') {
+          toast.error('Request timed out — please try again')
+        } else {
+          toast.error('Network error')
+        }
         setStep('username')
+      } finally {
+        clearTimeout(timeout)
       }
     }
 
@@ -260,7 +274,7 @@ export default function PublishPage() {
             disabled={loading || !available || !username.trim()}
             className="w-full py-3.5 rounded-xl bg-white text-black text-[14px] font-medium hover:bg-white/90 transition-all disabled:opacity-40"
           >
-            {loading ? '...' : promo.trim() ? 'publish' : 'publish — $10'}
+            {loading ? '...' : promo.trim() ? 'publish' : `publish — ${FOOTPRINT_PRICE_DISPLAY}`}
           </button>
         </div>
 

@@ -84,7 +84,8 @@ export default async function Home() {
 
   const serial = footprint.serial_number.toString().padStart(4, '0')
   const theme = getTheme(footprint.dimension || 'midnight')
-  const pageUrl = `https://footprint.onl/${AE_SLUG}`
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://footprint.onl'
+  const pageUrl = `${baseUrl}/${AE_SLUG}`
 
   return (
     <>

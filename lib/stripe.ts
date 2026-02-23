@@ -1,10 +1,11 @@
 import Stripe from 'stripe'
+import { FOOTPRINT_PRICE_CENTS } from './constants'
 
 // Initialize Stripe with secret key
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
 // Product config - $10 one-time
-export const FOOTPRINT_PRICE = 1000 // cents
+export const FOOTPRINT_PRICE = FOOTPRINT_PRICE_CENTS
 export const FOOTPRINT_CURRENCY = 'usd'
 
 /**

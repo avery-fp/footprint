@@ -92,7 +92,11 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Invalid promo code' }, { status: 400 })
         }
 
-        if (promoCode.max_uses !== null && promoCode.times_used >= promoCode.max_uses) {
+        // Atomically claim a promo usage slot (prevents race condition on max_uses)
+        const { data: promoResult, error: promoUpdateError } = await supabase.rpc('increment_promo_usage', {
+          promo_id: promoCode.id,
+        })
+        if (promoUpdateError || promoResult === -1) {
           return NextResponse.json({ error: 'Promo code expired' }, { status: 400 })
         }
 
@@ -137,32 +141,30 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Failed to publish' }, { status: 500 })
         }
 
-        // Record free payment
-        await supabase.from('payments').insert({
-          user_id: userId,
-          stripe_session_id: `free_publish_${Date.now()}`,
-          amount: 0,
-          currency: 'usd',
-          status: 'completed',
-        })
-
-        // Increment promo usage
-        await supabase
-          .from('promo_codes')
-          .update({ times_used: promoCode.times_used + 1 })
-          .eq('id', promoCode.id)
-
-        // Record conversion event
-        await supabase.from('fp_events').insert({
-          footprint_id: footprint.id,
-          event_type: 'conversion',
-          event_data: {
-            serial_number: serialNumber,
+        // Record free payment (non-critical)
+        try {
+          await supabase.from('payments').insert({
+            user_id: userId,
+            stripe_session_id: `free_publish_${Date.now()}`,
             amount: 0,
-            source: 'promo',
-            promo_code: cleanPromo,
-          },
-        }).catch(() => {})
+            currency: 'usd',
+            status: 'completed',
+          })
+        } catch {}
+
+        // Record conversion event (non-critical)
+        try {
+          await supabase.from('fp_events').insert({
+            footprint_id: footprint.id,
+            event_type: 'conversion',
+            event_data: {
+              serial_number: serialNumber,
+              amount: 0,
+              source: 'promo',
+              promo_code: cleanPromo,
+            },
+          })
+        } catch {}
 
         return NextResponse.json({
           success: true,
@@ -244,10 +246,29 @@ export async function POST(request: NextRequest) {
 
         const cleanUsername = username.toLowerCase().trim()
 
+        // Idempotency: if this footprint is already published, return its existing data
+        if (footprint.published) {
+          return NextResponse.json({
+            success: true,
+            serial: footprint.serial_number,
+            slug: footprint.username,
+          })
+        }
+
         // Verify Stripe payment
         const session = await stripe.checkout.sessions.retrieve(session_id)
         if (!session || session.payment_status !== 'paid') {
           return NextResponse.json({ error: 'Payment not confirmed' }, { status: 400 })
+        }
+
+        // Verify the Stripe session belongs to this user
+        if (session.metadata?.user_id !== userId) {
+          return NextResponse.json({ error: 'Session mismatch' }, { status: 403 })
+        }
+
+        // Verify the username matches what was submitted to Stripe
+        if (session.metadata?.username !== cleanUsername) {
+          return NextResponse.json({ error: 'Username mismatch' }, { status: 400 })
         }
 
         // Check username again
@@ -294,26 +315,30 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Failed to publish' }, { status: 500 })
         }
 
-        // Record payment
-        await supabase.from('payments').insert({
-          user_id: userId,
-          stripe_session_id: session.id,
-          stripe_payment_intent: session.payment_intent as string,
-          amount: session.amount_total,
-          currency: session.currency,
-          status: 'completed',
-        }).catch(() => {})
-
-        // Record conversion event
-        await supabase.from('fp_events').insert({
-          footprint_id: footprint.id,
-          event_type: 'conversion',
-          event_data: {
-            serial_number: serialNumber,
+        // Record payment (non-critical)
+        try {
+          await supabase.from('payments').insert({
+            user_id: userId,
+            stripe_session_id: session.id,
+            stripe_payment_intent: session.payment_intent as string,
             amount: session.amount_total,
-            source: 'stripe_publish',
-          },
-        }).catch(() => {})
+            currency: session.currency,
+            status: 'completed',
+          })
+        } catch {}
+
+        // Record conversion event (non-critical)
+        try {
+          await supabase.from('fp_events').insert({
+            footprint_id: footprint.id,
+            event_type: 'conversion',
+            event_data: {
+              serial_number: serialNumber,
+              amount: session.amount_total,
+              source: 'stripe_publish',
+            },
+          })
+        } catch {}
 
         return NextResponse.json({
           success: true,
