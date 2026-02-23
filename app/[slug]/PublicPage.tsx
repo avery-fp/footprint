@@ -207,7 +207,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     const tileSize = item.size || 1
     const imgSizes = getImageSizes(tileSize)
     return (
-      <div className="aspect-square rounded-xl overflow-hidden">
+      <div className="aspect-square rounded-xl overflow-hidden" data-tile-id={item.id} data-tile-type={item.type}>
         {item.type === 'image' ? (
           isVideo ? (
             <VideoTile src={item.url} onWidescreen={noop} />

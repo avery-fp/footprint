@@ -41,10 +41,11 @@ export const localStorageAdapter: RolodexAdapter = {
 
 export const remoteAdapter: RolodexAdapter = {
   async load(): Promise<string[]> {
-    throw new Error('Remote adapter not implemented')
+    // Not yet implemented — fall back to empty
+    return []
   },
 
   async save(_slugs: string[]): Promise<void> {
-    throw new Error('Remote adapter not implemented')
+    // Not yet implemented — no-op
   },
 }
