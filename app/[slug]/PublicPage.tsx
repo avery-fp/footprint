@@ -315,7 +315,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   )
 
   return (
-    <div className="min-h-screen relative flex flex-col" style={{ background: theme.colors.background, color: theme.colors.text }}>
+    <div className="min-h-screen relative flex flex-col" style={{ background: theme.colors.background, color: theme.colors.text, '--fp-glass': theme.colors.glass, '--fp-text-muted': theme.colors.textMuted } as React.CSSProperties}>
       {/* Wallpaper layer */}
       {footprint.background_url && (
         <div className="fixed inset-0 z-0">
@@ -365,11 +365,17 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       </div>
 
       <div className="relative z-10 flex-1 flex flex-col">
-        {/* Masthead — name commands the space */}
+        {/* Masthead — name commands the space, adapts to length */}
         <RemoveBubble slug={footprint.slug}>
-          <header className="pt-16 md:pt-20 pb-5 md:pb-7 flex flex-col items-center">
+          <header className="pt-16 md:pt-20 pb-5 md:pb-7 flex flex-col items-center px-4">
             <h1
-              className="text-3xl md:text-5xl tracking-[0.18em] font-normal uppercase"
+              className={`uppercase ${
+                (footprint.display_name || '\u00e6').length <= 6
+                  ? 'text-4xl md:text-6xl tracking-[0.22em] font-normal'
+                  : (footprint.display_name || '\u00e6').length <= 12
+                  ? 'text-3xl md:text-5xl tracking-[0.14em] font-normal'
+                  : 'text-2xl md:text-4xl tracking-[0.06em] font-light'
+              }`}
               style={{
                 color: theme.colors.text,
                 opacity: 0.92,
@@ -462,7 +468,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
       {/* Copied toast */}
       {showToast && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 bg-white/[0.08] backdrop-blur-sm rounded-full px-5 py-2 text-white/60 text-sm materialize">
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 bg-white/[0.08] backdrop-blur-sm rounded-md px-5 py-2 text-white/60 text-sm materialize">
           copied.
         </div>
       )}

@@ -351,8 +351,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       : 'text-[13px] font-normal tracking-[-0.01em] leading-relaxed'
 
     return (
-      <div className="w-full h-full fp-tile bg-white/[0.05] flex items-center justify-center p-5" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-        <p className={`whitespace-pre-wrap text-white/85 text-center ${typo}`}>
+      <div className="w-full h-full fp-tile fp-surface flex items-center justify-center p-5" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+        <p className={`whitespace-pre-wrap text-center opacity-85 ${typo}`}>
           {text}
         </p>
       </div>
@@ -387,9 +387,9 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             quality={75}
             onLoad={() => setIsLoaded(true)}
           />
-          <div className="absolute bottom-2 left-2 text-2xl opacity-80">
-            {icon}
-          </div>
+          <span className="absolute bottom-2 left-2.5 text-[9px] font-mono tracking-wider text-white/40">
+            {content.type}
+          </span>
         </a>
       )
     }
@@ -398,54 +398,58 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         href={content.url}
         target="_blank"
         rel="noopener noreferrer"
-        className={`block fp-tile overflow-hidden ${aspectClass} transition-all flex items-center justify-center bg-white/[0.05]`}
+        className={`block fp-tile overflow-hidden ${aspectClass} fp-surface flex items-center justify-center`}
       >
-        <div className="text-4xl opacity-40">
-          {icon}
-        </div>
+        <span className="text-[10px] font-mono tracking-[0.15em] uppercase opacity-40">
+          {content.type}
+        </span>
       </a>
     )
   }
 
   // ════════════════════════════════════════
-  // DEFAULT LINK — glass card
+  // DEFAULT LINK — visual tile, not a list card
   // ════════════════════════════════════════
+  if (content.thumbnail_url) {
+    // WITH thumbnail — image fills tile, domain label overlay
+    return (
+      <a
+        href={content.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        ref={containerRef as any}
+        className={`block w-full ${aspectClass} fp-tile overflow-hidden relative`}
+      >
+        <Image
+          src={content.thumbnail_url}
+          alt={content.title || ''}
+          fill
+          sizes={tileSize >= 2 ? '(max-width: 768px) 100vw, 50vw' : '(max-width: 768px) 50vw, 25vw'}
+          className={`object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+          loading="lazy"
+          quality={75}
+          onLoad={() => setIsLoaded(true)}
+        />
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/40 to-transparent h-10" />
+        <span className="absolute bottom-2 left-2.5 text-[9px] font-mono tracking-wider text-white/50">
+          {hostname}
+        </span>
+      </a>
+    )
+  }
+
+  // WITHOUT thumbnail — typographic tile, domain IS the content
   return (
     <a
       href={content.url}
       target="_blank"
       rel="noopener noreferrer"
       ref={containerRef as any}
-      className="fp-tile overflow-hidden flex items-center gap-4 p-4 transition-all bg-white/[0.05]"
+      className={`block w-full ${aspectClass} fp-tile overflow-hidden fp-surface flex items-center justify-center p-4`}
     >
-      <div
-        className="w-12 h-12 rounded-lg flex items-center justify-center text-xl flex-shrink-0"
-        style={{ background: customBg || 'rgba(255,255,255,0.1)' }}
-      >
-        {content.thumbnail_url ? (
-          <Image
-            src={content.thumbnail_url}
-            alt=""
-            width={48}
-            height={48}
-            sizes="48px"
-            className="w-full h-full rounded-lg object-cover"
-            loading="lazy"
-            quality={75}
-          />
-        ) : (
-          icon
-        )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="font-medium truncate">
-          {content.title || hostname}
-        </p>
-        <p className="font-mono text-xs text-white/40 truncate">
-          {hostname}
-        </p>
-      </div>
-      <span className="text-white/15 text-sm flex-shrink-0">→</span>
+      <span className="text-sm font-mono tracking-wider opacity-60 text-center truncate max-w-full">
+        {hostname}
+      </span>
     </a>
   )
 }

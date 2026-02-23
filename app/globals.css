@@ -162,6 +162,11 @@ body::before {
   border-radius: 2px;
 }
 
+/* Theme-aware tile surface — adapts to any theme */
+.fp-surface {
+  background: var(--fp-glass, rgba(255, 255, 255, 0.05));
+}
+
 /* The grid block — one cohesive object floating in space */
 .fp-grid-block {
   border-radius: 6px;
