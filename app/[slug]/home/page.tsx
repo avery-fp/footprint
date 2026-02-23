@@ -30,6 +30,21 @@ type PageMode =
 // ═══════════════════════════════════════════
 // Grid class helpers — size × aspect → col-span, row-span, aspect-ratio
 // ═══════════════════════════════════════════
+
+// Smart default: when user hasn't explicitly set an aspect, pick one based on content type
+function resolveAspect(explicitAspect: string | undefined | null, type: string, url?: string): string {
+  if (explicitAspect && explicitAspect !== 'square') return explicitAspect
+  // If user explicitly chose square, respect it
+  if (explicitAspect === 'square') return 'square'
+  // No explicit choice — use content-type defaults
+  if (type === 'youtube' || type === 'vimeo') return 'wide'
+  if (type === 'video') return 'wide'
+  if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return 'wide'
+  if (type === 'image') return 'auto'
+  // embeds, thoughts, social — square works well
+  return 'square'
+}
+
 function getGridClass(size: number, aspect: string) {
   if (aspect === 'wide') {
     if (size >= 3) return 'col-span-2 row-span-1 md:col-span-4 md:row-span-2'
@@ -50,12 +65,13 @@ function getGridClass(size: number, aspect: string) {
 function getAspectClass(aspect: string) {
   if (aspect === 'wide') return 'aspect-video'
   if (aspect === 'tall') return 'aspect-[9/16]'
-  if (aspect === 'auto') return ''
+  // Edit page always needs a defined container height for drag-and-drop
+  if (aspect === 'auto') return 'aspect-[4/3]'
   return 'aspect-square'
 }
 
 function getObjectFit(aspect: string) {
-  if (aspect === 'auto') return 'object-contain'
+  if (aspect === 'auto') return 'object-cover'
   return 'object-cover'
 }
 
@@ -540,7 +556,7 @@ export default function EditPage() {
               position: tile.position,
               room_id: tile.room_id || null,
               size: tile.size || 1,
-              aspect: tile.aspect || 'square',
+              aspect: tile.aspect || null,
               caption: tile.caption || null,
             }
           })
@@ -686,7 +702,7 @@ export default function EditPage() {
             position: data.tile.position,
             room_id: data.tile.room_id || null,
             size: data.tile.size || 1,
-            aspect: data.tile.aspect || 'square',
+            aspect: data.tile.aspect || null,
           }],
           updated_at: Date.now(),
         } : null)
@@ -725,7 +741,7 @@ export default function EditPage() {
             position: data.tile.position,
             room_id: data.tile.room_id || null,
             size: data.tile.size || 1,
-            aspect: data.tile.aspect || 'square',
+            aspect: data.tile.aspect || null,
           }],
           updated_at: Date.now(),
         } : null)
@@ -1045,8 +1061,8 @@ export default function EditPage() {
     const source = tileSources[id]
     if (!source) return
 
-    const currentAspect = tile.aspect || 'square'
-    if (currentAspect === newAspect) return
+    const currentResolved = resolveAspect(tile.aspect, tile.type, tile.url)
+    if (currentResolved === newAspect) return
 
     // Optimistic update
     setDraft(prev => prev ? {
@@ -1223,7 +1239,7 @@ export default function EditPage() {
         embed_html: null,
         position: (draft?.content.length || 0) + i,
         room_id: activeRoomId || null,
-        aspect: 'square',
+        aspect: null,
         _temp: true,
         _progress: 0,
       }
@@ -1293,7 +1309,7 @@ export default function EditPage() {
               position: data.tile.position,
               room_id: data.tile.room_id || c.room_id || null,
               size: (c as any).size || 1,
-              aspect: (c as any).aspect || 'square',
+              aspect: (c as any).aspect || null,
               caption: (c as any).caption || null,
             } : c),
             updated_at: Date.now(),
@@ -1524,7 +1540,7 @@ export default function EditPage() {
                     }}
                     deleting={deletingIds.has(item.id)}
                     size={item.size || 1}
-                    aspect={item.aspect || 'square'}
+                    aspect={resolveAspect(item.aspect, item.type, item.url)}
                     onLongPressStart={(e: React.TouchEvent) => handleTouchStart(e, item.id)}
                     onLongPressMove={handleTouchMove}
                     onLongPressEnd={handleTouchEnd}
@@ -1652,29 +1668,34 @@ export default function EditPage() {
               </div>
 
               {/* Aspect ratio — segmented control */}
-              <div className="flex items-center justify-between py-3 border-t border-white/[0.06]">
-                <span className="text-sm text-white/50 font-mono">ratio</span>
-                <div className="flex gap-1 bg-white/[0.04] rounded-lg p-0.5">
-                  {([
-                    { value: 'square', label: '1:1' },
-                    { value: 'wide', label: '16:9' },
-                    { value: 'tall', label: '9:16' },
-                    { value: 'auto', label: 'auto' },
-                  ] as const).map(opt => (
-                    <button
-                      key={opt.value}
-                      onClick={() => setTileAspect(mode.tileId, opt.value)}
-                      className={`px-2.5 py-1.5 rounded-md text-xs font-mono transition-all ${
-                        (selectedTile.aspect || 'square') === opt.value
-                          ? 'bg-white/20 text-white shadow-sm'
-                          : 'text-white/40 hover:text-white/60'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {(() => {
+                const resolvedAspect = resolveAspect(selectedTile.aspect, selectedTile.type, selectedTile.url)
+                return (
+                  <div className="flex items-center justify-between py-3 border-t border-white/[0.06]">
+                    <span className="text-sm text-white/50 font-mono">ratio</span>
+                    <div className="flex gap-1 bg-white/[0.04] rounded-lg p-0.5">
+                      {([
+                        { value: 'square', label: '1:1' },
+                        { value: 'wide', label: '16:9' },
+                        { value: 'tall', label: '9:16' },
+                        { value: 'auto', label: 'auto' },
+                      ] as const).map(opt => (
+                        <button
+                          key={opt.value}
+                          onClick={() => setTileAspect(mode.tileId, opt.value)}
+                          className={`px-2.5 py-1.5 rounded-md text-xs font-mono transition-all ${
+                            resolvedAspect === opt.value
+                              ? 'bg-white/20 text-white shadow-sm'
+                              : 'text-white/40 hover:text-white/60'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
 
               {/* Room assign */}
               {rooms.length > 0 && (
