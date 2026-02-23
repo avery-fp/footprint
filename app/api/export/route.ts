@@ -4,23 +4,22 @@ import { getUserIdFromRequest } from '@/lib/auth'
 
 /**
  * GET /api/export
- * 
+ *
  * Exports all of a user's Footprint data as JSON.
- * 
+ *
  * This is important for:
  * - Data portability (users own their data)
  * - Backup purposes
  * - Migration to other platforms
  * - GDPR compliance
- * 
+ *
  * The export includes:
  * - User profile (email, serial number, created date)
  * - All footprints/rooms with settings
- * - All content items with metadata
+ * - All content items (images + links) with metadata
  * - Analytics summary (not raw view data for privacy)
- * 
+ *
  * Returns a JSON file that can be re-imported later.
- * Large exports could be converted to ZIP with separate files.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -50,30 +49,48 @@ export async function GET(request: NextRequest) {
       .eq('user_id', userId)
       .order('created_at', { ascending: true })
 
-    // Fetch all content for all footprints
-    const footprintIds = footprints?.map(f => f.id) || []
-    
-    let allContent: any[] = []
-    if (footprintIds.length > 0) {
-      const { data: content } = await supabase
-        .from('content')
-        .select('*')
-        .in('footprint_id', footprintIds)
-        .order('position', { ascending: true })
-      
-      allContent = content || []
+    // Fetch all content (images + links) for user's serial numbers
+    const serialNumbers = (footprints || [])
+      .map(f => f.serial_number)
+      .filter(Boolean)
+
+    let allImages: any[] = []
+    let allLinks: any[] = []
+    let allRooms: any[] = []
+
+    if (serialNumbers.length > 0) {
+      const [imageRes, linkRes, roomRes] = await Promise.all([
+        supabase
+          .from('library')
+          .select('*')
+          .in('serial_number', serialNumbers)
+          .order('position', { ascending: true }),
+        supabase
+          .from('links')
+          .select('*')
+          .in('serial_number', serialNumbers)
+          .order('position', { ascending: true }),
+        supabase
+          .from('rooms')
+          .select('*')
+          .in('serial_number', serialNumbers)
+          .order('position', { ascending: true }),
+      ])
+      allImages = imageRes.data || []
+      allLinks = linkRes.data || []
+      allRooms = roomRes.data || []
     }
 
     // Calculate analytics summary (not raw data for privacy)
-    let analyticsSummary = {
+    const analyticsSummary = {
       total_views: 0,
       footprint_views: {} as Record<string, number>,
     }
-    
+
     if (footprints) {
       for (const fp of footprints) {
         analyticsSummary.total_views += fp.view_count || 0
-        analyticsSummary.footprint_views[fp.slug] = fp.view_count || 0
+        analyticsSummary.footprint_views[fp.username] = fp.view_count || 0
       }
     }
 
@@ -96,38 +113,55 @@ export async function GET(request: NextRequest) {
       // All footprints with their content
       footprints: (footprints || []).map(fp => ({
         // Footprint metadata
-        slug: fp.slug,
+        username: fp.username,
         name: fp.name,
         icon: fp.icon,
         is_primary: fp.is_primary,
-        is_public: fp.is_public,
-        
+        published: fp.published,
+
         // Profile
         display_name: fp.display_name,
         handle: fp.handle,
         bio: fp.bio,
         avatar_url: fp.avatar_url,
-        
+
         // Customization
-        theme: fp.theme,
-        
+        dimension: fp.dimension,
+
         // Stats
         view_count: fp.view_count,
         created_at: fp.created_at,
         updated_at: fp.updated_at,
-        
-        // Content items for this footprint
-        content: allContent
-          .filter(c => c.footprint_id === fp.id)
-          .map(c => ({
-            url: c.url,
-            type: c.type,
-            title: c.title,
-            description: c.description,
-            thumbnail_url: c.thumbnail_url,
-            external_id: c.external_id,
-            position: c.position,
-            created_at: c.created_at,
+
+        // Rooms
+        rooms: allRooms
+          .filter(r => r.serial_number === fp.serial_number)
+          .map(r => ({
+            name: r.name,
+            position: r.position,
+          })),
+
+        // Images
+        images: allImages
+          .filter(img => img.serial_number === fp.serial_number)
+          .map(img => ({
+            image_url: img.image_url,
+            caption: img.caption,
+            position: img.position,
+            size: img.size,
+            created_at: img.created_at,
+          })),
+
+        // Links
+        links: allLinks
+          .filter(link => link.serial_number === fp.serial_number)
+          .map(link => ({
+            url: link.url,
+            platform: link.platform,
+            title: link.title,
+            position: link.position,
+            size: link.size,
+            created_at: link.created_at,
           })),
       })),
 
@@ -137,7 +171,8 @@ export async function GET(request: NextRequest) {
       // Summary stats
       summary: {
         total_footprints: footprints?.length || 0,
-        total_content_items: allContent.length,
+        total_images: allImages.length,
+        total_links: allLinks.length,
         total_views: analyticsSummary.total_views,
       },
     }
