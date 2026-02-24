@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import Image from 'next/image'
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
 import { DndContext, closestCenter, MouseSensor, TouchSensor, useSensor, useSensors, DragOverlay, DragStartEvent, DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, rectSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
 import ContentCard from '@/components/ContentCard'
 import VideoTile from '@/components/VideoTile'
 import WeatherEffect from '@/components/WeatherEffect'
@@ -29,20 +29,42 @@ interface PublicPageProps {
   isDraft?: boolean
 }
 
-// Sortable wrapper for public page tiles
+// Spring physics config — weighty but responsive, like iOS home screen
+const TILE_SPRING = {
+  type: 'spring' as const,
+  stiffness: 350,
+  damping: 28,
+  mass: 0.8,
+}
+
+// Sortable wrapper — dnd-kit handles drag logic, framer-motion handles visual movement
 function SortableTile({ id, children, className, style }: { id: string; children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
-  const mergedStyle: React.CSSProperties = {
-    ...style,
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.35 : 1,
-    cursor: 'grab',
-  }
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({ id })
+
   return (
-    <div ref={setNodeRef} style={mergedStyle} className={className} {...attributes} {...listeners}>
+    <motion.div
+      ref={setNodeRef}
+      layout
+      layoutId={`tile-${id}`}
+      transition={TILE_SPRING}
+      style={{
+        ...style,
+        // Only apply dnd-kit transform during active drag (immediate feel)
+        ...(isDragging && transform ? {
+          transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+          zIndex: 50,
+          scale: 1.05,
+          boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
+        } : {}),
+        opacity: isDragging ? 0.35 : 1,
+        cursor: 'grab',
+      }}
+      className={className}
+      {...attributes}
+      {...listeners}
+    >
       {children}
-    </div>
+    </motion.div>
   )
 }
 
@@ -404,9 +426,18 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           )
         }
         return (
-          <div key={item.id} className={tileClass} style={{ ...tileStyle, animationDelay: `${idx * 40}ms` }}>
+          <motion.div
+            key={item.id}
+            layout
+            layoutId={`tile-${item.id}`}
+            transition={TILE_SPRING}
+            initial={{ opacity: 0, scale: 0.97 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className={tileClass}
+            style={tileStyle}
+          >
             {tileContent}
-          </div>
+          </motion.div>
         )
       })}
     </div>
@@ -534,23 +565,25 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             }}
           >
             {interactive ? (
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-                <SortableContext items={allTileIds} strategy={rectSortingStrategy}>
-                  {gridElement}
-                </SortableContext>
-                <DragOverlay>
-                  {activeDragItem ? (
-                    <div
-                      className="aspect-square overflow-hidden tile-container"
-                      style={{ transform: 'rotate(1deg)', boxShadow: '0 12px 40px rgba(0,0,0,0.5)', borderRadius: '4px', maxWidth: '200px' }}
-                    >
-                      {renderTileContent(activeDragItem, 0, 1)}
-                    </div>
-                  ) : null}
-                </DragOverlay>
-              </DndContext>
+              <LayoutGroup>
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+                  <SortableContext items={allTileIds} strategy={rectSortingStrategy}>
+                    {gridElement}
+                  </SortableContext>
+                  <DragOverlay>
+                    {activeDragItem ? (
+                      <div
+                        className="aspect-square overflow-hidden tile-container"
+                        style={{ transform: 'rotate(1deg)', boxShadow: '0 12px 40px rgba(0,0,0,0.5)', borderRadius: '4px', maxWidth: '200px' }}
+                      >
+                        {renderTileContent(activeDragItem, 0, 1)}
+                      </div>
+                    ) : null}
+                  </DragOverlay>
+                </DndContext>
+              </LayoutGroup>
             ) : (
-              gridElement
+              <LayoutGroup>{gridElement}</LayoutGroup>
             )}
           </div>
         </div>
