@@ -20,6 +20,7 @@ const publicRoutes = [
   '/auth/login',
   '/auth/callback',
   '/signup',
+  '/signin',
   '/checkout',
   '/success',
   '/deed',
@@ -63,9 +64,9 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // No session → redirect to login
+  // No session → redirect to signin
   const loginUrl = request.nextUrl.clone()
-  loginUrl.pathname = '/auth/login'
+  loginUrl.pathname = '/signin'
   return NextResponse.redirect(loginUrl)
 }
 

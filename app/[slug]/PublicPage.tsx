@@ -467,8 +467,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </>
       )}
 
-      {/* Floating CTA bar — non-authenticated visitors only */}
-      {!isLoggedIn && (
+      {/* Floating CTA bar — shown on published rooms, self-hides for published owners */}
+      {!isDraft && (
         <FloatingCtaBar username={footprint.username} serial={serial} />
       )}
 

@@ -133,6 +133,7 @@ export async function POST(request: NextRequest) {
             username: cleanUsername,
             serial_number: serialNumber,
             published: true,
+            published_at: new Date().toISOString(),
           })
           .eq('id', footprint.id)
 
@@ -224,8 +225,8 @@ export async function POST(request: NextRequest) {
               quantity: 1,
             },
           ],
-          success_url: `${baseUrl}/publish?session_id={CHECKOUT_SESSION_ID}&username=${encodeURIComponent(cleanUsername)}`,
-          cancel_url: `${baseUrl}/publish`,
+          success_url: `${baseUrl}/${encodeURIComponent(cleanUsername)}/home?session_id={CHECKOUT_SESSION_ID}&username=${encodeURIComponent(cleanUsername)}`,
+          cancel_url: `${baseUrl}/${encodeURIComponent(cleanUsername)}/home`,
           customer_creation: 'always',
           metadata: {
             product: 'footprint_publish',
@@ -307,6 +308,7 @@ export async function POST(request: NextRequest) {
             username: cleanUsername,
             serial_number: serialNumber,
             published: true,
+            published_at: new Date().toISOString(),
           })
           .eq('id', footprint.id)
 
