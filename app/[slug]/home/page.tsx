@@ -9,6 +9,7 @@ import { loadDraft, saveDraft, clearDraft, DraftFootprint, DraftContent } from '
 import ContentCard from '@/components/ContentCard'
 import { audioManager } from '@/lib/audio-manager'
 import { getTheme } from '@/lib/themes'
+import { snapToPreset } from '@/lib/aspect-ratios'
 import Image from 'next/image'
 
 interface TileContent extends DraftContent {
@@ -1303,6 +1304,21 @@ export default function EditPage() {
     })
   }
 
+  // Detect image dimensions from a File → snap to aspect preset
+  function detectImageAspect(file: File): Promise<string> {
+    return new Promise((resolve) => {
+      if (!file.type.startsWith('image/')) { resolve('square'); return }
+      const img = document.createElement('img')
+      img.onload = () => {
+        const preset = snapToPreset(img.naturalWidth, img.naturalHeight)
+        URL.revokeObjectURL(img.src)
+        resolve(preset)
+      }
+      img.onerror = () => { resolve('square') }
+      img.src = URL.createObjectURL(file)
+    })
+  }
+
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || [])
     if (files.length === 0 || !draft || !serialNumber) return
@@ -1373,6 +1389,9 @@ export default function EditPage() {
       const tempId = tempIds[idx]
 
       try {
+        // Detect aspect ratio for images before resize (preserves original ratio)
+        const detectedAspect = isVideo ? 'wide' : await detectImageAspect(file)
+
         const uploadFile = isVideo ? file : await resizeImage(file)
         const ext = uploadFile.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg')
         const filename = `${serialNumber}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
@@ -1387,7 +1406,7 @@ export default function EditPage() {
         const res = await fetch('/api/upload/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ slug, url: publicUrl, room_id: activeRoomId }),
+          body: JSON.stringify({ slug, url: publicUrl, room_id: activeRoomId, aspect: detectedAspect }),
         })
         if (!res.ok) throw new Error(`Register failed: ${res.status}`)
         const data = await res.json()
@@ -1414,7 +1433,7 @@ export default function EditPage() {
               position: data.tile.position,
               room_id: data.tile.room_id || c.room_id || null,
               size: (c as any).size || 1,
-              aspect: (c as any).aspect || null,
+              aspect: data.tile.aspect || detectedAspect || (c as any).aspect || null,
               caption: (c as any).caption || null,
             } : c),
             updated_at: Date.now(),

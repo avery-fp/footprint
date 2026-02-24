@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { slug, url, room_id } = await request.json()
+    const { slug, url, room_id, aspect } = await request.json()
 
     if (!slug || !url) {
       return NextResponse.json({ error: 'slug and url required' }, { status: 400 })
@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
         image_url: url,
         position: nextPosition,
         room_id: room_id || null,
+        ...(aspect ? { aspect } : {}),
       })
       .select()
       .single()
@@ -77,6 +78,7 @@ export async function POST(request: NextRequest) {
         position: tile.position,
         source: 'library',
         room_id: tile.room_id || null,
+        aspect: tile.aspect || aspect || null,
       }
     })
   } catch (error) {

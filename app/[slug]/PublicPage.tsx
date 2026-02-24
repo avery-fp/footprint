@@ -77,8 +77,10 @@ const DEFAULT_OVERLAY = 'rgba(0,0,0,0.35)'
 // Pattern: hero(4) → pair(2+2) → quad(1×4) → …
 // ═══════════════════════════════════════════
 
-function getEditorialSize(index: number, total: number, userSize: number): number {
+function getEditorialSize(index: number, total: number, userSize: number, aspect?: string | null): number {
   if (userSize >= 2) return userSize       // respect explicit user sizing
+  // Aspect-aware sizing: landscape/wide tiles naturally take 2 cols
+  if (aspect === 'landscape' || aspect === 'wide') return 2
   if (total <= 2) return 4                 // few tiles → hero everything
   if (index === 0) return 4                // first tile is always hero
   if (total >= 10 && index === 9) return 4 // second hero — the "turn"
@@ -88,17 +90,27 @@ function getEditorialSize(index: number, total: number, userSize: number): numbe
   return 1
 }
 
-function getEditorialColSpan(size: number): string {
+function getEditorialColSpan(size: number, aspect?: string | null): string {
   if (size >= 4) return 'col-span-2 md:col-span-4'
   if (size >= 2) return 'col-span-1 md:col-span-2'   // side-by-side on mobile, pair on desktop
+  // Aspect-based row spanning for portrait/tall presets
+  if (aspect === 'portrait' || aspect === 'tall') return 'row-span-2'
   return ''  // 1-col on both
 }
 
-// Responsive aspect-ratio: dense squares on mobile, editorial variety on desktop
-function getEditorialAspectClass(size: number, type: string, url?: string): string {
+// Responsive aspect-ratio: uses detected preset when available
+function getEditorialAspectClass(size: number, type: string, aspect?: string | null): string {
   const isEmbed = type === 'youtube' || type === 'vimeo'
-  // Embeds keep 16:9 since the player needs it; everything else follows editorial rhythm
+  // Embeds keep 16:9 since the player needs it
   if (isEmbed) return 'aspect-video'
+
+  // If we have a detected aspect preset, use it for accurate representation
+  if (aspect === 'portrait') return 'aspect-[3/4]'
+  if (aspect === 'tall') return 'aspect-[1/2]'
+  if (aspect === 'landscape') return 'aspect-[3/2]'
+  if (aspect === 'wide') return 'aspect-[2/1]'
+
+  // Fallback editorial rhythm
   if (size >= 4) return 'aspect-[4/3] md:aspect-[3/2]'    // hero: classic photo ratio
   if (size >= 2) return 'aspect-square md:aspect-[5/4]'   // medium: hint of portrait on desktop
   return 'aspect-square'                                    // small: square always
@@ -366,14 +378,15 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     >
       {content.map((item: any, idx: number) => {
         const userSize = item.size || 1
+        const tileAspect = item.aspect || null
         const effectiveSize = layoutMode === 'grid'
           ? 1
-          : getEditorialSize(idx, content.length, userSize)
+          : getEditorialSize(idx, content.length, userSize, tileAspect)
 
-        const spanClass = layoutMode === 'grid' ? '' : getEditorialColSpan(effectiveSize)
+        const spanClass = layoutMode === 'grid' ? '' : getEditorialColSpan(effectiveSize, tileAspect)
         const aspectClass = layoutMode === 'grid'
           ? 'aspect-square'
-          : getEditorialAspectClass(effectiveSize, item.type, item.url)
+          : getEditorialAspectClass(effectiveSize, item.type, tileAspect)
 
         const tileClass = `${spanClass} ${aspectClass} overflow-hidden tile-enter tile-container`.trim()
         const tileStyle: React.CSSProperties = {
