@@ -640,7 +640,9 @@ export default function EditPage() {
           setIsPublished(data.footprint.published !== false)
           setIsInteractive(data.footprint.interactive !== false)
           const gm = data.footprint.grid_mode
-          if (gm === 'editorial' || gm === 'breathe' || gm === 'grid') setLayoutMode(gm)
+          const resolvedGridMode: 'editorial' | 'breathe' | 'grid' =
+            (gm === 'editorial' || gm === 'breathe' || gm === 'grid') ? gm : 'editorial'
+          setLayoutMode(resolvedGridMode)
 
           const sources: Record<string, 'library' | 'links'> = {}
           const content = (data.tiles || []).map((tile: any) => {
@@ -668,7 +670,7 @@ export default function EditPage() {
             handle: data.footprint.handle || '',
             bio: data.footprint.bio || '',
             theme: data.footprint.dimension || 'midnight',
-            grid_mode: 'edit',
+            grid_mode: resolvedGridMode,
             avatar_url: data.footprint.avatar_url || null,
             content,
             updated_at: Date.now(),
@@ -694,7 +696,7 @@ export default function EditPage() {
             handle: '',
             bio: '',
             theme: 'midnight',
-            grid_mode: 'edit',
+            grid_mode: 'editorial',
             avatar_url: null,
             content: [],
             updated_at: Date.now(),
@@ -770,13 +772,17 @@ export default function EditPage() {
   // Switch layout mode
   const switchLayoutMode = useCallback((mode: 'editorial' | 'breathe' | 'grid') => {
     setLayoutMode(mode)
+    // Update draft so autosave doesn't overwrite with stale value
+    if (draft) {
+      setDraft({ ...draft, grid_mode: mode, updated_at: Date.now() })
+    }
     const op = fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ grid_mode: mode }),
     }).catch(e => console.error('Failed to switch layout mode:', e))
     trackOp(op)
-  }, [slug, trackOp])
+  }, [slug, trackOp, draft])
 
   useEffect(() => {
     if (pillMode === 'url') {

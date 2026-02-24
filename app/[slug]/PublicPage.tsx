@@ -83,8 +83,8 @@ interface LayoutRow {
   splitRatio?: [number, number]
 }
 
-// Row type sequence - never two identical consecutively
-const ROW_SEQUENCE: RowType[] = ['hero', 'pair', 'breath', 'trio', 'pair', 'hero']
+// Row type sequence — hero is rare, pairs and trios dominate
+const ROW_SEQUENCE: RowType[] = ['hero', 'pair', 'trio', 'pair', 'breath', 'pair']
 
 function buildEditorialRows(tiles: any[]): LayoutRow[] {
   if (tiles.length === 0) return []
@@ -324,10 +324,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
   // Image sizes based on row context
   const getImageSizes = (rowType: RowType, splitPercent?: number) => {
-    if (rowType === 'hero' || rowType === 'breath') return '(max-width: 768px) 100vw, 1100px'
-    if (splitPercent) return `(max-width: 768px) 100vw, ${Math.round(1100 * splitPercent / 100)}px`
-    if (rowType === 'trio') return '(max-width: 768px) 50vw, 366px'
-    return '(max-width: 768px) 50vw, 550px'
+    if (rowType === 'hero' || rowType === 'breath') return '(max-width: 768px) 100vw, 920px'
+    if (splitPercent) return `(max-width: 768px) 100vw, ${Math.round(920 * splitPercent / 100)}px`
+    if (rowType === 'trio') return '(max-width: 768px) 50vw, 300px'
+    return '(max-width: 768px) 50vw, 460px'
   }
 
   // Layout mode config
@@ -413,13 +413,15 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       )
     }
 
-    // Editorial / Breathe modes - preserve natural aspect
+    // Editorial / Breathe modes - constrain all images to prevent giant tiles
     const maxH = isHero
-      ? (isMobile ? '70vh' : '80vh')
-      : undefined
+      ? (isMobile ? '65vh' : '70vh')
+      : rowType === 'breath'
+      ? (isMobile ? '55vh' : '60vh')
+      : (isMobile ? '50vh' : '55vh')
     const videoMaxH = isHero
-      ? (isMobile ? '80vh' : '90vh')
-      : undefined
+      ? (isMobile ? '70vh' : '80vh')
+      : (isMobile ? '50vh' : '55vh')
 
     if (isVideo) {
       return (
@@ -443,7 +445,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           data-tile-type={item.type}
         >
           <Image src={item.url} alt={item.title || ''}
-            width={isHero ? 1200 : 800} height={isHero ? 1200 : 800}
+            width={isHero ? 920 : 600} height={isHero ? 920 : 600}
             sizes={getImageSizes(rowType)}
             className="w-full h-auto object-cover transition-opacity duration-300"
             style={{ maxHeight: maxH }}
@@ -767,7 +769,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         <div
           className="fp-grid-container mx-auto w-full"
           style={{
-            maxWidth: '1100px',
+            maxWidth: '920px',
             paddingLeft: isMobile ? `${layoutConfig.containerPadding || 3}px` : `${Math.max(layoutConfig.containerPadding, 40)}px`,
             paddingRight: isMobile ? `${layoutConfig.containerPadding || 3}px` : `${Math.max(layoutConfig.containerPadding, 40)}px`,
           }}
