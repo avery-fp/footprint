@@ -92,43 +92,47 @@ const ROOM_OVERLAYS = [
 const DEFAULT_OVERLAY = 'rgba(0,0,0,0.35)'
 
 // ═══════════════════════════════════════════
-// EDITORIAL INTELLIGENCE
-// Auto-sizes tiles within a CSS Grid for visual
-// rhythm. Each group sums to exactly 4 columns
-// so there's no dead space or reordering.
-// Pattern: hero(4) → pair(2+2) → quad(1×4) → …
+// GRID HELPERS — mirrors the editor exactly.
+// Each tile's own size × aspect drives layout.
 // ═══════════════════════════════════════════
 
-function getEditorialSize(index: number, total: number, userSize: number): number {
-  if (userSize >= 2) return userSize       // respect explicit user sizing
-  if (total <= 2) return 4                 // few tiles → hero everything
-  if (index === 0) return 4                // first tile is always hero
-  if (total >= 10 && index === 9) return 4 // second hero — the "turn"
-  // After each hero: [2,2, 1,1,1,1] — pair then quad
-  const pos = index > 9 ? (index - 10) % 6 : (index - 1) % 6
-  if (pos < 2) return 2
-  return 1
+function resolveAspect(explicitAspect: string | undefined | null, type: string, url?: string): string {
+  if (explicitAspect && explicitAspect !== 'square') return explicitAspect
+  if (explicitAspect === 'square') return 'square'
+  if (type === 'youtube' || type === 'vimeo') return 'wide'
+  if (type === 'video') return 'auto'
+  if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return 'auto'
+  if (type === 'image') return 'auto'
+  return 'square'
 }
 
-function getEditorialColSpan(size: number): string {
-  if (size >= 4) return 'col-span-2 md:col-span-4'
-  if (size >= 2) return 'col-span-1 md:col-span-2'
+function getGridClass(size: number, aspect: string) {
+  if (aspect === 'wide') {
+    if (size >= 3) return 'col-span-2 row-span-1 md:col-span-4 md:row-span-2'
+    if (size >= 2) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-1'
+    return 'col-span-2 row-span-1'
+  }
+  if (aspect === 'tall') {
+    if (size >= 3) return 'col-span-2 row-span-3 md:col-span-2 md:row-span-4'
+    if (size >= 2) return 'col-span-1 row-span-3 md:col-span-2 md:row-span-3'
+    return 'col-span-1 row-span-2'
+  }
+  if (size >= 3) return 'col-span-2 row-span-2 md:col-span-3 md:row-span-3'
+  if (size >= 2) return 'col-span-2 row-span-2'
   return ''
 }
 
-// Aspect-ratio per editorial size — uniform within each row so heights match
-function getEditorialAspectClass(size: number, type: string): string {
-  const isEmbed = type === 'youtube' || type === 'vimeo'
-  if (isEmbed) return 'aspect-video'
-  if (size >= 4) return 'aspect-[4/3] md:aspect-[3/2]'    // hero
-  if (size >= 2) return 'aspect-square md:aspect-[5/4]'   // pair
-  return 'aspect-square'                                    // quad
+function getAspectClass(aspect: string) {
+  if (aspect === 'wide') return 'aspect-video'
+  if (aspect === 'tall') return 'aspect-[9/16]'
+  if (aspect === 'auto') return ''
+  return 'aspect-square'
 }
 
-function getEditorialImageSizes(size: number): string {
-  if (size >= 4) return '(max-width: 768px) 100vw, 880px'
-  if (size >= 2) return '(max-width: 768px) 50vw, 440px'   // half-width on mobile
-  return '(max-width: 768px) 50vw, 220px'
+function getImageSizes(size: number): string {
+  if (size >= 3) return '(max-width: 768px) 100vw, 880px'
+  if (size >= 2) return '(max-width: 768px) 100vw, 50vw'
+  return '(max-width: 768px) 50vw, 25vw'
 }
 
 export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl, isDraft }: PublicPageProps) {
@@ -253,47 +257,32 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     return () => clearTimeout(t)
   }, [showToast])
 
-  // Layout mode config
+  // Layout mode config — styling only, grid structure is always the same
   const layoutConfig = useMemo(() => {
     switch (layoutMode) {
       case 'breathe':
         return {
           gap: 8,
           tileRadius: 8,
-          containerPx: 16,
           blockRadius: 0,
           blockShadow: 'none',
           blockOverflow: 'visible' as const,
           tileShadow: '0 2px 12px rgba(0,0,0,0.15)',
-          gridCols: 'grid-cols-2 md:grid-cols-4',
         }
-      case 'grid':
+      default:
         return {
           gap: 2,
           tileRadius: 0,
-          containerPx: 0,
           blockRadius: 6,
           blockShadow: '0 8px 60px rgba(0,0,0,0.35), 0 2px 12px rgba(0,0,0,0.2)',
           blockOverflow: 'hidden' as const,
           tileShadow: 'none',
-          gridCols: 'grid-cols-2 md:grid-cols-3',
-        }
-      default: // editorial
-        return {
-          gap: 2,
-          tileRadius: 0,
-          containerPx: 0,
-          blockRadius: 6,
-          blockShadow: '0 8px 60px rgba(0,0,0,0.35), 0 2px 12px rgba(0,0,0,0.2)',
-          blockOverflow: 'hidden' as const,
-          tileShadow: 'none',
-          gridCols: 'grid-cols-2 md:grid-cols-4',
         }
     }
   }, [layoutMode])
 
-  // Tile renderer — fills its aspect-ratio container
-  const renderTileContent = (item: any, index: number, effectiveSize: number) => {
+  // Tile renderer — mirrors editor exactly, fills its grid cell
+  const renderTileContent = (item: any, index: number, size: number, aspect: string) => {
     const isVideo = item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
 
     // Thought tiles — glassmorphic annotation
@@ -328,15 +317,15 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     if (isVideo) {
       return (
         <div className="w-full h-full" data-tile-id={item.id} data-tile-type={item.type}>
-          <VideoTile src={item.url} onWidescreen={noop} aspect={effectiveSize >= 4 ? 'wide' : 'square'} isPublicHero={effectiveSize >= 4} />
+          <VideoTile src={item.url} onWidescreen={noop} aspect={aspect} isPublicHero={size >= 3} />
         </div>
       )
     }
 
-    // Images — object-cover fills the aspect-ratio container
+    // Images — object-cover fills the grid cell
     if (item.type === 'image') {
-      const w = effectiveSize >= 4 ? 880 : effectiveSize >= 2 ? 440 : 220
-      const h = effectiveSize >= 4 ? 495 : effectiveSize >= 2 ? 330 : 220
+      const w = size >= 3 ? 880 : size >= 2 ? 440 : 220
+      const h = size >= 3 ? 495 : size >= 2 ? 330 : 220
       return (
         <div className="w-full h-full overflow-hidden" data-tile-id={item.id} data-tile-type={item.type}>
           <Image
@@ -344,7 +333,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             alt={item.title || ''}
             width={w}
             height={h}
-            sizes={getEditorialImageSizes(effectiveSize)}
+            sizes={getImageSizes(size)}
             className="w-full h-full object-cover"
             loading={index < 4 ? 'eager' : 'lazy'}
             priority={index < 2}
@@ -359,12 +348,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       )
     }
 
-    // Embeds, links, etc.
-    const isEmbed = item.type === 'youtube' || item.type === 'vimeo' || item.type === 'soundcloud'
-    const cardAspect = isEmbed ? 'wide' : effectiveSize >= 4 ? 'wide' : 'square'
+    // Embeds, links, etc. — pass resolved aspect so ContentCard matches
     return (
       <div className="w-full h-full" data-tile-id={item.id} data-tile-type={item.type}>
-        <ContentCard content={item} isMobile={isMobile} tileSize={effectiveSize} aspect={cardAspect} isPublicView />
+        <ContentCard content={item} isMobile={isMobile} tileSize={size} aspect={aspect} isPublicView />
       </div>
     )
   }
@@ -375,10 +362,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // Tile IDs for DndContext
   const allTileIds = useMemo(() => content.map((item: any) => item.id), [content])
 
-  // The grid — one CSS Grid, one cohesive block
+  // The grid — same as editor: size × aspect drives col/row spanning
   const gridElement = (
     <div
-      className={`grid ${layoutConfig.gridCols}`}
+      className="grid grid-cols-2 md:grid-cols-4"
       style={{
         gap: `${layoutConfig.gap}px`,
         gridAutoRows: 'auto',
@@ -388,23 +375,18 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       }}
     >
       {content.map((item: any, idx: number) => {
-        const userSize = item.size || 1
-        const effectiveSize = layoutMode === 'grid'
-          ? 1
-          : getEditorialSize(idx, content.length, userSize)
+        const size = item.size || 1
+        const aspect = resolveAspect(item.aspect, item.type, item.url)
+        const gridClass = getGridClass(size, aspect)
+        const aspectClass = getAspectClass(aspect)
 
-        const spanClass = layoutMode === 'grid' ? '' : getEditorialColSpan(effectiveSize)
-        const aspectClass = layoutMode === 'grid'
-          ? 'aspect-square'
-          : getEditorialAspectClass(effectiveSize, item.type)
-
-        const tileClass = `${spanClass} ${aspectClass} overflow-hidden tile-enter tile-container`.trim()
+        const tileClass = `${gridClass} ${aspectClass} overflow-hidden tile-enter tile-container`.trim()
         const tileStyle: React.CSSProperties = {
           borderRadius: `${layoutConfig.tileRadius}px`,
           boxShadow: layoutConfig.tileShadow,
         }
 
-        const tileContent = renderTileContent(item, idx, effectiveSize)
+        const tileContent = renderTileContent(item, idx, size, aspect)
 
         if (interactive) {
           return (
