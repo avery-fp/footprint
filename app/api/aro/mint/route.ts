@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
 
     if (wallpaper_url) {
       try {
-        const wpResponse = await fetch(wallpaper_url)
+        const wpResponse = await fetch(wallpaper_url, { signal: AbortSignal.timeout(30000) })
         if (wpResponse.ok) {
           const wpContentType = wpResponse.headers.get('content-type') || 'image/jpeg'
           const wpBuffer = Buffer.from(await wpResponse.arrayBuffer())
@@ -197,7 +197,7 @@ export async function POST(request: NextRequest) {
     const imageResults = await Promise.allSettled(
       image_urls.map(async (imageUrl: string, index: number) => {
         try {
-          const response = await fetch(imageUrl)
+          const response = await fetch(imageUrl, { signal: AbortSignal.timeout(30000) })
           if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
           const contentType = response.headers.get('content-type') || 'image/jpeg'

@@ -28,10 +28,19 @@ export async function GET(request: NextRequest) {
   const { data: bySlug } = await supabase
     .from('footprints')
     .select('display_name, user_id')
-    .or(`slug.eq.${slug},username.eq.${slug}`)
+    .eq('slug', slug)
     .single()
 
-  if (bySlug) fp = bySlug
+  if (bySlug) {
+    fp = bySlug
+  } else {
+    const { data: byUsername } = await supabase
+      .from('footprints')
+      .select('display_name, user_id')
+      .eq('username', slug)
+      .single()
+    if (byUsername) fp = byUsername
+  }
 
   let serial = 0
   if (fp) {
@@ -43,8 +52,15 @@ export async function GET(request: NextRequest) {
     serial = user?.serial_number || 0
   }
 
-  const name = fp?.display_name || slug
-  const link = `${baseUrl}/${slug}?ref=FP-${serial}`
+  const rawName = fp?.display_name || slug
+  // Escape user-controlled data to prevent XSS
+  const name = rawName
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+  const link = `${baseUrl}/${encodeURI(slug)}?ref=FP-${serial}`
 
   const colors = style === 'light'
     ? { bg: '#FFFFFF', text: '#111111', border: '#E5E5E5', muted: '#888888' }

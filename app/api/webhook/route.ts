@@ -77,6 +77,26 @@ async function handleCheckoutComplete(session: any) {
     return
   }
 
+  // Re-check for user one more time (race: concurrent webhook retries)
+  const { data: raceCheckUser } = await supabase
+    .from('users')
+    .select('id, serial_number')
+    .eq('email', email)
+    .single()
+
+  if (raceCheckUser) {
+    await supabase.from('payments').insert({
+      user_id: raceCheckUser.id,
+      stripe_session_id: session.id,
+      stripe_payment_intent: session.payment_intent,
+      amount: session.amount_total,
+      currency: session.currency,
+      status: 'completed',
+    }).onConflict('stripe_session_id').ignore()
+    console.log(`⤴ Race-condition resolved: user already exists: ${email}`)
+    return
+  }
+
   const { data: serialData, error: serialError } = await supabase.rpc('claim_next_serial')
   if (serialError || !serialData) throw new Error('Failed to claim serial number')
 
