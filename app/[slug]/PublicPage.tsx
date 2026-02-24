@@ -518,6 +518,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               borderRadius: `${layoutConfig.blockRadius}px`,
               overflow: layoutConfig.blockOverflow,
               boxShadow: layoutConfig.blockShadow,
+              background: 'rgba(0,0,0,0.85)',
             }}
           >
             {interactive ? (
