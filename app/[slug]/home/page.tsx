@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import { motion, LayoutGroup } from 'framer-motion'
 import { DndContext, closestCenter, KeyboardSensor, MouseSensor, TouchSensor, useSensor, useSensors, DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import { SortableContext, sortableKeyboardCoordinates, useSortable, rectSortingStrategy } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
 import { loadDraft, saveDraft, clearDraft, DraftFootprint, DraftContent } from '@/lib/draft-store'
 import ContentCard from '@/components/ContentCard'
 import { audioManager } from '@/lib/audio-manager'
 import { getTheme } from '@/lib/themes'
+import { snapToPreset } from '@/lib/aspect-ratios'
 import Image from 'next/image'
 
 interface TileContent extends DraftContent {
@@ -69,8 +70,8 @@ function getAspectClass(aspect: string) {
   return 'aspect-square'
 }
 
-function getObjectFit(aspect: string) {
-  if (aspect === 'auto') return 'object-contain'
+function getObjectFit(_aspect: string) {
+  // Always cover — no letterboxing, no pillarboxing, no black bars
   return 'object-cover'
 }
 
@@ -107,26 +108,19 @@ function SortableTile({
     listeners,
     setNodeRef,
     transform,
-    transition,
     isDragging,
-  } = useSortable({
-    id,
-    transition: {
-      duration: 200,
-      easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
-    },
-  })
+  } = useSortable({ id })
 
   const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition: isDragging
-      ? transition
-      : `${transition || ''}, opacity 200ms ease-out, box-shadow 200ms ease-out`.replace(/^, /, ''),
+    // During drag, apply dnd-kit transform directly for immediate feedback
+    ...(isDragging && transform ? {
+      transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+      zIndex: 50,
+      scale: '1.05',
+      boxShadow: '0 12px 32px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.3)',
+      willChange: 'transform',
+    } : {}),
     opacity: isDragging ? 1 : deleting ? 0.5 : anyDragging ? 0.9 : 1,
-    scale: isDragging ? '1.05' : undefined,
-    boxShadow: isDragging ? '0 12px 32px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.3)' : undefined,
-    zIndex: isDragging ? 50 : undefined,
-    willChange: isDragging ? 'transform' : undefined,
   }
 
   const isVideo = content.type === 'image' && content.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
@@ -246,8 +240,11 @@ function SortableTile({
   }, [setNodeRef])
 
   return (
-    <div
+    <motion.div
       ref={composedRef}
+      layout
+      layoutId={`editor-tile-${id}`}
+      transition={{ type: 'spring', stiffness: 350, damping: 28, mass: 0.8 }}
       style={style}
       className={sizeClass}
       data-tile
@@ -328,7 +325,7 @@ function SortableTile({
           </div>
         )}
       </div>
-    </div>
+    </motion.div>
   )
 }
 
@@ -1303,6 +1300,21 @@ export default function EditPage() {
     })
   }
 
+  // Detect image dimensions from a File → snap to aspect preset
+  function detectImageAspect(file: File): Promise<string> {
+    return new Promise((resolve) => {
+      if (!file.type.startsWith('image/')) { resolve('square'); return }
+      const img = document.createElement('img')
+      img.onload = () => {
+        const preset = snapToPreset(img.naturalWidth, img.naturalHeight)
+        URL.revokeObjectURL(img.src)
+        resolve(preset)
+      }
+      img.onerror = () => { resolve('square') }
+      img.src = URL.createObjectURL(file)
+    })
+  }
+
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || [])
     if (files.length === 0 || !draft || !serialNumber) return
@@ -1373,6 +1385,9 @@ export default function EditPage() {
       const tempId = tempIds[idx]
 
       try {
+        // Detect aspect ratio for images before resize (preserves original ratio)
+        const detectedAspect = isVideo ? 'wide' : await detectImageAspect(file)
+
         const uploadFile = isVideo ? file : await resizeImage(file)
         const ext = uploadFile.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg')
         const filename = `${serialNumber}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
@@ -1387,7 +1402,7 @@ export default function EditPage() {
         const res = await fetch('/api/upload/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ slug, url: publicUrl, room_id: activeRoomId }),
+          body: JSON.stringify({ slug, url: publicUrl, room_id: activeRoomId, aspect: detectedAspect }),
         })
         if (!res.ok) throw new Error(`Register failed: ${res.status}`)
         const data = await res.json()
@@ -1414,7 +1429,7 @@ export default function EditPage() {
               position: data.tile.position,
               room_id: data.tile.room_id || c.room_id || null,
               size: (c as any).size || 1,
-              aspect: (c as any).aspect || null,
+              aspect: data.tile.aspect || detectedAspect || (c as any).aspect || null,
               caption: (c as any).caption || null,
             } : c),
             updated_at: Date.now(),
@@ -1628,6 +1643,7 @@ export default function EditPage() {
       >
 
         {filteredContent.length > 0 ? (
+          <LayoutGroup>
           <DndContext
             sensors={isArranging ? sensors : []}
             collisionDetection={closestCenter}
@@ -1673,6 +1689,7 @@ export default function EditPage() {
               </div>
             </SortableContext>
           </DndContext>
+          </LayoutGroup>
         ) : (
           <div className="text-center py-32 flex flex-col items-center gap-4">
             <p className="text-white/30 text-sm font-mono">

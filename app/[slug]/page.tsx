@@ -21,11 +21,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const supabase = createServerSupabaseClient()
   const { data: footprint } = await supabase
     .from('footprints')
-    .select('display_name, bio, dimension, serial_number')
+    .select('display_name, bio, dimension, serial_number, published')
     .eq('username', params.slug)
     .single()
 
-  if (!footprint) return { title: 'Footprint' }
+  // Don't leak metadata for unpublished footprints
+  if (!footprint || !footprint.published) return { title: 'Footprint' }
 
   const serial = footprint.serial_number || 0
   const title = footprint.display_name
@@ -61,28 +62,22 @@ export default async function FootprintPage({ params }: Props) {
 
   if (!footprint) notFound()
 
-  // If not published, show "coming soon" to strangers, full room to owner
+  // URL gating: unpublished footprints are invisible to non-owners (404)
+  // The public URL only activates after payment. Before that, it doesn't exist.
   let isDraft = false
   if (!footprint.published) {
     const cookieStore = cookies()
     const token = cookieStore.get('fp_session')?.value
     if (!token) {
-      // Stranger viewing unpublished room — show coming soon
-      return (
-        <div className="fixed inset-0 bg-[#050505] flex flex-col items-center justify-center">
-          <p className="text-white/20 text-[13px] font-mono tracking-[0.08em]">coming soon</p>
-        </div>
-      )
+      // No session — URL doesn't exist yet (not published)
+      notFound()
     }
     const session = await verifySessionToken(token)
     if (!session || session.userId !== footprint.user_id) {
-      // Logged in but not the owner — show coming soon
-      return (
-        <div className="fixed inset-0 bg-[#050505] flex flex-col items-center justify-center">
-          <p className="text-white/20 text-[13px] font-mono tracking-[0.08em]">coming soon</p>
-        </div>
-      )
+      // Logged in but not the owner — URL doesn't exist for them
+      notFound()
     }
+    // Owner sees their draft with edit capabilities
     isDraft = true
   }
 

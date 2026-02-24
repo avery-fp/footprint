@@ -22,11 +22,11 @@ export async function POST(request: NextRequest) {
     const username = rawUsername.toLowerCase().trim()
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return NextResponse.json({ error: 'Invalid email' }, { status: 400 })
+      return NextResponse.json({ error: 'Enter a valid email address.' }, { status: 400 })
     }
 
     if (!/^[a-z0-9_]+$/.test(username) || username.length < 2 || username.length > 20) {
-      return NextResponse.json({ error: 'Invalid username' }, { status: 400 })
+      return NextResponse.json({ error: 'Names can only contain letters, numbers, and underscores.' }, { status: 400 })
     }
 
     if (password.length < 6) {
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (existingFp) {
-      return NextResponse.json({ error: 'Username taken' }, { status: 409 })
+      return NextResponse.json({ error: 'That name is already claimed. Try another.' }, { status: 409 })
     }
 
     // Hash password
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
 
     if (userError || !user) {
       console.error('Signup user creation failed:', userError)
-      return NextResponse.json({ error: 'Failed to create account' }, { status: 500 })
+      return NextResponse.json({ error: 'Something went wrong on our end. Try again in a moment.' }, { status: 500 })
     }
 
     // Create unpublished footprint with chosen username
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
 
     if (fpError) {
       console.error('Signup footprint creation failed:', fpError)
-      return NextResponse.json({ error: 'Failed to create page' }, { status: 500 })
+      return NextResponse.json({ error: 'Something went wrong on our end. Try again in a moment.' }, { status: 500 })
     }
 
     // Create session + set cookie

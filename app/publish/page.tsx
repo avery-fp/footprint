@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { FOOTPRINT_PRICE_DISPLAY } from '@/lib/constants'
+import { humanError, humanUsernameReason } from '@/lib/errors'
 
 type Step = 'username' | 'processing' | 'done'
 
@@ -52,14 +53,14 @@ export default function PublishPage() {
           setFinalSlug(data.slug)
           setStep('done')
         } else {
-          toast.error(data.error || 'Failed to publish')
+          toast.error(humanError(data.error))
           setStep('username')
         }
       } catch (err: any) {
         if (err?.name === 'AbortError') {
-          toast.error('Request timed out — please try again')
+          toast.error('Request timed out. Try again.')
         } else {
-          toast.error('Network error')
+          toast.error('Connection lost. Check your internet and try again.')
         }
         setStep('username')
       } finally {
@@ -123,10 +124,10 @@ export default function PublishPage() {
         setFinalSlug(data.slug)
         setStep('done')
       } else {
-        toast.error(data.error || 'Failed to publish')
+        toast.error(humanError(data.error))
       }
     } catch {
-      toast.error('Network error')
+      toast.error('Connection lost. Check your internet and try again.')
     } finally {
       setLoading(false)
     }
@@ -150,11 +151,11 @@ export default function PublishPage() {
       if (data.url) {
         window.location.href = data.url
       } else {
-        toast.error(data.error || 'Failed to create checkout')
+        toast.error(humanError(data.error))
         setLoading(false)
       }
     } catch {
-      toast.error('Network error')
+      toast.error('Connection lost. Check your internet and try again.')
       setLoading(false)
     }
   }
@@ -170,7 +171,7 @@ export default function PublishPage() {
   // Processing state (waiting for Stripe finalization)
   if (step === 'processing') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6">
+      <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: 'var(--bg-void)' }}>
         <div className="w-12 h-12 rounded-full border-2 border-white/10 border-t-white/50 animate-spin" />
         <p className="mt-4 text-white/30 text-[13px]">publishing...</p>
       </div>
@@ -180,7 +181,7 @@ export default function PublishPage() {
   // Done — published!
   if (step === 'done') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6">
+      <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: 'var(--bg-void)' }}>
         <div className="w-full max-w-xs text-center">
           {serial && (
             <p className="font-mono text-white/25 text-[11px] tracking-[0.2em] uppercase mb-6">
@@ -220,19 +221,19 @@ export default function PublishPage() {
 
   // Username + promo step
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6">
+    <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: 'var(--bg-void)' }}>
       <div className="w-full max-w-xs">
         <p className="text-center text-[22px] font-light tracking-[-0.01em] text-white/90 mb-3">
           publish
         </p>
         <p className="text-center text-white/30 text-[13px] leading-relaxed mb-10">
-          choose your URL. this is permanent.
+          choose your Footprint URL. this is permanent.
         </p>
 
         <div className="space-y-4">
           {/* Username */}
           <div>
-            <div className="flex items-center gap-0 bg-white/[0.05] border border-white/[0.06] rounded-xl overflow-hidden">
+            <div className="flex items-center gap-0 rounded-xl overflow-hidden" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}>
               <span className="text-white/20 text-[13px] pl-4 shrink-0">footprint.onl/</span>
               <input
                 type="text"
@@ -254,7 +255,7 @@ export default function PublishPage() {
                 ) : available === true ? (
                   <p className="text-green-400/70 text-[11px]">available</p>
                 ) : available === false ? (
-                  <p className="text-red-400/70 text-[11px]">{availReason || 'not available'}</p>
+                  <p className="text-red-400/70 text-[11px]">{availReason ? humanUsernameReason(availReason) : 'That name is already claimed.'}</p>
                 ) : null}
               </div>
             )}
@@ -267,7 +268,8 @@ export default function PublishPage() {
             onChange={(e) => setPromo(e.target.value)}
             placeholder="promo code (optional)"
             aria-label="Promo code"
-            className="w-full bg-white/[0.05] border border-white/[0.06] rounded-xl px-4 py-3.5 text-white/90 placeholder:text-white/20 focus:outline-none focus:border-white/12 text-[14px]"
+            className="w-full rounded-xl px-4 py-3.5 text-white/90 placeholder:text-white/20 focus:outline-none text-[14px]"
+            style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}
           />
 
           {/* Publish button */}

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import { humanError } from '@/lib/errors'
 
 export default function LoginPage() {
   const searchParams = useSearchParams()
@@ -39,7 +40,7 @@ export default function LoginPage() {
         }
 
         const data = await res.json()
-        toast.error(data.error || 'Invalid email or password')
+        toast.error(humanError(data.error))
         setLoading(false)
         return
       }
@@ -64,7 +65,7 @@ export default function LoginPage() {
         return
       }
     } catch {
-      toast.error('Failed')
+      toast.error('Something went wrong. Try again.')
     } finally {
       setLoading(false)
     }
@@ -88,10 +89,10 @@ export default function LoginPage() {
         window.location.href = `/api/auth/dev-login?email=${encodeURIComponent(email)}`
         return
       } else {
-        toast.error(data.error || 'Invalid promo code')
+        toast.error(humanError(data.error))
       }
     } catch {
-      toast.error('Failed')
+      toast.error('Something went wrong. Try again.')
     } finally {
       setLoading(false)
     }
@@ -100,7 +101,7 @@ export default function LoginPage() {
   // "Check your email" confirmation
   if (sent) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6">
+      <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: 'var(--bg-void)' }}>
         <div className="w-full max-w-xs text-center">
           <p
             className="text-[22px] font-light tracking-[-0.01em] text-white/90 mb-3"
@@ -125,7 +126,7 @@ export default function LoginPage() {
   // "No account found" — create one with promo code
   if (notFound) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6">
+      <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: 'var(--bg-void)' }}>
         <div className="w-full max-w-xs">
           <p
             className="text-center text-[22px] font-light tracking-[-0.01em] text-white/90 mb-3"
@@ -144,7 +145,8 @@ export default function LoginPage() {
               value={promo}
               onChange={(e) => setPromo(e.target.value)}
               placeholder="promo code"
-              className="w-full bg-white/[0.05] border border-white/[0.06] rounded-xl px-4 py-3.5 text-white/90 placeholder:text-white/20 focus:outline-none focus:border-white/12 text-[14px]"
+              className="w-full rounded-xl px-4 py-3.5 text-white/90 placeholder:text-white/20 focus:outline-none text-[14px]"
+              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}
               autoFocus
             />
             <button
@@ -168,7 +170,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6">
+    <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: 'var(--bg-void)' }}>
       <div className="w-full max-w-xs">
         <p
           className="text-center text-[22px] font-light tracking-[-0.01em] text-white/90 mb-10"
@@ -184,7 +186,8 @@ export default function LoginPage() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="email"
             aria-label="Email address"
-            className="w-full bg-white/[0.05] border border-white/[0.06] rounded-xl px-4 py-3.5 text-white/90 placeholder:text-white/20 focus:outline-none focus:border-white/12 text-[14px]"
+            className="w-full rounded-xl px-4 py-3.5 text-white/90 placeholder:text-white/20 focus:outline-none text-[14px]"
+            style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}
             required
             autoFocus
           />
@@ -194,7 +197,8 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="password"
             aria-label="Password"
-            className="w-full bg-white/[0.05] border border-white/[0.06] rounded-xl px-4 py-3.5 text-white/90 placeholder:text-white/20 focus:outline-none focus:border-white/12 text-[14px]"
+            className="w-full rounded-xl px-4 py-3.5 text-white/90 placeholder:text-white/20 focus:outline-none text-[14px]"
+            style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}
           />
           <button
             type="submit"
