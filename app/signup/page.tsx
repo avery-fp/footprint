@@ -106,7 +106,7 @@ export default function SignupPage() {
   const canAdvance = username.length >= 2 && available === true && !checking
 
   return (
-    <div className="fixed inset-0 flex flex-col items-center justify-center px-6">
+    <div className="fixed inset-0 flex flex-col items-center justify-center px-6" style={{ background: 'var(--bg-void)' }}>
 
       {/* Phase 1: Username — full screen, massive */}
       <div
@@ -221,7 +221,7 @@ export default function SignupPage() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="email"
             aria-label="Email address"
-            className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3.5 text-white/90 placeholder:text-white/15 focus:outline-none focus:border-white/20 text-[14px] transition-colors"
+            className="w-full rounded-xl px-4 py-3.5 text-white/90 placeholder:text-white/15 focus:outline-none text-[14px] transition-colors" style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border-subtle)', border: '1px solid var(--border-subtle)' }}
             required
             autoComplete="email"
           />
@@ -232,7 +232,7 @@ export default function SignupPage() {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="password"
             aria-label="Password"
-            className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3.5 text-white/90 placeholder:text-white/15 focus:outline-none focus:border-white/20 text-[14px] transition-colors"
+            className="w-full rounded-xl px-4 py-3.5 text-white/90 placeholder:text-white/15 focus:outline-none text-[14px] transition-colors" style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border-subtle)', border: '1px solid var(--border-subtle)' }}
             required
             minLength={6}
             autoComplete="new-password"
@@ -247,10 +247,8 @@ export default function SignupPage() {
             disabled={loading || available === false || !username.trim() || !email.trim() || !password.trim()}
             className="w-full py-3.5 rounded-xl text-white/70 text-[14px] font-light tracking-wide hover:text-white/90 transition-all duration-300 disabled:opacity-20"
             style={{
-              background: 'rgba(255, 255, 255, 0.08)',
-              backdropFilter: 'blur(20px) saturate(150%)',
-              WebkitBackdropFilter: 'blur(20px) saturate(150%)',
-              border: '1px solid rgba(255, 255, 255, 0.10)',
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--border-subtle)',
             }}
           >
             {loading ? '...' : 'claim'}

@@ -170,7 +170,7 @@ export default function PublishPage() {
   // Processing state (waiting for Stripe finalization)
   if (step === 'processing') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6">
+      <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: 'var(--bg-void)' }}>
         <div className="w-12 h-12 rounded-full border-2 border-white/10 border-t-white/50 animate-spin" />
         <p className="mt-4 text-white/30 text-[13px]">publishing...</p>
       </div>
@@ -180,7 +180,7 @@ export default function PublishPage() {
   // Done — published!
   if (step === 'done') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6">
+      <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: 'var(--bg-void)' }}>
         <div className="w-full max-w-xs text-center">
           {serial && (
             <p className="font-mono text-white/25 text-[11px] tracking-[0.2em] uppercase mb-6">
@@ -220,19 +220,19 @@ export default function PublishPage() {
 
   // Username + promo step
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6">
+    <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: 'var(--bg-void)' }}>
       <div className="w-full max-w-xs">
         <p className="text-center text-[22px] font-light tracking-[-0.01em] text-white/90 mb-3">
           publish
         </p>
         <p className="text-center text-white/30 text-[13px] leading-relaxed mb-10">
-          choose your URL. this is permanent.
+          choose your Footprint URL. this is permanent.
         </p>
 
         <div className="space-y-4">
           {/* Username */}
           <div>
-            <div className="flex items-center gap-0 bg-white/[0.05] border border-white/[0.06] rounded-xl overflow-hidden">
+            <div className="flex items-center gap-0 rounded-xl overflow-hidden" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}>
               <span className="text-white/20 text-[13px] pl-4 shrink-0">footprint.onl/</span>
               <input
                 type="text"
@@ -267,7 +267,8 @@ export default function PublishPage() {
             onChange={(e) => setPromo(e.target.value)}
             placeholder="promo code (optional)"
             aria-label="Promo code"
-            className="w-full bg-white/[0.05] border border-white/[0.06] rounded-xl px-4 py-3.5 text-white/90 placeholder:text-white/20 focus:outline-none focus:border-white/12 text-[14px]"
+            className="w-full rounded-xl px-4 py-3.5 text-white/90 placeholder:text-white/20 focus:outline-none text-[14px]"
+            style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}
           />
 
           {/* Publish button */}
