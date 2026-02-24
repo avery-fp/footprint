@@ -90,23 +90,23 @@ function getEditorialSize(index: number, total: number, userSize: number): numbe
 
 function getEditorialColSpan(size: number): string {
   if (size >= 4) return 'col-span-2 md:col-span-4'
-  if (size >= 2) return 'col-span-2 md:col-span-2'
-  return ''  // 1-col, no extra class
+  if (size >= 2) return 'col-span-1 md:col-span-2'   // side-by-side on mobile, pair on desktop
+  return ''  // 1-col on both
 }
 
-// Every tile gets a bounded aspect-ratio — no unbounded h-auto expansion
+// Responsive aspect-ratio: dense squares on mobile, editorial variety on desktop
 function getEditorialAspectClass(size: number, type: string, url?: string): string {
   if (type === 'youtube' || type === 'vimeo') return 'aspect-video'
   if (type === 'video') return 'aspect-video'
   if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return 'aspect-video'
-  if (size >= 4) return 'aspect-video'       // hero: 16:9
-  if (size >= 2) return 'aspect-[4/3]'       // medium: landscape
-  return 'aspect-square'                      // small: square
+  if (size >= 4) return 'aspect-[3/2] md:aspect-video'    // hero: 3:2 mobile, 16:9 desktop
+  if (size >= 2) return 'aspect-square md:aspect-[4/3]'   // medium: square mobile, landscape desktop
+  return 'aspect-square'                                    // small: square always
 }
 
 function getEditorialImageSizes(size: number): string {
   if (size >= 4) return '(max-width: 768px) 100vw, 880px'
-  if (size >= 2) return '(max-width: 768px) 100vw, 440px'
+  if (size >= 2) return '(max-width: 768px) 50vw, 440px'   // half-width on mobile
   return '(max-width: 768px) 50vw, 220px'
 }
 
