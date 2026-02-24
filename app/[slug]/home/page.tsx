@@ -363,6 +363,7 @@ export default function EditPage() {
   const [serialNumber, setSerialNumber] = useState<number | null>(null)
   const [isPublished, setIsPublished] = useState(true)
   const [isInteractive, setIsInteractive] = useState(true)
+  const [layoutMode, setLayoutMode] = useState<'editorial' | 'breathe' | 'grid'>('editorial')
   const [showSettings, setShowSettings] = useState(false)
   const [statusToast, setStatusToast] = useState<string | null>(null)
   const [pasteUrl, setPasteUrl] = useState('')
@@ -638,6 +639,8 @@ export default function EditPage() {
           setBackgroundBlur(data.footprint.background_blur ?? true)
           setIsPublished(data.footprint.published !== false)
           setIsInteractive(data.footprint.interactive !== false)
+          const gm = data.footprint.grid_mode
+          if (gm === 'editorial' || gm === 'breathe' || gm === 'grid') setLayoutMode(gm)
 
           const sources: Record<string, 'library' | 'links'> = {}
           const content = (data.tiles || []).map((tile: any) => {
@@ -763,6 +766,17 @@ export default function EditPage() {
     }).catch(e => console.error('Failed to toggle interactive:', e))
     trackOp(op)
   }, [isInteractive, slug, trackOp])
+
+  // Switch layout mode
+  const switchLayoutMode = useCallback((mode: 'editorial' | 'breathe' | 'grid') => {
+    setLayoutMode(mode)
+    const op = fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ grid_mode: mode }),
+    }).catch(e => console.error('Failed to switch layout mode:', e))
+    trackOp(op)
+  }, [slug, trackOp])
 
   useEffect(() => {
     if (pillMode === 'url') {
@@ -2115,8 +2129,29 @@ export default function EditPage() {
             <div className="px-5 pb-6">
               <p className="text-xs text-white/30 font-mono tracking-[0.15em] uppercase mb-4">settings</p>
 
+              {/* Layout mode selector */}
+              <div className="py-3">
+                <p className="text-sm text-white/70 font-mono mb-1">layout</p>
+                <p className="text-[11px] text-white/30 font-mono mb-3">how tiles are arranged on your page</p>
+                <div className="flex gap-2">
+                  {(['editorial', 'breathe', 'grid'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      onClick={() => switchLayoutMode(mode)}
+                      className={`flex-1 py-2 rounded-lg text-xs font-mono transition-all duration-200 ${
+                        layoutMode === mode
+                          ? 'bg-white/20 text-white/90 border border-white/20'
+                          : 'bg-white/[0.04] text-white/40 border border-transparent hover:bg-white/[0.08]'
+                      }`}
+                    >
+                      {mode}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Interactive tiles toggle */}
-              <div className="flex items-center justify-between py-3">
+              <div className="flex items-center justify-between py-3 border-t border-white/[0.06] mt-2">
                 <div>
                   <p className="text-sm text-white/70 font-mono">interactive tiles</p>
                   <p className="text-[11px] text-white/30 font-mono mt-0.5">visitors can drag tiles around</p>

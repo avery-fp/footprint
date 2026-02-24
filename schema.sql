@@ -492,6 +492,18 @@ ALTER TABLE footprints ALTER COLUMN published SET DEFAULT FALSE;
 
 
 -- =====================================================
+-- LAYOUT MODES MIGRATION (004_layout_modes)
+-- grid_mode: 'editorial' (default), 'breathe', 'grid'
+-- =====================================================
+
+-- Update default from 'edit' to 'editorial'
+ALTER TABLE footprints ALTER COLUMN grid_mode SET DEFAULT 'editorial';
+
+-- Migrate existing 'edit' values to 'editorial'
+UPDATE footprints SET grid_mode = 'editorial' WHERE grid_mode = 'edit' OR grid_mode IS NULL;
+
+
+-- =====================================================
 -- INITIAL SETUP COMPLETE
 --
 -- Next serial available: 7777

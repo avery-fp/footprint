@@ -30,16 +30,17 @@ interface PublicPageProps {
 }
 
 // Sortable wrapper for public page tiles
-function SortableTile({ id, children, className }: { id: string; children: React.ReactNode; className?: string }) {
+function SortableTile({ id, children, className, style }: { id: string; children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
-  const style: React.CSSProperties = {
+  const mergedStyle: React.CSSProperties = {
+    ...style,
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.35 : 1,
     cursor: 'grab',
   }
   return (
-    <div ref={setNodeRef} style={style} className={className} {...attributes} {...listeners}>
+    <div ref={setNodeRef} style={mergedStyle} className={className} {...attributes} {...listeners}>
       {children}
     </div>
   )
@@ -68,12 +69,145 @@ const ROOM_OVERLAYS = [
 ]
 const DEFAULT_OVERLAY = 'rgba(0,0,0,0.35)'
 
+// ═══════════════════════════════════════════
+// EDITORIAL GRID ALGORITHM
+// Deterministic row-based layout that composes
+// tiles into hero/pair/breath/trio patterns
+// ═══════════════════════════════════════════
+
+type RowType = 'hero' | 'pair' | 'breath' | 'trio'
+interface LayoutRow {
+  type: RowType
+  tiles: any[]
+  // For pairs: split ratio
+  splitRatio?: [number, number]
+}
+
+// Row type sequence - never two identical consecutively
+const ROW_SEQUENCE: RowType[] = ['hero', 'pair', 'breath', 'trio', 'pair', 'hero']
+
+function buildEditorialRows(tiles: any[]): LayoutRow[] {
+  if (tiles.length === 0) return []
+  if (tiles.length === 1) return [{ type: 'hero', tiles: [tiles[0]] }]
+  if (tiles.length === 2) return [
+    { type: 'hero', tiles: [tiles[0]] },
+    { type: 'hero', tiles: [tiles[1]] },
+  ]
+
+  const rows: LayoutRow[] = []
+  let cursor = 0
+  let seqIdx = 0
+
+  while (cursor < tiles.length) {
+    const remaining = tiles.length - cursor
+    const rowType = ROW_SEQUENCE[seqIdx % ROW_SEQUENCE.length]
+
+    // Text tile pairing: if next tile is a thought, try to pair it with an image
+    const nextTile = tiles[cursor]
+    const isTextTile = nextTile?.type === 'thought'
+
+    if (isTextTile && remaining >= 2) {
+      // Text tiles always pair with adjacent image/media tile
+      rows.push({
+        type: 'pair',
+        tiles: [tiles[cursor], tiles[cursor + 1]],
+        splitRatio: [40, 60],
+      })
+      cursor += 2
+      seqIdx++
+      continue
+    }
+
+    // Check if the NEXT tile after current is a thought — pair them
+    if (remaining >= 2 && tiles[cursor + 1]?.type === 'thought') {
+      rows.push({
+        type: 'pair',
+        tiles: [tiles[cursor], tiles[cursor + 1]],
+        splitRatio: [60, 40],
+      })
+      cursor += 2
+      seqIdx++
+      continue
+    }
+
+    switch (rowType) {
+      case 'hero':
+        rows.push({ type: 'hero', tiles: [tiles[cursor]] })
+        cursor += 1
+        break
+      case 'pair':
+        if (remaining >= 2) {
+          // Alternate split ratios for visual variety
+          const ratioIdx = rows.filter(r => r.type === 'pair').length
+          const ratio: [number, number] = ratioIdx % 2 === 0 ? [60, 40] : [50, 50]
+          rows.push({ type: 'pair', tiles: [tiles[cursor], tiles[cursor + 1]], splitRatio: ratio })
+          cursor += 2
+        } else {
+          rows.push({ type: 'hero', tiles: [tiles[cursor]] })
+          cursor += 1
+        }
+        break
+      case 'breath':
+        rows.push({ type: 'breath', tiles: [tiles[cursor]] })
+        cursor += 1
+        break
+      case 'trio':
+        if (remaining >= 3) {
+          rows.push({ type: 'trio', tiles: [tiles[cursor], tiles[cursor + 1], tiles[cursor + 2]] })
+          cursor += 3
+        } else if (remaining >= 2) {
+          rows.push({ type: 'pair', tiles: [tiles[cursor], tiles[cursor + 1]], splitRatio: [50, 50] })
+          cursor += 2
+        } else {
+          rows.push({ type: 'hero', tiles: [tiles[cursor]] })
+          cursor += 1
+        }
+        break
+    }
+    seqIdx++
+  }
+
+  return rows
+}
+
+// ═══════════════════════════════════════════
+// GRID LAYOUT (uniform)
+// ═══════════════════════════════════════════
+function buildGridRows(tiles: any[], isMobile: boolean): LayoutRow[] {
+  const cols = isMobile ? 2 : 3
+  const rows: LayoutRow[] = []
+  for (let i = 0; i < tiles.length; i += cols) {
+    const chunk = tiles.slice(i, i + cols)
+    if (chunk.length === 3) {
+      rows.push({ type: 'trio', tiles: chunk })
+    } else if (chunk.length === 2) {
+      rows.push({ type: 'pair', tiles: chunk, splitRatio: [50, 50] })
+    } else {
+      rows.push({ type: 'hero', tiles: chunk })
+    }
+  }
+  return rows
+}
+
+// Smart default aspect
+function resolveAspect(explicitAspect: string | undefined | null, type: string, url?: string): string {
+  if (explicitAspect && explicitAspect !== 'square') return explicitAspect
+  if (explicitAspect === 'square') return 'square'
+  if (type === 'youtube' || type === 'vimeo') return 'wide'
+  if (type === 'video') return 'auto'
+  if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return 'auto'
+  if (type === 'image') return 'auto'
+  return 'square'
+}
+
 export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl, isDraft }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
   const [localOrder, setLocalOrder] = useState<Record<string, string[]>>({})
   const [activeDragId, setActiveDragId] = useState<string | null>(null)
 
   const interactive = footprint.interactive !== false // default true
+  const gm = footprint.grid_mode
+  const layoutMode: string = (gm === 'editorial' || gm === 'breathe' || gm === 'grid') ? gm : 'editorial'
 
   // Sensors: desktop = click+drag (8px threshold), mobile = long-press (200ms)
   const mouseSensor = useSensor(MouseSensor, { activationConstraint: { distance: 8 } })
@@ -188,97 +322,153 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     return () => clearTimeout(t)
   }, [showToast])
 
-  // Image sizes based on tile size
-  const getImageSizes = (tileSize: number) => {
-    if (tileSize >= 3) return isMobile ? '100vw' : '(max-width: 768px) 100vw, 75vw'
-    if (tileSize === 2) return isMobile ? '100vw' : '(max-width: 768px) 100vw, 50vw'
-    return isMobile ? '50vw' : '(max-width: 768px) 50vw, 25vw'
+  // Image sizes based on row context
+  const getImageSizes = (rowType: RowType, splitPercent?: number) => {
+    if (rowType === 'hero' || rowType === 'breath') return '(max-width: 768px) 100vw, 1100px'
+    if (splitPercent) return `(max-width: 768px) 100vw, ${Math.round(1100 * splitPercent / 100)}px`
+    if (rowType === 'trio') return '(max-width: 768px) 50vw, 366px'
+    return '(max-width: 768px) 50vw, 550px'
   }
 
-  // Smart default aspect
-  const resolveAspect = (explicitAspect: string | undefined | null, type: string, url?: string): string => {
-    if (explicitAspect && explicitAspect !== 'square') return explicitAspect
-    if (explicitAspect === 'square') return 'square'
-    if (type === 'youtube' || type === 'vimeo') return 'wide'
-    if (type === 'video') return 'auto'
-    if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return 'auto'
-    if (type === 'image') return 'auto'
-    return 'square'
-  }
-
-  // Grid class helpers
-  const getAspectClass = (aspect: string) => {
-    if (aspect === 'wide') return 'aspect-video'
-    if (aspect === 'tall') return 'aspect-[9/16]'
-    if (aspect === 'auto') return ''
-    return 'aspect-square'
-  }
-
-  const getObjectFit = (aspect: string) => {
-    return 'object-cover'
-  }
-
-  // Tile col-span class based on size and aspect
-  const getColSpan = (size: number, aspect: string = 'square') => {
-    if (aspect === 'wide') {
-      if (size >= 4) return 'col-span-2 row-span-1 md:col-span-4 md:row-span-2'
-      if (size >= 3) return 'col-span-2 row-span-1 md:col-span-4 md:row-span-2'
-      if (size >= 2) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-1'
-      return 'col-span-2 row-span-1'
+  // Layout mode config
+  const layoutConfig = useMemo(() => {
+    switch (layoutMode) {
+      case 'breathe':
+        return { gap: 14, tileRadius: 8, containerPadding: 20, tileShadow: '0 2px 12px rgba(0,0,0,0.1)', gridBlockRadius: 0, gridBlockShadow: 'none', gridBlockOverflow: 'visible' as const }
+      case 'grid':
+        return { gap: 4, tileRadius: 2, containerPadding: 0, tileShadow: 'none', gridBlockRadius: 6, gridBlockShadow: '0 8px 60px rgba(0,0,0,0.35), 0 2px 12px rgba(0,0,0,0.2)', gridBlockOverflow: 'hidden' as const }
+      default: // editorial
+        return { gap: 3, tileRadius: 2, containerPadding: 0, tileShadow: 'none', gridBlockRadius: 6, gridBlockShadow: '0 8px 60px rgba(0,0,0,0.35), 0 2px 12px rgba(0,0,0,0.2)', gridBlockOverflow: 'hidden' as const }
     }
-    if (aspect === 'tall') {
-      if (size >= 4) return 'col-span-2 row-span-3 md:col-span-2 md:row-span-5'
-      if (size >= 3) return 'col-span-2 row-span-3 md:col-span-2 md:row-span-4'
-      if (size >= 2) return 'col-span-1 row-span-3 md:col-span-2 md:row-span-3'
-      return 'col-span-1 row-span-2'
-    }
-    return size === 4 ? 'col-span-2 row-span-2 md:col-span-4 md:row-span-4'
-      : size === 3 ? 'col-span-2 row-span-2 md:col-span-3 md:row-span-3'
-      : size === 2 ? 'col-span-2 row-span-2'
-      : ''
-  }
+  }, [layoutMode])
+
+  // Build rows from content based on layout mode
+  const rows = useMemo(() => {
+    if (layoutMode === 'grid') return buildGridRows(content, isMobile)
+    return buildEditorialRows(content)
+  }, [content, layoutMode, isMobile])
 
   // Reusable tile renderer
-  const renderTileContent = (item: any, index: number) => {
+  const renderTileContent = (item: any, index: number, rowType: RowType, isHero: boolean) => {
     const isVideo = item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
-    const tileSize = item.size || 1
     const tileAspect = resolveAspect(item.aspect, item.type, item.url)
-    const imgSizes = getImageSizes(tileSize)
-    const aspectCls = getAspectClass(tileAspect)
-    const fitCls = getObjectFit(tileAspect)
+    const isGridMode = layoutMode === 'grid'
 
-    // For 'auto' images
-    if (tileAspect === 'auto' && item.type === 'image' && !isVideo) {
+    // For thought tiles — glassmorphic annotation style
+    if (item.type === 'thought') {
+      const text = item.title || ''
+      const len = text.length
+      const typo = len <= 6
+        ? 'text-[28px] font-light tracking-[-0.035em] leading-none'
+        : len <= 20
+        ? 'text-[18px] font-light tracking-[-0.025em] leading-tight'
+        : len <= 60
+        ? 'text-[15px] font-light tracking-[-0.01em] leading-snug'
+        : 'text-[15px] font-light tracking-[-0.01em] leading-relaxed'
+
       return (
-        <div className="fp-tile overflow-hidden" data-tile-id={item.id} data-tile-type={item.type}>
-          <Image src={item.url} alt={item.title || ''}
-            width={tileSize >= 2 ? 800 : 400} height={tileSize >= 2 ? 800 : 400}
-            sizes={imgSizes}
-            className="w-full h-auto object-cover transition-opacity duration-300"
-            loading={index < 4 ? "eager" : "lazy"}
-            priority={index < 4} quality={75}
-            onError={(e) => { (e.target as HTMLElement).closest('.tile-container')!.style.display = 'none' }} />
+        <div
+          className="w-full h-full flex items-center justify-center p-5"
+          style={{
+            background: 'rgba(255, 255, 255, 0.06)',
+            backdropFilter: 'blur(20px) saturate(120%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(120%)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: `${layoutConfig.tileRadius}px`,
+            fontFamily: "'DM Sans', sans-serif",
+            minHeight: isGridMode ? undefined : '200px',
+          }}
+          data-tile-id={item.id}
+          data-tile-type="thought"
+        >
+          <p className={`whitespace-pre-wrap text-center text-white ${typo}`} style={{ fontWeight: 300, lineHeight: 1.5 }}>
+            {text}
+          </p>
         </div>
       )
     }
 
+    // For grid mode - force square crop
+    if (isGridMode) {
+      if (isVideo) {
+        return (
+          <div className="aspect-square overflow-hidden" style={{ borderRadius: `${layoutConfig.tileRadius}px` }} data-tile-id={item.id} data-tile-type={item.type}>
+            <VideoTile src={item.url} onWidescreen={noop} aspect="square" isPublicHero={false} />
+          </div>
+        )
+      }
+      if (item.type === 'image') {
+        return (
+          <div className="aspect-square overflow-hidden" style={{ borderRadius: `${layoutConfig.tileRadius}px` }} data-tile-id={item.id} data-tile-type={item.type}>
+            <Image src={item.url} alt={item.title || ''} width={400} height={400} sizes="(max-width: 768px) 50vw, 366px"
+              className="w-full h-full object-cover transition-opacity duration-300"
+              loading={index < 6 ? "eager" : "lazy"} priority={index < 2} quality={75} />
+          </div>
+        )
+      }
+      return (
+        <div className="aspect-square overflow-hidden" style={{ borderRadius: `${layoutConfig.tileRadius}px` }} data-tile-id={item.id} data-tile-type={item.type}>
+          <ContentCard content={item} isMobile={isMobile} tileSize={1} aspect="square" isPublicView />
+        </div>
+      )
+    }
+
+    // Editorial / Breathe modes - preserve natural aspect
+    const maxH = isHero
+      ? (isMobile ? '70vh' : '80vh')
+      : undefined
+    const videoMaxH = isHero
+      ? (isMobile ? '80vh' : '90vh')
+      : undefined
+
+    if (isVideo) {
+      return (
+        <div
+          className="fp-tile overflow-hidden w-full"
+          style={{ maxHeight: videoMaxH, borderRadius: `${layoutConfig.tileRadius}px`, boxShadow: layoutConfig.tileShadow }}
+          data-tile-id={item.id}
+          data-tile-type={item.type}
+        >
+          <VideoTile src={item.url} onWidescreen={noop} aspect={tileAspect} isPublicHero={isHero} />
+        </div>
+      )
+    }
+
+    if (item.type === 'image') {
+      return (
+        <div
+          className="fp-tile overflow-hidden w-full"
+          style={{ maxHeight: maxH, borderRadius: `${layoutConfig.tileRadius}px`, boxShadow: layoutConfig.tileShadow }}
+          data-tile-id={item.id}
+          data-tile-type={item.type}
+        >
+          <Image src={item.url} alt={item.title || ''}
+            width={isHero ? 1200 : 800} height={isHero ? 1200 : 800}
+            sizes={getImageSizes(rowType)}
+            className="w-full h-auto object-cover transition-opacity duration-300"
+            style={{ maxHeight: maxH }}
+            loading={index < 2 ? "eager" : "lazy"}
+            priority={index === 0}
+            quality={75}
+            fetchPriority={index === 0 ? 'high' : undefined}
+            onError={(e) => {
+              const container = (e.target as HTMLElement).closest('[data-tile-id]')
+              if (container) (container as HTMLElement).style.background = 'rgba(0,0,0,0.3)'
+            }}
+          />
+        </div>
+      )
+    }
+
+    // Embeds/links
     return (
-      <div className={`${aspectCls} fp-tile overflow-hidden`} data-tile-id={item.id} data-tile-type={item.type}>
-        {item.type === 'image' ? (
-          isVideo ? (
-            <VideoTile src={item.url} onWidescreen={noop} aspect={tileAspect} />
-          ) : (
-            <Image src={item.url} alt={item.title || ''}
-              width={tileSize >= 2 ? 800 : 400} height={tileSize >= 2 ? 800 : 400}
-              sizes={imgSizes}
-              className={`w-full h-full ${fitCls} transition-opacity duration-300`}
-              loading={index < 4 ? "eager" : "lazy"}
-              priority={index < 4} quality={75}
-              onError={(e) => { (e.target as HTMLElement).closest('.tile-container')!.style.display = 'none' }} />
-          )
-        ) : (
-          <ContentCard content={item} isMobile={isMobile} tileSize={tileSize} aspect={tileAspect} />
-        )}
+      <div
+        className="fp-tile overflow-hidden w-full"
+        style={{ maxHeight: maxH, borderRadius: `${layoutConfig.tileRadius}px`, boxShadow: layoutConfig.tileShadow }}
+        data-tile-id={item.id}
+        data-tile-type={item.type}
+      >
+        <ContentCard content={item} isMobile={isMobile} tileSize={isHero ? 3 : 1} aspect={tileAspect} isPublicView />
       </div>
     )
   }
@@ -286,31 +476,185 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // Active drag item for overlay
   const activeDragItem = activeDragId ? content.find((item: any) => item.id === activeDragId) : null
 
+  // Flatten rows to tile IDs for DndContext
+  const allTileIds = useMemo(() => content.map((item: any) => item.id), [content])
+
+  // Track global tile index across rows for loading priority
+  let globalIdx = 0
+
+  // Render a single row
+  const renderRow = (row: LayoutRow, rowIdx: number) => {
+    const gapPx = layoutConfig.gap
+
+    if (row.type === 'hero' || row.type === 'breath') {
+      const tile = row.tiles[0]
+      const idx = globalIdx++
+      const isHero = row.type === 'hero' && rowIdx === 0
+      const tileEl = renderTileContent(tile, idx, row.type, isHero)
+      const wrapStyle: React.CSSProperties = { width: '100%' }
+
+      if (interactive) {
+        return (
+          <div key={`row-${rowIdx}`} style={{ marginBottom: `${gapPx}px` }}>
+            <SortableTile id={tile.id} className="tile-container tile-enter" style={wrapStyle}>
+              {tileEl}
+            </SortableTile>
+          </div>
+        )
+      }
+      return (
+        <div key={`row-${rowIdx}`} className="tile-container tile-enter" style={{ ...wrapStyle, marginBottom: `${gapPx}px`, animationDelay: `${idx * 40}ms` }}>
+          {tileEl}
+        </div>
+      )
+    }
+
+    if (row.type === 'pair') {
+      const [a, b] = row.tiles
+      const [splitA, splitB] = row.splitRatio || [50, 50]
+      const idxA = globalIdx++
+      const idxB = globalIdx++
+
+      // On mobile: side-by-side for landscape-ish, stacked for portrait
+      const mobileStack = isMobile && (
+        resolveAspect(a.aspect, a.type, a.url) === 'tall' ||
+        resolveAspect(b.aspect, b.type, b.url) === 'tall'
+      )
+
+      const rowStyle: React.CSSProperties = mobileStack
+        ? { display: 'flex', flexDirection: 'column', gap: `${gapPx}px`, marginBottom: `${gapPx}px` }
+        : { display: 'flex', flexDirection: 'row', gap: `${gapPx}px`, marginBottom: `${gapPx}px` }
+
+      const tileAStyle: React.CSSProperties = mobileStack ? { width: '100%' } : { flex: `0 0 calc(${splitA}% - ${gapPx / 2}px)`, minWidth: 0 }
+      const tileBStyle: React.CSSProperties = mobileStack ? { width: '100%' } : { flex: `0 0 calc(${splitB}% - ${gapPx / 2}px)`, minWidth: 0 }
+
+      const tileElA = renderTileContent(a, idxA, 'pair', false)
+      const tileElB = renderTileContent(b, idxB, 'pair', false)
+
+      if (interactive) {
+        return (
+          <div key={`row-${rowIdx}`} style={rowStyle}>
+            <SortableTile id={a.id} className="tile-container tile-enter" style={tileAStyle}>
+              {tileElA}
+            </SortableTile>
+            <SortableTile id={b.id} className="tile-container tile-enter" style={tileBStyle}>
+              {tileElB}
+            </SortableTile>
+          </div>
+        )
+      }
+      return (
+        <div key={`row-${rowIdx}`} style={rowStyle}>
+          <div className="tile-container tile-enter" style={{ ...tileAStyle, animationDelay: `${idxA * 40}ms` }}>
+            {tileElA}
+          </div>
+          <div className="tile-container tile-enter" style={{ ...tileBStyle, animationDelay: `${idxB * 40}ms` }}>
+            {tileElB}
+          </div>
+        </div>
+      )
+    }
+
+    if (row.type === 'trio') {
+      const [a, b, c] = row.tiles
+      const idxA = globalIdx++
+      const idxB = globalIdx++
+      const idxC = globalIdx++
+
+      // Mobile: first tile full-width, bottom two side-by-side
+      if (isMobile) {
+        const tileElA = renderTileContent(a, idxA, 'trio', false)
+        const tileElB = renderTileContent(b, idxB, 'trio', false)
+        const tileElC = renderTileContent(c, idxC, 'trio', false)
+
+        if (interactive) {
+          return (
+            <div key={`row-${rowIdx}`} style={{ marginBottom: `${gapPx}px` }}>
+              <div style={{ marginBottom: `${gapPx}px` }}>
+                <SortableTile id={a.id} className="tile-container tile-enter" style={{ width: '100%' }}>
+                  {tileElA}
+                </SortableTile>
+              </div>
+              <div style={{ display: 'flex', gap: `${gapPx}px` }}>
+                <SortableTile id={b.id} className="tile-container tile-enter" style={{ flex: '1 1 50%', minWidth: 0 }}>
+                  {tileElB}
+                </SortableTile>
+                <SortableTile id={c.id} className="tile-container tile-enter" style={{ flex: '1 1 50%', minWidth: 0 }}>
+                  {tileElC}
+                </SortableTile>
+              </div>
+            </div>
+          )
+        }
+        return (
+          <div key={`row-${rowIdx}`} style={{ marginBottom: `${gapPx}px` }}>
+            <div className="tile-container tile-enter" style={{ width: '100%', marginBottom: `${gapPx}px`, animationDelay: `${idxA * 40}ms` }}>
+              {tileElA}
+            </div>
+            <div style={{ display: 'flex', gap: `${gapPx}px` }}>
+              <div className="tile-container tile-enter" style={{ flex: '1 1 50%', minWidth: 0, animationDelay: `${idxB * 40}ms` }}>
+                {tileElB}
+              </div>
+              <div className="tile-container tile-enter" style={{ flex: '1 1 50%', minWidth: 0, animationDelay: `${idxC * 40}ms` }}>
+                {tileElC}
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      // Desktop: three equal columns
+      const tileElA = renderTileContent(a, idxA, 'trio', false)
+      const tileElB = renderTileContent(b, idxB, 'trio', false)
+      const tileElC = renderTileContent(c, idxC, 'trio', false)
+
+      const triStyle: React.CSSProperties = { display: 'flex', gap: `${gapPx}px`, marginBottom: `${gapPx}px` }
+      const triTileStyle: React.CSSProperties = { flex: '1 1 33.333%', minWidth: 0 }
+
+      if (interactive) {
+        return (
+          <div key={`row-${rowIdx}`} style={triStyle}>
+            <SortableTile id={a.id} className="tile-container tile-enter" style={triTileStyle}>
+              {tileElA}
+            </SortableTile>
+            <SortableTile id={b.id} className="tile-container tile-enter" style={triTileStyle}>
+              {tileElB}
+            </SortableTile>
+            <SortableTile id={c.id} className="tile-container tile-enter" style={triTileStyle}>
+              {tileElC}
+            </SortableTile>
+          </div>
+        )
+      }
+      return (
+        <div key={`row-${rowIdx}`} style={triStyle}>
+          <div className="tile-container tile-enter" style={{ ...triTileStyle, animationDelay: `${idxA * 40}ms` }}>
+            {tileElA}
+          </div>
+          <div className="tile-container tile-enter" style={{ ...triTileStyle, animationDelay: `${idxB * 40}ms` }}>
+            {tileElB}
+          </div>
+          <div className="tile-container tile-enter" style={{ ...triTileStyle, animationDelay: `${idxC * 40}ms` }}>
+            {tileElC}
+          </div>
+        </div>
+      )
+    }
+
+    return null
+  }
+
   // The grid — the entire product
   const gridElement = (
     <div
-      className="grid grid-cols-2 md:grid-cols-4 gap-[2px]"
       style={{
-        gridAutoRows: 'auto',
-        gridAutoFlow: 'dense',
         opacity: roomFade === 'out' ? 0 : 1,
         transition: 'opacity 200ms ease-out',
       }}
     >
-      {content.map((item: any, idx: number) => {
-        const tileClass = `${getColSpan(item.size || 1, resolveAspect(item.aspect, item.type, item.url))} group tile-enter tile-container`
-        if (interactive) {
-          return (
-            <SortableTile key={item.id} id={item.id} className={tileClass}>
-              {renderTileContent(item, idx)}
-            </SortableTile>
-          )
-        }
-        return (
-          <div key={item.id} className={tileClass} style={{ animationDelay: `${idx * 40}ms` }}>
-            {renderTileContent(item, idx)}
-          </div>
-        )
+      {rows.map((row, rowIdx) => {
+        // Reset globalIdx tracking is handled inline
+        return renderRow(row, rowIdx)
       })}
     </div>
   )
@@ -366,9 +710,12 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       </div>
 
       <div className="relative z-10 flex-1 flex flex-col">
+        {/* Sky — wallpaper breathing space above content */}
+        <div style={{ height: '80px' }} />
+
         {/* Masthead — name commands the space, adapts to length */}
         <RemoveBubble slug={footprint.slug}>
-          <header className="pt-16 md:pt-20 pb-5 md:pb-7 flex flex-col items-center px-4">
+          <header className="pb-4 md:pb-5 flex flex-col items-center px-4">
             <h1
               className={`uppercase ${
                 (footprint.display_name || '\u00e6').length <= 6
@@ -388,19 +735,26 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </header>
         </RemoveBubble>
 
-        {/* Room nav — dot-separated, typographic */}
+        {/* Room nav — dot-separated, whispered chapters */}
         {visibleRooms.length > 1 && (
-          <div className="flex items-center justify-center gap-0 mb-4 md:mb-6 font-mono">
+          <div className="flex items-center justify-center gap-0 mb-4 md:mb-6 font-mono overflow-x-auto hide-scrollbar px-4">
             {visibleRooms.map((room, i) => (
-              <span key={room.id} className="flex items-center">
-                {i > 0 && <span className="text-white/15 text-[9px] mx-2.5">·</span>}
+              <span key={room.id} className="flex items-center whitespace-nowrap">
+                {i > 0 && <span className="mx-2.5" style={{ color: 'rgba(255,255,255,0.2)', fontSize: '8px' }}>·</span>}
                 <button
                   onClick={() => goToRoom(room.id)}
-                  className={`text-[11px] tracking-[0.12em] lowercase transition-all duration-300 ${
-                    activeRoomId === room.id
-                      ? 'text-white/75'
-                      : 'text-white/20 hover:text-white/45'
-                  }`}
+                  className="transition-all duration-300"
+                  style={{
+                    fontSize: '11px',
+                    letterSpacing: '2.5px',
+                    textTransform: 'lowercase',
+                    fontWeight: activeRoomId === room.id ? 400 : 300,
+                    color: activeRoomId === room.id ? 'white' : 'rgba(255,255,255,0.4)',
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                  }}
                 >
                   {room.name}
                 </button>
@@ -410,20 +764,34 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         )}
 
         {/* The Grid — the product */}
-        <div className="fp-grid-container mx-auto w-full px-3 md:px-0" style={{ maxWidth: '880px' }}>
-          <div className="fp-grid-block fp-grid-arrive">
+        <div
+          className="fp-grid-container mx-auto w-full"
+          style={{
+            maxWidth: '1100px',
+            paddingLeft: isMobile ? `${layoutConfig.containerPadding || 3}px` : `${Math.max(layoutConfig.containerPadding, 40)}px`,
+            paddingRight: isMobile ? `${layoutConfig.containerPadding || 3}px` : `${Math.max(layoutConfig.containerPadding, 40)}px`,
+          }}
+        >
+          <div
+            className="fp-grid-arrive"
+            style={{
+              borderRadius: `${layoutConfig.gridBlockRadius}px`,
+              overflow: layoutConfig.gridBlockOverflow,
+              boxShadow: layoutConfig.gridBlockShadow,
+            }}
+          >
             {interactive ? (
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-                <SortableContext items={content.map((item: any) => item.id)} strategy={rectSortingStrategy}>
+                <SortableContext items={allTileIds} strategy={rectSortingStrategy}>
                   {gridElement}
                 </SortableContext>
                 <DragOverlay>
                   {activeDragItem ? (
                     <div
-                      className={`${getColSpan(activeDragItem.size || 1, resolveAspect(activeDragItem.aspect, activeDragItem.type, activeDragItem.url))} tile-container`}
-                      style={{ transform: 'rotate(1deg)', boxShadow: '0 12px 40px rgba(0,0,0,0.5)', overflow: 'hidden' }}
+                      className="tile-container"
+                      style={{ transform: 'rotate(1deg)', boxShadow: '0 12px 40px rgba(0,0,0,0.5)', overflow: 'hidden', maxWidth: '400px' }}
                     >
-                      {renderTileContent(activeDragItem, 0)}
+                      {renderTileContent(activeDragItem, 0, 'hero', false)}
                     </div>
                   ) : null}
                 </DragOverlay>
@@ -440,8 +808,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </p>
         )}
 
+        {/* Floor — wallpaper breathing space below content */}
+        <div style={{ height: '120px' }} />
+
         {/* Footer — quiet share icon */}
-        <div className="flex-1" />
         <div className="py-10 flex items-center justify-center">
           <button
             onClick={handleShare}

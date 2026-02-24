@@ -153,8 +153,8 @@ body::before {
 }
 
 /* ═══════════════════════════════════════════
-   COHESIVE GRID — Tetris-centered, one block
-   The grid is the value.
+   EDITORIAL GRID — Composed, intentional, cinematic
+   The grid is the product.
    ═══════════════════════════════════════════ */
 
 /* Individual tile — flush edges, tessellates */
@@ -165,13 +165,6 @@ body::before {
 /* Theme-aware tile surface — adapts to any theme */
 .fp-surface {
   background: var(--fp-glass, rgba(255, 255, 255, 0.05));
-}
-
-/* The grid block — one cohesive object floating in space */
-.fp-grid-block {
-  border-radius: 6px;
-  overflow: hidden;
-  box-shadow: 0 8px 60px rgba(0, 0, 0, 0.35), 0 2px 12px rgba(0, 0, 0, 0.2);
 }
 
 /* Block arrival — the whole grid fades up as one object */
@@ -192,7 +185,13 @@ body::before {
 
 /* Grid container — centered, constrained */
 .fp-grid-container {
-  /* breathing room around the grid */
+  /* Side breathing room handled by inline paddng */
+}
+
+/* Skeleton loading placeholder */
+.fp-skeleton {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(4px);
 }
 
 .vapor-box {
@@ -201,6 +200,12 @@ body::before {
 
 .tile-container {
   /* no content-visibility — render everything immediately */
+}
+
+/* Tile failed to load — dark placeholder, never empty */
+[data-tile-id] img[src=""] {
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(8px);
 }
 
 /* Card hover effect */

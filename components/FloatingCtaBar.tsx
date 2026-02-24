@@ -9,28 +9,22 @@ interface FloatingCtaBarProps {
 
 export default function FloatingCtaBar({ username, serial }: FloatingCtaBarProps) {
   const [visible, setVisible] = useState(false)
-  const [href, setHref] = useState('/signup')
   const [hide, setHide] = useState(false)
 
   useEffect(() => {
-    // Check user state to determine routing
+    // Check user state — hide for published owners
     fetch('/api/user', { credentials: 'include' })
       .then(async (r) => {
         if (r.ok) {
-          // Signed in — check if they have a published footprint
           const fpRes = await fetch('/api/footprint-for-user', { credentials: 'include' })
           if (fpRes.ok) {
             const fpData = await fpRes.json()
             if (fpData.published) {
               // Signed in AND published → hide bar
               setHide(true)
-            } else {
-              // Signed in, not published → go to their editor
-              setHref(`/${fpData.slug}/home`)
             }
           }
         }
-        // Not signed in → default /signup
       })
       .catch(() => {})
 
@@ -42,7 +36,7 @@ export default function FloatingCtaBar({ username, serial }: FloatingCtaBarProps
 
   return (
     <a
-      href={href}
+      href="/checkout"
       className="floating-cta-bar"
       style={{
         position: 'fixed',
@@ -51,12 +45,12 @@ export default function FloatingCtaBar({ username, serial }: FloatingCtaBarProps
         transform: visible
           ? 'translateX(-50%) translateY(0)'
           : 'translateX(-50%) translateY(8px)',
-        opacity: visible ? 0.9 : 0,
+        opacity: visible ? 0.92 : 0,
         zIndex: 9999,
         display: 'flex',
         alignItems: 'center',
         gap: '0',
-        height: '40px',
+        height: '38px',
         padding: '0 16px',
         background: 'rgba(255, 255, 255, 0.08)',
         backdropFilter: 'blur(20px) saturate(150%)',
