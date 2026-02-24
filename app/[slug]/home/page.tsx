@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { DndContext, closestCenter, KeyboardSensor, MouseSensor, TouchSensor, useSensor, useSensors, DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import { SortableContext, sortableKeyboardCoordinates, useSortable, rectSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -338,6 +338,7 @@ function SortableTile({
 export default function EditPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const slug = params.slug as string
 
   // Single state machine
@@ -367,6 +368,71 @@ export default function EditPage() {
   const [pasteUrl, setPasteUrl] = useState('')
   const [thoughtText, setThoughtText] = useState('')
   const [isMobile, setIsMobile] = useState(false)
+  // Go Live state
+  const [showGoLive, setShowGoLive] = useState(false)
+  const [nextSerial, setNextSerial] = useState<number | null>(null)
+  const [goLiveLoading, setGoLiveLoading] = useState(false)
+  const [birthMoment, setBirthMoment] = useState<{ serial: number; slug: string } | null>(null)
+  const [birthCountUp, setBirthCountUp] = useState(0)
+  const [birthPhase, setBirthPhase] = useState<'counting' | 'reveal' | 'done'>('counting')
+
+  // Finalize after Stripe payment redirect
+  const finalizeCalledRef = useRef(false)
+  const stripeSessionId = searchParams.get('session_id')
+  const stripeUsername = searchParams.get('username')
+
+  useEffect(() => {
+    if (!stripeSessionId || !stripeUsername) return
+    if (finalizeCalledRef.current) return
+    finalizeCalledRef.current = true
+
+    async function finalize() {
+      try {
+        const res = await fetch('/api/publish', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'finalize',
+            session_id: stripeSessionId,
+            username: stripeUsername,
+          }),
+        })
+
+        const data = await res.json()
+        if (data.success) {
+          // Start birth moment animation
+          const targetSerial = data.serial
+          setBirthMoment({ serial: targetSerial, slug: data.slug })
+          setIsPublished(true)
+          setSerialNumber(targetSerial)
+
+          // Count-up animation
+          const start = Math.max(targetSerial - 20, 1)
+          let current = start
+          const countInterval = setInterval(() => {
+            current += 1
+            setBirthCountUp(current)
+            if (current >= targetSerial) {
+              clearInterval(countInterval)
+              setTimeout(() => setBirthPhase('reveal'), 400)
+            }
+          }, 60)
+          setBirthCountUp(start)
+
+          // Clean URL params without reload
+          const url = new URL(window.location.href)
+          url.searchParams.delete('session_id')
+          url.searchParams.delete('username')
+          window.history.replaceState({}, '', url.toString())
+        }
+      } catch (err) {
+        console.error('Finalize error:', err)
+      }
+    }
+
+    finalize()
+  }, [stripeSessionId, stripeUsername])
+
   const urlInputRef = useRef<HTMLInputElement>(null)
   const thoughtInputRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -524,11 +590,11 @@ export default function EditPage() {
 
         // Auth/ownership failure → redirect to login or show error
         if (res.status === 401) {
-          router.push(`/auth/login?redirect=${encodeURIComponent(`/${slug}/home`)}`)
+          router.push(`/signin?redirect=${encodeURIComponent(`/${slug}/home`)}`)
           return
         }
         if (res.status === 403) {
-          router.push('/auth/login')
+          router.push('/signin')
           return
         }
 
@@ -573,14 +639,16 @@ export default function EditPage() {
             updated_at: Date.now(),
           })
 
-          setSerialNumber(data.footprint.serial_number)
+          setSerialNumber(data.footprint.serial_number || null)
 
-          // Fetch rooms via server API (bypasses RLS)
-          const roomsRes = await fetch(`/api/rooms?serial_number=${data.footprint.serial_number}`)
-          const roomsJson = await roomsRes.json()
-          if (roomsJson.rooms?.length > 0) {
-            setRooms(roomsJson.rooms)
-            setActiveRoomId(roomsJson.rooms[0].id)
+          // Fetch rooms via server API (bypasses RLS) — only if serial exists
+          if (data.footprint.serial_number) {
+            const roomsRes = await fetch(`/api/rooms?serial_number=${data.footprint.serial_number}`)
+            const roomsJson = await roomsRes.json()
+            if (roomsJson.rooms?.length > 0) {
+              setRooms(roomsJson.rooms)
+              setActiveRoomId(roomsJson.rooms[0].id)
+            }
           }
         } else {
           // No footprint data but no error — empty state for owner
@@ -1406,24 +1474,46 @@ export default function EditPage() {
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              {/* Published/draft toggle */}
-              <button
-                onClick={togglePublished}
-                className="flex items-center justify-center rounded-full bg-white/[0.06] hover:bg-white/[0.12] transition"
-                style={{ minHeight: '44px', minWidth: '44px' }}
-                title={isPublished ? 'Published — tap to set draft' : 'Draft — tap to publish'}
-              >
-                {isPublished ? (
-                  <svg className="w-4 h-4 text-white/60" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              {isPublished ? (
+                <>
+                  {/* Published/draft toggle — only for published rooms */}
+                  <button
+                    onClick={togglePublished}
+                    className="flex items-center justify-center rounded-full bg-white/[0.06] hover:bg-white/[0.12] transition"
+                    style={{ minHeight: '44px', minWidth: '44px' }}
+                    title="Published — tap to set draft"
+                  >
+                    <svg className="w-4 h-4 text-white/60" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </button>
+                </>
+              ) : (
+                /* "go live ↗" button — only for unpublished rooms */
+                <button
+                  onClick={async () => {
+                    // Fetch next serial preview
+                    try {
+                      const res = await fetch('/api/next-serial')
+                      const data = await res.json()
+                      setNextSerial(data.serial || null)
+                    } catch {}
+                    setShowGoLive(true)
+                  }}
+                  className="text-sm text-white/80 hover:text-white transition font-mono flex items-center justify-center gap-1.5 px-4 rounded-full border border-white/[0.12] hover:border-white/25"
+                  style={{
+                    minHeight: '36px',
+                    background: 'rgba(255, 255, 255, 0.06)',
+                    backdropFilter: 'blur(12px)',
+                  }}
+                >
+                  go live
+                  <svg width="10" height="10" viewBox="0 0 12 12" fill="none" style={{ opacity: 0.7 }}>
+                    <path d="M2.5 9.5L9.5 2.5M9.5 2.5H4.5M9.5 2.5V7.5" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                ) : (
-                  <svg className="w-4 h-4 text-white/30" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
-                  </svg>
-                )}
-              </button>
+                </button>
+              )}
               {/* Settings gear */}
               <button
                 onClick={() => setShowSettings(true)}
@@ -1857,16 +1947,130 @@ export default function EditPage() {
         )}
       </div>
 
-      {/* ═══ PUBLISH BUTTON — appears when unpublished + 3+ tiles ═══ */}
-      {!isPublished && draft.content.length >= 3 && mode.type === 'viewing' && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40">
-          <a
-            href="/publish"
-            className="px-6 py-3 bg-white/[0.08] hover:bg-white/[0.14] backdrop-blur-sm text-white/50 hover:text-white/80 text-[13px] font-mono tracking-[0.1em] rounded-full border border-white/[0.1] hover:border-white/[0.2] transition-all duration-500"
-          >
-            publish
-          </a>
-        </div>
+      {/* ═══ GO LIVE OVERLAY ═══ */}
+      {showGoLive && !isPublished && (
+        <>
+          <div
+            className="fixed inset-0 z-[80] animate-overlay-fade"
+            style={{ backgroundColor: 'rgba(0,0,0,0.85)' }}
+            onClick={() => !goLiveLoading && setShowGoLive(false)}
+          />
+          <div className="fixed inset-0 z-[90] flex items-center justify-center px-6 animate-overlay-fade">
+            <div className="w-full max-w-xs text-center">
+              <p className="text-white/80 text-[20px] font-light tracking-[-0.01em] mb-8">
+                your room goes live
+              </p>
+
+              <p className="font-mono text-white/50 text-[14px] mb-2">
+                footprint.onl/{slug}
+              </p>
+
+              {nextSerial && (
+                <p className="font-mono text-white/30 text-[12px] tracking-[0.15em] mb-8">
+                  #{nextSerial.toString().padStart(4, '0')}
+                </p>
+              )}
+
+              <p className="text-white/90 text-[28px] font-light mb-8">
+                $10
+              </p>
+
+              <button
+                onClick={async () => {
+                  setGoLiveLoading(true)
+                  try {
+                    const res = await fetch('/api/publish', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        action: 'publish-paid',
+                        username: slug,
+                      }),
+                    })
+                    const data = await res.json()
+                    if (data.url) {
+                      window.location.href = data.url
+                    } else {
+                      setGoLiveLoading(false)
+                      alert(data.error || 'Failed to create checkout')
+                    }
+                  } catch {
+                    setGoLiveLoading(false)
+                    alert('Network error')
+                  }
+                }}
+                disabled={goLiveLoading}
+                className="w-full py-3.5 rounded-xl bg-white text-black text-[14px] font-medium hover:bg-white/90 transition-all disabled:opacity-40"
+              >
+                {goLiveLoading ? '...' : 'own it'}
+              </button>
+
+              <button
+                onClick={() => setShowGoLive(false)}
+                className="mt-4 text-white/20 text-[11px] hover:text-white/40 transition-colors"
+                disabled={goLiveLoading}
+              >
+                not yet
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ═══ BIRTH MOMENT ═══ */}
+      {birthMoment && (
+        <>
+          <div className="fixed inset-0 z-[100]" style={{ backgroundColor: '#080808' }} />
+          <div className="fixed inset-0 z-[110] flex items-center justify-center px-6">
+            <div className="w-full max-w-xs text-center">
+              {birthPhase === 'counting' && (
+                <p
+                  className="font-mono text-white/40 text-[14px] tracking-[0.2em]"
+                  style={{ animation: 'pulse 0.8s ease-in-out infinite' }}
+                >
+                  #{birthCountUp.toString().padStart(4, '0')}
+                </p>
+              )}
+
+              {(birthPhase === 'reveal' || birthPhase === 'done') && (
+                <div style={{
+                  animation: 'fadeIn 0.8s ease-out',
+                }}>
+                  <p className="font-mono text-white/30 text-[11px] tracking-[0.2em] uppercase mb-4">
+                    FP #{birthMoment.serial.toLocaleString()}
+                  </p>
+
+                  <p className="text-white/90 text-[22px] font-light tracking-[-0.01em] mb-3">
+                    you&apos;re live
+                  </p>
+
+                  <p className="font-mono text-white/50 text-[13px] mb-10">
+                    footprint.onl/{birthMoment.slug}
+                  </p>
+
+                  <button
+                    onClick={() => {
+                      window.location.href = `/${birthMoment.slug}`
+                    }}
+                    className="w-full py-3.5 rounded-xl bg-white text-black text-[14px] font-medium hover:bg-white/90 transition-all mb-3"
+                  >
+                    see your room
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      const url = `https://footprint.onl/${birthMoment.slug}`
+                      navigator.clipboard.writeText(url)
+                    }}
+                    className="w-full py-3 text-white/30 text-[12px] hover:text-white/50 transition-colors"
+                  >
+                    copy link
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
       )}
 
       {/* ═══ SETTINGS DRAWER ═══ */}

@@ -39,52 +39,57 @@ export async function GET(
       return NextResponse.json({ owned: false }, { status: 403 })
     }
 
-    const [libraryResult, linksResult] = await Promise.all([
-      supabase
-        .from('library')
-        .select('*')
-        .eq('serial_number', footprint.serial_number)
-        .order('position', { ascending: true }),
-      supabase
-        .from('links')
-        .select('*')
-        .eq('serial_number', footprint.serial_number)
-        .order('position', { ascending: true }),
-    ])
+    let allTiles: any[] = []
 
-    const libraryTiles = (libraryResult.data || []).map(item => ({
-      id: item.id,
-      url: item.image_url,
-      type: 'image',
-      title: item.title || null,
-      description: null,
-      thumbnail_url: null,
-      embed_html: null,
-      position: item.position,
-      source: 'library' as const,
-      room_id: item.room_id || null,
-      size: item.size || 1,
-      aspect: item.aspect || null,
-      caption: item.caption || null,
-    }))
-    const linkTiles = (linksResult.data || []).map(item => ({
-      id: item.id,
-      url: item.url,
-      type: item.platform,
-      title: item.title,
-      description: item.metadata?.description || null,
-      thumbnail_url: item.thumbnail || null,
-      embed_html: item.metadata?.embed_html || null,
-      position: item.position,
-      source: 'links' as const,
-      room_id: item.room_id || null,
-      size: item.size || 1,
-      aspect: item.aspect || null,
-    }))
+    // Only fetch tiles if the footprint has a serial_number (published or migrated)
+    if (footprint.serial_number) {
+      const [libraryResult, linksResult] = await Promise.all([
+        supabase
+          .from('library')
+          .select('*')
+          .eq('serial_number', footprint.serial_number)
+          .order('position', { ascending: true }),
+        supabase
+          .from('links')
+          .select('*')
+          .eq('serial_number', footprint.serial_number)
+          .order('position', { ascending: true }),
+      ])
 
-    const allTiles = [...libraryTiles, ...linkTiles].sort((a, b) =>
-      (a.position ?? 0) - (b.position ?? 0)
-    )
+      const libraryTiles = (libraryResult.data || []).map(item => ({
+        id: item.id,
+        url: item.image_url,
+        type: 'image',
+        title: item.title || null,
+        description: null,
+        thumbnail_url: null,
+        embed_html: null,
+        position: item.position,
+        source: 'library' as const,
+        room_id: item.room_id || null,
+        size: item.size || 1,
+        aspect: item.aspect || null,
+        caption: item.caption || null,
+      }))
+      const linkTiles = (linksResult.data || []).map(item => ({
+        id: item.id,
+        url: item.url,
+        type: item.platform,
+        title: item.title,
+        description: item.metadata?.description || null,
+        thumbnail_url: item.thumbnail || null,
+        embed_html: item.metadata?.embed_html || null,
+        position: item.position,
+        source: 'links' as const,
+        room_id: item.room_id || null,
+        size: item.size || 1,
+        aspect: item.aspect || null,
+      }))
+
+      allTiles = [...libraryTiles, ...linkTiles].sort((a, b) =>
+        (a.position ?? 0) - (b.position ?? 0)
+      )
+    }
 
     return NextResponse.json({
       owned: true,

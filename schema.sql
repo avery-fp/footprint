@@ -471,6 +471,27 @@ CREATE INDEX IF NOT EXISTS idx_fp_events_date ON fp_events (created_at);
 CREATE INDEX IF NOT EXISTS idx_fp_events_composite ON fp_events (footprint_id, event_type, created_at);
 
 -- =====================================================
+-- ONBOARDING REBUILD MIGRATION (003_onboarding_rebuild)
+-- Users now sign up for free (no serial), pay $10 to go live
+-- =====================================================
+
+-- Allow users to exist without a serial number (free signup)
+ALTER TABLE users ALTER COLUMN serial_number DROP NOT NULL;
+
+-- Allow footprints to exist without a serial number (unpublished)
+ALTER TABLE footprints ALTER COLUMN serial_number DROP NOT NULL;
+
+-- Add published_at timestamp to track when a room went live
+ALTER TABLE footprints ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ;
+
+-- Set published_at for existing published footprints
+UPDATE footprints SET published_at = created_at WHERE published = TRUE AND published_at IS NULL;
+
+-- Default published to FALSE for new footprints (free signup creates unpublished)
+ALTER TABLE footprints ALTER COLUMN published SET DEFAULT FALSE;
+
+
+-- =====================================================
 -- INITIAL SETUP COMPLETE
 --
 -- Next serial available: 7777

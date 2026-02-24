@@ -61,67 +61,92 @@ export default async function FootprintPage({ params }: Props) {
 
   if (!footprint) notFound()
 
-  // If not published, only the owner can see it
+  // If not published, show "coming soon" to strangers, full room to owner
   let isDraft = false
   if (!footprint.published) {
     const cookieStore = cookies()
     const token = cookieStore.get('fp_session')?.value
-    if (!token) notFound()
+    if (!token) {
+      // Stranger viewing unpublished room — show coming soon
+      return (
+        <div className="min-h-screen bg-[#080808] flex flex-col items-center justify-center">
+          <p className="text-white/80 text-[32px] font-light tracking-[0.12em] mb-6">æ</p>
+          <p className="text-white/25 text-[13px] tracking-[0.08em]">coming soon</p>
+        </div>
+      )
+    }
     const session = await verifySessionToken(token)
-    if (!session || session.userId !== footprint.user_id) notFound()
+    if (!session || session.userId !== footprint.user_id) {
+      // Logged in but not the owner — show coming soon
+      return (
+        <div className="min-h-screen bg-[#080808] flex flex-col items-center justify-center">
+          <p className="text-white/80 text-[32px] font-light tracking-[0.12em] mb-6">æ</p>
+          <p className="text-white/25 text-[13px] tracking-[0.08em]">coming soon</p>
+        </div>
+      )
+    }
     isDraft = true
   }
 
-  // Fetch tiles + rooms in parallel (single round-trip, no waterfall)
-  const [{ data: images }, { data: links }, { data: roomsData }] = await Promise.all([
-    supabase.from('library').select('*').eq('serial_number', footprint.serial_number).order('position'),
-    supabase.from('links').select('*').eq('serial_number', footprint.serial_number).order('position'),
-    supabase.from('rooms').select('*').eq('serial_number', footprint.serial_number).neq('hidden', true).order('position'),
-  ])
+  // Fetch tiles + rooms in parallel (only if serial_number exists)
+  let content: any[] = []
+  let rooms: any[] = []
 
-  // Merge and sort by position
-  const content = [
-    ...(images || []).map((img: any) => ({
-      id: img.id,
-      type: 'image',
-      url: img.image_url,
-      position: img.position,
-      room_id: img.room_id,
-      size: img.size || 1,
-      aspect: img.aspect || null,
-      caption: img.caption || null,
-    })),
-    ...(links || []).map((link: any) => ({
-      id: link.id,
-      type: link.platform,
-      url: link.url,
-      title: link.title,
-      thumbnail_url: link.thumbnail,
-      embed_html: link.metadata?.embed_html,
-      description: link.metadata?.description,
-      position: link.position,
-      room_id: link.room_id,
-      size: link.size || 1,
-      aspect: link.aspect || null,
-    })),
-  ].sort((a, b) => a.position - b.position)
+  if (footprint.serial_number) {
+    const [{ data: images }, { data: links }, { data: roomsData }] = await Promise.all([
+      supabase.from('library').select('*').eq('serial_number', footprint.serial_number).order('position'),
+      supabase.from('links').select('*').eq('serial_number', footprint.serial_number).order('position'),
+      supabase.from('rooms').select('*').eq('serial_number', footprint.serial_number).neq('hidden', true).order('position'),
+    ])
 
-  // Group content by rooms
-  const rooms = (roomsData || []).map((room: any) => ({
-    id: room.id,
-    name: room.name,
-    content: content.filter(item => item.room_id === room.id),
-  }))
+    // Merge and sort by position
+    content = [
+      ...(images || []).map((img: any) => ({
+        id: img.id,
+        type: 'image',
+        url: img.image_url,
+        position: img.position,
+        room_id: img.room_id,
+        size: img.size || 1,
+        aspect: img.aspect || null,
+        caption: img.caption || null,
+      })),
+      ...(links || []).map((link: any) => ({
+        id: link.id,
+        type: link.platform,
+        url: link.url,
+        title: link.title,
+        thumbnail_url: link.thumbnail,
+        embed_html: link.metadata?.embed_html,
+        description: link.metadata?.description,
+        position: link.position,
+        room_id: link.room_id,
+        size: link.size || 1,
+        aspect: link.aspect || null,
+      })),
+    ].sort((a, b) => a.position - b.position)
 
-  const serial = footprint.serial_number.toString().padStart(4, '0')
+    // Group content by rooms
+    rooms = (roomsData || []).map((room: any) => ({
+      id: room.id,
+      name: room.name,
+      content: content.filter(item => item.room_id === room.id),
+    }))
+  }
+
+  const serial = footprint.serial_number ? footprint.serial_number.toString().padStart(4, '0') : '0000'
   const theme = getTheme(footprint.dimension || 'midnight')
   const pageUrl = `https://footprint.onl/${params.slug}`
 
   return (
     <>
-      <AnalyticsTracker footprintId={footprint.id} serialNumber={footprint.serial_number} />
-      <EventTracker footprintId={footprint.id} />
-      <ReferralBanner serial={serial} />
+      {footprint.serial_number && (
+        <>
+          <AnalyticsTracker footprintId={footprint.id} serialNumber={footprint.serial_number} />
+          <EventTracker footprintId={footprint.id} />
+          <ReferralBanner serial={serial} />
+        </>
+      )}
       <ShareEngine slug={params.slug} />
       <PublicPage
         footprint={footprint}

@@ -1,31 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { createSessionToken } from '@/lib/auth'
-import { nanoid } from 'nanoid'
+import * as bcrypt from 'bcryptjs'
 
 /**
  * POST /api/signup
  *
- * Email-only signup. No password. No payment.
- * Creates user + unpublished footprint, sets fp_session cookie.
- * Returns slug for redirect to /build.
+ * Username + email + password signup.
+ * Creates user + unpublished footprint with chosen username, sets fp_session cookie.
+ * No serial number, no payment. Free to create.
  */
 export async function POST(request: NextRequest) {
   try {
-    const { email: rawEmail } = await request.json()
+    const { username: rawUsername, email: rawEmail, password } = await request.json()
 
-    if (!rawEmail) {
-      return NextResponse.json({ error: 'Email required' }, { status: 400 })
+    if (!rawEmail || !rawUsername || !password) {
+      return NextResponse.json({ error: 'All fields required' }, { status: 400 })
     }
 
     const email = rawEmail.toLowerCase().trim()
+    const username = rawUsername.toLowerCase().trim()
+
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json({ error: 'Invalid email' }, { status: 400 })
     }
 
+    if (!/^[a-z0-9_]+$/.test(username) || username.length < 2 || username.length > 20) {
+      return NextResponse.json({ error: 'Invalid username' }, { status: 400 })
+    }
+
+    if (password.length < 6) {
+      return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 })
+    }
+
     const supabase = createServerSupabaseClient()
 
-    // Check if user already exists
+    // Check if email already exists
     const { data: existingUser } = await supabase
       .from('users')
       .select('id, email, serial_number')
@@ -46,12 +56,10 @@ export async function POST(request: NextRequest) {
         .eq('is_primary', true)
         .single()
 
-      // Only return the slug if the footprint is published;
-      // unpublished users should go to /build instead
       const sessionToken = await createSessionToken(existingUser.id, existingUser.email)
       const response = NextResponse.json({
         success: true,
-        slug: fp?.published ? fp.username : null,
+        slug: fp?.username || null,
         existing: true,
       })
 
@@ -67,13 +75,24 @@ export async function POST(request: NextRequest) {
       return response
     }
 
-    // New user — create without serial number (unpublished)
-    // Generate a temporary username (will be replaced at publish time)
-    const tempUsername = `draft-${nanoid(8).toLowerCase()}`
+    // Check if username is taken
+    const { data: existingFp } = await supabase
+      .from('footprints')
+      .select('id')
+      .eq('username', username)
+      .single()
 
+    if (existingFp) {
+      return NextResponse.json({ error: 'Username taken' }, { status: 409 })
+    }
+
+    // Hash password
+    const passwordHash = await bcrypt.hash(password, 10)
+
+    // Create user (no serial number — unpublished)
     const { data: user, error: userError } = await supabase
       .from('users')
-      .insert({ email })
+      .insert({ email, password_hash: passwordHash })
       .select()
       .single()
 
@@ -82,10 +101,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create account' }, { status: 500 })
     }
 
-    // Create unpublished footprint (no serial number yet)
+    // Create unpublished footprint with chosen username
     const { error: fpError } = await supabase.from('footprints').insert({
       user_id: user.id,
-      username: tempUsername,
+      username,
       name: 'Everything',
       icon: '◈',
       is_primary: true,
@@ -97,15 +116,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create page' }, { status: 500 })
     }
 
-    // Create default room
-    // We can't use serial_number-based rooms yet since user has no serial
-    // Rooms will be created when the user publishes and gets a serial
-
     // Create session + set cookie
     const sessionToken = await createSessionToken(user.id, user.email)
     const response = NextResponse.json({
       success: true,
-      slug: tempUsername,
+      slug: username,
       existing: false,
     })
 
