@@ -69,9 +69,8 @@ export default async function FootprintPage({ params }: Props) {
     if (!token) {
       // Stranger viewing unpublished room — show coming soon
       return (
-        <div className="min-h-screen bg-[#080808] flex flex-col items-center justify-center">
-          <p className="text-white/80 text-[32px] font-light tracking-[0.12em] mb-6">æ</p>
-          <p className="text-white/25 text-[13px] tracking-[0.08em]">coming soon</p>
+        <div className="fixed inset-0 bg-[#050505] flex flex-col items-center justify-center">
+          <p className="text-white/20 text-[13px] font-mono tracking-[0.08em]">coming soon</p>
         </div>
       )
     }
@@ -79,9 +78,8 @@ export default async function FootprintPage({ params }: Props) {
     if (!session || session.userId !== footprint.user_id) {
       // Logged in but not the owner — show coming soon
       return (
-        <div className="min-h-screen bg-[#080808] flex flex-col items-center justify-center">
-          <p className="text-white/80 text-[32px] font-light tracking-[0.12em] mb-6">æ</p>
-          <p className="text-white/25 text-[13px] tracking-[0.08em]">coming soon</p>
+        <div className="fixed inset-0 bg-[#050505] flex flex-col items-center justify-center">
+          <p className="text-white/20 text-[13px] font-mono tracking-[0.08em]">coming soon</p>
         </div>
       )
     }

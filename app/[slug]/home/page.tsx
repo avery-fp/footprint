@@ -406,15 +406,47 @@ export default function EditPage() {
           setIsPublished(true)
           setSerialNumber(targetSerial)
 
-          // Count-up animation
+          // Count-up animation with tick sound
           const start = Math.max(targetSerial - 20, 1)
           let current = start
+
+          // Create tick sound using AudioContext (no external files)
+          let audioCtx: AudioContext | null = null
+          try { audioCtx = new AudioContext() } catch {}
+          const tick = () => {
+            if (!audioCtx) return
+            const osc = audioCtx.createOscillator()
+            const gain = audioCtx.createGain()
+            osc.connect(gain)
+            gain.connect(audioCtx.destination)
+            osc.frequency.value = 800 + Math.random() * 200
+            osc.type = 'sine'
+            gain.gain.setValueAtTime(0.03, audioCtx.currentTime)
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04)
+            osc.start()
+            osc.stop(audioCtx.currentTime + 0.04)
+          }
+
           const countInterval = setInterval(() => {
             current += 1
             setBirthCountUp(current)
+            tick()
             if (current >= targetSerial) {
               clearInterval(countInterval)
-              setTimeout(() => setBirthPhase('reveal'), 400)
+              // Final lock-in: slightly louder + lower tone
+              if (audioCtx) {
+                const osc = audioCtx.createOscillator()
+                const gain = audioCtx.createGain()
+                osc.connect(gain)
+                gain.connect(audioCtx.destination)
+                osc.frequency.value = 600
+                osc.type = 'sine'
+                gain.gain.setValueAtTime(0.06, audioCtx.currentTime)
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15)
+                osc.start()
+                osc.stop(audioCtx.currentTime + 0.15)
+              }
+              setTimeout(() => setBirthPhase('reveal'), 600)
             }
           }, 60)
           setBirthCountUp(start)
@@ -1501,17 +1533,13 @@ export default function EditPage() {
                     } catch {}
                     setShowGoLive(true)
                   }}
-                  className="text-sm text-white/80 hover:text-white transition font-mono flex items-center justify-center gap-1.5 px-4 rounded-full border border-white/[0.12] hover:border-white/25"
+                  className="text-[13px] text-white/60 hover:text-white/90 transition font-mono flex items-center justify-center px-5 rounded-full border border-white/[0.10] hover:border-white/25"
                   style={{
                     minHeight: '36px',
-                    background: 'rgba(255, 255, 255, 0.06)',
-                    backdropFilter: 'blur(12px)',
+                    background: 'rgba(255, 255, 255, 0.04)',
                   }}
                 >
                   go live
-                  <svg width="10" height="10" viewBox="0 0 12 12" fill="none" style={{ opacity: 0.7 }}>
-                    <path d="M2.5 9.5L9.5 2.5M9.5 2.5H4.5M9.5 2.5V7.5" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
                 </button>
               )}
               {/* Settings gear */}
@@ -1947,130 +1975,133 @@ export default function EditPage() {
         )}
       </div>
 
-      {/* ═══ GO LIVE OVERLAY ═══ */}
+      {/* ═══ GO LIVE — full page takeover ═══ */}
       {showGoLive && !isPublished && (
-        <>
-          <div
-            className="fixed inset-0 z-[80] animate-overlay-fade"
-            style={{ backgroundColor: 'rgba(0,0,0,0.85)' }}
-            onClick={() => !goLiveLoading && setShowGoLive(false)}
-          />
-          <div className="fixed inset-0 z-[90] flex items-center justify-center px-6 animate-overlay-fade">
-            <div className="w-full max-w-xs text-center">
-              <p className="text-white/80 text-[20px] font-light tracking-[-0.01em] mb-8">
-                your room goes live
-              </p>
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center birth-takeover">
+          {/* Dismiss zone */}
+          <div className="absolute inset-0" onClick={() => !goLiveLoading && setShowGoLive(false)} />
 
-              <p className="font-mono text-white/50 text-[14px] mb-2">
-                footprint.onl/{slug}
-              </p>
-
-              {nextSerial && (
-                <p className="font-mono text-white/30 text-[12px] tracking-[0.15em] mb-8">
-                  #{nextSerial.toString().padStart(4, '0')}
-                </p>
-              )}
-
-              <p className="text-white/90 text-[28px] font-light mb-8">
-                $10
-              </p>
-
-              <button
-                onClick={async () => {
-                  setGoLiveLoading(true)
-                  try {
-                    const res = await fetch('/api/publish', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        action: 'publish-paid',
-                        username: slug,
-                      }),
-                    })
-                    const data = await res.json()
-                    if (data.url) {
-                      window.location.href = data.url
-                    } else {
-                      setGoLiveLoading(false)
-                      alert(data.error || 'Failed to create checkout')
-                    }
-                  } catch {
-                    setGoLiveLoading(false)
-                    alert('Network error')
-                  }
-                }}
-                disabled={goLiveLoading}
-                className="w-full py-3.5 rounded-xl bg-white text-black text-[14px] font-medium hover:bg-white/90 transition-all disabled:opacity-40"
+          <div className="relative z-10 text-center px-6" style={{ animation: 'birth-fade-up 0.6s ease-out' }}>
+            {/* Serial preview — huge, faint */}
+            {nextSerial && (
+              <p className="font-mono text-white/[0.08] tracking-[0.3em] mb-10"
+                style={{ fontSize: 'clamp(48px, 12vw, 80px)', fontWeight: 300 }}
               >
-                {goLiveLoading ? '...' : 'own it'}
-              </button>
+                {nextSerial.toString().padStart(4, '0')}
+              </p>
+            )}
 
+            {/* URL */}
+            <p className="font-mono text-white/30 text-[13px] tracking-[0.02em] mb-2">
+              footprint.onl/{slug}
+            </p>
+
+            {/* Price — quiet */}
+            <p className="text-white/50 text-[13px] font-mono mb-12">
+              $10
+            </p>
+
+            {/* CTA */}
+            <button
+              onClick={async () => {
+                setGoLiveLoading(true)
+                try {
+                  const res = await fetch('/api/publish', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      action: 'publish-paid',
+                      username: slug,
+                    }),
+                  })
+                  const data = await res.json()
+                  if (data.url) {
+                    window.location.href = data.url
+                  } else {
+                    setGoLiveLoading(false)
+                  }
+                } catch {
+                  setGoLiveLoading(false)
+                }
+              }}
+              disabled={goLiveLoading}
+              className="px-8 py-3 rounded-full bg-white text-black text-[13px] font-medium hover:bg-white/90 transition-all disabled:opacity-30"
+            >
+              {goLiveLoading ? '...' : 'go live'}
+            </button>
+
+            <div className="mt-6">
               <button
                 onClick={() => setShowGoLive(false)}
-                className="mt-4 text-white/20 text-[11px] hover:text-white/40 transition-colors"
+                className="text-white/10 text-[11px] font-mono hover:text-white/25 transition-colors"
                 disabled={goLiveLoading}
               >
-                not yet
+                back
               </button>
             </div>
           </div>
-        </>
+        </div>
       )}
 
-      {/* ═══ BIRTH MOMENT ═══ */}
+      {/* ═══ BIRTH MOMENT — cinematic page takeover ═══ */}
       {birthMoment && (
-        <>
-          <div className="fixed inset-0 z-[100]" style={{ backgroundColor: '#080808' }} />
-          <div className="fixed inset-0 z-[110] flex items-center justify-center px-6">
-            <div className="w-full max-w-xs text-center">
-              {birthPhase === 'counting' && (
-                <p
-                  className="font-mono text-white/40 text-[14px] tracking-[0.2em]"
-                  style={{ animation: 'pulse 0.8s ease-in-out infinite' }}
+        <div className="fixed inset-0 z-[200] birth-takeover">
+          <div className="absolute inset-0 flex items-center justify-center">
+
+            {/* Phase: counting — huge serial ticking up */}
+            {birthPhase === 'counting' && (
+              <p className="font-mono text-white/20 tracking-[0.3em] birth-counter"
+                style={{ fontSize: 'clamp(56px, 15vw, 96px)', fontWeight: 300 }}
+              >
+                #{birthCountUp.toString().padStart(4, '0')}
+              </p>
+            )}
+
+            {/* Phase: reveal — serial locks, details fade in */}
+            {(birthPhase === 'reveal' || birthPhase === 'done') && (
+              <div className="text-center px-6 w-full" style={{ animation: 'birth-fade-up 0.8s ease-out' }}>
+                {/* Serial — huge, locks in */}
+                <p className="font-mono text-white/30 tracking-[0.3em] mb-6"
+                  style={{ fontSize: 'clamp(48px, 12vw, 80px)', fontWeight: 300 }}
                 >
-                  #{birthCountUp.toString().padStart(4, '0')}
+                  #{birthMoment.serial.toString().padStart(4, '0')}
                 </p>
-              )}
 
-              {(birthPhase === 'reveal' || birthPhase === 'done') && (
-                <div style={{
-                  animation: 'fadeIn 0.8s ease-out',
-                }}>
-                  <p className="font-mono text-white/30 text-[11px] tracking-[0.2em] uppercase mb-4">
-                    FP #{birthMoment.serial.toLocaleString()}
-                  </p>
+                {/* URL */}
+                <p className="font-mono text-white/40 text-[13px] tracking-[0.02em] mb-16">
+                  footprint.onl/{birthMoment.slug}
+                </p>
 
-                  <p className="text-white/90 text-[22px] font-light tracking-[-0.01em] mb-3">
-                    you&apos;re live
-                  </p>
+                {/* Actions — minimal */}
+                <button
+                  onClick={() => {
+                    window.location.href = `/${birthMoment.slug}`
+                  }}
+                  className="px-8 py-3 rounded-full bg-white text-black text-[13px] font-medium hover:bg-white/90 transition-all"
+                >
+                  enter
+                </button>
 
-                  <p className="font-mono text-white/50 text-[13px] mb-10">
-                    footprint.onl/{birthMoment.slug}
-                  </p>
-
-                  <button
-                    onClick={() => {
-                      window.location.href = `/${birthMoment.slug}`
-                    }}
-                    className="w-full py-3.5 rounded-xl bg-white text-black text-[14px] font-medium hover:bg-white/90 transition-all mb-3"
-                  >
-                    see your room
-                  </button>
-
+                <div className="mt-6">
                   <button
                     onClick={() => {
                       const url = `https://footprint.onl/${birthMoment.slug}`
                       navigator.clipboard.writeText(url)
+                      const el = document.getElementById('birth-copied')
+                      if (el) { el.style.opacity = '1'; setTimeout(() => { el.style.opacity = '0' }, 1200) }
                     }}
-                    className="w-full py-3 text-white/30 text-[12px] hover:text-white/50 transition-colors"
+                    className="text-white/15 text-[11px] font-mono hover:text-white/30 transition-colors"
                   >
                     copy link
                   </button>
+                  <span id="birth-copied" className="ml-2 text-white/30 text-[11px] font-mono transition-opacity duration-300" style={{ opacity: 0 }}>
+                    copied
+                  </span>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
-        </>
+        </div>
       )}
 
       {/* ═══ SETTINGS DRAWER ═══ */}
