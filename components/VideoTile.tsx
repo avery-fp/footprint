@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { audioManager } from '@/lib/audio-manager'
 
 export default function VideoTile({ src, onWidescreen, aspect = 'square', isPublicHero = false }: { src: string; onWidescreen?: () => void; aspect?: string; isPublicHero?: boolean }) {
-  const fitClass = 'object-contain'
+  const fitClass = 'object-cover'
   const [isMuted, setIsMuted] = useState(true)
   const [isNear, setIsNear] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
@@ -97,7 +97,7 @@ export default function VideoTile({ src, onWidescreen, aspect = 'square', isPubl
   }
 
   return (
-    <div ref={containerRef} className="relative w-full h-full" style={{ background: 'rgba(0,0,0,0.6)' }}>
+    <div ref={containerRef} className="relative w-full h-full">
       {isNear ? (
         <>
           <video
