@@ -96,9 +96,9 @@ function getEditorialColSpan(size: number): string {
 
 // Responsive aspect-ratio: dense squares on mobile, editorial variety on desktop
 function getEditorialAspectClass(size: number, type: string, url?: string): string {
-  if (type === 'youtube' || type === 'vimeo') return 'aspect-video'
-  if (type === 'video') return 'aspect-video'
-  if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return 'aspect-video'
+  const isEmbed = type === 'youtube' || type === 'vimeo'
+  // Embeds keep 16:9 since the player needs it; everything else follows editorial rhythm
+  if (isEmbed) return 'aspect-video'
   if (size >= 4) return 'aspect-[4/3] md:aspect-[3/2]'    // hero: classic photo ratio
   if (size >= 2) return 'aspect-square md:aspect-[5/4]'   // medium: hint of portrait on desktop
   return 'aspect-square'                                    // small: square always
@@ -518,7 +518,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               borderRadius: `${layoutConfig.blockRadius}px`,
               overflow: layoutConfig.blockOverflow,
               boxShadow: layoutConfig.blockShadow,
-              background: 'rgba(0,0,0,0.85)',
             }}
           >
             {interactive ? (
