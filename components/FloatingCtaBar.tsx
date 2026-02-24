@@ -36,7 +36,7 @@ export default function FloatingCtaBar({ username, serial }: FloatingCtaBarProps
 
   return (
     <a
-      href="/checkout"
+      href="/signup"
       className="floating-cta-bar"
       style={{
         position: 'fixed',

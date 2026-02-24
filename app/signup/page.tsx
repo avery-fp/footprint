@@ -245,7 +245,13 @@ export default function SignupPage() {
           <button
             type="submit"
             disabled={loading || available === false || !username.trim() || !email.trim() || !password.trim()}
-            className="w-full py-3.5 rounded-xl bg-white text-black text-[14px] font-medium hover:bg-white/90 transition-all disabled:opacity-30"
+            className="w-full py-3.5 rounded-xl text-white/70 text-[14px] font-light tracking-wide hover:text-white/90 transition-all duration-300 disabled:opacity-20"
+            style={{
+              background: 'rgba(255, 255, 255, 0.08)',
+              backdropFilter: 'blur(20px) saturate(150%)',
+              WebkitBackdropFilter: 'blur(20px) saturate(150%)',
+              border: '1px solid rgba(255, 255, 255, 0.10)',
+            }}
           >
             {loading ? '...' : 'claim'}
           </button>
