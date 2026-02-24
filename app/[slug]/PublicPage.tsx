@@ -80,12 +80,12 @@ const DEFAULT_OVERLAY = 'rgba(0,0,0,0.35)'
 function getEditorialSize(index: number, total: number, userSize: number): number {
   if (userSize >= 2) return userSize       // respect explicit user sizing
   if (total <= 2) return 4                 // few tiles → hero everything
-  if (total <= 4 && index === 0) return 4
   if (index === 0) return 4                // first tile is always hero
-  // After hero: [2,2, 1,1,1,1] repeating — pair then quad
-  const pos = (index - 1) % 6
-  if (pos < 2) return 2                    // medium pair (2+2 = 4 cols)
-  return 1                                  // small quad  (1×4 = 4 cols)
+  if (total >= 10 && index === 9) return 4 // second hero — the "turn"
+  // After each hero: [2,2, 1,1,1,1] — pair then quad
+  const pos = index > 9 ? (index - 10) % 6 : (index - 1) % 6
+  if (pos < 2) return 2
+  return 1
 }
 
 function getEditorialColSpan(size: number): string {
@@ -99,8 +99,8 @@ function getEditorialAspectClass(size: number, type: string, url?: string): stri
   if (type === 'youtube' || type === 'vimeo') return 'aspect-video'
   if (type === 'video') return 'aspect-video'
   if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return 'aspect-video'
-  if (size >= 4) return 'aspect-[3/2] md:aspect-video'    // hero: 3:2 mobile, 16:9 desktop
-  if (size >= 2) return 'aspect-square md:aspect-[4/3]'   // medium: square mobile, landscape desktop
+  if (size >= 4) return 'aspect-[4/3] md:aspect-[3/2]'    // hero: classic photo ratio
+  if (size >= 2) return 'aspect-square md:aspect-[5/4]'   // medium: hint of portrait on desktop
   return 'aspect-square'                                    // small: square always
 }
 
