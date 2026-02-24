@@ -29,6 +29,7 @@ interface ContentCardProps {
   isMobile?: boolean
   tileSize?: number
   aspect?: string
+  isPublicView?: boolean
 }
 
 /**
@@ -40,7 +41,7 @@ interface ContentCardProps {
  * One Sound Policy: AudioManager integration
  * ALL iframes: lazy loaded via IntersectionObserver
  */
-export default function ContentCard({ content, onWidescreen, isMobile = false, tileSize = 1, aspect = 'square' }: ContentCardProps) {
+export default function ContentCard({ content, onWidescreen, isMobile = false, tileSize = 1, aspect = 'square', isPublicView = false }: ContentCardProps) {
   const aspectClass = aspect === 'wide' ? 'aspect-video' : aspect === 'tall' ? 'aspect-[9/16]' : aspect === 'auto' ? '' : 'aspect-square'
   const fitClass = aspect === 'auto' ? 'object-contain' : 'object-cover'
   const icon = getContentIcon(content.type)
@@ -113,14 +114,16 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             onLoad={() => setIsLoaded(true)}
             onError={() => setIsLoaded(true)}
           />
-          {/* Play button */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center group-hover:scale-105 transition-transform">
-              <svg className="w-3 h-3 text-white/80 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z"/>
-              </svg>
+          {/* Play button — hidden in public view for cinematic feel */}
+          {!isPublicView && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <svg className="w-3 h-3 text-white/80 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )
     }
@@ -343,12 +346,33 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     const len = text.length
     // Adaptive sizing: short → big and bold, long → smaller
     const typo = len <= 6
-      ? 'text-[28px] font-normal tracking-[-0.035em] leading-none'
+      ? 'text-[28px] font-light tracking-[-0.035em] leading-none'
       : len <= 20
-      ? 'text-[18px] font-normal tracking-[-0.025em] leading-tight'
+      ? 'text-[18px] font-light tracking-[-0.025em] leading-tight'
       : len <= 60
-      ? 'text-[14px] font-normal tracking-[-0.01em] leading-snug'
-      : 'text-[13px] font-normal tracking-[-0.01em] leading-relaxed'
+      ? 'text-[15px] font-light tracking-[-0.01em] leading-snug'
+      : 'text-[15px] font-light tracking-[-0.01em] leading-relaxed'
+
+    // Glassmorphic annotation style for public view
+    if (isPublicView) {
+      return (
+        <div
+          className="w-full h-full flex items-center justify-center p-5"
+          style={{
+            background: 'rgba(255, 255, 255, 0.06)',
+            backdropFilter: 'blur(20px) saturate(120%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(120%)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            fontFamily: "'DM Sans', sans-serif",
+            minHeight: '200px',
+          }}
+        >
+          <p className={`whitespace-pre-wrap text-center text-white ${typo}`} style={{ fontWeight: 300, lineHeight: 1.5 }}>
+            {text}
+          </p>
+        </div>
+      )
+    }
 
     return (
       <div className="w-full h-full fp-tile fp-surface flex items-center justify-center p-5" style={{ fontFamily: "'DM Sans', sans-serif" }}>
