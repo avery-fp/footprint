@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { FOOTPRINT_PRICE_DISPLAY } from '@/lib/constants'
+import { humanError, humanUsernameReason } from '@/lib/errors'
 
 type Step = 'username' | 'processing' | 'done'
 
@@ -52,14 +53,14 @@ export default function PublishPage() {
           setFinalSlug(data.slug)
           setStep('done')
         } else {
-          toast.error(data.error || 'Failed to publish')
+          toast.error(humanError(data.error))
           setStep('username')
         }
       } catch (err: any) {
         if (err?.name === 'AbortError') {
-          toast.error('Request timed out — please try again')
+          toast.error('Request timed out. Try again.')
         } else {
-          toast.error('Network error')
+          toast.error('Connection lost. Check your internet and try again.')
         }
         setStep('username')
       } finally {
@@ -123,10 +124,10 @@ export default function PublishPage() {
         setFinalSlug(data.slug)
         setStep('done')
       } else {
-        toast.error(data.error || 'Failed to publish')
+        toast.error(humanError(data.error))
       }
     } catch {
-      toast.error('Network error')
+      toast.error('Connection lost. Check your internet and try again.')
     } finally {
       setLoading(false)
     }
@@ -150,11 +151,11 @@ export default function PublishPage() {
       if (data.url) {
         window.location.href = data.url
       } else {
-        toast.error(data.error || 'Failed to create checkout')
+        toast.error(humanError(data.error))
         setLoading(false)
       }
     } catch {
-      toast.error('Network error')
+      toast.error('Connection lost. Check your internet and try again.')
       setLoading(false)
     }
   }
@@ -254,7 +255,7 @@ export default function PublishPage() {
                 ) : available === true ? (
                   <p className="text-green-400/70 text-[11px]">available</p>
                 ) : available === false ? (
-                  <p className="text-red-400/70 text-[11px]">{availReason || 'not available'}</p>
+                  <p className="text-red-400/70 text-[11px]">{availReason ? humanUsernameReason(availReason) : 'That name is already claimed.'}</p>
                 ) : null}
               </div>
             )}

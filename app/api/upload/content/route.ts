@@ -27,14 +27,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (!ALLOWED_TYPES.includes(file.type)) {
-      return NextResponse.json({ error: 'Unsupported file type' }, { status: 400 })
+      return NextResponse.json({ error: 'We support JPG, PNG, GIF, MP4, and WebM.' }, { status: 400 })
     }
 
     const isVideo = VIDEO_TYPES.includes(file.type)
     const maxSize = isVideo ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE
     if (file.size > maxSize) {
       return NextResponse.json({
-        error: `File too large. Max ${isVideo ? '50MB' : '10MB'}.`
+        error: isVideo ? 'That file is too large. Keep videos under 50MB.' : 'That file is too large. Keep images under 10MB.'
       }, { status: 400 })
     }
 
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       ).length
 
       if (uploadedVideoCount >= 8) {
-        return NextResponse.json({ error: '8 video limit reached' }, { status: 400 })
+        return NextResponse.json({ error: 'You can upload up to 8 videos.' }, { status: 400 })
       }
     }
 
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
 
     if (uploadError) {
       console.error('Upload error:', uploadError)
-      return NextResponse.json({ error: 'Upload failed' }, { status: 500 })
+      return NextResponse.json({ error: 'Upload hiccuped. Try again.' }, { status: 500 })
     }
 
     // Get public URL (sanitize — Supabase sometimes injects newlines)
@@ -137,6 +137,6 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Content upload error:', error)
-    return NextResponse.json({ error: 'Upload failed' }, { status: 500 })
+    return NextResponse.json({ error: 'Upload hiccuped. Try again.' }, { status: 500 })
   }
 }

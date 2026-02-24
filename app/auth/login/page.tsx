@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import { humanError } from '@/lib/errors'
 
 export default function LoginPage() {
   const searchParams = useSearchParams()
@@ -39,7 +40,7 @@ export default function LoginPage() {
         }
 
         const data = await res.json()
-        toast.error(data.error || 'Invalid email or password')
+        toast.error(humanError(data.error))
         setLoading(false)
         return
       }
@@ -64,7 +65,7 @@ export default function LoginPage() {
         return
       }
     } catch {
-      toast.error('Failed')
+      toast.error('Something went wrong. Try again.')
     } finally {
       setLoading(false)
     }
@@ -88,10 +89,10 @@ export default function LoginPage() {
         window.location.href = `/api/auth/dev-login?email=${encodeURIComponent(email)}`
         return
       } else {
-        toast.error(data.error || 'Invalid promo code')
+        toast.error(humanError(data.error))
       }
     } catch {
-      toast.error('Failed')
+      toast.error('Something went wrong. Try again.')
     } finally {
       setLoading(false)
     }

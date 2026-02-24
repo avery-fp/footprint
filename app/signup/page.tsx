@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { humanError, humanUsernameReason } from '@/lib/errors'
 
 type Phase = 'username' | 'details'
 
@@ -94,10 +95,10 @@ export default function SignupPage() {
       if (data.success) {
         router.push(`/${data.slug}/home`)
       } else {
-        setError(data.error || 'something went wrong')
+        setError(humanError(data.error))
       }
     } catch {
-      setError('network error')
+      setError(humanError('network error'))
     } finally {
       setLoading(false)
     }
@@ -170,7 +171,7 @@ export default function SignupPage() {
             ) : available === true ? (
               <p className="text-white/25 text-[11px] font-mono">yours</p>
             ) : available === false ? (
-              <p className="text-red-400/50 text-[11px] font-mono">{availReason || 'taken'}</p>
+              <p className="text-red-400/50 text-[11px] font-mono">{availReason ? humanUsernameReason(availReason) : 'That name is already claimed.'}</p>
             ) : null
           )}
         </div>
