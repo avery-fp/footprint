@@ -70,8 +70,8 @@ function getAspectClass(aspect: string) {
   return 'aspect-square'
 }
 
-function getObjectFit(aspect: string) {
-  if (aspect === 'auto') return 'object-contain'
+function getObjectFit(_aspect: string) {
+  // Always cover — no letterboxing, no pillarboxing, no black bars
   return 'object-cover'
 }
 

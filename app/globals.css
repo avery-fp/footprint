@@ -182,6 +182,22 @@ body::before {
   border-radius: 2px;
 }
 
+/* ═══ Resize behavior: reveal, never cut ═══ */
+/* When tiles change size, the image smoothly reveals more content */
+.tile-container img,
+.tile-container video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  transition: transform 0.3s ease;
+}
+
+/* Tile size transitions — smooth grid reflow via framer-motion layout */
+.tile-container {
+  transition: box-shadow 0.3s ease;
+}
+
 /* Theme-aware tile surface — adapts to any theme */
 .fp-surface {
   background: var(--fp-glass, rgba(255, 255, 255, 0.05));
