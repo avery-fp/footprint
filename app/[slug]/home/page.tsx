@@ -725,7 +725,6 @@ export default function EditPage() {
           handle: d.handle,
           bio: d.bio,
           theme: d.theme,
-          grid_mode: d.grid_mode,
         }),
       })
     } catch (error) {
@@ -769,20 +768,16 @@ export default function EditPage() {
     trackOp(op)
   }, [isInteractive, slug, trackOp])
 
-  // Switch layout mode
+  // Switch layout mode — saved immediately, not through autosave
   const switchLayoutMode = useCallback((mode: 'editorial' | 'breathe' | 'grid') => {
     setLayoutMode(mode)
-    // Update draft so autosave doesn't overwrite with stale value
-    if (draft) {
-      setDraft({ ...draft, grid_mode: mode, updated_at: Date.now() })
-    }
     const op = fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ grid_mode: mode }),
     }).catch(e => console.error('Failed to switch layout mode:', e))
     trackOp(op)
-  }, [slug, trackOp, draft])
+  }, [slug, trackOp])
 
   useEffect(() => {
     if (pillMode === 'url') {

@@ -90,7 +90,7 @@ CREATE TABLE footprints (
 
     -- Customization
     dimension VARCHAR(50) DEFAULT 'midnight',
-    grid_mode VARCHAR(50) DEFAULT 'edit',
+    grid_mode VARCHAR(50) DEFAULT 'editorial',
     background_url TEXT,
     background_blur BOOLEAN DEFAULT TRUE,
     weather_effect VARCHAR(50),
@@ -344,7 +344,7 @@ ALTER TABLE footprints ADD COLUMN IF NOT EXISTS serial_number INTEGER UNIQUE REF
 ALTER TABLE footprints ADD COLUMN IF NOT EXISTS background_url TEXT;
 ALTER TABLE footprints ADD COLUMN IF NOT EXISTS background_blur BOOLEAN DEFAULT TRUE;
 ALTER TABLE footprints ADD COLUMN IF NOT EXISTS weather_effect VARCHAR(50);
-ALTER TABLE footprints ADD COLUMN IF NOT EXISTS grid_mode VARCHAR(50) DEFAULT 'edit';
+ALTER TABLE footprints ADD COLUMN IF NOT EXISTS grid_mode VARCHAR(50) DEFAULT 'editorial';
 
 -- Rename slug → username if needed (skip if username already exists)
 DO $$ BEGIN

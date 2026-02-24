@@ -131,15 +131,22 @@ body::before {
   animation: materialize 800ms ease-out forwards;
 }
 
-/* Tiles materialize — staggered dissolve, 40ms between each tile */
+/* Tiles rise through the surface — scale + fade, 40ms stagger between tiles */
+@keyframes tile-materialize {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
 .tile-enter {
   opacity: 0;
-  animation: materialize 200ms linear forwards;
+  transform: scale(0.97);
+  animation: tile-materialize 350ms ease-out forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .tile-enter {
     opacity: 1;
+    transform: none;
     animation: none;
   }
   .materialize {
