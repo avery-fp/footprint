@@ -359,7 +359,7 @@ export default function EditPage() {
   const [wallpaperUrl, setWallpaperUrl] = useState('')
   const [backgroundBlur, setBackgroundBlur] = useState(true)
   const [serialNumber, setSerialNumber] = useState<number | null>(null)
-  const [isPublished, setIsPublished] = useState(true)
+  const [isPublished, setIsPublished] = useState(false)
   const [isInteractive, setIsInteractive] = useState(true)
   const [layoutMode, setLayoutMode] = useState<'editorial' | 'breathe' | 'grid'>('editorial')
   const [showSettings, setShowSettings] = useState(false)
@@ -2052,9 +2052,13 @@ export default function EditPage() {
                   if (data.url) {
                     window.location.href = data.url
                   } else {
+                    setStatusToast(data.error || 'something went wrong')
+                    setTimeout(() => setStatusToast(null), 3000)
                     setGoLiveLoading(false)
                   }
                 } catch {
+                  setStatusToast('connection lost')
+                  setTimeout(() => setStatusToast(null), 3000)
                   setGoLiveLoading(false)
                 }
               }}
