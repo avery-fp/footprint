@@ -178,7 +178,7 @@ input:-webkit-autofill:focus {
 
 /* Individual tile — flush edges, tessellates */
 .fp-tile {
-  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.025);
 }
 
 /* ═══ Resize behavior: reveal, never cut ═══ */

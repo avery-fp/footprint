@@ -143,7 +143,7 @@ export function getLayoutConfig(mode: LayoutMode): LayoutConfig {
       }
     case 'grid':
       return {
-        gap: 3,
+        gap: 2,
         tileRadius: 0,
         tileShadow: 'none',
         containerPadding: 0,
@@ -151,7 +151,7 @@ export function getLayoutConfig(mode: LayoutMode): LayoutConfig {
     case 'editorial':
     default:
       return {
-        gap: 3,
+        gap: 2,
         tileRadius: 0,
         tileShadow: 'none',
         containerPadding: 0,

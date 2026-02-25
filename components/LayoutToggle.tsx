@@ -51,7 +51,7 @@ const MODES: { mode: LayoutMode; icon: React.ReactNode; label: string }[] = [
 
 export default function LayoutToggle({ mode, onChange }: LayoutToggleProps) {
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center">
       {MODES.map(({ mode: m, icon, label }) => (
         <button
           key={m}
@@ -61,13 +61,11 @@ export default function LayoutToggle({ mode, onChange }: LayoutToggleProps) {
             background: 'none',
             border: 'none',
             cursor: 'pointer',
-            padding: '7px',
-            minWidth: '28px',
-            minHeight: '28px',
+            padding: '6px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: mode === m ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.2)',
+            color: mode === m ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.12)',
             transition: 'color 200ms ease',
           }}
         >

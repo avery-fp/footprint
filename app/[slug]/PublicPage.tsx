@@ -489,21 +489,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
         {/* The Grid */}
         <div
-          className="fp-grid-container mx-auto w-full px-3 md:px-0"
+          className="fp-grid-container mx-auto w-full"
           style={{
             maxWidth: '880px',
-            paddingLeft: layoutMode === 'breathe' ? `${isMobile ? 16 : layoutConfig.containerPadding}px` : undefined,
-            paddingRight: layoutMode === 'breathe' ? `${isMobile ? 16 : layoutConfig.containerPadding}px` : undefined,
+            paddingLeft: layoutMode === 'breathe' ? `${isMobile ? 16 : layoutConfig.containerPadding}px` : '0',
+            paddingRight: layoutMode === 'breathe' ? `${isMobile ? 16 : layoutConfig.containerPadding}px` : '0',
           }}
         >
-          <div
-            className="fp-grid-arrive"
-            style={{
-              borderRadius: layoutMode === 'editorial' ? '6px' : '0px',
-              overflow: layoutMode === 'editorial' ? 'hidden' : 'visible',
-              boxShadow: layoutMode === 'editorial' ? '0 8px 60px rgba(0,0,0,0.35), 0 2px 12px rgba(0,0,0,0.2)' : 'none',
-            }}
-          >
+          <div className="fp-grid-arrive">
             <LayoutGroup>{activeGrid}</LayoutGroup>
           </div>
         </div>
