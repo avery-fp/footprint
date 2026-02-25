@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
       : undefined
     response.cookies.set('fp_session', sessionToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: false, // Dev-only route — production is blocked above
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30,
       path: '/',

@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get footprint metadata
-    const fpIds = [...new Set((events || []).map(e => e.footprint_id))]
+    const fpIds = Array.from(new Set((events || []).map(e => e.footprint_id)))
 
     const { data: footprints } = await supabase
       .from('footprints')
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
       .in('id', fpIds.length > 0 ? fpIds : ['none'])
 
     // Get serial numbers
-    const userIds = [...new Set((footprints || []).map(f => f.user_id))]
+    const userIds = Array.from(new Set((footprints || []).map(f => f.user_id)))
     const { data: users } = await supabase
       .from('users')
       .select('id, serial_number')

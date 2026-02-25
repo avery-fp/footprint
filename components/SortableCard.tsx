@@ -38,7 +38,7 @@ export function SortableCard({ id, content, onDelete, isDragging }: SortableCard
       className={`relative group ${isOver ? 'ring-2 ring-white/30 rounded-xl' : ''} ${isActive ? 'scale-[0.98]' : ''}`}
     >
       {/* The actual content card - receives clicks normally */}
-      <ContentCard content={content} editable onDelete={onDelete} />
+      <ContentCard content={content} />
 
       {/* Drag handle - ONLY this triggers drag */}
       {/* Mobile: always visible with larger touch target, Desktop: show on hover */}

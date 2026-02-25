@@ -46,7 +46,7 @@ export async function ingestTargets(input: {
   let ingested = 0
 
   // Ensure categories exist
-  const categoryNames = [...new Set(rows.map(r => r.category).filter(Boolean))]
+  const categoryNames = Array.from(new Set(rows.map(r => r.category).filter(Boolean)))
   for (const name of categoryNames) {
     await supabase
       .from('categories')
@@ -199,7 +199,7 @@ export async function applyVoidLayer(): Promise<{ voided: number }> {
 
   // Void bottom 30% of each category
   const toVoid: string[] = []
-  for (const [, ids] of byCat) {
+  for (const [, ids] of Array.from(byCat)) {
     const count = Math.ceil(ids.length * 0.3)
     toVoid.push(...ids.slice(0, count))
   }

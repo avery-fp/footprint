@@ -19,7 +19,7 @@ interface ContentCardProps {
   content: {
     id: string
     url: string
-    type: ContentType
+    type: ContentType | string
     title: string | null
     description: string | null
     thumbnail_url: string | null
@@ -44,8 +44,8 @@ interface ContentCardProps {
 export default function ContentCard({ content, onWidescreen, isMobile = false, tileSize = 1, aspect = 'square', isPublicView = false }: ContentCardProps) {
   const aspectClass = aspect === 'wide' ? 'aspect-video' : aspect === 'tall' ? 'aspect-[9/16]' : aspect === 'auto' ? '' : 'aspect-square'
   const fitClass = aspect === 'auto' ? 'object-contain' : 'object-cover'
-  const icon = getContentIcon(content.type)
-  const customBg = getContentBackground(content.type)
+  const icon = getContentIcon(content.type as ContentType)
+  const customBg = getContentBackground(content.type as ContentType)
   const [isActivated, setIsActivated] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
   const [isInView, setIsInView] = useState(false)

@@ -64,14 +64,14 @@ async function handleCheckoutComplete(session: any) {
 
   if (existingUser) {
     // User exists (import-draft created them) — just record payment if missing
-    await supabase.from('payments').insert({
+    await supabase.from('payments').upsert({
       user_id: existingUser.id,
       stripe_session_id: session.id,
       stripe_payment_intent: session.payment_intent,
       amount: session.amount_total,
       currency: session.currency,
       status: 'completed',
-    }).onConflict('stripe_session_id').ignore()
+    }, { onConflict: 'stripe_session_id', ignoreDuplicates: true })
 
     console.log(`⤴ User already exists: ${email} #${existingUser.serial_number}`)
     return
@@ -187,12 +187,14 @@ async function handleCheckoutComplete(session: any) {
   if (refCode) {
     const refSerial = parseInt(refCode.replace('FP-', ''), 10)
     if (!isNaN(refSerial)) {
-      await supabase.from('referrals').insert({
-        referrer_serial: refSerial,
-        referred_user_id: user.id,
-        referral_code: refCode,
-        converted: true,
-      }).catch(() => {})
+      try {
+        await supabase.from('referrals').insert({
+          referrer_serial: refSerial,
+          referred_user_id: user.id,
+          referral_code: refCode,
+          converted: true,
+        })
+      } catch { /* non-critical */ }
     }
   }
 
@@ -205,16 +207,18 @@ async function handleCheckoutComplete(session: any) {
     .single()
 
   if (fp) {
-    await supabase.from('fp_events').insert({
-      footprint_id: fp.id,
-      event_type: 'conversion',
-      event_data: {
-        serial_number: serialNumber,
-        amount: session.amount_total,
-        ref: refCode || null,
-        source: 'stripe',
-      },
-    }).catch(() => {})
+    try {
+      await supabase.from('fp_events').insert({
+        footprint_id: fp.id,
+        event_type: 'conversion',
+        event_data: {
+          serial_number: serialNumber,
+          amount: session.amount_total,
+          ref: refCode || null,
+          source: 'stripe',
+        },
+      })
+    } catch { /* non-critical */ }
   }
 
   console.log(`✓ New user: ${email} #${serialNumber}`)
@@ -326,11 +330,13 @@ async function cloneRemixContent(
     }
   }
 
-  // Track remix in distribution events
-  await supabase.from('fp_distribution_events').insert({
-    serial_number: sourceSerial,
-    channel: 'remix',
-    surface: `remix by #${targetSerialNumber}`,
-    notes: `Cloned to ${targetSlug} from ${sourceSlug}`,
-  }).catch(() => {}) // Non-critical, don't fail the purchase
+  // Track remix in distribution events (non-critical)
+  try {
+    await supabase.from('fp_distribution_events').insert({
+      serial_number: sourceSerial,
+      channel: 'remix',
+      surface: `remix by #${targetSerialNumber}`,
+      notes: `Cloned to ${targetSlug} from ${sourceSlug}`,
+    })
+  } catch { /* non-critical, don't fail the purchase */ }
 }

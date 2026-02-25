@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    const updatePromises: Promise<any>[] = []
+    const updatePromises: PromiseLike<any>[] = []
     for (const u of libraryUpdates) {
       updatePromises.push(
         supabase.from('library').update({ room_id: u.room_id }).eq('id', u.id)
