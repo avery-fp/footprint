@@ -12,6 +12,8 @@ import { getTheme } from '@/lib/themes'
 import { snapToPreset } from '@/lib/aspect-ratios'
 import Image from 'next/image'
 import ErrorBoundary from '@/components/ErrorBoundary'
+import LayoutToggle from '@/components/LayoutToggle'
+import type { LayoutMode } from '@/lib/layout-engine'
 
 interface TileContent extends DraftContent {
   source?: 'library' | 'links'
@@ -48,12 +50,12 @@ function resolveAspect(explicitAspect: string | undefined | null, type: string, 
 }
 
 function getGridClass(size: number, aspect: string) {
-  if (aspect === 'wide') {
+  if (aspect === 'wide' || aspect === 'landscape') {
     if (size >= 3) return 'col-span-2 row-span-1 md:col-span-4 md:row-span-2'
     if (size >= 2) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-1'
     return 'col-span-2 row-span-1'
   }
-  if (aspect === 'tall') {
+  if (aspect === 'tall' || aspect === 'portrait') {
     if (size >= 3) return 'col-span-2 row-span-3 md:col-span-2 md:row-span-4'
     if (size >= 2) return 'col-span-1 row-span-3 md:col-span-2 md:row-span-3'
     return 'col-span-1 row-span-2'
@@ -65,8 +67,9 @@ function getGridClass(size: number, aspect: string) {
 }
 
 function getAspectClass(aspect: string) {
-  if (aspect === 'wide') return 'aspect-video'
+  if (aspect === 'wide' || aspect === 'landscape') return 'aspect-video'
   if (aspect === 'tall') return 'aspect-[9/16]'
+  if (aspect === 'portrait') return 'aspect-[3/4]'
   if (aspect === 'auto') return ''
   return 'aspect-square'
 }
@@ -360,8 +363,7 @@ export default function EditPage() {
   const [backgroundBlur, setBackgroundBlur] = useState(true)
   const [serialNumber, setSerialNumber] = useState<number | null>(null)
   const [isPublished, setIsPublished] = useState(false)
-  const [isInteractive, setIsInteractive] = useState(true)
-  const [layoutMode, setLayoutMode] = useState<'editorial' | 'breathe' | 'grid'>('editorial')
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>('editorial')
   const [showSettings, setShowSettings] = useState(false)
   const [statusToast, setStatusToast] = useState<string | null>(null)
   const [pasteUrl, setPasteUrl] = useState('')
@@ -636,9 +638,8 @@ export default function EditPage() {
           setWallpaperUrl(data.footprint.background_url || '')
           setBackgroundBlur(data.footprint.background_blur ?? true)
           setIsPublished(data.footprint.published !== false)
-          setIsInteractive(data.footprint.interactive !== false)
           const gm = data.footprint.grid_mode
-          const resolvedGridMode: 'editorial' | 'breathe' | 'grid' =
+          const resolvedGridMode: LayoutMode =
             (gm === 'editorial' || gm === 'breathe' || gm === 'grid') ? gm : 'editorial'
           setLayoutMode(resolvedGridMode)
 
@@ -754,20 +755,8 @@ export default function EditPage() {
     trackOp(op)
   }, [isPublished, slug, trackOp])
 
-  // Toggle interactive tiles
-  const toggleInteractive = useCallback(() => {
-    const next = !isInteractive
-    setIsInteractive(next)
-    const op = fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ interactive: next }),
-    }).catch(e => console.error('Failed to toggle interactive:', e))
-    trackOp(op)
-  }, [isInteractive, slug, trackOp])
-
   // Switch layout mode — saved immediately, not through autosave
-  const switchLayoutMode = useCallback((mode: 'editorial' | 'breathe' | 'grid') => {
+  const switchLayoutMode = useCallback((mode: LayoutMode) => {
     setLayoutMode(mode)
     const op = fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
       method: 'PUT',
@@ -1316,6 +1305,21 @@ export default function EditPage() {
     })
   }
 
+  // Detect video dimensions from a File → snap to aspect preset
+  function detectVideoAspect(file: File): Promise<string> {
+    return new Promise((resolve) => {
+      const video = document.createElement('video')
+      video.preload = 'metadata'
+      video.onloadedmetadata = () => {
+        const preset = snapToPreset(video.videoWidth, video.videoHeight)
+        URL.revokeObjectURL(video.src)
+        resolve(preset)
+      }
+      video.onerror = () => { resolve('square') }
+      video.src = URL.createObjectURL(file)
+    })
+  }
+
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || [])
     if (files.length === 0 || !draft || !serialNumber) return
@@ -1386,8 +1390,8 @@ export default function EditPage() {
       const tempId = tempIds[idx]
 
       try {
-        // Detect aspect ratio for images before resize (preserves original ratio)
-        const detectedAspect = isVideo ? 'wide' : await detectImageAspect(file)
+        // Detect aspect ratio before resize (preserves original ratio)
+        const detectedAspect = isVideo ? await detectVideoAspect(file) : await detectImageAspect(file)
 
         const uploadFile = isVideo ? file : await resizeImage(file)
         const ext = uploadFile.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg')
@@ -1633,6 +1637,15 @@ export default function EditPage() {
           </button>
         </div>
       </div>
+
+      {/* Layout toggle — below room pills, right-aligned */}
+      {!isArranging && filteredContent.length > 0 && (
+        <div className="fixed top-0 left-0 right-0 z-[39] pointer-events-none" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 88px)' }}>
+          <div className="max-w-7xl mx-auto px-4 md:px-7 flex justify-end pointer-events-auto">
+            <LayoutToggle mode={layoutMode} onChange={switchLayoutMode} />
+          </div>
+        </div>
+      )}
 
       {/* ═══ TILE GRID ═══ */}
       <div className="max-w-7xl mx-auto px-3 md:px-6 pt-28 md:pt-24 pb-32 relative z-10"
@@ -2153,40 +2166,7 @@ export default function EditPage() {
             <div className="px-5 pb-6">
               <p className="text-xs text-white/30 font-mono tracking-[0.15em] uppercase mb-4">settings</p>
 
-              {/* Layout mode selector */}
-              <div className="py-3">
-                <p className="text-sm text-white/70 font-mono mb-1">layout</p>
-                <p className="text-[11px] text-white/30 font-mono mb-3">how tiles are arranged on your page</p>
-                <div className="flex gap-2">
-                  {(['editorial', 'breathe', 'grid'] as const).map((mode) => (
-                    <button
-                      key={mode}
-                      onClick={() => switchLayoutMode(mode)}
-                      className={`flex-1 py-2 rounded-lg text-xs font-mono transition-all duration-200 ${
-                        layoutMode === mode
-                          ? 'bg-white/20 text-white/90 border border-white/20'
-                          : 'bg-white/[0.04] text-white/40 border border-transparent hover:bg-white/[0.08]'
-                      }`}
-                    >
-                      {mode}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Interactive tiles toggle */}
-              <div className="flex items-center justify-between py-3 border-t border-white/[0.06] mt-2">
-                <div>
-                  <p className="text-sm text-white/70 font-mono">interactive tiles</p>
-                  <p className="text-[11px] text-white/30 font-mono mt-0.5">visitors can drag tiles around</p>
-                </div>
-                <button
-                  onClick={toggleInteractive}
-                  className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${isInteractive ? 'bg-white/30' : 'bg-white/[0.08]'}`}
-                >
-                  <div className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-200 ${isInteractive ? 'translate-x-5' : 'translate-x-0'}`} />
-                </button>
-              </div>
+              {/* Wallpaper controls live here — remaining settings */}
             </div>
           </div>
         </>
