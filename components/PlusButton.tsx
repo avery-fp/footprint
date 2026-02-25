@@ -52,7 +52,7 @@ export function PlusButton({ slug }: PlusButtonProps) {
           aria-label="Add to your Rolodex"
           role="button"
           tabIndex={0}
-          className="w-8 h-8 rounded-full bg-white/[0.08] backdrop-blur-md border border-white/[0.12] shadow-[0_2px_8px_rgba(0,0,0,0.3)] flex items-center justify-center cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-white/30 touch-manipulation"
+          className="w-11 h-11 rounded-full bg-white/[0.08] backdrop-blur-md border border-white/[0.12] shadow-[0_2px_8px_rgba(0,0,0,0.3)] flex items-center justify-center cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-white/30 touch-manipulation"
           initial={{ opacity: 1, scale: 1, rotate: 0 }}
           exit={
             reducedMotion

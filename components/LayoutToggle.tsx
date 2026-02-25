@@ -57,11 +57,12 @@ export default function LayoutToggle({ mode, onChange }: LayoutToggleProps) {
           key={m}
           onClick={() => onChange(m)}
           aria-label={label}
+          className="touch-manipulation"
           style={{
             background: 'none',
             border: 'none',
             cursor: 'pointer',
-            padding: '6px',
+            padding: '10px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
