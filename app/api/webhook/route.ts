@@ -85,14 +85,14 @@ async function handleCheckoutComplete(session: any) {
     .single()
 
   if (raceCheckUser) {
-    await supabase.from('payments').insert({
+    await supabase.from('payments').upsert({
       user_id: raceCheckUser.id,
       stripe_session_id: session.id,
       stripe_payment_intent: session.payment_intent,
       amount: session.amount_total,
       currency: session.currency,
       status: 'completed',
-    }).onConflict('stripe_session_id').ignore()
+    }, { onConflict: 'stripe_session_id', ignoreDuplicates: true })
     console.log(`⤴ Race-condition resolved: user already exists: ${email}`)
     return
   }
