@@ -23,7 +23,9 @@ export async function POST(request: NextRequest) {
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://footprint.onl'
 
-    const successUrl = `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`
+    const successUrl = slug
+      ? `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}&slug=${encodeURIComponent(slug)}`
+      : `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`
 
     const cancelUrl = slug
       ? `${baseUrl}/${encodeURIComponent(slug)}/home`

@@ -34,15 +34,15 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" style={{ backgroundColor: '#080808' }}>
+    <html lang="en" style={{ backgroundColor: '#050505' }}>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <link rel="manifest" href="/manifest.json" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="theme-color" content="#000000" />
+        <meta name="theme-color" content="#050505" />
       </head>
-      <body className="font-sans" style={{ backgroundColor: '#080808' }}>
+      <body className="font-sans" style={{ backgroundColor: '#050505' }}>
         {children}
         <Toaster 
           position="bottom-center"

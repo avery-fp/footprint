@@ -706,6 +706,22 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </>
       )}
 
+      {/* Serial number — fixed bottom-left, quiet scarcity signal */}
+      {!isDraft && serial && (
+        <div
+          className="fixed bottom-4 left-4 z-20 select-none pointer-events-none"
+          style={{
+            color: 'rgba(255,255,255,0.15)',
+            fontSize: '11px',
+            fontWeight: 300,
+            letterSpacing: '1px',
+            fontFamily: 'monospace',
+          }}
+        >
+          #{String(serial).padStart(4, '0')}
+        </div>
+      )}
+
       {/* Floating CTA bar */}
       {!isDraft && (
         <FloatingCtaBar username={footprint.username} serial={serial} />

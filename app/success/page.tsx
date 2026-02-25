@@ -18,6 +18,9 @@ export default function SuccessPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [password, setPassword] = useState('')
   const [saving, setSaving] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const pageUrl = slug ? `https://footprint.onl/${slug}` : ''
 
   useEffect(() => {
     async function publishDraft() {
@@ -89,8 +92,28 @@ export default function SuccessPage() {
     }
   }
 
-  const skipToPage = () => {
-    router.push(`/${slug}/home`)
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(pageUrl)
+      setCopied(true)
+      toast('copied to clipboard')
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      toast.error('Failed to copy')
+    }
+  }
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({ url: pageUrl })
+      } catch {
+        // User cancelled share — ignore
+      }
+    } else {
+      const text = encodeURIComponent(`just got my footprint → ${pageUrl}`)
+      window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank')
+    }
   }
 
   // Publishing spinner
@@ -124,45 +147,82 @@ export default function SuccessPage() {
     )
   }
 
-  // Welcome → set password
+  // Welcome → actions → password
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6">
       <div className="w-full max-w-xs text-center">
-        {/* Serial number */}
+        {/* Serial number — proud */}
         {serialNumber && (
           <p className="font-mono text-white/25 text-[11px] tracking-[0.2em] uppercase mb-6">
             FP #{serialNumber.toLocaleString()}
           </p>
         )}
 
-        <p
-          className="text-[22px] font-light tracking-[-0.01em] text-white/90 mb-3"
-        >
-          {step === 'welcome' ? "you're live" : 'set a password'}
-        </p>
-
         {step === 'welcome' && (
           <>
-            <p className="text-white/30 text-[13px] leading-relaxed mb-10">
-              your page is public. set a password<br />so you can sign in and edit it.
+            <p className="text-[22px] font-light tracking-[-0.01em] text-white/90 mb-2">
+              you&apos;re live
             </p>
+
+            {/* URL display */}
+            <a
+              href={pageUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block text-white/40 text-[13px] font-mono tracking-wide hover:text-white/60 transition-colors mb-10"
+            >
+              footprint.onl/{slug}
+            </a>
+
+            {/* Primary actions */}
+            <div className="space-y-3">
+              <button
+                onClick={handleCopyLink}
+                className="w-full py-3.5 rounded-xl bg-white text-black text-[14px] font-medium hover:bg-white/90 transition-all active:scale-[0.99]"
+              >
+                {copied ? 'copied' : 'copy your link'}
+              </button>
+
+              <button
+                onClick={handleShare}
+                className="w-full py-3.5 rounded-xl text-[14px] font-medium transition-all active:scale-[0.99]"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  color: 'rgba(255, 255, 255, 0.8)',
+                }}
+              >
+                share
+              </button>
+
+              <button
+                onClick={() => router.push(`/${slug}/home`)}
+                className="w-full py-3.5 rounded-xl text-[14px] font-medium transition-all active:scale-[0.99]"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                  color: 'rgba(255, 255, 255, 0.6)',
+                }}
+              >
+                start building &rarr;
+              </button>
+            </div>
+
+            {/* Password — quiet link */}
             <button
               onClick={() => setStep('password')}
-              className="w-full py-3.5 rounded-xl bg-white text-black text-[14px] font-medium hover:bg-white/90 transition-all mb-3"
+              className="mt-8 text-white/15 text-[11px] hover:text-white/30 transition-colors"
             >
-              set password
-            </button>
-            <button
-              onClick={skipToPage}
-              className="w-full py-3 text-white/20 text-[12px] hover:text-white/40 transition-colors"
-            >
-              skip for now
+              set a password
             </button>
           </>
         )}
 
         {step === 'password' && (
           <>
+            <p className="text-[22px] font-light tracking-[-0.01em] text-white/90 mb-3">
+              set a password
+            </p>
             <p className="text-white/30 text-[13px] leading-relaxed mb-8">
               you can also sign in with a magic link anytime.
             </p>
@@ -185,7 +245,7 @@ export default function SuccessPage() {
               </button>
             </form>
             <button
-              onClick={skipToPage}
+              onClick={() => router.push(`/${slug}/home`)}
               className="mt-4 text-white/15 text-[11px] hover:text-white/30 transition-colors"
             >
               skip
