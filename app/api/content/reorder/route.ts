@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getUserIdFromRequest } from '@/lib/auth'
+import { contentReorderSchema } from '@/lib/schemas'
+import { validateBody } from '@/lib/validate'
+import { routeLogger } from '@/lib/logger'
+
+const log = routeLogger('POST', '/api/content/reorder')
 
 /**
  * POST /api/content/reorder
@@ -15,15 +20,9 @@ import { getUserIdFromRequest } from '@/lib/auth'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { footprint_id, updates } = body
-
-    // Validate input
-    if (!footprint_id || !updates || !Array.isArray(updates)) {
-      return NextResponse.json(
-        { error: 'footprint_id and updates array required' },
-        { status: 400 }
-      )
-    }
+    const v = validateBody(contentReorderSchema, body)
+    if (!v.success) return v.response
+    const { footprint_id, updates } = v.data
 
     // Verify user owns this footprint
     const userId = await getUserIdFromRequest(request)
@@ -44,16 +43,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Not your footprint' }, { status: 403 })
     }
 
-    // Validate each update entry
-    for (const entry of updates) {
-      if (typeof entry.id !== 'string' || !entry.id) {
-        return NextResponse.json({ error: 'Each update must have a string id' }, { status: 400 })
-      }
-      if (!Number.isInteger(entry.position) || entry.position < 0) {
-        return NextResponse.json({ error: 'Each position must be a non-negative integer' }, { status: 400 })
-      }
-    }
-
     // Update each content item's position
     // We use Promise.all to do these in parallel for speed
     const updatePromises = updates.map(({ id, position }: { id: string; position: number }) =>
@@ -69,7 +58,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true })
 
   } catch (error) {
-    console.error('Reorder error:', error)
+    log.error({ err: error }, 'Reorder failed')
     return NextResponse.json({ error: 'Failed to reorder content' }, { status: 500 })
   }
 }

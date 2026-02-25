@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { eventsSchema } from '@/lib/schemas'
+import { validateBody } from '@/lib/validate'
+import { routeLogger } from '@/lib/logger'
+
+const log = routeLogger('POST', '/api/events')
 
 /**
  * POST /api/events
@@ -26,20 +31,12 @@ function hashIP(ip: string): string {
   return Math.abs(hash).toString(16).padStart(8, '0')
 }
 
-const VALID_EVENTS = ['visit', 'tile_click', 'referral_visit', 'share', 'conversion']
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { footprint_id, event_type, event_data } = body
-
-    if (!footprint_id || !event_type) {
-      return NextResponse.json({ error: 'footprint_id and event_type required' }, { status: 400 })
-    }
-
-    if (!VALID_EVENTS.includes(event_type)) {
-      return NextResponse.json({ error: 'Invalid event_type' }, { status: 400 })
-    }
+    const v = validateBody(eventsSchema, body)
+    if (!v.success) return v.response
+    const { footprint_id, event_type, event_data } = v.data
 
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0] ||
                request.headers.get('x-real-ip') ||
@@ -61,7 +58,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true })
   } catch (error) {
-    console.error('Event tracking error:', error)
+    log.error({ err: error }, 'Event tracking failed')
     return NextResponse.json({ ok: true })
   }
 }

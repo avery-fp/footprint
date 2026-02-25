@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { createSessionToken } from '@/lib/auth'
 import { nanoid } from 'nanoid'
+import { checkoutFreeSchema } from '@/lib/schemas'
+import { validateBody } from '@/lib/validate'
+import { routeLogger } from '@/lib/logger'
+
+const log = routeLogger('POST', '/api/checkout/free')
 
 /**
  * POST /api/checkout/free
@@ -11,11 +16,10 @@ import { nanoid } from 'nanoid'
  */
 export async function POST(request: NextRequest) {
   try {
-    const { email, promo, ref } = await request.json()
-
-    if (!email) {
-      return NextResponse.json({ error: 'Email required' }, { status: 400 })
-    }
+    const body = await request.json()
+    const v = validateBody(checkoutFreeSchema, body)
+    if (!v.success) return v.response
+    const { email, promo, ref } = v.data
 
     const normalizedEmail = email.toLowerCase().trim()
     const normalizedPromo = (promo || '').trim().toLowerCase()
@@ -103,7 +107,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (fpError) {
-      console.error('CRITICAL: Free checkout footprint creation failed:', fpError)
+      log.error({ err: fpError }, 'CRITICAL: Free checkout footprint creation failed')
       return NextResponse.json({ error: 'Failed to create page' }, { status: 500 })
     }
 
@@ -172,7 +176,7 @@ export async function POST(request: NextRequest) {
 
     return response
   } catch (error: any) {
-    console.error('Free checkout error:', error)
+    log.error({ err: error }, 'Free checkout failed')
     return NextResponse.json({ error: 'Something went wrong' }, { status: 500 })
   }
 }

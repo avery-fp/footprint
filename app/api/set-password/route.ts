@@ -2,16 +2,21 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import * as bcrypt from 'bcryptjs'
 import { getUserIdFromRequest } from '@/lib/auth'
+import { setPasswordSchema } from '@/lib/schemas'
+import { validateBody } from '@/lib/validate'
+import { routeLogger } from '@/lib/logger'
+
+const log = routeLogger('POST', '/api/set-password')
 
 export async function POST(request: NextRequest) {
   try {
     const userId = await getUserIdFromRequest(request)
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { password } = await request.json()
-    if (!password || password.length < 6) {
-      return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 })
-    }
+    const body = await request.json()
+    const v = validateBody(setPasswordSchema, body)
+    if (!v.success) return v.response
+    const { password } = v.data
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -30,7 +35,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true })
   } catch (err: any) {
-    console.error('Set password error:', err)
+    log.error({ err }, 'Set password failed')
     return NextResponse.json({ error: err?.message || 'Failed' }, { status: 500 })
   }
 }

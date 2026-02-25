@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe, FOOTPRINT_PRICE, FOOTPRINT_CURRENCY } from '@/lib/stripe'
+import { checkoutSchema } from '@/lib/schemas'
+import { validateBody } from '@/lib/validate'
+import { routeLogger } from '@/lib/logger'
+
+const log = routeLogger('POST', '/api/checkout')
 
 /**
  * POST /api/checkout
@@ -12,14 +17,9 @@ import { stripe, FOOTPRINT_PRICE, FOOTPRINT_CURRENCY } from '@/lib/stripe'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { email, slug, remix_source, remix_room, ref } = body
-
-    if (!email && !remix_source) {
-      return NextResponse.json(
-        { error: 'Email is required' },
-        { status: 400 }
-      )
-    }
+    const v = validateBody(checkoutSchema, body)
+    if (!v.success) return v.response
+    const { email, slug, remix_source, remix_room, ref } = v.data
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://footprint.onl'
 
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ url: session.url })
   } catch (error: any) {
-    console.error('Checkout error:', error)
+    log.error({ err: error }, 'Checkout failed')
 
     return NextResponse.json(
       { error: error?.message || 'Failed to create checkout session' },

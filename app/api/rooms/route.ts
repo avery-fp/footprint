@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getUserIdFromRequest } from '@/lib/auth'
+import { roomsPatchSchema, roomsPostSchema } from '@/lib/schemas'
+import { validateBody } from '@/lib/validate'
+import { routeLogger } from '@/lib/logger'
+
+const log = routeLogger('MULTI', '/api/rooms')
 
 /**
  * Verify the requesting user owns the footprint with this serial_number.
@@ -108,11 +113,10 @@ export async function GET(request: NextRequest) {
  */
 export async function PATCH(request: NextRequest) {
   try {
-    const { id, slug, hidden, name } = await request.json()
-
-    if (!id) {
-      return NextResponse.json({ error: 'id required' }, { status: 400 })
-    }
+    const body = await request.json()
+    const v = validateBody(roomsPatchSchema, body)
+    if (!v.success) return v.response
+    const { id, slug, hidden, name } = v.data
 
     const supabase = createServerSupabaseClient()
 
@@ -190,11 +194,10 @@ export async function DELETE(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const { serial_number, name, position, slug } = await request.json()
-
-    if (!serial_number || !name) {
-      return NextResponse.json({ error: 'serial_number and name required' }, { status: 400 })
-    }
+    const body = await request.json()
+    const v = validateBody(roomsPostSchema, body)
+    if (!v.success) return v.response
+    const { serial_number, name, position, slug } = v.data
 
     const supabase = createServerSupabaseClient()
 

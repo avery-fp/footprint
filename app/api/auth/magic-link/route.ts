@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generateMagicLink, sendMagicLinkEmail } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
+import { magicLinkSchema } from '@/lib/schemas'
+import { validateBody } from '@/lib/validate'
+import { routeLogger } from '@/lib/logger'
+
+const log = routeLogger('POST', '/api/auth/magic-link')
 
 // In-memory rate limiter: max 5 requests per email per 15 minutes
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
@@ -23,31 +28,13 @@ function checkRateLimit(key: string): boolean {
  * POST /api/auth/magic-link
  *
  * Generates and sends a magic link for passwordless auth.
- *
- * Flow:
- * 1. User submits email
- * 2. We check if they're a valid user (have paid)
- * 3. Generate a secure, time-limited token
- * 4. Send them an email with the magic link
- *
- * If they haven't paid yet, we let them know they need to first.
- *
- * NOTE: Uses service role to bypass RLS for user lookup.
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { email: rawEmail, redirect } = body
-
-    if (!rawEmail) {
-      return NextResponse.json(
-        { error: 'Email is required' },
-        { status: 400 }
-      )
-    }
-
-    // Normalize email
-    const email = rawEmail.toLowerCase().trim()
+    const v = validateBody(magicLinkSchema, body)
+    if (!v.success) return v.response
+    const { email, redirect } = v.data
 
     // Rate limit: prevent email bombing and enumeration
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
@@ -94,7 +81,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true })
 
   } catch (error) {
-    console.error('Magic link error:', error)
+    log.error({ err: error }, 'Magic link failed')
 
     // Don't expose internal error details to clients
     return NextResponse.json(
