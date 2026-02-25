@@ -3,12 +3,10 @@
 import { useState, useRef, useEffect } from 'react'
 import { audioManager } from '@/lib/audio-manager'
 
-export default function VideoTile({ src, onWidescreen, aspect = 'square', isPublicHero = false }: { src: string; onWidescreen?: () => void; aspect?: string; isPublicHero?: boolean }) {
-  const fitClass = 'object-cover'
+export default function VideoTile({ src, onWidescreen }: { src: string; onWidescreen?: () => void }) {
   const [isMuted, setIsMuted] = useState(true)
   const [isNear, setIsNear] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
-  const [isWide, setIsWide] = useState(false)
   const [isReady, setIsReady] = useState(false)
   const [hasFailed, setHasFailed] = useState(false)
   const [showTapFeedback, setShowTapFeedback] = useState(false)
@@ -103,7 +101,7 @@ export default function VideoTile({ src, onWidescreen, aspect = 'square', isPubl
           <video
             ref={videoRef}
             src={src}
-            className={`w-full h-full ${fitClass} cursor-pointer transition-opacity duration-300 ${isReady ? 'opacity-100' : 'opacity-0'}`}
+            className={`w-full h-full object-cover cursor-pointer transition-opacity duration-300 ${isReady ? 'opacity-100' : 'opacity-0'}`}
             muted
             loop
             playsInline
@@ -114,7 +112,6 @@ export default function VideoTile({ src, onWidescreen, aspect = 'square', isPubl
             onLoadedMetadata={(e) => {
               const v = e.currentTarget
               if (v.videoWidth > v.videoHeight * 1.3) {
-                setIsWide(true)
                 onWidescreen?.()
               }
             }}
@@ -128,7 +125,7 @@ export default function VideoTile({ src, onWidescreen, aspect = 'square', isPubl
           )}
           {/* Brief play/pause tap feedback — flashes then disappears */}
           {showTapFeedback && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ animation: 'materialize 400ms ease-out forwards reverse' }}>
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ animation: 'materialize 400ms ease-out forwards' }}>
               <div className="w-10 h-10 rounded-full bg-black/30 flex items-center justify-center backdrop-blur-sm">
                 <svg className="w-4 h-4 text-white/70" fill="currentColor" viewBox="0 0 24 24">
                   {isMuted ? (

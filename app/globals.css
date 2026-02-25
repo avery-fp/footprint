@@ -105,16 +105,6 @@ input:-webkit-autofill:focus {
   background: rgba(255, 255, 255, 0.12);
 }
 
-/* Animation delays */
-.delay-100 { animation-delay: 0.1s; }
-.delay-200 { animation-delay: 0.2s; }
-.delay-300 { animation-delay: 0.3s; }
-.delay-400 { animation-delay: 0.4s; }
-.delay-500 { animation-delay: 0.5s; }
-.delay-600 { animation-delay: 0.6s; }
-.delay-700 { animation-delay: 0.7s; }
-.delay-800 { animation-delay: 0.8s; }
-
 /* Twitter embeds dark mode */
 .twitter-tweet {
   margin: 0 !important;
@@ -188,7 +178,7 @@ input:-webkit-autofill:focus {
 
 /* Individual tile — flush edges, tessellates */
 .fp-tile {
-  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.025);
 }
 
 /* ═══ Resize behavior: reveal, never cut ═══ */
