@@ -79,6 +79,15 @@ body::before {
   background: rgba(255, 255, 255, 0.25);
 }
 
+/* Chrome autofill — prevent yellow flash, keep dark aesthetic */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: rgba(245, 245, 245, 0.9);
+  -webkit-box-shadow: 0 0 0px 1000px var(--bg-elevated) inset;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
 /* Focus styles */
 *:focus-visible {
   outline: 2px solid rgba(255, 255, 255, 0.5);
