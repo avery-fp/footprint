@@ -3,6 +3,11 @@ import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { parseURL } from '@/lib/parser'
 import { getUserIdFromRequest } from '@/lib/auth'
+import { tilesPostSchema, tilesDeleteSchema, tilesPutSchema, tilesPatchSchema } from '@/lib/schemas'
+import { validateBody } from '@/lib/validate'
+import { routeLogger } from '@/lib/logger'
+
+const log = routeLogger('MULTI', '/api/tiles')
 
 /**
  * Get serial_number from slug + verify the requesting user owns it.
@@ -37,11 +42,10 @@ async function getSerialNumber(
  */
 export async function POST(request: NextRequest) {
   try {
-    const { slug, url, thought, room_id } = await request.json()
-
-    if (!slug || (!url && !thought)) {
-      return NextResponse.json({ error: 'slug and (url or thought) required' }, { status: 400 })
-    }
+    const body = await request.json()
+    const v = validateBody(tilesPostSchema, body)
+    if (!v.success) return v.response
+    const { slug, url, thought, room_id } = v.data
 
     const supabase = createServerSupabaseClient()
 
@@ -63,7 +67,7 @@ export async function POST(request: NextRequest) {
         embed_html: null,
       }
     } else {
-      parsed = await parseURL(url)
+      parsed = await parseURL(url!)
     }
 
     // Determine which table to use based on type
@@ -156,7 +160,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ tile: normalizedTile })
 
   } catch (error) {
-    console.error('Add tile error:', error)
+    log.error({ err: error }, 'Add tile failed')
     return NextResponse.json({ error: 'Failed to add tile' }, { status: 500 })
   }
 }
@@ -171,12 +175,10 @@ export async function POST(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   try {
-    const { slug, source, id } = await request.json()
-
-    if (!slug || !source || !id || !['library', 'links'].includes(source)) {
-      console.error('DELETE /api/tiles: Missing or invalid params', { slug, source, id })
-      return NextResponse.json({ error: 'slug, source (library|links), and id required' }, { status: 400 })
-    }
+    const body = await request.json()
+    const v = validateBody(tilesDeleteSchema, body)
+    if (!v.success) return v.response
+    const { slug, source, id } = v.data
 
     const supabase = createServerSupabaseClient()
 
@@ -200,7 +202,7 @@ export async function DELETE(request: NextRequest) {
       .eq('serial_number', serialNumber)
 
     if (error) {
-      console.error('DELETE /api/tiles: Database error:', error)
+      log.error({ err: error }, 'DELETE /api/tiles: Database error')
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
@@ -208,7 +210,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true, deleted: count })
 
   } catch (error) {
-    console.error('DELETE /api/tiles: Unexpected error:', error)
+    log.error({ err: error }, 'DELETE /api/tiles: Unexpected error')
     return NextResponse.json({ error: 'Failed to delete tile' }, { status: 500 })
   }
 }
@@ -221,11 +223,10 @@ export async function DELETE(request: NextRequest) {
  */
 export async function PUT(request: NextRequest) {
   try {
-    const { slug, positions } = await request.json()
-
-    if (!slug || !Array.isArray(positions) || positions.length === 0) {
-      return NextResponse.json({ error: 'slug and positions array required' }, { status: 400 })
-    }
+    const body = await request.json()
+    const v = validateBody(tilesPutSchema, body)
+    if (!v.success) return v.response
+    const { slug, positions } = v.data
 
     const supabase = createServerSupabaseClient()
     const serialNumber = await getSerialNumber(request, supabase, slug)
@@ -258,7 +259,7 @@ export async function PUT(request: NextRequest) {
     revalidatePath(`/${slug}`)
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Reorder tiles error:', error)
+    log.error({ err: error }, 'Reorder tiles failed')
     return NextResponse.json({ error: 'Failed to reorder' }, { status: 500 })
   }
 }
@@ -271,19 +272,10 @@ export async function PUT(request: NextRequest) {
  */
 export async function PATCH(request: NextRequest) {
   try {
-    const { id, source, slug, size, caption, room_id, aspect } = await request.json()
-
-    if (!id || !source || !slug || !['library', 'links'].includes(source)) {
-      return NextResponse.json({ error: 'id, source, and slug required' }, { status: 400 })
-    }
-
-    if (size !== undefined && ![1, 2, 3].includes(size)) {
-      return NextResponse.json({ error: 'size must be 1, 2, or 3' }, { status: 400 })
-    }
-
-    if (aspect !== undefined && !['square', 'wide', 'tall', 'auto'].includes(aspect)) {
-      return NextResponse.json({ error: 'aspect must be square, wide, tall, or auto' }, { status: 400 })
-    }
+    const body = await request.json()
+    const v = validateBody(tilesPatchSchema, body)
+    if (!v.success) return v.response
+    const { id, source, slug, size, caption, room_id, aspect } = v.data
 
     const supabase = createServerSupabaseClient()
     const serialNumber = await getSerialNumber(request, supabase, slug)
@@ -314,7 +306,7 @@ export async function PATCH(request: NextRequest) {
     revalidatePath(`/${slug}`)
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Update tile error:', error)
+    log.error({ err: error }, 'Update tile failed')
     return NextResponse.json({ error: 'Failed to update tile' }, { status: 500 })
   }
 }

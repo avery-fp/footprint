@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { parseURL } from '@/lib/parser'
 import { getUserIdFromRequest } from '@/lib/auth'
+import { contentPostSchema } from '@/lib/schemas'
+import { validateBody } from '@/lib/validate'
+import { routeLogger } from '@/lib/logger'
+
+const log = routeLogger('*', '/api/content')
 
 /**
  * GET /api/content?footprint_id=xxx
@@ -51,14 +56,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { url, footprint_id } = body
-
-    if (!url || !footprint_id) {
-      return NextResponse.json(
-        { error: 'url and footprint_id required' },
-        { status: 400 }
-      )
-    }
+    const v = validateBody(contentPostSchema, body)
+    if (!v.success) return v.response
+    const { url, footprint_id } = v.data
 
     // Verify user owns this footprint
     const userId = await getUserIdFromRequest(request)
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ content })
 
   } catch (error) {
-    console.error('Content creation error:', error)
+    log.error({ err: error }, 'Content creation failed')
     return NextResponse.json({ error: 'Failed to create content' }, { status: 500 })
   }
 }

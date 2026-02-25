@@ -3,6 +3,9 @@ import { constructWebhookEvent, stripe } from '@/lib/stripe'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { sendWelcomeEmail } from '@/lib/auth'
 import { nanoid } from 'nanoid'
+import { routeLogger } from '@/lib/logger'
+
+const log = routeLogger('POST', '/api/webhook')
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,7 +20,7 @@ export async function POST(request: NextRequest) {
     try {
       event = constructWebhookEvent(body, signature)
     } catch (err) {
-      console.error('Webhook signature verification failed:', err)
+      log.error({ err }, 'Webhook signature verification failed')
       return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
     }
 
@@ -26,12 +29,12 @@ export async function POST(request: NextRequest) {
         await handleCheckoutComplete(event.data.object)
         break
       default:
-        console.log(`Unhandled event type: ${event.type}`)
+        log.info(`Unhandled event type: ${event.type}`)
     }
 
     return NextResponse.json({ received: true })
   } catch (error) {
-    console.error('Webhook error:', error)
+    log.error({ err: error }, 'Webhook failed')
     return NextResponse.json({ error: 'Webhook failed' }, { status: 500 })
   }
 }
@@ -51,7 +54,7 @@ async function handleCheckoutComplete(session: any) {
     .single()
 
   if (existingPayment) {
-    console.log(`⤴ Webhook already processed: ${session.id}`)
+    log.info(`Webhook already processed: ${session.id}`)
     return
   }
 
@@ -73,7 +76,7 @@ async function handleCheckoutComplete(session: any) {
       status: 'completed',
     }, { onConflict: 'stripe_session_id', ignoreDuplicates: true })
 
-    console.log(`⤴ User already exists: ${email} #${existingUser.serial_number}`)
+    log.info(`User already exists: ${email} #${existingUser.serial_number}`)
     return
   }
 
@@ -93,7 +96,7 @@ async function handleCheckoutComplete(session: any) {
       currency: session.currency,
       status: 'completed',
     }, { onConflict: 'stripe_session_id', ignoreDuplicates: true })
-    console.log(`⤴ Race-condition resolved: user already exists: ${email}`)
+    log.info(`Race-condition resolved: user already exists: ${email}`)
     return
   }
 
@@ -127,7 +130,7 @@ async function handleCheckoutComplete(session: any) {
   })
 
   if (fpError) {
-    console.error('CRITICAL: Webhook footprint creation failed:', fpError)
+    log.error({ err: fpError }, 'CRITICAL: Webhook footprint creation failed')
     throw new Error(`Footprint creation failed for ${email}: ${fpError.message}`)
   }
 
@@ -141,7 +144,7 @@ async function handleCheckoutComplete(session: any) {
   })
 
   if (payError) {
-    console.error('CRITICAL: Webhook payment record failed:', payError)
+    log.error({ err: payError }, 'CRITICAL: Webhook payment record failed')
     // Don't throw — user and footprint exist, payment record is secondary
   }
 
@@ -152,9 +155,9 @@ async function handleCheckoutComplete(session: any) {
   if (remixSource) {
     try {
       await cloneRemixContent(supabase, remixSource, remixRoom, serialNumber, username)
-      console.log(`✓ Remix from ${remixSource} → #${serialNumber}`)
+      log.info(`Remix from ${remixSource} to #${serialNumber}`)
     } catch (err) {
-      console.error('Remix clone failed:', err)
+      log.error({ err }, 'Remix clone failed')
     }
   }
 
@@ -178,7 +181,7 @@ async function handleCheckoutComplete(session: any) {
           .eq('id', matchingEvents[0].id)
       }
     } catch (err) {
-      console.error('Conversion tracking failed:', err)
+      log.error({ err }, 'Conversion tracking failed')
     }
   }
 
@@ -221,12 +224,12 @@ async function handleCheckoutComplete(session: any) {
     } catch { /* non-critical */ }
   }
 
-  console.log(`✓ New user: ${email} #${serialNumber}`)
+  log.info(`New user: ${email} #${serialNumber}`)
 
   // Send welcome email — fire-and-forget, don't block webhook response
   sendWelcomeEmail(email, serialNumber, username)
-    .then(() => console.log(`✓ Welcome email sent: ${email}`))
-    .catch((err) => console.error(`⚠ Welcome email failed for ${email}:`, err))
+    .then(() => log.info(`Welcome email sent: ${email}`))
+    .catch((err) => log.error({ err }, `Welcome email failed for ${email}`))
 }
 
 /**

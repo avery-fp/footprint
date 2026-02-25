@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { createSessionToken } from '@/lib/auth'
 import * as bcrypt from 'bcryptjs'
+import { signupSchema } from '@/lib/schemas'
+import { validateBody } from '@/lib/validate'
+import { routeLogger } from '@/lib/logger'
+
+const log = routeLogger('POST', '/api/signup')
 
 /**
  * POST /api/signup
@@ -12,26 +17,10 @@ import * as bcrypt from 'bcryptjs'
  */
 export async function POST(request: NextRequest) {
   try {
-    const { username: rawUsername, email: rawEmail, password } = await request.json()
-
-    if (!rawEmail || !rawUsername || !password) {
-      return NextResponse.json({ error: 'All fields required' }, { status: 400 })
-    }
-
-    const email = rawEmail.toLowerCase().trim()
-    const username = rawUsername.toLowerCase().trim()
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return NextResponse.json({ error: 'Enter a valid email address.' }, { status: 400 })
-    }
-
-    if (!/^[a-z0-9_]+$/.test(username) || username.length < 2 || username.length > 20) {
-      return NextResponse.json({ error: 'Names can only contain letters, numbers, and underscores.' }, { status: 400 })
-    }
-
-    if (password.length < 6) {
-      return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 })
-    }
+    const body = await request.json()
+    const v = validateBody(signupSchema, body)
+    if (!v.success) return v.response
+    const { email, username, password } = v.data
 
     const supabase = createServerSupabaseClient()
 
@@ -97,7 +86,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (userError || !user) {
-      console.error('Signup user creation failed:', userError)
+      log.error({ err: userError }, 'User creation failed')
       return NextResponse.json({ error: 'Something went wrong on our end. Try again in a moment.' }, { status: 500 })
     }
 
@@ -112,7 +101,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (fpError) {
-      console.error('Signup footprint creation failed:', fpError)
+      log.error({ err: fpError }, 'Footprint creation failed')
       return NextResponse.json({ error: 'Something went wrong on our end. Try again in a moment.' }, { status: 500 })
     }
 
@@ -135,7 +124,7 @@ export async function POST(request: NextRequest) {
 
     return response
   } catch (error: any) {
-    console.error('Signup error:', error)
+    log.error({ err: error }, 'Signup failed')
     return NextResponse.json({ error: 'Something went wrong' }, { status: 500 })
   }
 }

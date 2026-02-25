@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { createSessionToken } from '@/lib/auth'
 import { stripe } from '@/lib/stripe'
+import { checkoutActivateSchema } from '@/lib/schemas'
+import { validateBody } from '@/lib/validate'
+import { routeLogger } from '@/lib/logger'
+
+const log = routeLogger('POST', '/api/checkout/activate')
 
 /**
  * POST /api/checkout/activate
@@ -12,11 +17,10 @@ import { stripe } from '@/lib/stripe'
  */
 export async function POST(request: NextRequest) {
   try {
-    const { session_id } = await request.json()
-
-    if (!session_id) {
-      return NextResponse.json({ error: 'Missing session_id' }, { status: 400 })
-    }
+    const body = await request.json()
+    const v = validateBody(checkoutActivateSchema, body)
+    if (!v.success) return v.response
+    const { session_id } = v.data
 
     // Verify with Stripe
     const session = await stripe.checkout.sessions.retrieve(session_id)
@@ -87,7 +91,7 @@ export async function POST(request: NextRequest) {
 
     return response
   } catch (error: any) {
-    console.error('Activate error:', error)
+    log.error({ err: error }, 'Activation failed')
     return NextResponse.json({ error: 'Activation failed' }, { status: 500 })
   }
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import ErrorBoundary from '@/components/ErrorBoundary'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -29,12 +30,14 @@ export default function DashboardPage() {
   }, [router])
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      {error ? (
-        <p className="text-white/40 text-sm">{error}</p>
-      ) : (
-        <div className="w-10 h-10 rounded-full border-2 border-white/10 border-t-white/40 animate-spin" />
-      )}
-    </div>
+    <ErrorBoundary context="dashboard">
+      <div className="min-h-screen flex items-center justify-center">
+        {error ? (
+          <p className="text-white/40 text-sm">{error}</p>
+        ) : (
+          <div className="w-10 h-10 rounded-full border-2 border-white/10 border-t-white/40 animate-spin" />
+        )}
+      </div>
+    </ErrorBoundary>
   )
 }

@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createSessionToken } from '@/lib/auth'
 import * as bcrypt from 'bcryptjs'
+import { loginSchema } from '@/lib/schemas'
+import { validateBody } from '@/lib/validate'
+import { routeLogger } from '@/lib/logger'
+
+const log = routeLogger('POST', '/api/auth/login')
 
 export async function POST(request: NextRequest) {
   if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
@@ -9,10 +14,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { email, password } = await request.json()
-    if (!email || !password) {
-      return NextResponse.json({ error: 'Email and password required' }, { status: 400 })
-    }
+    const body = await request.json()
+    const v = validateBody(loginSchema, body)
+    if (!v.success) return v.response
+    const { email, password } = v.data
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -65,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     return response
   } catch (err: any) {
-    console.error('Login error:', err)
+    log.error({ err }, 'Login failed')
     return NextResponse.json({ error: 'Login failed' }, { status: 500 })
   }
 }

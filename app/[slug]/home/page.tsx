@@ -11,6 +11,7 @@ import { audioManager } from '@/lib/audio-manager'
 import { getTheme } from '@/lib/themes'
 import { snapToPreset } from '@/lib/aspect-ratios'
 import Image from 'next/image'
+import ErrorBoundary from '@/components/ErrorBoundary'
 
 interface TileContent extends DraftContent {
   source?: 'library' | 'links'
@@ -1482,6 +1483,7 @@ export default function EditPage() {
   const theme = getTheme(draft.theme)
 
   return (
+    <ErrorBoundary context="editor">
     <div className="min-h-screen pb-32 relative overflow-x-hidden max-w-[100vw]" style={{ background: theme.colors.background, color: theme.colors.text }}>
       {/* Wallpaper layer */}
       {wallpaperUrl && (
@@ -2193,5 +2195,6 @@ export default function EditPage() {
         </div>
       )}
     </div>
+    </ErrorBoundary>
   )
 }

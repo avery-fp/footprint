@@ -8,6 +8,7 @@ import AnalyticsTracker from '@/components/AnalyticsTracker'
 import ShareEngine from '@/components/ShareEngine'
 import EventTracker from '@/components/EventTracker'
 import ReferralBanner from '@/components/ReferralBanner'
+import ErrorBoundary from '@/components/ErrorBoundary'
 import PublicPage from './PublicPage'
 
 // ISR — cache page at the edge, revalidate every 60 seconds
@@ -141,15 +142,17 @@ export default async function FootprintPage({ params }: Props) {
         </>
       )}
       <ShareEngine slug={params.slug} />
-      <PublicPage
-        footprint={footprint}
-        content={content}
-        rooms={rooms}
-        theme={theme}
-        serial={serial}
-        pageUrl={pageUrl}
-        isDraft={isDraft}
-      />
+      <ErrorBoundary context="profile">
+        <PublicPage
+          footprint={footprint}
+          content={content}
+          rooms={rooms}
+          theme={theme}
+          serial={serial}
+          pageUrl={pageUrl}
+          isDraft={isDraft}
+        />
+      </ErrorBoundary>
     </>
   )
 }

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getUserIdFromRequest } from '@/lib/auth'
+import { routeLogger } from '@/lib/logger'
+
+const log = routeLogger('POST', '/api/upload/content')
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024  // 10MB
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024  // 50MB
@@ -84,7 +87,7 @@ export async function POST(request: NextRequest) {
       .upload(filename, buffer, { contentType: file.type, upsert: false })
 
     if (uploadError) {
-      console.error('Upload error:', uploadError)
+      log.error({ err: uploadError }, 'Upload failed')
       return NextResponse.json({ error: 'Upload hiccuped. Try again.' }, { status: 500 })
     }
 
@@ -136,7 +139,7 @@ export async function POST(request: NextRequest) {
       }
     })
   } catch (error) {
-    console.error('Content upload error:', error)
+    log.error({ err: error }, 'Content upload failed')
     return NextResponse.json({ error: 'Upload hiccuped. Try again.' }, { status: 500 })
   }
 }

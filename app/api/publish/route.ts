@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getUserIdFromRequest } from '@/lib/auth'
 import { stripe, FOOTPRINT_PRICE, FOOTPRINT_CURRENCY } from '@/lib/stripe'
+import { publishSchema } from '@/lib/schemas'
+import { validateBody } from '@/lib/validate'
+import { routeLogger } from '@/lib/logger'
+
+const log = routeLogger('POST', '/api/publish')
 
 /**
  * POST /api/publish
@@ -20,7 +25,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { action } = body
+    const v = validateBody(publishSchema, body)
+    if (!v.success) return v.response
+    const validatedBody = v.data
 
     const supabase = createServerSupabaseClient()
 
@@ -36,12 +43,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No footprint found' }, { status: 404 })
     }
 
-    switch (action) {
+    switch (validatedBody.action) {
       case 'check-username': {
-        const { username } = body
-        if (!username || typeof username !== 'string') {
-          return NextResponse.json({ error: 'Username required' }, { status: 400 })
-        }
+        const { username } = validatedBody
 
         const clean = username.toLowerCase().trim()
         if (clean.length < 2 || clean.length > 30) {
@@ -72,10 +76,7 @@ export async function POST(request: NextRequest) {
       }
 
       case 'publish-free': {
-        const { username, promo } = body
-        if (!username || !promo) {
-          return NextResponse.json({ error: 'Username and promo code required' }, { status: 400 })
-        }
+        const { username, promo } = validatedBody
 
         const cleanUsername = username.toLowerCase().trim()
         const cleanPromo = promo.trim().toLowerCase()
@@ -138,7 +139,7 @@ export async function POST(request: NextRequest) {
           .eq('id', footprint.id)
 
         if (publishError) {
-          console.error('Publish error:', publishError)
+          log.error({ err: publishError }, 'Publish failed')
           return NextResponse.json({ error: 'Failed to publish' }, { status: 500 })
         }
 
@@ -175,10 +176,7 @@ export async function POST(request: NextRequest) {
       }
 
       case 'publish-paid': {
-        const { username } = body
-        if (!username) {
-          return NextResponse.json({ error: 'Username required' }, { status: 400 })
-        }
+        const { username } = validatedBody
 
         const cleanUsername = username.toLowerCase().trim()
 
@@ -240,10 +238,7 @@ export async function POST(request: NextRequest) {
       }
 
       case 'finalize': {
-        const { session_id, username } = body
-        if (!session_id || !username) {
-          return NextResponse.json({ error: 'Missing session_id or username' }, { status: 400 })
-        }
+        const { session_id, username } = validatedBody
 
         const cleanUsername = username.toLowerCase().trim()
 
@@ -313,7 +308,7 @@ export async function POST(request: NextRequest) {
           .eq('id', footprint.id)
 
         if (publishError) {
-          console.error('Finalize publish error:', publishError)
+          log.error({ err: publishError }, 'Finalize publish failed')
           return NextResponse.json({ error: 'Failed to publish' }, { status: 500 })
         }
 
@@ -353,7 +348,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
     }
   } catch (error: any) {
-    console.error('Publish error:', error)
+    log.error({ err: error }, 'Publish failed')
     return NextResponse.json({ error: 'Something went wrong' }, { status: 500 })
   }
 }
