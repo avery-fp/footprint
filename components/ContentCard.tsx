@@ -188,20 +188,23 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           </a>
         )
       }
-      // Desktop or size 2+: lazy load iframe
+      // Desktop or size 2+: compact embed with explicit dimensions
+      const isCollection = ['playlist', 'album', 'artist'].includes(spotifyInfo.type)
+      const embedHeight = isCollection ? 352 : 152
       return (
-        <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden flex items-center justify-center bg-transparent">
+        <div ref={containerRef} className="w-full fp-tile overflow-hidden bg-[#191414]" style={{ height: `${embedHeight}px` }}>
           {isInView ? (
             <iframe
-              style={{ border: 'none', borderRadius: '2px', background: 'transparent' }}
+              style={{ border: 'none', background: 'transparent' }}
               src={`https://open.spotify.com/embed/${spotifyInfo.type}/${spotifyInfo.id}?theme=0`}
               width="100%"
               height="100%"
               allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
               loading="lazy"
+              className="materialize"
             />
           ) : (
-            <div className="w-full h-full bg-[#191414] fp-tile" />
+            <div className="w-full h-full bg-[#191414]" />
           )}
         </div>
       )
@@ -256,10 +259,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     )
     darkEmbed = darkEmbed.replace(/<iframe /g, '<iframe scrolling="no" ')
     return (
-      <div ref={containerRef} className={`w-full ${aspectClass} fp-tile overflow-hidden bg-black`}>
+      <div ref={containerRef} className="w-full fp-tile overflow-hidden bg-black" style={{ height: '175px' }}>
         {isInView ? (
           <div
-            className="w-full h-full overflow-hidden [&_iframe]:!w-full [&_iframe]:!h-full [&_iframe]:!min-h-0 [&_iframe]:!border-0 [&_iframe]:!overflow-hidden"
+            className="w-full h-full overflow-hidden [&_iframe]:!w-full [&_iframe]:!h-full [&_iframe]:!min-h-0 [&_iframe]:!border-0 [&_iframe]:!overflow-hidden materialize"
             dangerouslySetInnerHTML={{ __html: darkEmbed }}
           />
         ) : null}

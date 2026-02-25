@@ -313,6 +313,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           >
             {row.tiles.map((item: any, tileIdx: number) => {
               const globalIdx = composedRows.slice(0, rowIdx).reduce((sum, r) => sum + r.tiles.length, 0) + tileIdx
+              const isMusicEmbed = ['spotify', 'applemusic', 'soundcloud'].includes(item.type)
 
               return (
                 <motion.div
@@ -323,10 +324,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                   animate={{ opacity: 1, scale: 1 }}
                   transition={prefersReducedMotion ? { duration: 0 } : hasInteracted ? MODE_SPRING : { duration: 0.4, delay: globalIdx * 0.06, ease: [0.25, 0.46, 0.45, 0.94] }}
                   style={{
-                    aspectRatio: tileAspect,
+                    aspectRatio: isMusicEmbed ? undefined : tileAspect,
                     overflow: 'hidden',
                     borderRadius: `${layoutConfig.tileRadius}px`,
                     boxShadow: layoutConfig.tileShadow,
+                    ...(isMusicEmbed ? { alignSelf: 'start' } : {}),
                   }}
                 >
                   {renderTileContent(item, globalIdx, row.type === 'hero' ? 3 : row.type === 'breath' ? 2 : 1, 'auto')}
@@ -352,23 +354,27 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         transition: 'opacity 250ms ease-out, transform 350ms ease-out',
       }}
     >
-      {content.map((item: any, idx: number) => (
-        <motion.div
-          key={item.id}
-          layout={!prefersReducedMotion}
-          layoutId={prefersReducedMotion ? undefined : `tile-${item.id}`}
-          initial={hasInteracted || prefersReducedMotion ? false : { opacity: 0, scale: 0.97 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={prefersReducedMotion ? { duration: 0 } : hasInteracted ? MODE_SPRING : { duration: 0.35, delay: idx * 0.04, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="aspect-square overflow-hidden"
-          style={{
-            borderRadius: `${layoutConfig.tileRadius}px`,
-            boxShadow: layoutConfig.tileShadow,
-          }}
-        >
-          {renderTileContent(item, idx, 1, 'square')}
-        </motion.div>
-      ))}
+      {content.map((item: any, idx: number) => {
+        const isMusicEmbed = ['spotify', 'applemusic', 'soundcloud'].includes(item.type)
+        return (
+          <motion.div
+            key={item.id}
+            layout={!prefersReducedMotion}
+            layoutId={prefersReducedMotion ? undefined : `tile-${item.id}`}
+            initial={hasInteracted || prefersReducedMotion ? false : { opacity: 0, scale: 0.97 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={prefersReducedMotion ? { duration: 0 } : hasInteracted ? MODE_SPRING : { duration: 0.35, delay: idx * 0.04, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className={`overflow-hidden ${isMusicEmbed ? '' : 'aspect-square'}`}
+            style={{
+              borderRadius: `${layoutConfig.tileRadius}px`,
+              boxShadow: layoutConfig.tileShadow,
+              ...(isMusicEmbed ? { alignSelf: 'start' } : {}),
+            }}
+          >
+            {renderTileContent(item, idx, 1, 'square')}
+          </motion.div>
+        )
+      })}
     </div>
   )
 
