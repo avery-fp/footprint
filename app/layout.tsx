@@ -1,5 +1,6 @@
 import './globals.css'
 import { Toaster } from 'sonner'
+import AddToHomeScreen from '@/components/AddToHomeScreen'
 
 // Force dynamic rendering for all routes
 export const dynamic = 'force-dynamic'
@@ -24,7 +25,13 @@ export const metadata = {
     images: [`${baseUrl}/api/og`],
   },
   icons: {
-    icon: '/favicon.svg',
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/icons/icon-32.png', sizes: '32x32', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/icons/icon-180.png', sizes: '180x180', type: 'image/png' },
+    ],
   },
 }
 
@@ -44,7 +51,8 @@ export default function RootLayout({
       </head>
       <body className="font-sans" style={{ backgroundColor: '#050505' }}>
         {children}
-        <Toaster 
+        <AddToHomeScreen />
+        <Toaster
           position="bottom-center"
           toastOptions={{
             style: {
