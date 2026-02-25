@@ -20,7 +20,6 @@ export default function FloatingCtaBar({ username, serial }: FloatingCtaBarProps
           if (fpRes.ok) {
             const fpData = await fpRes.json()
             if (fpData.published) {
-              // Signed in AND published → hide bar
               setHide(true)
             }
           }
@@ -28,7 +27,7 @@ export default function FloatingCtaBar({ username, serial }: FloatingCtaBarProps
       })
       .catch(() => {})
 
-    const timer = setTimeout(() => setVisible(true), 1000)
+    const timer = setTimeout(() => setVisible(true), 2000)
     return () => clearTimeout(timer)
   }, [])
 
@@ -36,52 +35,42 @@ export default function FloatingCtaBar({ username, serial }: FloatingCtaBarProps
 
   return (
     <a
-      href="/checkout"
-      className="floating-cta-bar"
+      href="/signup"
+      className="touch-manipulation"
       style={{
         position: 'fixed',
-        bottom: 'calc(env(safe-area-inset-bottom, 16px) + 12px)',
-        left: '50%',
-        transform: visible
-          ? 'translateX(-50%) translateY(0)'
-          : 'translateX(-50%) translateY(8px)',
-        opacity: visible ? 0.92 : 0,
-        zIndex: 9999,
-        display: 'flex',
+        bottom: 'calc(env(safe-area-inset-bottom, 16px) + 16px)',
+        right: '16px',
+        opacity: visible ? 1 : 0,
+        zIndex: 40,
+        display: 'inline-flex',
         alignItems: 'center',
-        gap: '0',
-        height: '38px',
-        padding: '0 16px',
-        background: 'rgba(255, 255, 255, 0.08)',
-        backdropFilter: 'blur(20px) saturate(150%)',
-        WebkitBackdropFilter: 'blur(20px) saturate(150%)',
-        border: '1px solid rgba(255, 255, 255, 0.12)',
-        borderRadius: '999px',
-        boxShadow: '0 4px 24px rgba(0, 0, 0, 0.15)',
-        color: 'white',
-        fontSize: '13px',
-        fontWeight: 300,
-        letterSpacing: '0.5px',
+        gap: '6px',
+        padding: '10px 0',
+        color: 'rgba(255, 255, 255, 0.12)',
+        fontSize: '11px',
+        fontFamily: 'var(--font-mono, monospace)',
+        fontWeight: 400,
+        letterSpacing: '1px',
         textDecoration: 'none',
-        transition: 'opacity 0.6s ease, transform 0.6s ease',
+        transition: 'opacity 1s ease, color 0.3s ease',
         cursor: 'pointer',
         whiteSpace: 'nowrap',
       }}
+      onMouseEnter={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.3)' }}
+      onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.12)' }}
     >
-      <span>{username}</span>
-      <span style={{ opacity: 0.3, margin: '0 8px' }}>·</span>
-      <span>#{serial}</span>
-      <span style={{ opacity: 0.3, margin: '0 8px' }}>·</span>
+      <span>footprint</span>
       <svg
-        width="12"
-        height="12"
+        width="10"
+        height="10"
         viewBox="0 0 12 12"
         fill="none"
-        style={{ opacity: 0.7 }}
+        style={{ opacity: 0.5 }}
       >
         <path
           d="M2.5 9.5L9.5 2.5M9.5 2.5H4.5M9.5 2.5V7.5"
-          stroke="white"
+          stroke="currentColor"
           strokeWidth="1.2"
           strokeLinecap="round"
           strokeLinejoin="round"

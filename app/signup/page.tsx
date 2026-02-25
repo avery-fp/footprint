@@ -14,6 +14,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState('')
   const [reservationToken, setReservationToken] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [shake, setShake] = useState(false)
 
   // Username availability
   const [available, setAvailable] = useState<boolean | null>(null)
@@ -88,9 +89,13 @@ export default function SignupPage() {
       if (res.ok && data.reservation_token) {
         setReservationToken(data.reservation_token)
         setStep('email')
+      } else {
+        setShake(true)
+        setTimeout(() => setShake(false), 500)
       }
     } catch {
-      // Silently fail — user can retry
+      setShake(true)
+      setTimeout(() => setShake(false), 500)
     } finally {
       setLoading(false)
     }
@@ -102,7 +107,7 @@ export default function SignupPage() {
     setLoading(true)
 
     try {
-      await fetch('/api/auth/magic-link', {
+      const res = await fetch('/api/auth/magic-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -111,10 +116,15 @@ export default function SignupPage() {
         }),
       })
 
-      // Always transition to "check your email" regardless of response
-      setStep('sent')
+      if (!res.ok) {
+        setShake(true)
+        setTimeout(() => setShake(false), 500)
+      } else {
+        setStep('sent')
+      }
     } catch {
-      setStep('sent')
+      setShake(true)
+      setTimeout(() => setShake(false), 500)
     } finally {
       setLoading(false)
     }
@@ -135,7 +145,9 @@ export default function SignupPage() {
       className="fixed inset-0 flex flex-col items-center justify-center px-6"
       style={{ background: '#050505' }}
     >
-      <div style={{ width: '100%', maxWidth: '320px' }}>
+      <div style={{ width: '100%', maxWidth: '320px' }}
+        className={shake ? 'animate-shake' : ''}
+      >
 
         {/* ── Step 1: Username ── */}
         <div

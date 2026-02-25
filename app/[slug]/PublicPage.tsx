@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import Image from 'next/image'
-import { motion, LayoutGroup } from 'framer-motion'
+import { motion, LayoutGroup, useReducedMotion } from 'framer-motion'
 import ContentCard from '@/components/ContentCard'
 import VideoTile from '@/components/VideoTile'
 import WeatherEffect from '@/components/WeatherEffect'
@@ -75,6 +75,7 @@ function getImageSizes(size: number): string {
 
 export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl, isDraft }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
+  const prefersReducedMotion = useReducedMotion()
 
   // Layout mode — owner's default from DB, visitor can toggle locally
   const gm = footprint.grid_mode
@@ -225,10 +226,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         <div
           className="w-full h-full flex items-center justify-center p-4"
           style={{
-            background: 'rgba(255,255,255,0.06)',
-            backdropFilter: 'blur(20px) saturate(120%)',
-            WebkitBackdropFilter: 'blur(20px) saturate(120%)',
-            border: '1px solid rgba(255,255,255,0.08)',
+            background: 'rgba(255,255,255,0.04)',
           }}
           data-tile-id={item.id}
           data-tile-type="thought"
@@ -258,15 +256,19 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         <div className="w-full h-full overflow-hidden" data-tile-id={item.id} data-tile-type={item.type}>
           <Image
             src={item.url}
-            alt={item.title || ''}
+            alt={item.title || item.type || ''}
             width={w}
             height={h}
             sizes={getImageSizes(size)}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out"
             loading={index < 4 ? 'eager' : 'lazy'}
             priority={index < 2}
             quality={75}
             fetchPriority={index === 0 ? 'high' : undefined}
+            onLoad={(e) => {
+              (e.target as HTMLElement).classList.remove('opacity-0')
+              ;(e.target as HTMLElement).classList.add('opacity-100')
+            }}
             onError={(e) => {
               const container = (e.target as HTMLElement).closest('[data-tile-id]')
               if (container) (container as HTMLElement).style.background = 'rgba(0,0,0,0.3)'
@@ -293,7 +295,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         flexDirection: 'column',
         gap: `${layoutConfig.gap}px`,
         opacity: roomFade === 'out' ? 0 : 1,
-        transition: 'opacity 200ms ease-out',
+        transform: roomFade === 'out' ? 'translateY(6px)' : roomFade === 'in' ? 'translateY(-6px)' : 'translateY(0)',
+        transition: 'opacity 250ms ease-out, transform 350ms ease-out',
       }}
     >
       {composedRows.map((row: ComposedRow, rowIdx: number) => {
@@ -314,11 +317,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               return (
                 <motion.div
                   key={item.id}
-                  layout
-                  layoutId={`tile-${item.id}`}
-                  initial={hasInteracted ? false : { opacity: 0, scale: 0.97 }}
+                  layout={!prefersReducedMotion}
+                  layoutId={prefersReducedMotion ? undefined : `tile-${item.id}`}
+                  initial={hasInteracted || prefersReducedMotion ? false : { opacity: 0, scale: 0.97 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  transition={hasInteracted ? MODE_SPRING : { duration: 0.4, delay: globalIdx * 0.06, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  transition={prefersReducedMotion ? { duration: 0 } : hasInteracted ? MODE_SPRING : { duration: 0.4, delay: globalIdx * 0.06, ease: [0.25, 0.46, 0.45, 0.94] }}
                   style={{
                     aspectRatio: tileAspect,
                     overflow: 'hidden',
@@ -345,17 +348,18 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       style={{
         gap: `${layoutConfig.gap}px`,
         opacity: roomFade === 'out' ? 0 : 1,
-        transition: 'opacity 200ms ease-out',
+        transform: roomFade === 'out' ? 'translateY(6px)' : roomFade === 'in' ? 'translateY(-6px)' : 'translateY(0)',
+        transition: 'opacity 250ms ease-out, transform 350ms ease-out',
       }}
     >
       {content.map((item: any, idx: number) => (
         <motion.div
           key={item.id}
-          layout
-          layoutId={`tile-${item.id}`}
-          initial={hasInteracted ? false : { opacity: 0, scale: 0.97 }}
+          layout={!prefersReducedMotion}
+          layoutId={prefersReducedMotion ? undefined : `tile-${item.id}`}
+          initial={hasInteracted || prefersReducedMotion ? false : { opacity: 0, scale: 0.97 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={hasInteracted ? MODE_SPRING : { duration: 0.35, delay: idx * 0.04, ease: [0.25, 0.46, 0.45, 0.94] }}
+          transition={prefersReducedMotion ? { duration: 0 } : hasInteracted ? MODE_SPRING : { duration: 0.35, delay: idx * 0.04, ease: [0.25, 0.46, 0.45, 0.94] }}
           className="aspect-square overflow-hidden"
           style={{
             borderRadius: `${layoutConfig.tileRadius}px`,
@@ -411,7 +415,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         {isLoggedIn ? (
           <a
             href={`/${footprint.username}/home`}
-            className="w-8 h-8 flex items-center justify-center rounded-full bg-white/[0.06] hover:bg-white/[0.12] transition"
+            className="w-11 h-11 flex items-center justify-center rounded-full bg-white/[0.06] hover:bg-white/[0.12] transition touch-manipulation"
           >
             <svg className="w-3.5 h-3.5 text-white/40" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
@@ -457,7 +461,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                   {i > 0 && <span className="mx-2.5" style={{ color: 'rgba(255,255,255,0.2)', fontSize: '8px' }}>·</span>}
                   <button
                     onClick={() => goToRoom(room.id)}
-                    className="transition-all duration-300"
+                    className="transition-all duration-300 touch-manipulation"
                     style={{
                       fontSize: '11px',
                       letterSpacing: '2.5px',
@@ -466,7 +470,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                       color: activeRoomId === room.id ? 'white' : 'rgba(255,255,255,0.4)',
                       background: 'none',
                       border: 'none',
-                      padding: 0,
+                      padding: '8px 2px',
+                      margin: '-8px -2px',
                       cursor: 'pointer',
                     }}
                   >
@@ -494,6 +499,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             maxWidth: '880px',
             paddingLeft: layoutMode === 'breathe' ? `${isMobile ? 16 : layoutConfig.containerPadding}px` : '0',
             paddingRight: layoutMode === 'breathe' ? `${isMobile ? 16 : layoutConfig.containerPadding}px` : '0',
+            transition: 'padding 350ms ease-out',
           }}
         >
           <div className="fp-grid-arrive">
@@ -514,7 +520,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         <div className="py-10 flex items-center justify-center">
           <button
             onClick={handleShare}
-            className="group text-white/[0.12] hover:text-white/40 transition-colors duration-500"
+            className="group p-3 text-white/[0.12] hover:text-white/40 transition-colors duration-500 touch-manipulation"
             aria-label="Share"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
@@ -530,8 +536,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           <button
             onClick={() => setDrawerOpen(true)}
             aria-label="Open saved footprints"
-            className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-10 h-1 rounded-full bg-white/[0.08] hover:bg-white/[0.15] transition-colors duration-200"
-          />
+            className="fixed bottom-3 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center w-14 h-8 touch-manipulation"
+            style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+          >
+            <span className="block w-10 h-[3px] rounded-full bg-white/[0.10] hover:bg-white/[0.20] transition-all duration-300 hover:w-12" />
+          </button>
           <RolodexDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
         </>
       )}
