@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import Image from 'next/image'
-import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
+import { motion, LayoutGroup } from 'framer-motion'
 import { DndContext, closestCenter, MouseSensor, TouchSensor, useSensor, useSensors, DragOverlay, DragStartEvent, DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, rectSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
 import ContentCard from '@/components/ContentCard'
@@ -12,6 +12,16 @@ import { PlusButton } from '@/components/PlusButton'
 import { RemoveBubble } from '@/components/RemoveBubble'
 import { RolodexDrawer } from '@/components/RolodexDrawer'
 import FloatingCtaBar from '@/components/FloatingCtaBar'
+import LayoutToggle from '@/components/LayoutToggle'
+import {
+  type LayoutMode,
+  type ComposedRow,
+  composeEditorial,
+  shuffleForGrid,
+  getLayoutConfig,
+  getRowGridStyle,
+  getRowTileAspect,
+} from '@/lib/layout-engine'
 
 interface Room {
   id: string
@@ -29,7 +39,14 @@ interface PublicPageProps {
   isDraft?: boolean
 }
 
-// Spring physics config — weighty but responsive, like iOS home screen
+// Spring physics — the mode switch animation
+const MODE_SPRING = {
+  type: 'spring' as const,
+  stiffness: 200,
+  damping: 25,
+}
+
+// Tile spring — weighty but responsive
 const TILE_SPRING = {
   type: 'spring' as const,
   stiffness: 350,
@@ -49,7 +66,6 @@ function SortableTile({ id, children, className, style }: { id: string; children
       transition={TILE_SPRING}
       style={{
         ...style,
-        // Only apply dnd-kit transform during active drag (immediate feel)
         ...(isDragging && transform ? {
           transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
           zIndex: 50,
@@ -70,7 +86,7 @@ function SortableTile({ id, children, className, style }: { id: string; children
 
 const noop = () => {}
 
-// Wallpaper filter per room - derived from room index
+// Wallpaper filter per room
 const ROOM_FILTERS = [
   'blur(8px) brightness(0.45) saturate(0.85) hue-rotate(-8deg)',
   'blur(4px) brightness(0.65) saturate(1.4) hue-rotate(25deg)',
@@ -92,8 +108,7 @@ const ROOM_OVERLAYS = [
 const DEFAULT_OVERLAY = 'rgba(0,0,0,0.35)'
 
 // ═══════════════════════════════════════════
-// GRID HELPERS — mirrors the editor exactly.
-// Each tile's own size × aspect drives layout.
+// GRID HELPERS — used by editor mode and Grid uniform fallback
 // ═══════════════════════════════════════════
 
 function resolveAspect(explicitAspect: string | undefined | null, type: string, url?: string): string {
@@ -140,30 +155,37 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [localOrder, setLocalOrder] = useState<Record<string, string[]>>({})
   const [activeDragId, setActiveDragId] = useState<string | null>(null)
 
-  const interactive = footprint.interactive !== false // default true
+  // Layout mode — owner's default from DB, visitor can toggle locally
   const gm = footprint.grid_mode
-  const layoutMode: string = (gm === 'editorial' || gm === 'breathe' || gm === 'grid') ? gm : 'editorial'
+  const defaultMode: LayoutMode = (gm === 'editorial' || gm === 'breathe' || gm === 'grid') ? gm : 'editorial'
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>(defaultMode)
+  const [hasInteracted, setHasInteracted] = useState(false)
 
-  // Sensors: desktop = click+drag (8px threshold), mobile = long-press (200ms)
+  const interactive = footprint.interactive !== false
+  const serialNumber = footprint.serial_number || 0
+
+  // Sensors
   const mouseSensor = useSensor(MouseSensor, { activationConstraint: { distance: 8 } })
   const touchSensor = useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
   const sensors = useSensors(mouseSensor, touchSensor)
 
-  // Default to first room on mount
+  // Default to first room
   useEffect(() => {
     if (activeRoomId === null && rooms.length > 0) {
       const visible = rooms.filter(r => r.name && r.name.trim().length > 0)
       if (visible.length > 0) setActiveRoomId(visible[0].id)
     }
   }, [rooms])
+
   const [wallpaperLoaded, setWallpaperLoaded] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [isOwner, setIsOwner] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [showToast, setShowToast] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [roomFade, setRoomFade] = useState<'visible' | 'out' | 'in'>('visible')
 
-  // Memoize content filtering
+  // Content filtering
   const validContent = useMemo(() =>
     allContent.filter(item =>
       (item.type === 'thought' && item.title) ||
@@ -185,16 +207,32 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     ? visibleRooms.find(r => r.id === activeRoomId)?.content || []
     : validContent
 
-  // Apply local drag order if user has rearranged tiles in this room
+  // Apply local drag order
   const orderKey = activeRoomId || '__all__'
-  const content = useMemo(() => {
+  const orderedContent = useMemo(() => {
     const order = localOrder[orderKey]
     if (!order) return baseContent
     const byId = new Map(baseContent.map((item: any) => [item.id, item]))
     return order.map(id => byId.get(id)).filter(Boolean)
   }, [baseContent, localOrder, orderKey])
 
-  // Wallpaper filter derived from active room
+  // Apply layout mode to content — grid shuffles, editorial/breathe preserve order
+  const content = useMemo(() => {
+    if (layoutMode === 'grid') {
+      return shuffleForGrid(orderedContent, serialNumber)
+    }
+    return orderedContent
+  }, [orderedContent, layoutMode, serialNumber])
+
+  // Editorial composition (used by editorial + breathe modes)
+  const composedRows = useMemo(() => {
+    if (layoutMode === 'editorial' || layoutMode === 'breathe') {
+      return composeEditorial(orderedContent)
+    }
+    return []
+  }, [orderedContent, layoutMode])
+
+  // Wallpaper filter
   const activeRoomIndex = activeRoomId ? visibleRooms.findIndex(r => r.id === activeRoomId) : -1
   const wallpaperFilter = activeRoomIndex >= 0
     ? ROOM_FILTERS[activeRoomIndex % ROOM_FILTERS.length]
@@ -216,12 +254,20 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  // Check if user is logged in
+  // Check if user is logged in + owner
   useEffect(() => {
     fetch('/api/user', { credentials: 'include' })
-      .then(r => { if (r.ok) setIsLoggedIn(true) })
+      .then(async r => {
+        if (r.ok) {
+          const data = await r.json()
+          setIsLoggedIn(true)
+          if (data.user?.id === footprint.user_id) {
+            setIsOwner(true)
+          }
+        }
+      })
       .catch(() => {})
-  }, [])
+  }, [footprint.user_id])
 
   // Navigate to room
   const goToRoom = useCallback((roomId: string | null) => {
@@ -243,13 +289,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     setActiveDragId(null)
     const { active, over } = event
     if (!over || active.id === over.id) return
-    const ids = content.map((item: any) => item.id)
+    const ids = orderedContent.map((item: any) => item.id)
     const oldIndex = ids.indexOf(String(active.id))
     const newIndex = ids.indexOf(String(over.id))
     if (oldIndex === -1 || newIndex === -1) return
     const newIds = arrayMove(ids, oldIndex, newIndex)
     setLocalOrder(prev => ({ ...prev, [orderKey]: newIds }))
-  }, [content, orderKey])
+  }, [orderedContent, orderKey])
 
   useEffect(() => {
     if (!showToast) return
@@ -257,35 +303,30 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     return () => clearTimeout(t)
   }, [showToast])
 
-  // Layout mode config — styling only, grid structure is always the same
-  const layoutConfig = useMemo(() => {
-    switch (layoutMode) {
-      case 'breathe':
-        return {
-          gap: 8,
-          tileRadius: 8,
-          blockRadius: 0,
-          blockShadow: 'none',
-          blockOverflow: 'visible' as const,
-          tileShadow: '0 2px 12px rgba(0,0,0,0.15)',
-        }
-      default:
-        return {
-          gap: 2,
-          tileRadius: 0,
-          blockRadius: 6,
-          blockShadow: '0 8px 60px rgba(0,0,0,0.35), 0 2px 12px rgba(0,0,0,0.2)',
-          blockOverflow: 'hidden' as const,
-          tileShadow: 'none',
-        }
-    }
-  }, [layoutMode])
+  // Mode switch — owner saves to DB, visitor is local only
+  const handleModeChange = useCallback((newMode: LayoutMode) => {
+    setLayoutMode(newMode)
+    setHasInteracted(true)
 
-  // Tile renderer — mirrors editor exactly, fills its grid cell
+    if (isOwner) {
+      fetch('/api/layout-mode', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          slug: footprint.username,
+          grid_mode: newMode,
+        }),
+      }).catch(() => {})
+    }
+  }, [isOwner, footprint.username])
+
+  // Layout config
+  const layoutConfig = useMemo(() => getLayoutConfig(layoutMode), [layoutMode])
+
+  // Tile renderer
   const renderTileContent = (item: any, index: number, size: number, aspect: string) => {
     const isVideo = item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
 
-    // Thought tiles — glassmorphic annotation
     if (item.type === 'thought') {
       const text = item.title || ''
       const len = text.length
@@ -313,7 +354,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       )
     }
 
-    // Videos
     if (isVideo) {
       return (
         <div className="w-full h-full" data-tile-id={item.id} data-tile-type={item.type}>
@@ -322,7 +362,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       )
     }
 
-    // Images — object-cover fills the grid cell
     if (item.type === 'image') {
       const w = size >= 3 ? 880 : size >= 2 ? 440 : 220
       const h = size >= 3 ? 495 : size >= 2 ? 330 : 220
@@ -348,7 +387,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       )
     }
 
-    // Embeds, links, etc. — pass resolved aspect so ContentCard matches
     return (
       <div className="w-full h-full" data-tile-id={item.id} data-tile-type={item.type}>
         <ContentCard content={item} isMobile={isMobile} tileSize={size} aspect={aspect} isPublicView />
@@ -356,61 +394,125 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     )
   }
 
-  // Active drag item for overlay
+  // Active drag item
   const activeDragItem = activeDragId ? content.find((item: any) => item.id === activeDragId) : null
 
-  // Tile IDs for DndContext
-  const allTileIds = useMemo(() => content.map((item: any) => item.id), [content])
+  // ═══════════════════════════════════════════
+  // EDITORIAL / BREATHE GRID — composed rows
+  // ═══════════════════════════════════════════
+  const editorialGrid = (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: `${layoutConfig.gap}px`,
+        opacity: roomFade === 'out' ? 0 : 1,
+        transition: 'opacity 200ms ease-out',
+      }}
+    >
+      {composedRows.map((row: ComposedRow, rowIdx: number) => {
+        const rowStyle = getRowGridStyle(row)
+        const tileAspect = getRowTileAspect(row.type)
 
-  // The grid — same as editor: size × aspect drives col/row spanning
-  const gridElement = (
+        return (
+          <div
+            key={`row-${rowIdx}`}
+            style={{
+              ...rowStyle,
+              gap: `${layoutConfig.gap}px`,
+            }}
+          >
+            {row.tiles.map((item: any, tileIdx: number) => {
+              const globalIdx = composedRows.slice(0, rowIdx).reduce((sum, r) => sum + r.tiles.length, 0) + tileIdx
+
+              return (
+                <motion.div
+                  key={item.id}
+                  layout
+                  layoutId={`tile-${item.id}`}
+                  transition={hasInteracted ? MODE_SPRING : { duration: 0 }}
+                  style={{
+                    aspectRatio: tileAspect,
+                    overflow: 'hidden',
+                    borderRadius: `${layoutConfig.tileRadius}px`,
+                    boxShadow: layoutConfig.tileShadow,
+                  }}
+                >
+                  {renderTileContent(item, globalIdx, row.type === 'hero' ? 3 : row.type === 'breath' ? 2 : 1, 'auto')}
+                </motion.div>
+              )
+            })}
+          </div>
+        )
+      })}
+    </div>
+  )
+
+  // ═══════════════════════════════════════════
+  // GRID MODE — uniform tiles, shuffled
+  // ═══════════════════════════════════════════
+  const uniformGrid = (
+    <div
+      className="grid grid-cols-2 md:grid-cols-3"
+      style={{
+        gap: `${layoutConfig.gap}px`,
+        opacity: roomFade === 'out' ? 0 : 1,
+        transition: 'opacity 200ms ease-out',
+      }}
+    >
+      {content.map((item: any, idx: number) => (
+        <motion.div
+          key={item.id}
+          layout
+          layoutId={`tile-${item.id}`}
+          transition={hasInteracted ? MODE_SPRING : { duration: 0 }}
+          className="aspect-square overflow-hidden"
+          style={{
+            borderRadius: `${layoutConfig.tileRadius}px`,
+            boxShadow: layoutConfig.tileShadow,
+          }}
+        >
+          {renderTileContent(item, idx, 1, 'square')}
+        </motion.div>
+      ))}
+    </div>
+  )
+
+  // ═══════════════════════════════════════════
+  // EDITOR GRID — original size×aspect layout (used when interactive/owner editing)
+  // ═══════════════════════════════════════════
+  const allTileIds = useMemo(() => orderedContent.map((item: any) => item.id), [orderedContent])
+
+  const editorGrid = (
     <div
       className="grid grid-cols-2 md:grid-cols-4"
       style={{
-        gap: `${layoutConfig.gap}px`,
+        gap: '2px',
         gridAutoRows: 'auto',
         gridAutoFlow: 'dense',
         opacity: roomFade === 'out' ? 0 : 1,
         transition: 'opacity 200ms ease-out',
       }}
     >
-      {content.map((item: any, idx: number) => {
+      {orderedContent.map((item: any, idx: number) => {
         const size = item.size || 1
         const aspect = resolveAspect(item.aspect, item.type, item.url)
         const gridClass = getGridClass(size, aspect)
         const aspectClass = getAspectClass(aspect)
-
         const tileClass = `${gridClass} ${aspectClass} overflow-hidden tile-enter tile-container`.trim()
-        const tileStyle: React.CSSProperties = {
-          borderRadius: `${layoutConfig.tileRadius}px`,
-          boxShadow: layoutConfig.tileShadow,
-        }
 
-        const tileContent = renderTileContent(item, idx, size, aspect)
-
-        if (interactive) {
-          return (
-            <SortableTile key={item.id} id={item.id} className={tileClass} style={tileStyle}>
-              {tileContent}
-            </SortableTile>
-          )
-        }
         return (
-          <motion.div
-            key={item.id}
-            layout
-            layoutId={`tile-${item.id}`}
-            transition={TILE_SPRING}
-            initial={{ opacity: 0, scale: 0.97 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className={tileClass}
-            style={tileStyle}
-          >
-            {tileContent}
-          </motion.div>
+          <SortableTile key={item.id} id={item.id} className={tileClass} style={{}}>
+            {renderTileContent(item, idx, size, aspect)}
+          </SortableTile>
         )
       })}
     </div>
+  )
+
+  // Select grid based on mode + interactivity
+  const activeGrid = interactive ? editorGrid : (
+    layoutMode === 'grid' ? uniformGrid : editorialGrid
   )
 
   return (
@@ -448,7 +550,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       )}
 
       {/* Top-right action */}
-      <div className="fixed top-5 right-4 md:right-6 z-30">
+      <div className="fixed top-5 right-4 md:right-6 z-30 flex items-center gap-2">
         {isLoggedIn ? (
           <a
             href={`/${footprint.username}/home`}
@@ -464,10 +566,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       </div>
 
       <div className="relative z-10 flex-1 flex flex-col">
-        {/* Sky — wallpaper breathing space above content */}
+        {/* Sky */}
         <div style={{ height: '80px' }} />
 
-        {/* Masthead — name commands the space, adapts to length */}
+        {/* Masthead */}
         <RemoveBubble slug={footprint.slug}>
           <header className="pb-4 md:pb-5 flex flex-col items-center px-4">
             <h1
@@ -489,56 +591,67 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </header>
         </RemoveBubble>
 
-        {/* Room nav — dot-separated, whispered chapters */}
+        {/* Room nav */}
         {visibleRooms.length > 1 && (
-          <div className="flex items-center justify-center gap-0 mb-4 md:mb-6 font-mono overflow-x-auto hide-scrollbar px-4">
-            {visibleRooms.map((room, i) => (
-              <span key={room.id} className="flex items-center whitespace-nowrap">
-                {i > 0 && <span className="mx-2.5" style={{ color: 'rgba(255,255,255,0.2)', fontSize: '8px' }}>·</span>}
-                <button
-                  onClick={() => goToRoom(room.id)}
-                  className="transition-all duration-300"
-                  style={{
-                    fontSize: '11px',
-                    letterSpacing: '2.5px',
-                    textTransform: 'lowercase',
-                    fontWeight: activeRoomId === room.id ? 400 : 300,
-                    color: activeRoomId === room.id ? 'white' : 'rgba(255,255,255,0.4)',
-                    background: 'none',
-                    border: 'none',
-                    padding: 0,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {room.name}
-                </button>
-              </span>
-            ))}
+          <div className="flex items-center justify-center mb-4 md:mb-6 px-4">
+            <div className="flex items-center gap-0 font-mono overflow-x-auto hide-scrollbar">
+              {visibleRooms.map((room, i) => (
+                <span key={room.id} className="flex items-center whitespace-nowrap">
+                  {i > 0 && <span className="mx-2.5" style={{ color: 'rgba(255,255,255,0.2)', fontSize: '8px' }}>·</span>}
+                  <button
+                    onClick={() => goToRoom(room.id)}
+                    className="transition-all duration-300"
+                    style={{
+                      fontSize: '11px',
+                      letterSpacing: '2.5px',
+                      textTransform: 'lowercase',
+                      fontWeight: activeRoomId === room.id ? 400 : 300,
+                      color: activeRoomId === room.id ? 'white' : 'rgba(255,255,255,0.4)',
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {room.name}
+                  </button>
+                </span>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* The Grid — the product */}
+        {/* Layout toggle — below room nav, right-aligned within grid container */}
+        {!interactive && content.length > 0 && (
+          <div className="mx-auto w-full px-3 md:px-0 mb-3" style={{ maxWidth: '880px' }}>
+            <div className="flex justify-end">
+              <LayoutToggle mode={layoutMode} onChange={handleModeChange} />
+            </div>
+          </div>
+        )}
+
+        {/* The Grid */}
         <div
           className="fp-grid-container mx-auto w-full px-3 md:px-0"
           style={{
             maxWidth: '880px',
-            paddingLeft: layoutMode === 'breathe' ? (isMobile ? '16px' : '20px') : undefined,
-            paddingRight: layoutMode === 'breathe' ? (isMobile ? '16px' : '20px') : undefined,
+            paddingLeft: layoutMode === 'breathe' && !interactive ? `${isMobile ? 16 : layoutConfig.containerPadding}px` : undefined,
+            paddingRight: layoutMode === 'breathe' && !interactive ? `${isMobile ? 16 : layoutConfig.containerPadding}px` : undefined,
           }}
         >
           <div
             className="fp-grid-arrive"
             style={{
-              borderRadius: `${layoutConfig.blockRadius}px`,
-              overflow: layoutConfig.blockOverflow,
-              boxShadow: layoutConfig.blockShadow,
+              borderRadius: layoutMode === 'editorial' && !interactive ? '6px' : '0px',
+              overflow: layoutMode === 'editorial' && !interactive ? 'hidden' : 'visible',
+              boxShadow: layoutMode === 'editorial' && !interactive ? '0 8px 60px rgba(0,0,0,0.35), 0 2px 12px rgba(0,0,0,0.2)' : 'none',
             }}
           >
             {interactive ? (
               <LayoutGroup>
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
                   <SortableContext items={allTileIds} strategy={rectSortingStrategy}>
-                    {gridElement}
+                    {activeGrid}
                   </SortableContext>
                   <DragOverlay>
                     {activeDragItem ? (
@@ -553,7 +666,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 </DndContext>
               </LayoutGroup>
             ) : (
-              <LayoutGroup>{gridElement}</LayoutGroup>
+              <LayoutGroup>{activeGrid}</LayoutGroup>
             )}
           </div>
         </div>
@@ -564,10 +677,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </p>
         )}
 
-        {/* Floor — wallpaper breathing space below content */}
+        {/* Floor */}
         <div style={{ height: '120px' }} />
 
-        {/* Footer — quiet share icon */}
+        {/* Footer */}
         <div className="py-10 flex items-center justify-center">
           <button
             onClick={handleShare}
@@ -609,7 +722,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
       )}
 
-      {/* Floating CTA bar — shown on published rooms, self-hides for published owners */}
+      {/* Floating CTA bar */}
       {!isDraft && (
         <FloatingCtaBar username={footprint.username} serial={serial} />
       )}
