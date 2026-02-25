@@ -183,6 +183,8 @@ export function getRowGridStyle(row: ComposedRow): React.CSSProperties {
       return {
         display: 'grid',
         gridTemplateColumns: '1fr',
+        maxWidth: '75%',
+        margin: '0 auto',
       }
     case 'trio':
       return {
@@ -207,7 +209,7 @@ export function getRowTileAspect(rowType: RowType): string {
     case 'pair':
       return '4 / 5'
     case 'breath':
-      return '2.4 / 1'
+      return '3 / 2'
     case 'trio':
       return '1 / 1'
     default:

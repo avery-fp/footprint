@@ -3,8 +3,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import Image from 'next/image'
 import { motion, LayoutGroup } from 'framer-motion'
-import { DndContext, closestCenter, MouseSensor, TouchSensor, useSensor, useSensors, DragOverlay, DragStartEvent, DragEndEvent } from '@dnd-kit/core'
-import { SortableContext, rectSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
 import ContentCard from '@/components/ContentCard'
 import VideoTile from '@/components/VideoTile'
 import WeatherEffect from '@/components/WeatherEffect'
@@ -46,44 +44,6 @@ const MODE_SPRING = {
   damping: 25,
 }
 
-// Tile spring — weighty but responsive
-const TILE_SPRING = {
-  type: 'spring' as const,
-  stiffness: 350,
-  damping: 28,
-  mass: 0.8,
-}
-
-// Sortable wrapper — dnd-kit handles drag logic, framer-motion handles visual movement
-function SortableTile({ id, children, className, style }: { id: string; children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({ id })
-
-  return (
-    <motion.div
-      ref={setNodeRef}
-      layout
-      layoutId={`tile-${id}`}
-      transition={TILE_SPRING}
-      style={{
-        ...style,
-        ...(isDragging && transform ? {
-          transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-          zIndex: 50,
-          scale: 1.05,
-          boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
-        } : {}),
-        opacity: isDragging ? 0.35 : 1,
-        cursor: 'grab',
-      }}
-      className={className}
-      {...attributes}
-      {...listeners}
-    >
-      {children}
-    </motion.div>
-  )
-}
-
 const noop = () => {}
 
 // Wallpaper filter per room
@@ -107,43 +67,6 @@ const ROOM_OVERLAYS = [
 ]
 const DEFAULT_OVERLAY = 'rgba(0,0,0,0.35)'
 
-// ═══════════════════════════════════════════
-// GRID HELPERS — used by editor mode and Grid uniform fallback
-// ═══════════════════════════════════════════
-
-function resolveAspect(explicitAspect: string | undefined | null, type: string, url?: string): string {
-  if (explicitAspect && explicitAspect !== 'square') return explicitAspect
-  if (explicitAspect === 'square') return 'square'
-  if (type === 'youtube' || type === 'vimeo') return 'wide'
-  if (type === 'video') return 'auto'
-  if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return 'auto'
-  if (type === 'image') return 'auto'
-  return 'square'
-}
-
-function getGridClass(size: number, aspect: string) {
-  if (aspect === 'wide') {
-    if (size >= 3) return 'col-span-2 row-span-1 md:col-span-4 md:row-span-2'
-    if (size >= 2) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-1'
-    return 'col-span-2 row-span-1'
-  }
-  if (aspect === 'tall') {
-    if (size >= 3) return 'col-span-2 row-span-3 md:col-span-2 md:row-span-4'
-    if (size >= 2) return 'col-span-1 row-span-3 md:col-span-2 md:row-span-3'
-    return 'col-span-1 row-span-2'
-  }
-  if (size >= 3) return 'col-span-2 row-span-2 md:col-span-3 md:row-span-3'
-  if (size >= 2) return 'col-span-2 row-span-2'
-  return ''
-}
-
-function getAspectClass(aspect: string) {
-  if (aspect === 'wide') return 'aspect-video'
-  if (aspect === 'tall') return 'aspect-[9/16]'
-  if (aspect === 'auto') return ''
-  return 'aspect-square'
-}
-
 function getImageSizes(size: number): string {
   if (size >= 3) return '(max-width: 768px) 100vw, 880px'
   if (size >= 2) return '(max-width: 768px) 100vw, 50vw'
@@ -152,8 +75,6 @@ function getImageSizes(size: number): string {
 
 export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl, isDraft }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
-  const [localOrder, setLocalOrder] = useState<Record<string, string[]>>({})
-  const [activeDragId, setActiveDragId] = useState<string | null>(null)
 
   // Layout mode — owner's default from DB, visitor can toggle locally
   const gm = footprint.grid_mode
@@ -161,13 +82,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [layoutMode, setLayoutMode] = useState<LayoutMode>(defaultMode)
   const [hasInteracted, setHasInteracted] = useState(false)
 
-  const interactive = footprint.interactive !== false
   const serialNumber = footprint.serial_number || 0
-
-  // Sensors
-  const mouseSensor = useSensor(MouseSensor, { activationConstraint: { distance: 8 } })
-  const touchSensor = useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
-  const sensors = useSensors(mouseSensor, touchSensor)
 
   // Default to first room
   useEffect(() => {
@@ -207,30 +122,21 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     ? visibleRooms.find(r => r.id === activeRoomId)?.content || []
     : validContent
 
-  // Apply local drag order
-  const orderKey = activeRoomId || '__all__'
-  const orderedContent = useMemo(() => {
-    const order = localOrder[orderKey]
-    if (!order) return baseContent
-    const byId = new Map(baseContent.map((item: any) => [item.id, item]))
-    return order.map(id => byId.get(id)).filter(Boolean)
-  }, [baseContent, localOrder, orderKey])
-
   // Apply layout mode to content — grid shuffles, editorial/breathe preserve order
   const content = useMemo(() => {
     if (layoutMode === 'grid') {
-      return shuffleForGrid(orderedContent, serialNumber)
+      return shuffleForGrid(baseContent, serialNumber)
     }
-    return orderedContent
-  }, [orderedContent, layoutMode, serialNumber])
+    return baseContent
+  }, [baseContent, layoutMode, serialNumber])
 
   // Editorial composition (used by editorial + breathe modes)
   const composedRows = useMemo(() => {
     if (layoutMode === 'editorial' || layoutMode === 'breathe') {
-      return composeEditorial(orderedContent)
+      return composeEditorial(baseContent)
     }
     return []
-  }, [orderedContent, layoutMode])
+  }, [baseContent, layoutMode])
 
   // Wallpaper filter
   const activeRoomIndex = activeRoomId ? visibleRooms.findIndex(r => r.id === activeRoomId) : -1
@@ -279,23 +185,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       setTimeout(() => setRoomFade('visible'), 300)
     }, 200)
   }, [activeRoomId, roomFade])
-
-  // Drag handlers
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    setActiveDragId(String(event.active.id))
-  }, [])
-
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    setActiveDragId(null)
-    const { active, over } = event
-    if (!over || active.id === over.id) return
-    const ids = orderedContent.map((item: any) => item.id)
-    const oldIndex = ids.indexOf(String(active.id))
-    const newIndex = ids.indexOf(String(over.id))
-    if (oldIndex === -1 || newIndex === -1) return
-    const newIds = arrayMove(ids, oldIndex, newIndex)
-    setLocalOrder(prev => ({ ...prev, [orderKey]: newIds }))
-  }, [orderedContent, orderKey])
 
   useEffect(() => {
     if (!showToast) return
@@ -357,7 +246,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     if (isVideo) {
       return (
         <div className="w-full h-full" data-tile-id={item.id} data-tile-type={item.type}>
-          <VideoTile src={item.url} onWidescreen={noop} aspect={aspect} isPublicHero={size >= 3} />
+          <VideoTile src={item.url} onWidescreen={noop} />
         </div>
       )
     }
@@ -394,9 +283,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     )
   }
 
-  // Active drag item
-  const activeDragItem = activeDragId ? content.find((item: any) => item.id === activeDragId) : null
-
   // ═══════════════════════════════════════════
   // EDITORIAL / BREATHE GRID — composed rows
   // ═══════════════════════════════════════════
@@ -430,7 +316,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                   key={item.id}
                   layout
                   layoutId={`tile-${item.id}`}
-                  transition={hasInteracted ? MODE_SPRING : { duration: 0 }}
+                  initial={hasInteracted ? false : { opacity: 0, scale: 0.97 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={hasInteracted ? MODE_SPRING : { duration: 0.4, delay: globalIdx * 0.06, ease: [0.25, 0.46, 0.45, 0.94] }}
                   style={{
                     aspectRatio: tileAspect,
                     overflow: 'hidden',
@@ -465,7 +353,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           key={item.id}
           layout
           layoutId={`tile-${item.id}`}
-          transition={hasInteracted ? MODE_SPRING : { duration: 0 }}
+          initial={hasInteracted ? false : { opacity: 0, scale: 0.97 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={hasInteracted ? MODE_SPRING : { duration: 0.35, delay: idx * 0.04, ease: [0.25, 0.46, 0.45, 0.94] }}
           className="aspect-square overflow-hidden"
           style={{
             borderRadius: `${layoutConfig.tileRadius}px`,
@@ -478,39 +368,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     </div>
   )
 
-  // ═══════════════════════════════════════════
-  // EDITOR GRID — original size×aspect layout (used when interactive/owner editing)
-  // ═══════════════════════════════════════════
-  const allTileIds = useMemo(() => orderedContent.map((item: any) => item.id), [orderedContent])
-
-  const editorGrid = (
-    <div
-      className="grid grid-cols-2 md:grid-cols-4"
-      style={{
-        gap: '2px',
-        gridAutoRows: 'auto',
-        gridAutoFlow: 'dense',
-        opacity: roomFade === 'out' ? 0 : 1,
-        transition: 'opacity 200ms ease-out',
-      }}
-    >
-      {orderedContent.map((item: any, idx: number) => {
-        const size = item.size || 1
-        const aspect = resolveAspect(item.aspect, item.type, item.url)
-        const gridClass = getGridClass(size, aspect)
-        const aspectClass = getAspectClass(aspect)
-        const tileClass = `${gridClass} ${aspectClass} overflow-hidden tile-enter tile-container`.trim()
-
-        return (
-          <SortableTile key={item.id} id={item.id} className={tileClass} style={{}}>
-            {renderTileContent(item, idx, size, aspect)}
-          </SortableTile>
-        )
-      })}
-    </div>
-  )
-
   // Select grid based on layout mode
+  const allTileIds = useMemo(() => baseContent.map((item: any) => item.id), [baseContent])
   const activeGrid = layoutMode === 'grid' ? uniformGrid : editorialGrid
 
   return (
@@ -645,27 +504,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               boxShadow: layoutMode === 'editorial' ? '0 8px 60px rgba(0,0,0,0.35), 0 2px 12px rgba(0,0,0,0.2)' : 'none',
             }}
           >
-            {interactive ? (
-              <LayoutGroup>
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-                  <SortableContext items={allTileIds} strategy={rectSortingStrategy}>
-                    {activeGrid}
-                  </SortableContext>
-                  <DragOverlay>
-                    {activeDragItem ? (
-                      <div
-                        className="aspect-square overflow-hidden tile-container"
-                        style={{ transform: 'rotate(1deg)', boxShadow: '0 12px 40px rgba(0,0,0,0.5)', borderRadius: '4px', maxWidth: '200px' }}
-                      >
-                        {renderTileContent(activeDragItem, 0, 1, 'square')}
-                      </div>
-                    ) : null}
-                  </DragOverlay>
-                </DndContext>
-              </LayoutGroup>
-            ) : (
-              <LayoutGroup>{activeGrid}</LayoutGroup>
-            )}
+            <LayoutGroup>{activeGrid}</LayoutGroup>
           </div>
         </div>
 
