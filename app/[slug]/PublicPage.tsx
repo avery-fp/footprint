@@ -510,10 +510,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     </div>
   )
 
-  // Select grid based on mode + interactivity
-  const activeGrid = interactive ? editorGrid : (
-    layoutMode === 'grid' ? uniformGrid : editorialGrid
-  )
+  // Select grid based on layout mode
+  const activeGrid = layoutMode === 'grid' ? uniformGrid : editorialGrid
 
   return (
     <div className="min-h-screen relative flex flex-col" style={{ background: theme.colors.background, color: theme.colors.text, '--fp-glass': theme.colors.glass, '--fp-text-muted': theme.colors.textMuted } as React.CSSProperties}>
@@ -622,7 +620,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         )}
 
         {/* Layout toggle — below room nav, right-aligned within grid container */}
-        {!interactive && content.length > 0 && (
+        {content.length > 0 && (
           <div className="mx-auto w-full px-3 md:px-0 mb-3" style={{ maxWidth: '880px' }}>
             <div className="flex justify-end">
               <LayoutToggle mode={layoutMode} onChange={handleModeChange} />
@@ -635,16 +633,16 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           className="fp-grid-container mx-auto w-full px-3 md:px-0"
           style={{
             maxWidth: '880px',
-            paddingLeft: layoutMode === 'breathe' && !interactive ? `${isMobile ? 16 : layoutConfig.containerPadding}px` : undefined,
-            paddingRight: layoutMode === 'breathe' && !interactive ? `${isMobile ? 16 : layoutConfig.containerPadding}px` : undefined,
+            paddingLeft: layoutMode === 'breathe' ? `${isMobile ? 16 : layoutConfig.containerPadding}px` : undefined,
+            paddingRight: layoutMode === 'breathe' ? `${isMobile ? 16 : layoutConfig.containerPadding}px` : undefined,
           }}
         >
           <div
             className="fp-grid-arrive"
             style={{
-              borderRadius: layoutMode === 'editorial' && !interactive ? '6px' : '0px',
-              overflow: layoutMode === 'editorial' && !interactive ? 'hidden' : 'visible',
-              boxShadow: layoutMode === 'editorial' && !interactive ? '0 8px 60px rgba(0,0,0,0.35), 0 2px 12px rgba(0,0,0,0.2)' : 'none',
+              borderRadius: layoutMode === 'editorial' ? '6px' : '0px',
+              overflow: layoutMode === 'editorial' ? 'hidden' : 'visible',
+              boxShadow: layoutMode === 'editorial' ? '0 8px 60px rgba(0,0,0,0.35), 0 2px 12px rgba(0,0,0,0.2)' : 'none',
             }}
           >
             {interactive ? (
