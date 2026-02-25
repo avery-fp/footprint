@@ -138,10 +138,15 @@ export async function verifySessionToken(token: string): Promise<{
 } | null> {
   try {
     const { payload } = await jwtVerify(token, JWT_SECRET_KEY())
-    
+
+    // Validate payload shape to prevent crashes from malformed JWTs
+    if (typeof payload.userId !== 'string' || typeof payload.email !== 'string') {
+      return null
+    }
+
     return {
-      userId: payload.userId as string,
-      email: payload.email as string,
+      userId: payload.userId,
+      email: payload.email,
     }
   } catch {
     return null

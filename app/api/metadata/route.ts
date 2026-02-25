@@ -35,6 +35,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch URL', status: res.status }, { status: 502 })
     }
 
+    // Reject responses larger than 2MB to prevent memory exhaustion
+    const contentLength = parseInt(res.headers.get('content-length') || '0', 10)
+    if (contentLength > 2 * 1024 * 1024) {
+      return NextResponse.json({ error: 'Response too large' }, { status: 502 })
+    }
+
     const contentType = res.headers.get('content-type') || ''
     if (!contentType.includes('text/html') && !contentType.includes('application/xhtml')) {
       return NextResponse.json({

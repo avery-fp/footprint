@@ -4,26 +4,28 @@ import { createServerSupabaseClient } from '@/lib/supabase'
 import { nanoid } from 'nanoid'
 
 /**
- * GET /api/auth/dev-login?email=you@example.com&link_footprint=ae
+ * POST /api/auth/dev-login
+ * Body: { email, link_footprint? }
  *
  * Logs in directly without email verification.
  * Creates the user if they don't exist yet.
- * Optionally re-links an existing footprint via ?link_footprint=slug.
+ * POST-only to prevent CSRF via img/link tags.
  *
  * DELETE THIS ROUTE once Resend domain is verified.
  */
-export async function GET(request: NextRequest) {
-  // Block in production — this route is for local development only
+export async function POST(request: NextRequest) {
+  // Hard block in production — this route is for local development only
   if (process.env.NODE_ENV === 'production') {
-    return NextResponse.json({ error: 'Not available' }, { status: 404 })
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
   try {
-    const rawEmail = request.nextUrl.searchParams.get('email')
-    const linkFootprint = request.nextUrl.searchParams.get('link_footprint')
+    const body = await request.json()
+    const rawEmail = body.email
+    const linkFootprint = body.link_footprint || null
 
     if (!rawEmail) {
-      return NextResponse.json({ error: 'email query param required' }, { status: 400 })
+      return NextResponse.json({ error: 'email required' }, { status: 400 })
     }
 
     const email = rawEmail.toLowerCase().trim()
@@ -140,7 +142,7 @@ export async function GET(request: NextRequest) {
   } catch (err: any) {
     console.error('Dev-login error:', err)
     return NextResponse.json(
-      { error: err?.message || 'Internal error', stack: process.env.NODE_ENV !== 'production' ? err?.stack : undefined },
+      { error: 'Internal error' },
       { status: 500 }
     )
   }

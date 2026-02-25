@@ -82,6 +82,18 @@ export async function GET(request: NextRequest) {
 }
 
 /**
+ * Escape a string for safe injection into HTML attributes and text nodes.
+ */
+function escapeHTML(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+/**
  * Generate the embed script based on style and data
  */
 function generateEmbedScript(params: {
@@ -99,8 +111,21 @@ function generateEmbedScript(params: {
     contentPreview: any[]
   }
 }) {
-  const { baseUrl, slug, style, theme, data } = params
-  const footprintUrl = `${baseUrl}/${slug}`
+  const { baseUrl, slug, style, theme, data: rawData } = params
+  const footprintUrl = `${baseUrl}/${encodeURI(slug)}`
+
+  // Escape all user-controlled strings to prevent XSS
+  const data = {
+    ...rawData,
+    displayName: escapeHTML(rawData.displayName),
+    handle: escapeHTML(rawData.handle),
+    bio: escapeHTML(rawData.bio),
+    contentPreview: rawData.contentPreview.map((item: any) => ({
+      ...item,
+      title: item.title ? escapeHTML(item.title) : null,
+      type: escapeHTML(item.type),
+    })),
+  }
   
   // Theme colors (simplified for embed)
   const themes: Record<string, { bg: string; text: string; muted: string; border: string }> = {

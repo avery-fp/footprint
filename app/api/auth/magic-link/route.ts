@@ -2,6 +2,23 @@ import { NextRequest, NextResponse } from 'next/server'
 import { generateMagicLink, sendMagicLinkEmail } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
 
+// In-memory rate limiter: max 5 requests per email per 15 minutes
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
+const RATE_LIMIT_MAX = 5
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000
+
+function checkRateLimit(key: string): boolean {
+  const now = Date.now()
+  const entry = rateLimitMap.get(key)
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS })
+    return true
+  }
+  if (entry.count >= RATE_LIMIT_MAX) return false
+  entry.count++
+  return true
+}
+
 /**
  * POST /api/auth/magic-link
  *
@@ -31,6 +48,15 @@ export async function POST(request: NextRequest) {
 
     // Normalize email
     const email = rawEmail.toLowerCase().trim()
+
+    // Rate limit: prevent email bombing and enumeration
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+    if (!checkRateLimit(`email:${email}`) || !checkRateLimit(`ip:${ip}`)) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429 }
+      )
+    }
 
     // Use service role client to bypass RLS for user lookup
     const supabase = createClient(
@@ -68,18 +94,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true })
 
   } catch (error) {
-    // Log the full error object to see what's really happening
-    console.error('Magic link error - FULL DETAILS:', error)
-    console.error('Error type:', error instanceof Error ? error.constructor.name : typeof error)
-    if (error instanceof Error) {
-      console.error('Error message:', error.message)
-      console.error('Error stack:', error.stack)
-    }
+    console.error('Magic link error:', error)
 
-    // Return the specific error message instead of generic one
-    const errorMessage = error instanceof Error ? error.message : 'Failed to send magic link'
+    // Don't expose internal error details to clients
     return NextResponse.json(
-      { error: errorMessage },
+      { error: 'Failed to send magic link' },
       { status: 500 }
     )
   }

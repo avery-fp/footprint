@@ -83,6 +83,16 @@ export async function parseURL(rawUrl: string): Promise<ParsedContent> {
     url = 'https://' + url
   }
 
+  // Block non-HTTP(S) protocols to prevent javascript: / data: XSS
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return parseGenericLink(url)
+    }
+  } catch {
+    return parseGenericLink(url)
+  }
+
   // Try each pattern
   for (const [platform, patterns] of Object.entries(PATTERNS)) {
     for (const { regex, type } of patterns) {
@@ -296,6 +306,9 @@ function parseVideo(url: string): ParsedContent {
 // ============================================
 function parseImage(url: string): ParsedContent {
   const filename = url.split('/').pop()?.split('?')[0] || 'Image'
+  // Escape for safe HTML attribute injection
+  const safeAlt = filename.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const safeUrl = url.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
   return {
     type: 'image',
@@ -304,7 +317,7 @@ function parseImage(url: string): ParsedContent {
     title: filename,
     description: null,
     thumbnail_url: url,
-    embed_html: `<img src="${url}" alt="${filename}" class="w-full rounded-xl" loading="lazy" />`,
+    embed_html: `<img src="${safeUrl}" alt="${safeAlt}" class="w-full rounded-xl" loading="lazy" />`,
   }
 }
 

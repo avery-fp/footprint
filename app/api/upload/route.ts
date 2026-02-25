@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'footprint_id required' }, { status: 400 })
     }
 
-    // Validate file type
+    // Validate file type (client-reported MIME first, then magic bytes)
     if (!ALLOWED_TYPES.includes(file.type)) {
       return NextResponse.json(
         { error: 'Invalid file type. Use JPG, PNG, GIF, or WebP.' },
@@ -58,6 +58,21 @@ export async function POST(request: NextRequest) {
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
         { error: 'File too large. Maximum size is 5MB.' },
+        { status: 400 }
+      )
+    }
+
+    // Validate actual file content via magic bytes (prevents MIME spoofing)
+    const headerBytes = new Uint8Array(await file.slice(0, 12).arrayBuffer())
+    const isJPEG = headerBytes[0] === 0xFF && headerBytes[1] === 0xD8 && headerBytes[2] === 0xFF
+    const isPNG = headerBytes[0] === 0x89 && headerBytes[1] === 0x50 && headerBytes[2] === 0x4E && headerBytes[3] === 0x47
+    const isGIF = headerBytes[0] === 0x47 && headerBytes[1] === 0x49 && headerBytes[2] === 0x46
+    const isWebP = headerBytes[0] === 0x52 && headerBytes[1] === 0x49 && headerBytes[2] === 0x46 && headerBytes[3] === 0x46
+      && headerBytes[8] === 0x57 && headerBytes[9] === 0x45 && headerBytes[10] === 0x42 && headerBytes[11] === 0x50
+
+    if (!isJPEG && !isPNG && !isGIF && !isWebP) {
+      return NextResponse.json(
+        { error: 'File content does not match an allowed image format.' },
         { status: 400 }
       )
     }
