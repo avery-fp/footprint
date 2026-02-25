@@ -294,14 +294,14 @@ function SortableTile({
               loading="lazy"
               decoding="async"
               quality={75}
-              onError={(e) => { (e.target as HTMLElement).closest('[data-tile]')!.style.display = 'none' }}
+              onError={(e) => { ((e.target as HTMLElement).closest('[data-tile]') as HTMLElement | null)?.style.setProperty('display', 'none') }}
             />
           )
         ) : (
           <div className={`${aspect === 'auto' ? 'w-full min-h-[80px]' : 'absolute inset-0'} flex flex-col items-center justify-center bg-white/[0.05] p-2`}>
             {content.thumbnail_url ? (
               <Image src={content.thumbnail_url} alt="" width={200} height={200} sizes="(max-width: 640px) 50vw, 25vw" className={`${aspect === 'auto' ? 'w-full h-auto' : 'absolute inset-0 w-full h-full'} ${getObjectFit(aspect)}`} loading="lazy" decoding="async" quality={75}
-                onError={(e) => { (e.target as HTMLElement).closest('[data-tile]')!.style.display = 'none' }} />
+                onError={(e) => { ((e.target as HTMLElement).closest('[data-tile]') as HTMLElement | null)?.style.setProperty('display', 'none') }} />
             ) : (
               content.type === 'thought' ? (
                 <p className={`text-white text-center line-clamp-4 px-2 ${
@@ -500,7 +500,7 @@ export default function EditPage() {
     }
     // Wait for any in-flight tile saves (reorder, resize, etc.)
     if (pendingOpsRef.current.size > 0) {
-      await Promise.allSettled([...pendingOpsRef.current])
+      await Promise.allSettled(Array.from(pendingOpsRef.current))
     }
     // Full page load — bypasses Next.js Router Cache, guarantees fresh server render
     window.location.href = `/${slug}`

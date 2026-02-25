@@ -58,8 +58,8 @@ export function PlusButton({ slug }: PlusButtonProps) {
             reducedMotion
               ? { opacity: 0 }
               : {
-                  scale: plus.scale,
-                  opacity: plus.opacity,
+                  scale: [...plus.scale],
+                  opacity: [...plus.opacity],
                   rotate: plus.rotate[1],
                   transition: {
                     duration: plus.duration,

@@ -241,7 +241,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Update positions per table
-    const promises: Promise<any>[] = []
+    const promises: PromiseLike<any>[] = []
     for (const [source, items] of Object.entries(bySource)) {
       for (const item of items) {
         promises.push(

@@ -546,7 +546,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                         className="aspect-square overflow-hidden tile-container"
                         style={{ transform: 'rotate(1deg)', boxShadow: '0 12px 40px rgba(0,0,0,0.5)', borderRadius: '4px', maxWidth: '200px' }}
                       >
-                        {renderTileContent(activeDragItem, 0, 1)}
+                        {renderTileContent(activeDragItem, 0, 1, 'square')}
                       </div>
                     ) : null}
                   </DragOverlay>
