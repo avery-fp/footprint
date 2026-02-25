@@ -7,86 +7,171 @@ import { routeLogger } from '@/lib/logger'
 
 const log = routeLogger('POST', '/api/auth/magic-link')
 
-// In-memory rate limiter: max 5 requests per email per 15 minutes
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
-const RATE_LIMIT_MAX = 5
-const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000
+// In-memory rate limiters
+const emailRateLimitMap = new Map<string, { count: number; resetAt: number }>()
+const ipRateLimitMap = new Map<string, { count: number; resetAt: number }>()
+const cooldownMap = new Map<string, number>()
 
-function checkRateLimit(key: string): boolean {
+const EMAIL_RATE_LIMIT_MAX = 5
+const EMAIL_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000 // 1 hour
+const IP_RATE_LIMIT_MAX = 10
+const IP_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000 // 1 hour
+const COOLDOWN_MS = 60 * 1000 // 60 seconds between sends to same email
+
+function checkRateLimit(map: Map<string, { count: number; resetAt: number }>, key: string, max: number, windowMs: number): boolean {
   const now = Date.now()
-  const entry = rateLimitMap.get(key)
+  const entry = map.get(key)
   if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS })
+    map.set(key, { count: 1, resetAt: now + windowMs })
     return true
   }
-  if (entry.count >= RATE_LIMIT_MAX) return false
+  if (entry.count >= max) return false
   entry.count++
+  return true
+}
+
+function checkCooldown(email: string): boolean {
+  const now = Date.now()
+  const lastSent = cooldownMap.get(email)
+  if (lastSent && now - lastSent < COOLDOWN_MS) return false
   return true
 }
 
 /**
  * POST /api/auth/magic-link
  *
- * Generates and sends a magic link for passwordless auth.
+ * Unified auth: handles both new and returning users.
+ * - If email exists → send magic link to existing room
+ * - If email is new + valid reservation_token → create user, send magic link
+ * - If email is new + no reservation → silent success (no info leaked)
+ *
+ * Response is ALWAYS { ok: true } — never reveals whether email exists.
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const v = validateBody(magicLinkSchema, body)
     if (!v.success) return v.response
-    const { email, redirect } = v.data
+    const { email, redirect, reservation_token } = v.data
 
-    // Rate limit: prevent email bombing and enumeration
+    // Rate limits — always return ok: true to not leak info
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
-    if (!checkRateLimit(`email:${email}`) || !checkRateLimit(`ip:${ip}`)) {
-      return NextResponse.json(
-        { error: 'Too many requests. Please try again later.' },
-        { status: 429 }
-      )
+
+    if (!checkRateLimit(emailRateLimitMap, email, EMAIL_RATE_LIMIT_MAX, EMAIL_RATE_LIMIT_WINDOW_MS)) {
+      return NextResponse.json({ ok: true })
     }
 
-    // Use service role client to bypass RLS for user lookup
+    if (!checkRateLimit(ipRateLimitMap, ip, IP_RATE_LIMIT_MAX, IP_RATE_LIMIT_WINDOW_MS)) {
+      return NextResponse.json({ ok: true })
+    }
+
+    if (!checkCooldown(email)) {
+      return NextResponse.json({ ok: true })
+    }
+
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
-    // Check if user exists (i.e., has paid) — case-insensitive
-    const { data: user, error: userError } = await supabase
+    // Check if user exists — case-insensitive
+    const { data: existingUser } = await supabase
       .from('users')
       .select('id, email')
       .ilike('email', email)
       .single()
 
-    if (userError || !user) {
-      // User hasn't paid yet
-      return NextResponse.json(
-        { error: 'No account found. Get your Footprint first!' },
-        { status: 404 }
-      )
+    if (existingUser) {
+      // ── Returning user: send magic link to their room ──
+      const { data: primaryFp } = await supabase
+        .from('footprints')
+        .select('username')
+        .eq('user_id', existingUser.id)
+        .eq('is_primary', true)
+        .single()
+
+      const dest = redirect || (primaryFp?.username ? `/${primaryFp.username}/home` : '/build')
+      const magicLink = await generateMagicLink(existingUser.email, dest)
+      await sendMagicLinkEmail(existingUser.email, magicLink)
+      cooldownMap.set(email, Date.now())
+
+      return NextResponse.json({ ok: true })
     }
 
-    // Generate the magic link
-    const magicLink = await generateMagicLink(email)
+    // ── New user: need a valid reservation ──
+    if (!reservation_token) {
+      // No reservation — silent success, no link sent
+      return NextResponse.json({ ok: true })
+    }
 
-    // Add redirect param if provided
-    const finalLink = redirect
-      ? `${magicLink}&redirect=${encodeURIComponent(redirect)}`
-      : magicLink
+    // Validate reservation token
+    const { data: reservation } = await supabase
+      .from('username_reservations')
+      .select('username, token, expires_at')
+      .eq('token', reservation_token)
+      .single()
 
-    // Send the email
-    await sendMagicLinkEmail(email, finalLink)
+    if (!reservation || new Date(reservation.expires_at) < new Date()) {
+      // Expired or invalid reservation — silent success
+      return NextResponse.json({ ok: true })
+    }
 
-    return NextResponse.json({ success: true })
+    // Check the username isn't already taken by a real user
+    const { data: existingFp } = await supabase
+      .from('footprints')
+      .select('id')
+      .eq('username', reservation.username)
+      .single()
+
+    if (existingFp) {
+      // Username was claimed between reservation and email — silent success
+      return NextResponse.json({ ok: true })
+    }
+
+    // Create user (no password, no serial number — unpublished)
+    const { data: newUser, error: userError } = await supabase
+      .from('users')
+      .insert({ email })
+      .select('id, email')
+      .single()
+
+    if (userError || !newUser) {
+      log.error({ err: userError }, 'User creation failed during magic-link signup')
+      return NextResponse.json({ ok: true })
+    }
+
+    // Create unpublished footprint with reserved username
+    const { error: fpError } = await supabase.from('footprints').insert({
+      user_id: newUser.id,
+      username: reservation.username,
+      name: 'Everything',
+      icon: '◈',
+      is_primary: true,
+      published: false,
+    })
+
+    if (fpError) {
+      log.error({ err: fpError }, 'Footprint creation failed during magic-link signup')
+    }
+
+    // Delete reservation
+    await supabase
+      .from('username_reservations')
+      .delete()
+      .eq('token', reservation_token)
+
+    // Send magic link to new user's room
+    const dest = `/${reservation.username}/home`
+    const magicLink = await generateMagicLink(email, dest)
+    await sendMagicLinkEmail(email, magicLink)
+    cooldownMap.set(email, Date.now())
+
+    return NextResponse.json({ ok: true })
 
   } catch (error) {
     log.error({ err: error }, 'Magic link failed')
-
-    // Don't expose internal error details to clients
-    return NextResponse.json(
-      { error: 'Failed to send magic link' },
-      { status: 500 }
-    )
+    // Always return ok to not leak info
+    return NextResponse.json({ ok: true })
   }
 }

@@ -21,6 +21,7 @@ const publicRoutes = [
   '/auth/callback',
   '/signup',
   '/signin',
+  '/login',
   '/checkout',
   '/success',
   '/deed',
@@ -79,9 +80,9 @@ export function middleware(request: NextRequest) {
     return withSecurityHeaders(NextResponse.next())
   }
 
-  // No session → redirect to signin
+  // No session → redirect to signup (unified auth)
   const loginUrl = request.nextUrl.clone()
-  loginUrl.pathname = '/signin'
+  loginUrl.pathname = '/signup'
   return NextResponse.redirect(loginUrl)
 }
 
