@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
 
-export default function AuthLoginPage() {
+export default function LoginPage() {
   redirect('/signup')
 }

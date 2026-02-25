@@ -39,6 +39,22 @@ export const loginSchema = z.object({
 export const magicLinkSchema = z.object({
   email: emailSchema,
   redirect: z.string().optional(),
+  reservation_token: z.string().optional(),
+})
+
+export const usernameReserveSchema = z.object({
+  username: z
+    .string()
+    .min(1, 'Username required')
+    .transform(v => v.toLowerCase().trim())
+    .pipe(
+      z.string()
+        .min(3, 'Username must be 3-20 characters.')
+        .max(20, 'Username must be 3-20 characters.')
+        .regex(/^[a-z0-9-]+$/, 'Lowercase letters, numbers, and hyphens only.')
+        .refine(v => !v.startsWith('-') && !v.endsWith('-'), 'Cannot start or end with a hyphen.')
+        .refine(v => !v.includes('--'), 'Cannot contain consecutive hyphens.')
+    ),
 })
 
 export const contentPostSchema = z.object({
