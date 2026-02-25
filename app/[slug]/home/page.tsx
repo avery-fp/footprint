@@ -13,6 +13,7 @@ import { snapToPreset } from '@/lib/aspect-ratios'
 import Image from 'next/image'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import LayoutToggle from '@/components/LayoutToggle'
+import AddToHomeScreen from '@/components/AddToHomeScreen'
 import type { LayoutMode } from '@/lib/layout-engine'
 
 interface TileContent extends DraftContent {
@@ -1715,6 +1716,9 @@ export default function EditPage() {
           </div>
         )}
       </div>
+
+      {/* ── Add to Home Screen (mobile only, one-time) ── */}
+      {!isArranging && <AddToHomeScreen />}
 
       {/* Hidden file input */}
       <input

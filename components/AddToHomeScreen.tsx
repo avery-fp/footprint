@@ -22,17 +22,32 @@ function isStandalone(): boolean {
   return false
 }
 
+function isMobileDevice(): boolean {
+  if (typeof window === 'undefined') return false
+  return window.matchMedia('(pointer: coarse)').matches && window.innerWidth < 768
+}
+
+// ── Toast style (dark, matching void aesthetic) ────────────────
+
+const TOAST_STYLE = {
+  background: '#111111',
+  color: '#F5F5F5',
+  border: '1px solid rgba(255,255,255,0.08)',
+  fontFamily: 'JetBrains Mono, monospace',
+  fontSize: '13px',
+}
+
 // ── Share icon SVG (iOS-style, minimal) ────────────────────────
 
 function ShareIcon() {
   return (
     <svg
-      width="16"
-      height="16"
+      width="14"
+      height="14"
       viewBox="0 0 16 16"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: 6, opacity: 0.7 }}
+      style={{ display: 'inline-block', verticalAlign: '-2px', marginRight: 5, opacity: 0.6 }}
     >
       <path
         d="M8 1.5V10M8 1.5L5 4.5M8 1.5L11 4.5"
@@ -52,72 +67,57 @@ function ShareIcon() {
   )
 }
 
-// ── Component ──────────────────────────────────────────────────
+// ── Global prompt catcher (no UI, mount in layout) ─────────────
 
-export default function AddToHomeScreen() {
-  const [mounted, setMounted] = useState(false)
-  const [dismissed, setDismissed] = useState(false)
-  const [installed, setInstalled] = useState(false)
-  const [showModal, setShowModal] = useState(false)
-  const [platform, setPlatform] = useState<Platform>('unsupported')
-  const deferredPrompt = useRef<any>(null)
-  const iosModalShown = useRef(false)
-
-  // ── Mount + platform detect ──
-  useEffect(() => {
-    setMounted(true)
-    setPlatform(getPlatform())
-
-    if (isStandalone()) {
-      setInstalled(true)
-      return
-    }
-
-    // Already installed / dismissed
-    if (localStorage.getItem('fp_installed') === 'true') {
-      setInstalled(true)
-      return
-    }
-    if (localStorage.getItem('fp_a2hs_dismissed') === 'true') {
-      setDismissed(true)
-      return
-    }
-    // iOS: already seen prompt
-    if (localStorage.getItem('fp_ios_a2hs_seen') === 'true') {
-      setDismissed(true)
-      return
-    }
-  }, [])
-
-  // ── beforeinstallprompt (Android/Chromium) ──
+export function InstallPromptCatcher() {
   useEffect(() => {
     if (typeof window === 'undefined') return
 
     const handler = (e: Event) => {
       e.preventDefault()
-      deferredPrompt.current = e
+      ;(window as any).__fp_deferred_prompt = e
     }
     window.addEventListener('beforeinstallprompt', handler)
 
-    const installedHandler = () => {
+    const installed = () => {
       localStorage.setItem('fp_installed', 'true')
-      setInstalled(true)
-      toast('Your deed is placed.', {
-        style: {
-          background: '#111111',
-          color: '#F5F5F5',
-          border: '1px solid rgba(255,255,255,0.08)',
-          fontFamily: 'JetBrains Mono, monospace',
-          fontSize: '13px',
-        },
-      })
+      ;(window as any).__fp_deferred_prompt = null
+      toast('Your deed is placed.', { style: TOAST_STYLE })
     }
-    window.addEventListener('appinstalled', installedHandler)
+    window.addEventListener('appinstalled', installed)
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handler)
-      window.removeEventListener('appinstalled', installedHandler)
+      window.removeEventListener('appinstalled', installed)
     }
+  }, [])
+
+  return null
+}
+
+// ── Main component (render in editor, mobile only) ─────────────
+
+export default function AddToHomeScreen() {
+  const [visible, setVisible] = useState(false)
+  const [showModal, setShowModal] = useState(false)
+  const [platform, setPlatform] = useState<Platform>('unsupported')
+  const iosModalShown = useRef(false)
+
+  useEffect(() => {
+    // Desktop: never show
+    if (!isMobileDevice()) return
+
+    // Already installed or standalone
+    if (isStandalone()) return
+    if (localStorage.getItem('fp_installed') === 'true') return
+    if (localStorage.getItem('fp_a2hs_dismissed') === 'true') return
+    if (localStorage.getItem('fp_ios_a2hs_seen') === 'true') return
+
+    setPlatform(getPlatform())
+
+    // Appear after a quiet beat — the user is already in the editor
+    const timer = setTimeout(() => setVisible(true), 2000)
+    return () => clearTimeout(timer)
   }, [])
 
   // ── iOS: detect return from Safari share flow ──
@@ -129,82 +129,71 @@ export default function AddToHomeScreen() {
         iosModalShown.current = false
         localStorage.setItem('fp_ios_a2hs_seen', 'true')
         setShowModal(false)
-        setDismissed(true)
-        toast('Your deed is placed.', {
-          style: {
-            background: '#111111',
-            color: '#F5F5F5',
-            border: '1px solid rgba(255,255,255,0.08)',
-            fontFamily: 'JetBrains Mono, monospace',
-            fontSize: '13px',
-          },
-        })
+        setVisible(false)
+        toast('Your deed is placed.', { style: TOAST_STYLE })
       }
     }
     document.addEventListener('visibilitychange', handler)
     return () => document.removeEventListener('visibilitychange', handler)
   }, [platform])
 
-  // ── CTA click ──
   const handleClick = useCallback(async () => {
     const p = getPlatform()
 
-    if (p === 'android' && deferredPrompt.current) {
-      deferredPrompt.current.prompt()
-      const { outcome } = await deferredPrompt.current.userChoice
-      deferredPrompt.current = null
+    // Android: fire native prompt
+    if (p === 'android' && (window as any).__fp_deferred_prompt) {
+      const prompt = (window as any).__fp_deferred_prompt
+      prompt.prompt()
+      const { outcome } = await prompt.userChoice
+      ;(window as any).__fp_deferred_prompt = null
       if (outcome === 'accepted') {
         localStorage.setItem('fp_installed', 'true')
-        setInstalled(true)
+        setVisible(false)
       }
       return
     }
 
-    // iOS or unsupported: show modal
+    // iOS or fallback: show modal
     setShowModal(true)
     if (p === 'ios') iosModalShown.current = true
   }, [])
 
-  // ── Modal dismiss ──
-  const closeModal = useCallback(() => {
+  const dismiss = useCallback(() => {
     setShowModal(false)
+    localStorage.setItem('fp_a2hs_dismissed', 'true')
+    setVisible(false)
     if (platform === 'ios') {
       localStorage.setItem('fp_ios_a2hs_seen', 'true')
-      setDismissed(true)
     }
   }, [platform])
 
-  // ── Don't render on server, when installed, or dismissed ──
-  if (!mounted || installed || dismissed) return null
+  if (!visible) return null
 
   return (
     <>
-      {/* ── CTA Button ── */}
+      {/* ── Inline CTA — sits in the editor flow ── */}
       <button
         onClick={handleClick}
-        className="fixed z-50"
         style={{
-          bottom: 'calc(env(safe-area-inset-bottom, 16px) + 56px)',
-          left: '50%',
-          transform: 'translateX(-50%)',
+          display: 'block',
+          width: '100%',
           background: 'none',
           border: 'none',
-          padding: '8px 0',
+          padding: '20px 0 8px',
           cursor: 'pointer',
-          color: 'rgba(255, 255, 255, 0.25)',
-          fontSize: '13px',
+          color: 'rgba(255, 255, 255, 0.2)',
+          fontSize: '12px',
           fontFamily: 'JetBrains Mono, monospace',
-          letterSpacing: '0.04em',
-          transition: 'color 0.3s ease',
-          whiteSpace: 'nowrap',
+          letterSpacing: '0.03em',
+          textAlign: 'center',
+          transition: 'color 0.3s ease, opacity 0.6s ease',
+          opacity: 1,
         }}
-        onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255, 255, 255, 0.50)')}
-        onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255, 255, 255, 0.25)')}
       >
-        Place Footprint on your Home Screen &rarr;
+        Place Footprint on your Home Screen
       </button>
 
-      {/* ── Modal backdrop + card ── */}
+      {/* ── Modal ── */}
       {showModal && (
         <div
           className="fixed inset-0 z-[9998] flex items-center justify-center"
@@ -214,92 +203,61 @@ export default function AddToHomeScreen() {
             WebkitBackdropFilter: 'blur(8px)',
             animation: 'fadeIn 0.2s ease-out',
           }}
-          onClick={closeModal}
+          onClick={dismiss}
         >
           <div
             onClick={e => e.stopPropagation()}
             style={{
-              maxWidth: 320,
+              maxWidth: 300,
               width: '100%',
               margin: '0 24px',
               background: '#111111',
               border: '1px solid rgba(255, 255, 255, 0.08)',
               borderRadius: 16,
-              padding: '32px 28px',
+              padding: '28px 24px',
               textAlign: 'center',
               animation: 'fadeIn 0.25s ease-out',
             }}
           >
-            {platform === 'ios' ? (
-              <>
-                <p style={{
-                  color: '#F5F5F5',
-                  fontSize: 15,
-                  fontWeight: 400,
-                  fontFamily: 'Space Grotesk, system-ui, sans-serif',
-                  lineHeight: 1.5,
-                  margin: 0,
-                  letterSpacing: '-0.01em',
-                }}>
-                  Add Footprint to your Home Screen
-                </p>
-                <p style={{
-                  color: 'rgba(255, 255, 255, 0.4)',
-                  fontSize: 13,
-                  fontFamily: 'JetBrains Mono, monospace',
-                  lineHeight: 1.6,
-                  margin: '16px 0 0 0',
-                }}>
-                  <ShareIcon />
-                  Tap Share, then &lsquo;Add to Home Screen&rsquo;
-                </p>
-              </>
-            ) : (
-              <>
-                <p style={{
-                  color: '#F5F5F5',
-                  fontSize: 15,
-                  fontWeight: 400,
-                  fontFamily: 'Space Grotesk, system-ui, sans-serif',
-                  lineHeight: 1.5,
-                  margin: 0,
-                  letterSpacing: '-0.01em',
-                }}>
-                  Add Footprint to your Home Screen
-                </p>
-                <p style={{
-                  color: 'rgba(255, 255, 255, 0.4)',
-                  fontSize: 13,
-                  fontFamily: 'JetBrains Mono, monospace',
-                  lineHeight: 1.6,
-                  margin: '16px 0 0 0',
-                }}>
-                  Use your browser menu to add to Home Screen
-                </p>
-              </>
-            )}
+            <p style={{
+              color: '#F5F5F5',
+              fontSize: 15,
+              fontWeight: 400,
+              fontFamily: 'Space Grotesk, system-ui, sans-serif',
+              lineHeight: 1.5,
+              margin: 0,
+              letterSpacing: '-0.01em',
+            }}>
+              Add Footprint to your Home Screen
+            </p>
+
+            <p style={{
+              color: 'rgba(255, 255, 255, 0.35)',
+              fontSize: 12,
+              fontFamily: 'JetBrains Mono, monospace',
+              lineHeight: 1.6,
+              margin: '14px 0 0 0',
+            }}>
+              {platform === 'ios' ? (
+                <><ShareIcon />Tap Share, then &lsquo;Add to Home Screen&rsquo;</>
+              ) : (
+                <>Use your browser menu to add to Home Screen</>
+              )}
+            </p>
 
             <button
-              onClick={closeModal}
+              onClick={dismiss}
               style={{
-                marginTop: 28,
+                marginTop: 24,
                 background: 'none',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
                 borderRadius: 8,
-                padding: '8px 20px',
-                color: 'rgba(255, 255, 255, 0.5)',
-                fontSize: 12,
+                padding: '7px 18px',
+                color: 'rgba(255, 255, 255, 0.4)',
+                fontSize: 11,
                 fontFamily: 'JetBrains Mono, monospace',
                 cursor: 'pointer',
                 transition: 'color 0.2s ease, border-color 0.2s ease',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.color = 'rgba(255, 255, 255, 0.7)'
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.color = 'rgba(255, 255, 255, 0.5)'
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'
               }}
             >
               got it
