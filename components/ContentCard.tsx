@@ -119,13 +119,12 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     }
     if (embed) {
       return (
-        <div className={`w-full ${aspectClass} fp-tile fp-embed-glass overflow-hidden relative materialize`}>
+        <div className={`w-full ${aspectClass} fp-tile overflow-hidden relative bg-black`}>
           <iframe
             src={`${embed.embedUrl}?autoplay=1&rel=0`}
             className="absolute inset-0 w-full h-full"
             allow="autoplay; encrypted-media"
             allowFullScreen
-            loading="lazy"
             sandbox="allow-scripts allow-same-origin allow-popups allow-presentation allow-forms"
             referrerPolicy="origin"
             onError={() => setIframeFailed(true)}
@@ -231,7 +230,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       return (
         <div
           ref={containerRef}
-          className={`w-full fp-tile fp-embed-glass overflow-hidden materialize`}
+          className={`w-full fp-tile fp-embed-glass overflow-hidden`}
           style={{ height: `${embed.height}px` }}
         >
           <iframe
@@ -252,7 +251,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     if (content.embed_html) {
       return (
         <div
-          className={`w-full ${aspectClass} fp-tile overflow-hidden materialize bg-black [&_iframe]:!h-full`}
+          className={`w-full ${aspectClass} fp-tile overflow-hidden bg-black [&_iframe]:!h-full`}
           dangerouslySetInnerHTML={{ __html: content.embed_html }}
         />
       )
