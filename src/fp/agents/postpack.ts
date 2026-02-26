@@ -36,7 +36,7 @@ export interface PostpackOutput {
 // The ae room has specific tiles that connect to different communities.
 // Postpack uses this to reference actual content, not generic claims.
 
-const AE_CONTENT: Record<string, string[]> = {
+const ae_CONTENT: Record<string, string[]> = {
   sports: [
     'michael jordan dunking in the bulls jersey',
     'that mj dunk photo from the free throw line',
@@ -99,7 +99,7 @@ function buildPrompt(input: PostpackInput): string {
   const threadText = `${target.thread_title} ${target.thread_snippet} ${target.context}`.toLowerCase()
   const relevantContent: string[] = []
 
-  for (const [category, tiles] of Object.entries(AE_CONTENT)) {
+  for (const [category, tiles] of Object.entries(ae_CONTENT)) {
     const keywords = {
       sports: ['jordan', 'mj', 'basketball', 'nba', 'dunk', 'bulls', 'goat'],
       music: ['mac miller', 'frank ocean', 'album', 'playlist', 'spotify', 'song', 'track', 'hip hop', 'rap'],
@@ -119,8 +119,8 @@ function buildPrompt(input: PostpackInput): string {
   // If no specific match, use generic content references
   if (relevantContent.length === 0) {
     relevantContent.push(
-      ...AE_CONTENT.culture,
-      ...AE_CONTENT.identity
+      ...ae_CONTENT.culture,
+      ...ae_CONTENT.identity
     )
   }
 

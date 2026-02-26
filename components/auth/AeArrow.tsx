@@ -1,12 +1,12 @@
 'use client'
 
-interface AEArrowProps {
+interface AeArrowProps {
   onClick: () => void
   disabled?: boolean
   visible: boolean
 }
 
-export default function AEArrow({ onClick, disabled, visible }: AEArrowProps) {
+export default function AeArrow({ onClick, disabled, visible }: AeArrowProps) {
   return (
     <div
       style={{

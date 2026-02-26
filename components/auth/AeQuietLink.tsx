@@ -1,11 +1,11 @@
 'use client'
 
-interface AEQuietLinkProps {
+interface AeQuietLinkProps {
   text: string
   onClick: () => void
 }
 
-export default function AEQuietLink({ text, onClick }: AEQuietLinkProps) {
+export default function AeQuietLink({ text, onClick }: AeQuietLinkProps) {
   return (
     <button
       onClick={onClick}
