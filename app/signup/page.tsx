@@ -6,15 +6,17 @@ import AeArrow from '@/components/auth/AeArrow'
 import URLPreview from '@/components/auth/URLPreview'
 import AeQuietLink from '@/components/auth/AeQuietLink'
 
-type Step = 'username' | 'email' | 'sent'
+type Step = 'username' | 'email' | 'code'
 
 export default function SignupPage() {
   const [step, setStep] = useState<Step>('username')
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
+  const [code, setCode] = useState('')
   const [reservationToken, setReservationToken] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [shake, setShake] = useState(false)
+  const [error, setError] = useState('')
 
   // Username availability
   const [available, setAvailable] = useState<boolean | null>(null)
@@ -26,6 +28,7 @@ export default function SignupPage() {
 
   const usernameRef = useRef<HTMLInputElement>(null)
   const emailRef = useRef<HTMLInputElement>(null)
+  const codeRef = useRef<HTMLInputElement>(null)
   const resendIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Auto-focus on step changes
@@ -34,12 +37,14 @@ export default function SignupPage() {
       setTimeout(() => usernameRef.current?.focus(), 100)
     } else if (step === 'email') {
       setTimeout(() => emailRef.current?.focus(), 250)
+    } else if (step === 'code') {
+      setTimeout(() => codeRef.current?.focus(), 100)
     }
   }, [step])
 
   // Resend countdown timer
   useEffect(() => {
-    if (step !== 'sent') return
+    if (step !== 'code') return
     setCanResend(false)
     setResendCountdown(60)
 
@@ -94,7 +99,6 @@ export default function SignupPage() {
   const isUsernameValid = username.length >= 3 && /^[a-z0-9-]+$/.test(username) &&
     !username.startsWith('-') && !username.endsWith('-') && !username.includes('--')
 
-  // Arrow visible when input is non-empty and no invalid characters
   const usernameArrowVisible = isUsernameValid && !loading
   const emailArrowVisible = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && !loading
 
@@ -115,18 +119,16 @@ export default function SignupPage() {
         setReservationToken(data.reservation_token)
         setStep('email')
       } else {
-        setShake(true)
-        setTimeout(() => setShake(false), 500)
+        doShake()
       }
     } catch {
-      setShake(true)
-      setTimeout(() => setShake(false), 500)
+      doShake()
     } finally {
       setLoading(false)
     }
   }
 
-  // Step 2 → Step 3: send magic link
+  // Step 2 → Step 3: send code
   const handleEmailSubmit = async () => {
     if (!emailArrowVisible || loading) return
     setLoading(true)
@@ -142,20 +144,57 @@ export default function SignupPage() {
       })
 
       if (!res.ok) {
-        setShake(true)
-        setTimeout(() => setShake(false), 500)
+        doShake()
       } else {
-        setStep('sent')
+        setStep('code')
       }
     } catch {
-      setShake(true)
-      setTimeout(() => setShake(false), 500)
+      doShake()
     } finally {
       setLoading(false)
     }
   }
 
-  // Resend magic link
+  // Verify code
+  const handleCodeSubmit = async () => {
+    if (!/^\d{6}$/.test(code) || loading) return
+    setLoading(true)
+    setError('')
+
+    try {
+      const res = await fetch('/api/auth/verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), code }),
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        const dest = data.slug ? `/${data.slug}/home` : '/build'
+        window.location.href = dest
+      } else {
+        setError(data.error || 'invalid code')
+        setCode('')
+        doShake()
+      }
+    } catch {
+      setError('something went wrong')
+      doShake()
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Auto-submit when 6 digits entered
+  useEffect(() => {
+    if (code.length === 6 && /^\d{6}$/.test(code) && !loading) {
+      handleCodeSubmit()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code])
+
+  // Resend code
   const handleResend = async () => {
     if (!canResend || loading) return
     setLoading(true)
@@ -190,6 +229,11 @@ export default function SignupPage() {
       })
     }, 1000)
     resendIntervalRef.current = interval
+  }
+
+  const doShake = () => {
+    setShake(true)
+    setTimeout(() => setShake(false), 500)
   }
 
   // Get URL preview state
@@ -315,14 +359,14 @@ export default function SignupPage() {
           </div>
         </div>
 
-        {/* ── Step 3: "check your email" ── */}
+        {/* ── Step 3: Code ── */}
         <div
           style={{
-            opacity: step === 'sent' ? 1 : 0,
-            transform: step === 'sent' ? 'translateY(0)' : 'translateY(10px)',
+            opacity: step === 'code' ? 1 : 0,
+            transform: step === 'code' ? 'translateY(0)' : 'translateY(10px)',
             transition: 'opacity 200ms ease, transform 200ms ease',
-            position: step === 'sent' ? 'relative' : 'absolute',
-            pointerEvents: step === 'sent' ? 'auto' : 'none',
+            position: step === 'code' ? 'relative' : 'absolute',
+            pointerEvents: step === 'code' ? 'auto' : 'none',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -331,12 +375,58 @@ export default function SignupPage() {
           }}
         >
           <p style={{
-            color: 'rgba(255,255,255,0.4)',
-            fontSize: '16px',
+            color: 'rgba(255,255,255,0.3)',
+            fontSize: '13px',
             textAlign: 'center',
+            marginBottom: '24px',
           }}>
-            check your email
+            enter the code we sent to {email}
           </p>
+
+          <form
+            onSubmit={(e) => { e.preventDefault(); handleCodeSubmit() }}
+            style={{ width: '100%' }}
+          >
+            <input
+              ref={codeRef}
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              placeholder="------"
+              value={code}
+              onChange={(e) => {
+                const v = e.target.value.replace(/\D/g, '').slice(0, 6)
+                setCode(v)
+                setError('')
+              }}
+              style={{
+                width: '100%',
+                background: 'none',
+                border: 'none',
+                borderBottom: '1px solid rgba(255,255,255,0.12)',
+                outline: 'none',
+                color: 'rgba(255,255,255,0.9)',
+                fontSize: '32px',
+                fontFamily: 'monospace',
+                letterSpacing: '0.5em',
+                textAlign: 'center',
+                padding: '12px 0',
+                caretColor: 'rgba(255,255,255,0.4)',
+              }}
+            />
+          </form>
+
+          {error && (
+            <p style={{
+              color: 'rgba(255,100,100,0.7)',
+              fontSize: '13px',
+              marginTop: '12px',
+              textAlign: 'center',
+            }}>
+              {error}
+            </p>
+          )}
 
           <div style={{ marginTop: '32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
             <button
@@ -358,10 +448,10 @@ export default function SignupPage() {
                 e.currentTarget.style.color = canResend ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.15)'
               }}
             >
-              {canResend ? 'resend' : `resend in ${resendCountdown}s`}
+              {canResend ? 'resend code' : `resend in ${resendCountdown}s`}
             </button>
 
-            <AeQuietLink text="try different email" onClick={() => { setStep('email'); setEmail('') }} />
+            <AeQuietLink text="try different email" onClick={() => { setStep('email'); setEmail(''); setCode(''); setError('') }} />
           </div>
         </div>
 
