@@ -316,7 +316,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         <div className="w-full h-full overflow-hidden" data-tile-id={item.id} data-tile-type={item.type}>
           <TileImage
             src={item.url}
-            alt={item.title || item.type || ''}
+            alt={item.title || ''}
             width={w}
             height={h}
             sizes={getImageSizes(size)}
@@ -428,7 +428,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   )
 
   // Select grid based on layout mode
-  const allTileIds = useMemo(() => baseContent.map((item: any) => item.id), [baseContent])
   const activeGrid = layoutMode === 'grid' ? uniformGrid : editorialGrid
 
   return (
@@ -619,12 +618,12 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
       {/* Floating CTA bar */}
       {!isDraft && (
-        <FloatingCtaBar username={footprint.username} serial={serial} />
+        <FloatingCtaBar username={footprint.username} serial={serial} isOwner={isOwner} />
       )}
 
       {/* Copied toast */}
       {showToast && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 bg-white/[0.08] backdrop-blur-sm rounded-md px-5 py-2 text-white/60 text-sm materialize">
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-white/[0.08] backdrop-blur-sm rounded-md px-5 py-2 text-white/60 text-sm materialize">
           copied.
         </div>
       )}

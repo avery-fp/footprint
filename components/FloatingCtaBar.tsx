@@ -5,33 +5,18 @@ import { useState, useEffect } from 'react'
 interface FloatingCtaBarProps {
   username: string
   serial: string
+  isOwner?: boolean
 }
 
-export default function FloatingCtaBar({ username, serial }: FloatingCtaBarProps) {
+export default function FloatingCtaBar({ username, serial, isOwner = false }: FloatingCtaBarProps) {
   const [visible, setVisible] = useState(false)
-  const [hide, setHide] = useState(false)
 
   useEffect(() => {
-    // Check user state — hide for owners
-    fetch('/api/user', { credentials: 'include' })
-      .then(async (r) => {
-        if (r.ok) {
-          const fpRes = await fetch('/api/footprint-for-user', { credentials: 'include' })
-          if (fpRes.ok) {
-            const fpData = await fpRes.json()
-            if (fpData.published) {
-              setHide(true)
-            }
-          }
-        }
-      })
-      .catch(() => {})
-
     const timer = setTimeout(() => setVisible(true), 2000)
     return () => clearTimeout(timer)
   }, [])
 
-  if (hide) return null
+  if (isOwner) return null
 
   return (
     <a
@@ -66,9 +51,9 @@ export default function FloatingCtaBar({ username, serial }: FloatingCtaBarProps
       onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
     >
       <span>footprint</span>
-      <span style={{ opacity: 0.4 }}>·</span>
+      <span style={{ opacity: 0.4 }}>&middot;</span>
       <span>$10</span>
-      <span style={{ opacity: 0.4 }}>·</span>
+      <span style={{ opacity: 0.4 }}>&middot;</span>
       <span>make yours</span>
       <span style={{ opacity: 0.5 }}>&rarr;</span>
     </a>
