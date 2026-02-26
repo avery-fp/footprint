@@ -393,10 +393,3 @@ input:-webkit-autofill:focus {
 .fp-grid-container {
   touch-action: manipulation;
 }
-
-/* Expanded overlay — body scroll lock helper */
-body.fp-scroll-locked {
-  overflow: hidden;
-  position: fixed;
-  width: 100%;
-}

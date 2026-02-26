@@ -5,7 +5,6 @@ import Image from 'next/image'
 import { motion, LayoutGroup, useReducedMotion } from 'framer-motion'
 import ContentCardBase from '@/components/ContentCard'
 import VideoTileBase from '@/components/VideoTile'
-import ExpandedTileOverlay from '@/components/ExpandedTileOverlay'
 
 const ContentCard = memo(ContentCardBase)
 const VideoTile = memo(VideoTileBase)
@@ -157,7 +156,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [showToast, setShowToast] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [roomFade, setRoomFade] = useState<'visible' | 'out' | 'in'>('visible')
-  const [expandedTile, setExpandedTile] = useState<any | null>(null)
 
   // Content filtering
   const validContent = useMemo(() =>
@@ -272,15 +270,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     }
   }, [isOwner, footprint.username])
 
-  // Tap to expand — the move
-  const handleTileExpand = useCallback((item: any) => {
-    setExpandedTile(item)
-  }, [])
-
-  const handleTileDismiss = useCallback(() => {
-    setExpandedTile(null)
-  }, [])
-
   // Layout config
   const layoutConfig = useMemo(() => getLayoutConfig(layoutMode), [layoutMode])
 
@@ -327,7 +316,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         <div className="w-full h-full overflow-hidden" data-tile-id={item.id} data-tile-type={item.type}>
           <TileImage
             src={item.url}
-            alt={item.title || item.type || ''}
+            alt={item.title || ''}
             width={w}
             height={h}
             sizes={getImageSizes(size)}
@@ -388,10 +377,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                     overflow: 'hidden',
                     borderRadius: `${layoutConfig.tileRadius}px`,
                     boxShadow: layoutConfig.tileShadow,
-                    cursor: 'pointer',
                     ...(isMusicEmbed ? { alignSelf: 'start' } : {}),
                   }}
-                  onClick={() => handleTileExpand(item)}
                 >
                   {renderTileContent(item, globalIdx, row.type === 'hero' ? 3 : row.type === 'breath' ? 2 : 1, 'auto')}
                 </motion.div>
@@ -430,10 +417,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             style={{
               borderRadius: `${layoutConfig.tileRadius}px`,
               boxShadow: layoutConfig.tileShadow,
-              cursor: 'pointer',
               ...(isMusicEmbed ? { alignSelf: 'start' } : {}),
             }}
-            onClick={() => handleTileExpand(item)}
           >
             {renderTileContent(item, idx, 1, 'square')}
           </motion.div>
@@ -443,7 +428,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   )
 
   // Select grid based on layout mode
-  const allTileIds = useMemo(() => baseContent.map((item: any) => item.id), [baseContent])
   const activeGrid = layoutMode === 'grid' ? uniformGrid : editorialGrid
 
   return (
@@ -634,18 +618,16 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
       {/* Floating CTA bar */}
       {!isDraft && (
-        <FloatingCtaBar username={footprint.username} serial={serial} />
+        <FloatingCtaBar username={footprint.username} serial={serial} isOwner={isOwner} />
       )}
 
       {/* Copied toast */}
       {showToast && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 bg-white/[0.08] backdrop-blur-sm rounded-md px-5 py-2 text-white/60 text-sm materialize">
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-white/[0.08] backdrop-blur-sm rounded-md px-5 py-2 text-white/60 text-sm materialize">
           copied.
         </div>
       )}
 
-      {/* Expanded tile overlay — the move */}
-      <ExpandedTileOverlay tile={expandedTile} onDismiss={handleTileDismiss} />
     </div>
   )
 }

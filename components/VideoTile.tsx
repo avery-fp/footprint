@@ -101,7 +101,7 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
           <video
             ref={videoRef}
             src={src}
-            className={`w-full h-full object-contain cursor-pointer transition-opacity duration-300 ${isReady ? 'opacity-100' : 'opacity-0'}`}
+            className={`w-full h-full object-cover cursor-pointer transition-opacity duration-300 ${isReady ? 'opacity-100' : 'opacity-0'}`}
             muted
             loop
             playsInline
