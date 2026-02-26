@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import AEInput from '@/components/auth/AEInput'
-import AEArrow from '@/components/auth/AEArrow'
+import AeInput from '@/components/auth/AeInput'
+import AeArrow from '@/components/auth/AeArrow'
 import URLPreview from '@/components/auth/URLPreview'
-import AEQuietLink from '@/components/auth/AEQuietLink'
+import AeQuietLink from '@/components/auth/AeQuietLink'
 
 type Step = 'username' | 'email' | 'sent'
 
@@ -174,7 +174,7 @@ export default function SignupPage() {
             onSubmit={(e) => { e.preventDefault(); handleUsernameSubmit() }}
             style={{ width: '100%' }}
           >
-            <AEInput
+            <AeInput
               ref={usernameRef}
               placeholder="username"
               value={username}
@@ -192,7 +192,7 @@ export default function SignupPage() {
 
           {/* Arrow */}
           <div style={{ marginTop: '24px' }}>
-            <AEArrow
+            <AeArrow
               onClick={handleUsernameSubmit}
               visible={usernameArrowVisible}
               disabled={loading}
@@ -201,7 +201,7 @@ export default function SignupPage() {
 
           {/* "already have a room?" */}
           <div style={{ marginTop: '48px' }}>
-            <AEQuietLink text="already have a room?" onClick={handleSkipToEmail} />
+            <AeQuietLink text="already have a room?" onClick={handleSkipToEmail} />
           </div>
         </div>
 
@@ -239,7 +239,7 @@ export default function SignupPage() {
             onSubmit={(e) => { e.preventDefault(); handleEmailSubmit() }}
             style={{ width: '100%' }}
           >
-            <AEInput
+            <AeInput
               ref={emailRef}
               placeholder="your email"
               value={email}
@@ -251,7 +251,7 @@ export default function SignupPage() {
 
           {/* Arrow */}
           <div style={{ marginTop: '24px' }}>
-            <AEArrow
+            <AeArrow
               onClick={handleEmailSubmit}
               visible={emailArrowVisible}
               disabled={loading}

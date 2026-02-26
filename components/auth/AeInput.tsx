@@ -2,7 +2,7 @@
 
 import { forwardRef } from 'react'
 
-interface AEInputProps {
+interface AeInputProps {
   placeholder: string
   value: string
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
@@ -11,7 +11,7 @@ interface AEInputProps {
   autoComplete?: string
 }
 
-const AEInput = forwardRef<HTMLInputElement, AEInputProps>(
+const AeInput = forwardRef<HTMLInputElement, AeInputProps>(
   ({ placeholder, value, onChange, type = 'text', autoFocus, autoComplete }, ref) => {
     return (
       <input
@@ -44,6 +44,6 @@ const AEInput = forwardRef<HTMLInputElement, AEInputProps>(
   }
 )
 
-AEInput.displayName = 'AEInput'
+AeInput.displayName = 'AeInput'
 
-export default AEInput
+export default AeInput
