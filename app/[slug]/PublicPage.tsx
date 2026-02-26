@@ -618,7 +618,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
       {/* Floating CTA bar */}
       {!isDraft && (
-        <FloatingCtaBar username={footprint.username} serial={serial} isOwner={isOwner} />
+        <FloatingCtaBar username={footprint.username} serial={serial} />
       )}
 
       {/* Copied toast */}
