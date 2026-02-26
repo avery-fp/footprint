@@ -129,7 +129,7 @@ export default function VerifyPage() {
             </div>
             <div className="mt-10 animate-[fadeUp_0.6s_ease-out_0.5s_both]">
               <Link
-                href="/signup"
+                href="/login"
                 className="rounded-full px-7 py-3.5 bg-white text-black hover:bg-white/90 transition-all duration-200 text-[14px] font-medium inline-block"
               >
                 try again

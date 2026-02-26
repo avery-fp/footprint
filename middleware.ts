@@ -80,9 +80,9 @@ export function middleware(request: NextRequest) {
     return withSecurityHeaders(NextResponse.next())
   }
 
-  // No session → redirect to signup (unified auth)
+  // No session → redirect to login
   const loginUrl = request.nextUrl.clone()
-  loginUrl.pathname = '/signup'
+  loginUrl.pathname = '/login'
   return NextResponse.redirect(loginUrl)
 }
 
