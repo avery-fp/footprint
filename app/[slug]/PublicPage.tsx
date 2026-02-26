@@ -72,8 +72,8 @@ const DEFAULT_OVERLAY = 'rgba(0,0,0,0.35)'
 
 function getImageSizes(size: number): string {
   if (size >= 3) return '(max-width: 768px) 100vw, 880px'
-  if (size >= 2) return '(max-width: 768px) 100vw, 50vw'
-  return '(max-width: 768px) 50vw, 25vw'
+  if (size >= 2) return '(max-width: 768px) 50vw, 50vw'
+  return '(max-width: 768px) 33vw, 25vw'
 }
 
 /**
@@ -395,7 +395,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // ═══════════════════════════════════════════
   const uniformGrid = (
     <div
-      className="grid grid-cols-2 md:grid-cols-3"
+      className="grid grid-cols-3 md:grid-cols-4"
       style={{
         gap: `${layoutConfig.gap}px`,
         opacity: roomFade === 'out' ? 0 : 1,
