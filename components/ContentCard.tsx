@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import Image from 'next/image'
-import { getContentIcon, getContentBackground, ContentType } from '@/lib/parser'
+import type { ContentType } from '@/lib/parser'
 import { audioManager } from '@/lib/audio-manager'
 import { parseEmbed, getYouTubeThumbnail } from '@/lib/parseEmbed'
 import type { EmbedResult } from '@/lib/parseEmbed'

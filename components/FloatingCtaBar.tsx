@@ -2,12 +2,7 @@
 
 import { useState, useEffect } from 'react'
 
-interface FloatingCtaBarProps {
-  username: string
-  serial: string
-}
-
-export default function FloatingCtaBar({ username, serial }: FloatingCtaBarProps) {
+export default function FloatingCtaBar() {
   const [visible, setVisible] = useState(false)
   const [hide, setHide] = useState(false)
 
