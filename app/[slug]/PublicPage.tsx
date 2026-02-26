@@ -5,7 +5,6 @@ import Image from 'next/image'
 import { motion, LayoutGroup, useReducedMotion } from 'framer-motion'
 import ContentCardBase from '@/components/ContentCard'
 import VideoTileBase from '@/components/VideoTile'
-import ExpandedTileOverlay from '@/components/ExpandedTileOverlay'
 
 const ContentCard = memo(ContentCardBase)
 const VideoTile = memo(VideoTileBase)
@@ -157,7 +156,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [showToast, setShowToast] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [roomFade, setRoomFade] = useState<'visible' | 'out' | 'in'>('visible')
-  const [expandedTile, setExpandedTile] = useState<any | null>(null)
 
   // Content filtering
   const validContent = useMemo(() =>
@@ -272,15 +270,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     }
   }, [isOwner, footprint.username])
 
-  // Tap to expand — the move
-  const handleTileExpand = useCallback((item: any) => {
-    setExpandedTile(item)
-  }, [])
-
-  const handleTileDismiss = useCallback(() => {
-    setExpandedTile(null)
-  }, [])
-
   // Layout config
   const layoutConfig = useMemo(() => getLayoutConfig(layoutMode), [layoutMode])
 
@@ -388,10 +377,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                     overflow: 'hidden',
                     borderRadius: `${layoutConfig.tileRadius}px`,
                     boxShadow: layoutConfig.tileShadow,
-                    cursor: 'pointer',
                     ...(isMusicEmbed ? { alignSelf: 'start' } : {}),
                   }}
-                  onClick={() => handleTileExpand(item)}
                 >
                   {renderTileContent(item, globalIdx, row.type === 'hero' ? 3 : row.type === 'breath' ? 2 : 1, 'auto')}
                 </motion.div>
@@ -430,10 +417,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             style={{
               borderRadius: `${layoutConfig.tileRadius}px`,
               boxShadow: layoutConfig.tileShadow,
-              cursor: 'pointer',
               ...(isMusicEmbed ? { alignSelf: 'start' } : {}),
             }}
-            onClick={() => handleTileExpand(item)}
           >
             {renderTileContent(item, idx, 1, 'square')}
           </motion.div>
@@ -644,8 +629,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
       )}
 
-      {/* Expanded tile overlay — the move */}
-      <ExpandedTileOverlay tile={expandedTile} onDismiss={handleTileDismiss} />
     </div>
   )
 }
