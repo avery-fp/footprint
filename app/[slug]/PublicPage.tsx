@@ -490,7 +490,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         <RemoveBubble slug={footprint.slug}>
           <header className="pb-4 md:pb-5 flex flex-col items-center px-4">
             <h1
-              className={`uppercase ${
+              className={`${
                 (footprint.display_name || '\u00e6').length <= 6
                   ? 'text-4xl md:text-6xl tracking-[0.22em] font-normal'
                   : (footprint.display_name || '\u00e6').length <= 12

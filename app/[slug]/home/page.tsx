@@ -1564,7 +1564,29 @@ export default function EditPage() {
                 /* "go live ↗" button — only for unpublished rooms */
                 <button
                   onClick={async () => {
-                    // Fetch next serial preview
+                    // Already paid (has serial) — skip checkout, just publish + redirect
+                    if (serialNumber) {
+                      setGoLiveLoading(true)
+                      try {
+                        // Save current draft
+                        if (draft) await saveData(draft)
+                        // Publish
+                        await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ published: true }),
+                        })
+                        // Redirect to public page
+                        window.location.href = `/${encodeURIComponent(slug)}`
+                        return
+                      } catch {
+                        setStatusToast('something went wrong')
+                        setTimeout(() => setStatusToast(null), 3000)
+                        setGoLiveLoading(false)
+                        return
+                      }
+                    }
+                    // No serial — first-time publish, show checkout modal
                     try {
                       const res = await fetch('/api/next-serial')
                       const data = await res.json()
@@ -1572,13 +1594,14 @@ export default function EditPage() {
                     } catch {}
                     setShowGoLive(true)
                   }}
-                  className="text-[13px] text-white/60 hover:text-white/90 transition font-mono flex items-center justify-center px-5 rounded-full border border-white/[0.10] hover:border-white/25"
+                  disabled={goLiveLoading}
+                  className="text-[13px] text-white/60 hover:text-white/90 transition font-mono flex items-center justify-center px-5 rounded-full border border-white/[0.10] hover:border-white/25 disabled:opacity-30"
                   style={{
                     minHeight: '36px',
                     background: 'rgba(255, 255, 255, 0.04)',
                   }}
                 >
-                  go live
+                  {goLiveLoading ? '...' : 'go live'}
                 </button>
               )}
               {/* Edit button */}
