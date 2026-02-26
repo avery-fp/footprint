@@ -501,8 +501,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     return (
       <Tier2EmbedTile
         embed={embed}
-        url={content.url}
-        containerRef={containerRef}
         isInView={isInView}
         onFail={() => setIframeFailed(true)}
       />
@@ -546,7 +544,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       url={content.url}
       title={content.title}
       hostname={hostname}
-      containerRef={containerRef}
       isInView={isInView}
       aspectClass={aspectClass}
     />
@@ -559,18 +556,15 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
 
 function Tier2EmbedTile({
   embed,
-  url,
-  containerRef,
   isInView,
   onFail,
 }: {
   embed: EmbedResult
-  url: string
-  containerRef: React.RefObject<HTMLDivElement | null>
   isInView: boolean
   onFail: () => void
 }) {
   const [loaded, setLoaded] = useState(false)
+  const localRef = useRef<HTMLDivElement>(null)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Tier 2: 3-second timeout — if iframe doesn't load, swap to link card
@@ -593,7 +587,7 @@ function Tier2EmbedTile({
 
   return (
     <div
-      ref={containerRef}
+      ref={localRef}
       className="w-full fp-tile overflow-hidden relative"
       style={{ ...style, background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', maxWidth: '100%' }}
     >
@@ -622,14 +616,12 @@ function LinkCard({
   url,
   title: initialTitle,
   hostname,
-  containerRef,
   isInView,
   aspectClass,
 }: {
   url: string
   title: string | null
   hostname: string
-  containerRef: React.RefObject<HTMLDivElement | null>
   isInView: boolean
   aspectClass: string
 }) {
@@ -665,7 +657,6 @@ function LinkCard({
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        ref={containerRef as any}
         className={`block w-full ${aspectClass} fp-tile overflow-hidden relative`}
         style={{ background: 'rgba(0,0,0,0.3)' }}
       >
@@ -697,7 +688,6 @@ function LinkCard({
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        ref={containerRef as any}
         className={`block w-full ${aspectClass} fp-tile overflow-hidden relative`}
         style={{
           background: 'rgba(0,0,0,0.3)',
@@ -738,7 +728,6 @@ function LinkCard({
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      ref={containerRef as any}
       className={`block w-full ${aspectClass} fp-tile overflow-hidden flex flex-col items-center justify-center gap-2 p-4`}
       style={{
         background: 'rgba(0,0,0,0.3)',
