@@ -20,8 +20,9 @@ export default function SignupPage() {
   const [available, setAvailable] = useState<boolean | null>(null)
   const [checking, setChecking] = useState(false)
 
-  // "already have a room?" skips username step
-  const [skipUsername, setSkipUsername] = useState(false)
+  // Resend state
+  const [canResend, setCanResend] = useState(false)
+  const [resendCountdown, setResendCountdown] = useState(0)
 
   const usernameRef = useRef<HTMLInputElement>(null)
   const emailRef = useRef<HTMLInputElement>(null)
@@ -33,6 +34,26 @@ export default function SignupPage() {
     } else if (step === 'email') {
       setTimeout(() => emailRef.current?.focus(), 250)
     }
+  }, [step])
+
+  // Resend countdown timer
+  useEffect(() => {
+    if (step !== 'sent') return
+    setCanResend(false)
+    setResendCountdown(60)
+
+    const interval = setInterval(() => {
+      setResendCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval)
+          setCanResend(true)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(interval)
   }, [step])
 
   // Debounced username availability check (500ms)
@@ -112,7 +133,7 @@ export default function SignupPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: email.trim(),
-          reservation_token: skipUsername ? undefined : reservationToken,
+          reservation_token: reservationToken,
         }),
       })
 
@@ -130,10 +151,38 @@ export default function SignupPage() {
     }
   }
 
-  // "already have a room?" — skip to email step
-  const handleSkipToEmail = () => {
-    setSkipUsername(true)
-    setStep('email')
+  // Resend magic link
+  const handleResend = async () => {
+    if (!canResend || loading) return
+    setLoading(true)
+    setCanResend(false)
+    setResendCountdown(60)
+
+    try {
+      await fetch('/api/auth/magic-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim(),
+          reservation_token: reservationToken,
+        }),
+      })
+    } catch {
+      // silent
+    } finally {
+      setLoading(false)
+    }
+
+    const interval = setInterval(() => {
+      setResendCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval)
+          setCanResend(true)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
   }
 
   // Get URL preview state
@@ -199,9 +248,9 @@ export default function SignupPage() {
             />
           </div>
 
-          {/* "already have a room?" */}
+          {/* sign in link for returning users */}
           <div style={{ marginTop: '48px' }}>
-            <AeQuietLink text="already have a room?" onClick={handleSkipToEmail} />
+            <AeQuietLink text="already have a room? sign in" onClick={() => { window.location.href = '/login' }} />
           </div>
         </div>
 
@@ -221,7 +270,7 @@ export default function SignupPage() {
           }}
         >
           {/* URL preview (quiet, if we have a username) */}
-          {!skipUsername && username && (
+          {username && (
             <div style={{ marginBottom: '32px' }}>
               <p style={{
                 fontFamily: 'monospace',
@@ -281,6 +330,32 @@ export default function SignupPage() {
           }}>
             check your email
           </p>
+
+          <div style={{ marginTop: '32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+            <button
+              onClick={handleResend}
+              disabled={!canResend || loading}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: canResend ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.15)',
+                fontSize: '13px',
+                cursor: canResend ? 'pointer' : 'default',
+                padding: '12px',
+                transition: 'color 200ms ease',
+              }}
+              onMouseEnter={(e) => {
+                if (canResend) e.currentTarget.style.color = 'rgba(255,255,255,0.5)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = canResend ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.15)'
+              }}
+            >
+              {canResend ? 'resend' : `resend in ${resendCountdown}s`}
+            </button>
+
+            <AeQuietLink text="try different email" onClick={() => { setStep('email'); setEmail('') }} />
+          </div>
         </div>
 
       </div>
