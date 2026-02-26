@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { generateMagicLink, sendMagicLinkEmail } from '@/lib/auth'
+import { generateOTP, sendOTPEmail } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
 import { magicLinkSchema } from '@/lib/schemas'
 import { validateBody } from '@/lib/validate'
@@ -41,8 +41,10 @@ function checkCooldown(email: string): boolean {
  * POST /api/auth/magic-link
  *
  * Unified auth: handles both new and returning users.
- * - If email exists → send magic link to existing room
- * - If email is new + valid reservation_token → create user, send magic link
+ * Sends a 6-digit OTP code instead of a magic link.
+ *
+ * - If email exists → send code
+ * - If email is new + valid reservation_token → create user, send code
  * - If email is new + no reservation → silent success (no info leaked)
  *
  * Response is ALWAYS { ok: true } — never reveals whether email exists.
@@ -52,7 +54,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const v = validateBody(magicLinkSchema, body)
     if (!v.success) return v.response
-    const { email, redirect, reservation_token } = v.data
+    const { email, reservation_token } = v.data
 
     // Rate limits — always return ok: true to not leak info
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
@@ -83,25 +85,15 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (existingUser) {
-      // ── Returning user: send magic link to their room ──
-      const { data: primaryFp } = await supabase
-        .from('footprints')
-        .select('username')
-        .eq('user_id', existingUser.id)
-        .eq('is_primary', true)
-        .single()
-
-      const dest = redirect || (primaryFp?.username ? `/${primaryFp.username}/home` : '/build')
-      const magicLink = await generateMagicLink(existingUser.email, dest)
-      await sendMagicLinkEmail(existingUser.email, magicLink)
+      // ── Returning user: send OTP code ──
+      const code = await generateOTP(existingUser.email)
+      await sendOTPEmail(existingUser.email, code)
       cooldownMap.set(email, Date.now())
-
       return NextResponse.json({ ok: true })
     }
 
     // ── New user: need a valid reservation ──
     if (!reservation_token) {
-      // No reservation — silent success, no link sent
       return NextResponse.json({ ok: true })
     }
 
@@ -113,11 +105,10 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (!reservation || new Date(reservation.expires_at) < new Date()) {
-      // Expired or invalid reservation — silent success
       return NextResponse.json({ ok: true })
     }
 
-    // Check the username isn't already taken by a real user
+    // Check the username isn't already taken
     const { data: existingFp } = await supabase
       .from('footprints')
       .select('id')
@@ -125,7 +116,6 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (existingFp) {
-      // Username was claimed between reservation and email — silent success
       return NextResponse.json({ ok: true })
     }
 
@@ -137,7 +127,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (userError || !newUser) {
-      log.error({ err: userError }, 'User creation failed during magic-link signup')
+      log.error({ err: userError }, 'User creation failed during signup')
       return NextResponse.json({ ok: true })
     }
 
@@ -152,7 +142,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (fpError) {
-      log.error({ err: fpError }, 'Footprint creation failed during magic-link signup')
+      log.error({ err: fpError }, 'Footprint creation failed during signup')
     }
 
     // Delete reservation
@@ -161,17 +151,15 @@ export async function POST(request: NextRequest) {
       .delete()
       .eq('token', reservation_token)
 
-    // Send magic link to new user's room
-    const dest = `/${reservation.username}/home`
-    const magicLink = await generateMagicLink(email, dest)
-    await sendMagicLinkEmail(email, magicLink)
+    // Send OTP to new user
+    const code = await generateOTP(email)
+    await sendOTPEmail(email, code)
     cooldownMap.set(email, Date.now())
 
     return NextResponse.json({ ok: true })
 
   } catch (error) {
-    log.error({ err: error }, 'Magic link failed')
-    // Always return ok to not leak info
+    log.error({ err: error }, 'Auth code send failed')
     return NextResponse.json({ ok: true })
   }
 }

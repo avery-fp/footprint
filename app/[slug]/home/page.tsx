@@ -1508,13 +1508,27 @@ export default function EditPage() {
       <div className="fixed top-0 left-0 right-0 z-50 bg-black/60 backdrop-blur-sm border-b border-white/[0.06]"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="flex items-center justify-between px-4 pt-4 pb-2" style={{ minHeight: '52px' }}>
-          <button
-            onClick={navigateToPublic}
-            className="text-sm text-white/60 hover:text-white/90 transition font-mono flex items-center justify-center"
-            style={{ minWidth: '44px', minHeight: '44px' }}
-          >
-            ←
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={navigateToPublic}
+              className="text-sm text-white/60 hover:text-white/90 transition font-mono flex items-center justify-center"
+              style={{ minWidth: '44px', minHeight: '44px' }}
+            >
+              ←
+            </button>
+            {!isArranging && (
+              <button
+                onClick={async () => {
+                  await fetch('/api/auth/signout', { method: 'POST' })
+                  window.location.href = '/login'
+                }}
+                className="text-[11px] text-white/25 hover:text-white/50 transition font-mono"
+                style={{ minHeight: '44px', padding: '0 4px' }}
+              >
+                sign out
+              </button>
+            )}
+          </div>
           {isArranging ? (
             <div className="flex items-center gap-2">
               {activeRoomId && (

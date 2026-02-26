@@ -1,38 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { createSessionToken } from '@/lib/auth'
-import * as bcrypt from 'bcryptjs'
-import { loginSchema } from '@/lib/schemas'
-import { validateBody } from '@/lib/validate'
-import { routeLogger } from '@/lib/logger'
-
-const log = routeLogger('POST', '/api/auth/login')
+import { verifyOTP } from '@/lib/auth'
+import { createServerSupabaseClient } from '@/lib/supabase'
 
 // Brute-force protection: 5 failed attempts per email → locked 15 min
 const failedAttempts = new Map<string, { count: number; lockedUntil: number }>()
 const MAX_ATTEMPTS = 5
 const LOCKOUT_MS = 15 * 60 * 1000
 
-// IP rate limit: 20 attempts per 15 min
+// IP rate limit: 20 attempts per 15 min (covers distributed attacks across emails)
 const ipAttempts = new Map<string, { count: number; resetAt: number }>()
 const IP_MAX_ATTEMPTS = 20
 const IP_WINDOW_MS = 15 * 60 * 1000
 
-function checkEmailBruteForce(email: string): boolean {
+function checkEmailBruteForce(email: string): { allowed: boolean; remaining: number } {
   const key = email.toLowerCase().trim()
   const now = Date.now()
   const entry = failedAttempts.get(key)
 
-  if (!entry) return true
+  if (!entry) return { allowed: true, remaining: MAX_ATTEMPTS }
 
+  // Lockout expired — reset
   if (entry.lockedUntil && now > entry.lockedUntil) {
     failedAttempts.delete(key)
-    return true
+    return { allowed: true, remaining: MAX_ATTEMPTS }
   }
 
-  if (entry.lockedUntil && now <= entry.lockedUntil) return false
+  // Currently locked out
+  if (entry.lockedUntil && now <= entry.lockedUntil) {
+    return { allowed: false, remaining: 0 }
+  }
 
-  return true
+  return { allowed: true, remaining: MAX_ATTEMPTS - entry.count }
 }
 
 function recordFailedAttempt(email: string) {
@@ -65,6 +63,16 @@ function checkIpRate(ip: string): boolean {
   return true
 }
 
+/**
+ * POST /api/auth/verify-code
+ *
+ * Verifies a 6-digit OTP code + email → creates session.
+ * Body: { email, code }
+ *
+ * Brute-force protection:
+ * - 5 failed attempts per email → locked for 15 minutes
+ * - 20 attempts per IP per 15 minutes
+ */
 export async function POST(request: NextRequest) {
   if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
     return NextResponse.json({ error: 'JWT_SECRET not configured' }, { status: 500 })
@@ -72,9 +80,16 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const v = validateBody(loginSchema, body)
-    if (!v.success) return v.response
-    const { email, password } = v.data
+    const { email, code } = body
+
+    if (!email || !code) {
+      return NextResponse.json({ error: 'Email and code are required' }, { status: 400 })
+    }
+
+    // Validate code format (6 digits)
+    if (!/^\d{6}$/.test(code)) {
+      return NextResponse.json({ error: 'Invalid code' }, { status: 400 })
+    }
 
     // IP rate limit
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
@@ -83,39 +98,29 @@ export async function POST(request: NextRequest) {
     }
 
     // Per-email brute force check
-    if (!checkEmailBruteForce(email)) {
+    const bf = checkEmailBruteForce(email)
+    if (!bf.allowed) {
       return NextResponse.json({ error: 'Too many attempts. Try again in 15 minutes.' }, { status: 429 })
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    )
+    const result = await verifyOTP(email, code)
 
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('id, email, password_hash')
-      .eq('email', email.toLowerCase().trim())
-      .single()
-
-    if (error || !user || !user.password_hash) {
+    if (!result) {
       recordFailedAttempt(email)
-      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
-    }
-
-    const valid = await bcrypt.compare(password, user.password_hash)
-    if (!valid) {
-      recordFailedAttempt(email)
-      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
+      const after = checkEmailBruteForce(email)
+      if (after.remaining <= 0) {
+        return NextResponse.json({ error: 'Too many attempts. Try again in 15 minutes.' }, { status: 429 })
+      }
+      return NextResponse.json({ error: 'Invalid or expired code' }, { status: 401 })
     }
 
     // Success — clear failed attempts
     clearFailedAttempts(email)
 
-    const sessionToken = await createSessionToken(user.id, user.email)
+    const { user, sessionToken } = result
 
-    // Find user's primary footprint slug for direct redirect to editor
+    // Find user's primary footprint slug
+    const supabase = createServerSupabaseClient()
     const { data: primaryFp } = await supabase
       .from('footprints')
       .select('username')
@@ -127,6 +132,7 @@ export async function POST(request: NextRequest) {
       success: true,
       slug: primaryFp?.username || null,
     })
+
     const hostname = new URL(request.url).hostname
     const cookieDomain = hostname.endsWith('.footprint.onl') || hostname === 'footprint.onl'
       ? '.footprint.onl'
@@ -142,8 +148,9 @@ export async function POST(request: NextRequest) {
     })
 
     return response
-  } catch (err: any) {
-    log.error({ err }, 'Login failed')
-    return NextResponse.json({ error: 'Login failed' }, { status: 500 })
+
+  } catch (error) {
+    console.error('Code verification error:', error)
+    return NextResponse.json({ error: 'Verification failed' }, { status: 500 })
   }
 }

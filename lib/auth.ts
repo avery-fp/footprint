@@ -176,6 +176,108 @@ export async function getUserFromSession(token: string) {
   return user
 }
 
+// ── OTP code auth (replaces magic link for login/signup) ────
+
+/**
+ * Generate a 6-digit OTP code for email verification.
+ * Stored in the magic_links table (reuses existing infra).
+ * Returns the code.
+ */
+export async function generateOTP(email: string): Promise<string> {
+  const supabase = createServerSupabaseClient()
+
+  // 6-digit numeric code (crypto-secure)
+  const array = new Uint32Array(1)
+  crypto.getRandomValues(array)
+  const code = (array[0] % 900000 + 100000).toString()
+
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000) // 15 min
+
+  const { error } = await supabase
+    .from('magic_links')
+    .insert({
+      email,
+      token: code,
+      expires_at: expiresAt.toISOString(),
+    })
+
+  if (error) {
+    console.error('OTP insert error:', error)
+    throw new Error(`Failed to create OTP: ${error.message}`)
+  }
+
+  return code
+}
+
+/**
+ * Verify a 6-digit OTP code + email.
+ * Atomically consumes the code (single-use).
+ */
+export async function verifyOTP(email: string, code: string): Promise<{
+  user: any
+  sessionToken: string
+} | null> {
+  const supabase = createServerSupabaseClient()
+
+  // Consume the code atomically
+  const { data: consumed, error: consumeError } = await supabase
+    .from('magic_links')
+    .update({ used_at: new Date().toISOString() })
+    .eq('token', code)
+    .ilike('email', email)
+    .is('used_at', null)
+    .gte('expires_at', new Date().toISOString())
+    .select('email')
+    .single()
+
+  if (consumeError || !consumed) {
+    return null
+  }
+
+  const { data: user } = await supabase
+    .from('users')
+    .select('*')
+    .ilike('email', consumed.email)
+    .single()
+
+  if (!user) return null
+
+  const sessionToken = await createSessionToken(user.id, user.email)
+  return { user, sessionToken }
+}
+
+/**
+ * Send OTP code email via Resend.
+ * Returns true on success, throws on failure.
+ */
+export async function sendOTPEmail(email: string, code: string) {
+  if (!process.env.RESEND_API_KEY) {
+    console.log(`[DEV] OTP for ${email}: ${code}`)
+    return true
+  }
+
+  await sendEmail({
+    from: 'Footprint <login@footprint.onl>',
+    to: email,
+    subject: `${code} — your Footprint code`,
+    html: `
+      <div style="font-family: -apple-system, sans-serif; max-width: 400px; margin: 0 auto; padding: 40px 20px;">
+        <p style="color: #666; font-size: 15px; line-height: 1.6;">
+          Your sign-in code:
+        </p>
+        <p style="font-size: 36px; font-weight: 600; letter-spacing: 0.3em; color: #000; margin: 20px 0;">
+          ${code}
+        </p>
+        <p style="color: #999; font-size: 12px; margin-top: 30px;">
+          Expires in 15 minutes. If you didn't request this, ignore this email.
+        </p>
+      </div>
+    `,
+  })
+
+  return true
+}
+
 /**
  * Send an email via Resend's REST API (no SDK needed)
  */
