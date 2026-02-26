@@ -76,6 +76,59 @@ function getImageSizes(size: number): string {
   return '(max-width: 768px) 50vw, 25vw'
 }
 
+/**
+ * TileImage — bulletproof image tile with error recovery + timeout safety.
+ *
+ * Three layers of protection:
+ * 1. onLoad → standard fade-in (happy path)
+ * 2. onError → fallback to raw <img> bypassing Next.js optimizer
+ * 3. 4s timeout → force-reveal if neither load nor error fired
+ */
+function TileImage({ src, alt, width, height, sizes, index, onWidescreen }: {
+  src: string; alt: string; width: number; height: number; sizes: string; index: number; onWidescreen?: () => void
+}) {
+  const [visible, setVisible] = useState(false)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    const t = setTimeout(() => setVisible(true), 4000)
+    return () => clearTimeout(t)
+  }, [])
+
+  if (failed) {
+    return (
+      <img
+        src={src}
+        alt={alt}
+        className="w-full h-full object-contain"
+        loading={index < 4 ? 'eager' : 'lazy'}
+        decoding="async"
+      />
+    )
+  }
+
+  return (
+    <Image
+      src={src}
+      alt={alt}
+      width={width}
+      height={height}
+      sizes={sizes}
+      className={`w-full h-full object-contain transition-opacity duration-500 ease-out ${visible ? 'opacity-100' : 'opacity-0'}`}
+      loading={index < 4 ? 'eager' : 'lazy'}
+      priority={index < 2}
+      quality={75}
+      fetchPriority={index === 0 ? 'high' : undefined}
+      onLoad={(e) => {
+        setVisible(true)
+        const img = e.currentTarget as HTMLImageElement
+        if (img.naturalWidth > img.naturalHeight * 1.3) onWidescreen?.()
+      }}
+      onError={() => setFailed(true)}
+    />
+  )
+}
+
 export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl, isDraft }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
   const prefersReducedMotion = useReducedMotion()
@@ -261,25 +314,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       const h = size >= 3 ? 495 : size >= 2 ? 330 : 220
       return (
         <div className="w-full h-full overflow-hidden" data-tile-id={item.id} data-tile-type={item.type}>
-          <Image
+          <TileImage
             src={item.url}
             alt={item.title || item.type || ''}
             width={w}
             height={h}
             sizes={getImageSizes(size)}
-            className="w-full h-full object-contain opacity-0 transition-opacity duration-500 ease-out"
-            loading={index < 4 ? 'eager' : 'lazy'}
-            priority={index < 2}
-            quality={75}
-            fetchPriority={index === 0 ? 'high' : undefined}
-            onLoad={(e) => {
-              (e.target as HTMLElement).classList.remove('opacity-0')
-              ;(e.target as HTMLElement).classList.add('opacity-100')
-            }}
-            onError={(e) => {
-              const container = (e.target as HTMLElement).closest('[data-tile-id]')
-              if (container) (container as HTMLElement).style.background = 'rgba(0,0,0,0.3)'
-            }}
+            index={index}
+            onWidescreen={noop}
           />
         </div>
       )
