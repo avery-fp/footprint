@@ -56,15 +56,10 @@ export async function POST(request: NextRequest) {
       .eq('is_primary', true)
       .single()
 
-    // Create response with session cookie
+    // Create response with session cookie — minimal data only
     const response = NextResponse.json({
       success: true,
       slug: primaryFp?.username || null,
-      user: {
-        id: user.id,
-        email: user.email,
-        serial_number: user.serial_number,
-      },
     })
 
     // Set the session cookie

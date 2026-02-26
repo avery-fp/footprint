@@ -8,6 +8,63 @@ import { routeLogger } from '@/lib/logger'
 
 const log = routeLogger('POST', '/api/auth/login')
 
+// Brute-force protection: 5 failed attempts per email → locked 15 min
+const failedAttempts = new Map<string, { count: number; lockedUntil: number }>()
+const MAX_ATTEMPTS = 5
+const LOCKOUT_MS = 15 * 60 * 1000
+
+// IP rate limit: 20 attempts per 15 min
+const ipAttempts = new Map<string, { count: number; resetAt: number }>()
+const IP_MAX_ATTEMPTS = 20
+const IP_WINDOW_MS = 15 * 60 * 1000
+
+function checkEmailBruteForce(email: string): boolean {
+  const key = email.toLowerCase().trim()
+  const now = Date.now()
+  const entry = failedAttempts.get(key)
+
+  if (!entry) return true
+
+  if (entry.lockedUntil && now > entry.lockedUntil) {
+    failedAttempts.delete(key)
+    return true
+  }
+
+  if (entry.lockedUntil && now <= entry.lockedUntil) return false
+
+  return true
+}
+
+function recordFailedAttempt(email: string) {
+  const key = email.toLowerCase().trim()
+  const entry = failedAttempts.get(key) || { count: 0, lockedUntil: 0 }
+  entry.count++
+
+  if (entry.count >= MAX_ATTEMPTS) {
+    entry.lockedUntil = Date.now() + LOCKOUT_MS
+  }
+
+  failedAttempts.set(key, entry)
+}
+
+function clearFailedAttempts(email: string) {
+  failedAttempts.delete(email.toLowerCase().trim())
+}
+
+function checkIpRate(ip: string): boolean {
+  const now = Date.now()
+  const entry = ipAttempts.get(ip)
+
+  if (!entry || now > entry.resetAt) {
+    ipAttempts.set(ip, { count: 1, resetAt: now + IP_WINDOW_MS })
+    return true
+  }
+
+  if (entry.count >= IP_MAX_ATTEMPTS) return false
+  entry.count++
+  return true
+}
+
 export async function POST(request: NextRequest) {
   if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
     return NextResponse.json({ error: 'JWT_SECRET not configured' }, { status: 500 })
@@ -18,6 +75,17 @@ export async function POST(request: NextRequest) {
     const v = validateBody(loginSchema, body)
     if (!v.success) return v.response
     const { email, password } = v.data
+
+    // IP rate limit
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+    if (!checkIpRate(ip)) {
+      return NextResponse.json({ error: 'Too many attempts. Try again later.' }, { status: 429 })
+    }
+
+    // Per-email brute force check
+    if (!checkEmailBruteForce(email)) {
+      return NextResponse.json({ error: 'Too many attempts. Try again in 15 minutes.' }, { status: 429 })
+    }
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -32,13 +100,18 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error || !user || !user.password_hash) {
+      recordFailedAttempt(email)
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
     }
 
     const valid = await bcrypt.compare(password, user.password_hash)
     if (!valid) {
+      recordFailedAttempt(email)
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
     }
+
+    // Success — clear failed attempts
+    clearFailedAttempts(email)
 
     const sessionToken = await createSessionToken(user.id, user.email)
 
