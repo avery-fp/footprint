@@ -2,21 +2,33 @@
 
 import { useState, useEffect } from 'react'
 
-interface FloatingCtaBarProps {
-  username: string
-  serial: string
-  isOwner?: boolean
-}
-
-export default function FloatingCtaBar({ username, serial, isOwner = false }: FloatingCtaBarProps) {
+export default function FloatingCtaBar() {
   const [visible, setVisible] = useState(false)
+  const [hide, setHide] = useState(false)
 
   useEffect(() => {
     const timer = setTimeout(() => setVisible(true), 2000)
     return () => clearTimeout(timer)
   }, [])
 
-  if (isOwner) return null
+  // Hide for any logged-in user who already has a published footprint
+  useEffect(() => {
+    fetch('/api/user', { credentials: 'include' })
+      .then(r => {
+        if (!r.ok) return // not logged in — show CTA
+        return fetch('/api/footprint-for-user', { credentials: 'include' })
+      })
+      .then(r => {
+        if (!r || !r.ok) return
+        return r.json()
+      })
+      .then(data => {
+        if (data?.published) setHide(true)
+      })
+      .catch(() => {}) // silent — default to showing CTA
+  }, [])
+
+  if (hide) return null
 
   return (
     <a
