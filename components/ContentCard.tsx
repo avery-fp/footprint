@@ -126,8 +126,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             allow="autoplay; encrypted-media"
             allowFullScreen
             loading="lazy"
-            sandbox="allow-scripts allow-same-origin allow-popups allow-presentation"
-            referrerPolicy="no-referrer"
+            sandbox="allow-scripts allow-same-origin allow-popups allow-presentation allow-forms"
+            referrerPolicy="origin"
             onError={() => setIframeFailed(true)}
           />
         </div>
