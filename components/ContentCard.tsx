@@ -43,7 +43,7 @@ interface ContentCardProps {
  */
 export default function ContentCard({ content, onWidescreen, isMobile = false, tileSize = 1, aspect = 'square', isPublicView = false }: ContentCardProps) {
   const aspectClass = aspect === 'wide' ? 'aspect-video' : aspect === 'tall' ? 'aspect-[9/16]' : aspect === 'auto' ? '' : 'aspect-square'
-  const fitClass = 'object-contain'
+  const fitClass = 'object-cover object-center'
   const icon = getContentIcon(content.type as ContentType)
   const customBg = getContentBackground(content.type as ContentType)
   const [isActivated, setIsActivated] = useState(false)
@@ -325,7 +325,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             width={600}
             height={800}
             sizes="(max-width: 768px) 50vw, 25vw"
-            className={`w-full h-auto object-contain transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+            className={`w-full h-auto object-cover object-center transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
             loading="lazy"
             quality={75}
             onLoad={(e) => {
@@ -452,7 +452,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           alt={content.title || ''}
           fill
           sizes={tileSize >= 2 ? '(max-width: 768px) 100vw, 50vw' : '(max-width: 768px) 50vw, 25vw'}
-          className={`object-contain transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+          className={`object-cover object-center transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
           loading="lazy"
           quality={75}
           onLoad={() => setIsLoaded(true)}

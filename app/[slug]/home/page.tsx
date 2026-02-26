@@ -75,8 +75,8 @@ function getAspectClass(aspect: string) {
 }
 
 function getObjectFit(_aspect: string) {
-  // Contain — scale proportionally, never crop content
-  return 'object-contain'
+  // Cover — fill edge-to-edge, no gaps
+  return 'object-cover object-center'
 }
 
 function SortableTile({
@@ -1660,7 +1660,7 @@ export default function EditPage() {
               items={filteredContent.map(item => item.id)}
               strategy={rectSortingStrategy}
             >
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-[2px]" style={{
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-[3px]" style={{
                 gridAutoRows: 'auto',
                 gridAutoFlow: 'dense',
                 opacity: gridFade === 'out' ? 0 : 1,

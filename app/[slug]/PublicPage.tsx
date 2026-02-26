@@ -100,7 +100,7 @@ function TileImage({ src, alt, width, height, sizes, index, onWidescreen }: {
       <img
         src={src}
         alt={alt}
-        className="w-full h-full object-contain"
+        className="w-full h-full object-cover object-center"
         loading={index < 4 ? 'eager' : 'lazy'}
         decoding="async"
       />
@@ -114,7 +114,7 @@ function TileImage({ src, alt, width, height, sizes, index, onWidescreen }: {
       width={width}
       height={height}
       sizes={sizes}
-      className={`w-full h-full object-contain transition-opacity duration-500 ease-out ${visible ? 'opacity-100' : 'opacity-0'}`}
+      className={`w-full h-full object-cover object-center transition-opacity duration-500 ease-out ${visible ? 'opacity-100' : 'opacity-0'}`}
       loading={index < 4 ? 'eager' : 'lazy'}
       priority={index < 2}
       quality={75}
@@ -327,8 +327,19 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       )
     }
 
+    // Embed tiles: frosted glass container, constrained inside tile
+    const isEmbed = ['spotify', 'applemusic', 'soundcloud', 'youtube', 'vimeo'].includes(item.type)
     return (
-      <div className="w-full h-full" data-tile-id={item.id} data-tile-type={item.type}>
+      <div
+        className="w-full h-full overflow-hidden"
+        style={isEmbed ? {
+          background: 'rgba(0,0,0,0.3)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+        } : undefined}
+        data-tile-id={item.id}
+        data-tile-type={item.type}
+      >
         <ContentCard content={item} isMobile={isMobile} tileSize={size} aspect={aspect} isPublicView />
       </div>
     )

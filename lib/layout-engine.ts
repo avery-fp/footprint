@@ -136,14 +136,14 @@ export function getLayoutConfig(mode: LayoutMode): LayoutConfig {
   switch (mode) {
     case 'breathe':
       return {
-        gap: 14,
+        gap: 3,
         tileRadius: 8,
         tileShadow: '0 2px 16px rgba(0,0,0,0.12)',
         containerPadding: 20,
       }
     case 'grid':
       return {
-        gap: 2,
+        gap: 3,
         tileRadius: 0,
         tileShadow: 'none',
         containerPadding: 0,
@@ -151,7 +151,7 @@ export function getLayoutConfig(mode: LayoutMode): LayoutConfig {
     case 'editorial':
     default:
       return {
-        gap: 2,
+        gap: 3,
         tileRadius: 0,
         tileShadow: 'none',
         containerPadding: 0,
