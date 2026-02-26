@@ -174,34 +174,34 @@ export default function AddToHomeScreen() {
     }
   }, [platform])
 
-  // ── Don't render on server, when installed, or dismissed ──
-  if (!mounted || installed || dismissed) return null
+  // ── Don't render on server, when installed, dismissed, or on desktop ──
+  if (!mounted || installed || dismissed || platform === 'unsupported') return null
 
   return (
     <>
-      {/* ── CTA Button ── */}
+      {/* ── CTA Button — mobile only ── */}
       <button
         onClick={handleClick}
-        className="fixed z-50"
+        className="fixed z-50 touch-manipulation"
         style={{
-          bottom: 'calc(env(safe-area-inset-bottom, 16px) + 56px)',
+          bottom: 'calc(env(safe-area-inset-bottom, 8px) + 12px)',
           left: '50%',
           transform: 'translateX(-50%)',
-          background: 'none',
-          border: 'none',
-          padding: '8px 0',
+          background: 'rgba(255, 255, 255, 0.08)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          borderRadius: '20px',
+          padding: '8px 16px',
           cursor: 'pointer',
-          color: 'rgba(255, 255, 255, 0.25)',
-          fontSize: '13px',
+          color: 'rgba(255, 255, 255, 0.5)',
+          fontSize: '11px',
           fontFamily: 'JetBrains Mono, monospace',
-          letterSpacing: '0.04em',
-          transition: 'color 0.3s ease',
+          letterSpacing: '0.05em',
           whiteSpace: 'nowrap',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
         }}
-        onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255, 255, 255, 0.50)')}
-        onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255, 255, 255, 0.25)')}
       >
-        Place Footprint on your Home Screen &rarr;
+        <ShareIcon /> Add to Home Screen
       </button>
 
       {/* ── Modal backdrop + card ── */}

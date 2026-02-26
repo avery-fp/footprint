@@ -43,7 +43,7 @@ interface ContentCardProps {
  */
 export default function ContentCard({ content, onWidescreen, isMobile = false, tileSize = 1, aspect = 'square', isPublicView = false }: ContentCardProps) {
   const aspectClass = aspect === 'wide' ? 'aspect-video' : aspect === 'tall' ? 'aspect-[9/16]' : aspect === 'auto' ? '' : 'aspect-square'
-  const fitClass = aspect === 'auto' ? 'object-contain' : 'object-cover'
+  const fitClass = 'object-contain'
   const icon = getContentIcon(content.type as ContentType)
   const customBg = getContentBackground(content.type as ContentType)
   const [isActivated, setIsActivated] = useState(false)
@@ -114,28 +114,27 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             onLoad={() => setIsLoaded(true)}
             onError={() => setIsLoaded(true)}
           />
-          {/* Play button — hidden in public view for cinematic feel */}
-          {!isPublicView && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center group-hover:scale-105 transition-transform">
-                <svg className="w-3 h-3 text-white/80 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M8 5v14l11-7z"/>
-                </svg>
-              </div>
+          {/* Play button — always visible for clear affordance */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <svg className="w-3 h-3 text-white/80 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
             </div>
-          )}
+          </div>
         </div>
       )
     }
-    // Activated — clean iframe with autoplay
+    // Activated — clean iframe with autoplay (privacy-friendly domain)
     if (videoId) {
       return (
         <div className={`w-full ${aspectClass} fp-tile overflow-hidden relative materialize`}>
           <iframe
-            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`}
+            src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0`}
             className="absolute inset-0 w-full h-full"
             allow="autoplay; encrypted-media"
             allowFullScreen
+            loading="lazy"
           />
           <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60 z-10" />
         </div>
@@ -192,10 +191,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       const isCollection = ['playlist', 'album', 'artist'].includes(spotifyInfo.type)
       const embedHeight = isCollection ? 352 : 152
       return (
-        <div ref={containerRef} className="w-full fp-tile overflow-hidden bg-[#191414]" style={{ height: `${embedHeight}px` }}>
+        <div ref={containerRef} className="w-full fp-tile overflow-hidden bg-[#191414]" style={{ height: `${embedHeight}px`, maxWidth: '100%' }}>
           {isInView ? (
             <iframe
-              style={{ border: 'none', background: 'transparent' }}
+              style={{ border: 'none', background: 'transparent', maxWidth: '100%' }}
               src={`https://open.spotify.com/embed/${spotifyInfo.type}/${spotifyInfo.id}?theme=0`}
               width="100%"
               height="100%"
@@ -259,10 +258,11 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     )
     darkEmbed = darkEmbed.replace(/<iframe /g, '<iframe scrolling="no" ')
     return (
-      <div ref={containerRef} className="w-full fp-tile overflow-hidden bg-black" style={{ height: '175px' }}>
+      <div ref={containerRef} className="w-full fp-tile overflow-hidden bg-black" style={{ height: '175px', maxWidth: '100%' }}>
         {isInView ? (
           <div
-            className="w-full h-full overflow-hidden [&_iframe]:!w-full [&_iframe]:!h-full [&_iframe]:!min-h-0 [&_iframe]:!border-0 [&_iframe]:!overflow-hidden materialize"
+            className="w-full h-full overflow-hidden [&_iframe]:!w-full [&_iframe]:!h-full [&_iframe]:!max-w-full [&_iframe]:!min-h-0 [&_iframe]:!border-0 [&_iframe]:!overflow-hidden materialize"
+            style={{ overflow: 'hidden' }}
             dangerouslySetInnerHTML={{ __html: darkEmbed }}
           />
         ) : null}
@@ -325,7 +325,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             width={600}
             height={800}
             sizes="(max-width: 768px) 50vw, 25vw"
-            className={`w-full h-auto object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+            className={`w-full h-auto object-contain transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
             loading="lazy"
             quality={75}
             onLoad={(e) => {
@@ -452,7 +452,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           alt={content.title || ''}
           fill
           sizes={tileSize >= 2 ? '(max-width: 768px) 100vw, 50vw' : '(max-width: 768px) 50vw, 25vw'}
-          className={`object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+          className={`object-contain transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
           loading="lazy"
           quality={75}
           onLoad={() => setIsLoaded(true)}

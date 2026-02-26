@@ -52,26 +52,24 @@ export default function SortableGrid({ items, onReorder, onDelete }: SortableGri
   const activeItem = activeId ? items.find(item => item.id === activeId) : null
 
   // Configure sensors for drag detection
-  // Touch = mobile with long-press, Pointer = desktop/fallback, Keyboard = accessibility
+  // Touch = mobile with minimal delay, Pointer = desktop/fallback, Keyboard = accessibility
   const sensors = useSensors(
     useSensor(TouchSensor, {
-      // Mobile: long-press to drag (200ms delay)
-      // This allows normal scrolling and taps to work naturally
+      // Mobile: short delay for immediate feel, tolerance for scroll vs drag
       activationConstraint: {
-        delay: 200,
-        tolerance: 5,
+        delay: 100,
+        tolerance: 8,
       },
     }),
     useSensor(PointerSensor, {
-      // Desktop & fallback: small distance prevents accidental drags
+      // Desktop: minimal distance for instant response
       activationConstraint: {
-        distance: 8,
+        distance: 4,
       },
     }),
     useSensor(MouseSensor, {
-      // Additional mouse support for older browsers
       activationConstraint: {
-        distance: 8,
+        distance: 4,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -154,8 +152,8 @@ export default function SortableGrid({ items, onReorder, onDelete }: SortableGri
 
       {/* Drag overlay - the floating card while dragging */}
       <DragOverlay adjustScale={false} dropAnimation={{
-        duration: 200,
-        easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
+        duration: 250,
+        easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.18)',
       }}>
         {activeItem ? (
           <div className="opacity-95 rotate-2 scale-[1.02] shadow-2xl shadow-black/50 ring-2 ring-white/20 rounded-xl">
