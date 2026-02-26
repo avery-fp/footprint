@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { motion, LayoutGroup, useReducedMotion } from 'framer-motion'
 import ContentCardBase from '@/components/ContentCard'
 import VideoTileBase from '@/components/VideoTile'
+import ExpandedTileOverlay from '@/components/ExpandedTileOverlay'
 
 const ContentCard = memo(ContentCardBase)
 const VideoTile = memo(VideoTileBase)
@@ -100,7 +101,7 @@ function TileImage({ src, alt, width, height, sizes, index, onWidescreen }: {
       <img
         src={src}
         alt={alt}
-        className="w-full h-full object-contain"
+        className="w-full h-full object-cover"
         loading={index < 4 ? 'eager' : 'lazy'}
         decoding="async"
       />
@@ -114,7 +115,7 @@ function TileImage({ src, alt, width, height, sizes, index, onWidescreen }: {
       width={width}
       height={height}
       sizes={sizes}
-      className={`w-full h-full object-contain transition-opacity duration-500 ease-out ${visible ? 'opacity-100' : 'opacity-0'}`}
+      className={`w-full h-full object-cover transition-opacity duration-500 ease-out ${visible ? 'opacity-100' : 'opacity-0'}`}
       loading={index < 4 ? 'eager' : 'lazy'}
       priority={index < 2}
       quality={75}
@@ -156,6 +157,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [showToast, setShowToast] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [roomFade, setRoomFade] = useState<'visible' | 'out' | 'in'>('visible')
+  const [expandedTile, setExpandedTile] = useState<any | null>(null)
 
   // Content filtering
   const validContent = useMemo(() =>
@@ -270,6 +272,15 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     }
   }, [isOwner, footprint.username])
 
+  // Tap to expand — the move
+  const handleTileExpand = useCallback((item: any) => {
+    setExpandedTile(item)
+  }, [])
+
+  const handleTileDismiss = useCallback(() => {
+    setExpandedTile(null)
+  }, [])
+
   // Layout config
   const layoutConfig = useMemo(() => getLayoutConfig(layoutMode), [layoutMode])
 
@@ -377,8 +388,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                     overflow: 'hidden',
                     borderRadius: `${layoutConfig.tileRadius}px`,
                     boxShadow: layoutConfig.tileShadow,
+                    cursor: 'pointer',
                     ...(isMusicEmbed ? { alignSelf: 'start' } : {}),
                   }}
+                  onClick={() => handleTileExpand(item)}
                 >
                   {renderTileContent(item, globalIdx, row.type === 'hero' ? 3 : row.type === 'breath' ? 2 : 1, 'auto')}
                 </motion.div>
@@ -417,8 +430,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             style={{
               borderRadius: `${layoutConfig.tileRadius}px`,
               boxShadow: layoutConfig.tileShadow,
+              cursor: 'pointer',
               ...(isMusicEmbed ? { alignSelf: 'start' } : {}),
             }}
+            onClick={() => handleTileExpand(item)}
           >
             {renderTileContent(item, idx, 1, 'square')}
           </motion.div>
@@ -432,7 +447,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const activeGrid = layoutMode === 'grid' ? uniformGrid : editorialGrid
 
   return (
-    <div className="min-h-screen relative flex flex-col" style={{ background: theme.colors.background, color: theme.colors.text, '--fp-glass': theme.colors.glass, '--fp-text-muted': theme.colors.textMuted } as React.CSSProperties}>
+    <div className="min-h-[100dvh] relative flex flex-col" style={{ background: theme.colors.background, color: theme.colors.text, '--fp-glass': theme.colors.glass, '--fp-text-muted': theme.colors.textMuted } as React.CSSProperties}>
       {/* Wallpaper layer — GPU composited for 60fps scroll */}
       {footprint.background_url && (
         <div className="fixed inset-0 z-0 fp-wallpaper-gpu">
@@ -628,6 +643,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           copied.
         </div>
       )}
+
+      {/* Expanded tile overlay — the move */}
+      <ExpandedTileOverlay tile={expandedTile} onDismiss={handleTileDismiss} />
     </div>
   )
 }

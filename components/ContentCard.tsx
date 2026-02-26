@@ -119,7 +119,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     }
     if (embed) {
       return (
-        <div className={`w-full ${aspectClass} fp-tile overflow-hidden relative materialize`}>
+        <div className={`w-full ${aspectClass} fp-tile fp-embed-glass overflow-hidden relative materialize`}>
           <iframe
             src={`${embed.embedUrl}?autoplay=1&rel=0`}
             className="absolute inset-0 w-full h-full"
@@ -181,7 +181,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       const embed = parseEmbed(content.url)
       if (embed) {
         return (
-          <div ref={containerRef} className="w-full fp-tile overflow-hidden bg-[#191414]" style={{ height: `${embed.height}px`, maxWidth: '100%' }}>
+          <div ref={containerRef} className="w-full fp-tile fp-embed-glass overflow-hidden" style={{ height: `${embed.height}px`, maxWidth: '100%' }}>
             {isInView ? (
               <iframe
                 style={{ border: 'none', background: 'transparent', maxWidth: '100%' }}
@@ -231,7 +231,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       return (
         <div
           ref={containerRef}
-          className={`w-full fp-tile overflow-hidden materialize bg-black`}
+          className={`w-full fp-tile fp-embed-glass overflow-hidden materialize`}
           style={{ height: `${embed.height}px` }}
         >
           <iframe
@@ -266,7 +266,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     const embed = parseEmbed(content.url)
     if (embed) {
       return (
-        <div ref={containerRef} className="w-full fp-tile overflow-hidden bg-black" style={{ height: `${embed.height}px`, maxWidth: '100%' }}>
+        <div ref={containerRef} className="w-full fp-tile fp-embed-glass overflow-hidden" style={{ height: `${embed.height}px`, maxWidth: '100%' }}>
           {isInView ? (
             <iframe
               src={`${embed.embedUrl}?theme=dark`}
@@ -313,7 +313,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     const embed = parseEmbed(content.url)
     if (embed) {
       return (
-        <div ref={containerRef} className={`w-full ${aspectClass} fp-tile overflow-hidden relative bg-black`}>
+        <div ref={containerRef} className={`w-full ${aspectClass} fp-tile fp-embed-glass overflow-hidden relative`}>
           {isInView ? (
             <iframe
               src={embed.embedUrl}

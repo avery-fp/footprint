@@ -9,6 +9,7 @@ import ShareEngine from '@/components/ShareEngine'
 import EventTracker from '@/components/EventTracker'
 import ReferralBanner from '@/components/ReferralBanner'
 import ErrorBoundary from '@/components/ErrorBoundary'
+import { normalizeTileLayers } from '@/lib/layout-engine'
 import PublicPage from './PublicPage'
 
 // ISR — cache page at the edge, revalidate every 60 seconds
@@ -119,6 +120,7 @@ export default async function FootprintPage({ params }: Props) {
         aspect: link.aspect || null,
       })),
     ].sort((a, b) => a.position - b.position)
+      .map(normalizeTileLayers)
 
     // Group content by rooms
     rooms = (roomsData || []).map((room: any) => ({
