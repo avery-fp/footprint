@@ -186,8 +186,10 @@ export async function getUserFromSession(token: string) {
 export async function generateOTP(email: string): Promise<string> {
   const supabase = createServerSupabaseClient()
 
-  // 6-digit numeric code
-  const code = Math.floor(100000 + Math.random() * 900000).toString()
+  // 6-digit numeric code (crypto-secure)
+  const array = new Uint32Array(1)
+  crypto.getRandomValues(array)
+  const code = (array[0] % 900000 + 100000).toString()
 
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000) // 15 min
 
