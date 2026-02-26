@@ -1,9 +1,14 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const aroKey = new URL(request.url).searchParams.get('aro_key')
+  if (!aroKey || aroKey !== process.env.ARO_KEY) {
+    return NextResponse.json({ error: 'Invalid aro_key' }, { status: 401 })
+  }
+
   const supabase = createServerSupabaseClient()
 
   const { data, error } = await supabase
@@ -14,7 +19,7 @@ export async function GET() {
     .limit(500)
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to fetch targets' }, { status: 500 })
   }
 
   // Group by layer

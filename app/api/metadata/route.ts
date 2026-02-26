@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { validateFetchUrl } from '@/lib/ssrf'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,6 +16,12 @@ export async function GET(request: NextRequest) {
 
   if (!url) {
     return NextResponse.json({ error: 'url required' }, { status: 400 })
+  }
+
+  // SSRF protection — block private/internal hosts
+  const check = validateFetchUrl(url)
+  if (!check.valid) {
+    return NextResponse.json({ error: check.error }, { status: 400 })
   }
 
   try {

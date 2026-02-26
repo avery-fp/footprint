@@ -1,9 +1,14 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const aroKey = new URL(request.url).searchParams.get('aro_key')
+  if (!aroKey || aroKey !== process.env.ARO_KEY) {
+    return NextResponse.json({ error: 'Invalid aro_key' }, { status: 401 })
+  }
+
   const supabase = createServerSupabaseClient()
 
   const { data, error } = await supabase

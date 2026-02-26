@@ -87,7 +87,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'serial_number required' }, { status: 400 })
     }
 
+    // Require authentication — prevents enumeration of hidden rooms
+    const userId = await getUserIdFromRequest(request)
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const supabase = createServerSupabaseClient()
+
+    // Verify ownership
+    const auth = await verifyOwnership(request, supabase, Number(serialNumber))
+    if (auth.error) return auth.error
 
     const { data: rooms, error } = await supabase
       .from('rooms')
@@ -96,7 +106,7 @@ export async function GET(request: NextRequest) {
       .order('position')
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to fetch rooms' }, { status: 500 })
     }
 
     return NextResponse.json({ rooms: rooms || [] })
@@ -138,7 +148,7 @@ export async function PATCH(request: NextRequest) {
       .eq('id', id)
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: 'Internal error' }, { status: 500 })
     }
 
     if (slug) revalidatePath(`/${slug}`)
@@ -176,7 +186,7 @@ export async function DELETE(request: NextRequest) {
     const { error } = await supabase.from('rooms').delete().eq('id', id)
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: 'Internal error' }, { status: 500 })
     }
 
     if (slug) revalidatePath(`/${slug}`)
@@ -216,7 +226,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: 'Internal error' }, { status: 500 })
     }
 
     if (slug) revalidatePath(`/${slug}`)

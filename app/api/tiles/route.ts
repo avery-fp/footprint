@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: 'Internal error' }, { status: 500 })
     }
 
     // Normalize response to match what edit page expects
@@ -203,7 +203,7 @@ export async function DELETE(request: NextRequest) {
 
     if (error) {
       log.error({ err: error }, 'DELETE /api/tiles: Database error')
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: 'Internal error' }, { status: 500 })
     }
 
     revalidatePath(`/${slug}`)
@@ -300,7 +300,7 @@ export async function PATCH(request: NextRequest) {
       .eq('serial_number', serialNumber)
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: 'Internal error' }, { status: 500 })
     }
 
     revalidatePath(`/${slug}`)
