@@ -1,5 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
+
 interface Stats {
   sent: number
   clicks: number

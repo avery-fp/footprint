@@ -9,7 +9,7 @@ import ReferralBanner from '@/components/ReferralBanner'
 import PublicPage from './[slug]/PublicPage'
 import MakeYoursCTA from './MakeYoursCTA'
 
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
 const AE_SLUG = 'ae'
 
