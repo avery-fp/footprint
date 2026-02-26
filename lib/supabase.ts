@@ -1,19 +1,25 @@
 import { createBrowserClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 
+// Placeholder values used during build-time static analysis when env vars
+// aren't available. Pages that use Supabase should set
+// `export const dynamic = 'force-dynamic'` so these are never hit at runtime.
+const PLACEHOLDER_URL = 'http://localhost'
+const PLACEHOLDER_KEY = 'placeholder'
+
 // Browser client (for client components)
 export function createBrowserSupabaseClient() {
   return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_URL || PLACEHOLDER_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || PLACEHOLDER_KEY
   )
 }
 
 // Server client with service role (for API routes)
 export function createServerSupabaseClient() {
   return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_URL || PLACEHOLDER_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY || PLACEHOLDER_KEY,
     {
       auth: {
         autoRefreshToken: false,
