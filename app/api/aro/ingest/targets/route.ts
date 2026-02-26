@@ -20,7 +20,6 @@ export async function POST(request: NextRequest) {
     const result = await ingestTargets({ source, payload })
     return NextResponse.json(result)
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Ingest failed'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: 'Ingest failed' }, { status: 500 })
   }
 }
