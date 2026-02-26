@@ -11,7 +11,7 @@ import MakeYoursCTA from './MakeYoursCTA'
 
 export const dynamic = 'force-dynamic'
 
-const ae_SLUG = 'ae'
+const AE_SLUG = 'ae'
 
 export default async function Home() {
   const supabase = createServerSupabaseClient()
@@ -20,7 +20,7 @@ export default async function Home() {
   const { data: footprint } = await supabase
     .from('footprints')
     .select('*')
-    .eq('username', ae_SLUG)
+    .eq('username', AE_SLUG)
     .single()
 
   if (!footprint) {
@@ -85,14 +85,14 @@ export default async function Home() {
   const serial = footprint.serial_number.toString().padStart(4, '0')
   const theme = getTheme(footprint.dimension || 'midnight')
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://footprint.onl'
-  const pageUrl = `${baseUrl}/${ae_SLUG}`
+  const pageUrl = `${baseUrl}/${AE_SLUG}`
 
   return (
     <>
       <AnalyticsTracker footprintId={footprint.id} serialNumber={footprint.serial_number} />
       <EventTracker footprintId={footprint.id} />
       <ReferralBanner serial={serial} />
-      <ShareEngine slug={ae_SLUG} />
+      <ShareEngine slug={AE_SLUG} />
       <PublicPage
         footprint={footprint}
         content={content}

@@ -26,6 +26,7 @@ export default function SignupPage() {
 
   const usernameRef = useRef<HTMLInputElement>(null)
   const emailRef = useRef<HTMLInputElement>(null)
+  const resendIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Auto-focus on step changes
   useEffect(() => {
@@ -42,18 +43,21 @@ export default function SignupPage() {
     setCanResend(false)
     setResendCountdown(60)
 
+    if (resendIntervalRef.current) clearInterval(resendIntervalRef.current)
     const interval = setInterval(() => {
       setResendCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(interval)
+          resendIntervalRef.current = null
           setCanResend(true)
           return 0
         }
         return prev - 1
       })
     }, 1000)
+    resendIntervalRef.current = interval
 
-    return () => clearInterval(interval)
+    return () => { clearInterval(interval); resendIntervalRef.current = null }
   }, [step])
 
   // Debounced username availability check (500ms)
@@ -173,16 +177,19 @@ export default function SignupPage() {
       setLoading(false)
     }
 
+    if (resendIntervalRef.current) clearInterval(resendIntervalRef.current)
     const interval = setInterval(() => {
       setResendCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(interval)
+          resendIntervalRef.current = null
           setCanResend(true)
           return 0
         }
         return prev - 1
       })
     }, 1000)
+    resendIntervalRef.current = interval
   }
 
   // Get URL preview state
