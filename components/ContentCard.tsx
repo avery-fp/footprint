@@ -1,17 +1,14 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import { getContentIcon, getContentBackground, ContentType } from '@/lib/parser'
 import { audioManager } from '@/lib/audio-manager'
-
-function extractYouTubeId(url: string): string | null {
-  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([a-zA-Z0-9_-]{11})/)
-  return match ? match[1] : null
-}
+import { parseEmbed, getYouTubeThumbnail } from '@/lib/parseEmbed'
+import type { EmbedResult } from '@/lib/parseEmbed'
 
 function extractSpotifyInfo(url: string): { type: string; id: string } | null {
-  const match = url.match(/open\.spotify\.com\/(track|album|playlist|artist|episode)\/([a-zA-Z0-9]+)/)
+  const match = url.match(/open\.spotify\.com\/(track|album|playlist|artist|episode|show)\/([a-zA-Z0-9]+)/)
   return match ? { type: match[1], id: match[2] } : null
 }
 
@@ -33,22 +30,20 @@ interface ContentCardProps {
 }
 
 /**
- * Content Card - Quantum Performance Edition
+ * Content Card — Universal Embed Engine
  *
- * FACADE 2.0: Thumbnails first, iframes on click
- * Vapor Boxes: Skeleton placeholders with aspect-ratio
- * 800ms Materialization: Fade-in on media load
- * One Sound Policy: AudioManager integration
- * ALL iframes: lazy loaded via IntersectionObserver
+ * Zero-error contract: every URL renders something intentional.
+ * parseEmbed → iframe tile (with silent fallback to link card)
+ * null → link card (OG metadata via /api/og-preview)
+ * Everything fails gracefully. No broken states.
  */
 export default function ContentCard({ content, onWidescreen, isMobile = false, tileSize = 1, aspect = 'square', isPublicView = false }: ContentCardProps) {
   const aspectClass = aspect === 'wide' ? 'aspect-video' : aspect === 'tall' ? 'aspect-[9/16]' : aspect === 'auto' ? '' : 'aspect-square'
   const fitClass = 'object-contain'
-  const icon = getContentIcon(content.type as ContentType)
-  const customBg = getContentBackground(content.type as ContentType)
   const [isActivated, setIsActivated] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
   const [isInView, setIsInView] = useState(false)
+  const [iframeFailed, setIframeFailed] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const audioIdRef = useRef(`card-${content.id}`)
 
@@ -87,13 +82,11 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }
 
   // ════════════════════════════════════════
-  // YOUTUBE — FACADE 2.0
-  // Thumbnail first. Click swaps to clean iframe.
-  // Zero iframes on page load.
+  // YOUTUBE — FACADE: thumbnail first, iframe on tap
   // ════════════════════════════════════════
-  if (content.type === 'youtube') {
-    const videoId = extractYouTubeId(content.url)
-    const thumbnailUrl = content.thumbnail_url || (videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : null)
+  if (content.type === 'youtube' && !iframeFailed) {
+    const embed = parseEmbed(content.url)
+    const thumbnailUrl = content.thumbnail_url || getYouTubeThumbnail(content.url)
 
     if (!isActivated && thumbnailUrl) {
       return (
@@ -114,7 +107,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             onLoad={() => setIsLoaded(true)}
             onError={() => setIsLoaded(true)}
           />
-          {/* Play button — always visible for clear affordance */}
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center group-hover:scale-105 transition-transform">
               <svg className="w-3 h-3 text-white/80 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
@@ -125,18 +117,19 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         </div>
       )
     }
-    // Activated — clean iframe with autoplay (privacy-friendly domain)
-    if (videoId) {
+    if (embed) {
       return (
         <div className={`w-full ${aspectClass} fp-tile overflow-hidden relative materialize`}>
           <iframe
-            src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0`}
+            src={`${embed.embedUrl}?autoplay=1&rel=0`}
             className="absolute inset-0 w-full h-full"
             allow="autoplay; encrypted-media"
             allowFullScreen
             loading="lazy"
+            sandbox="allow-scripts allow-same-origin allow-popups allow-presentation"
+            referrerPolicy="no-referrer"
+            onError={() => setIframeFailed(true)}
           />
-          <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60 z-10" />
         </div>
       )
     }
@@ -145,10 +138,9 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   // SPOTIFY — album art facade on mobile, iframe on desktop
   // ════════════════════════════════════════
-  if (content.type === 'spotify') {
+  if (content.type === 'spotify' && !iframeFailed) {
     const spotifyInfo = extractSpotifyInfo(content.url)
     if (spotifyInfo) {
-      // Mobile at size 1: show album art card → tapping opens Spotify
       if (isMobile && tileSize <= 1) {
         return (
           <a
@@ -170,7 +162,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 onLoad={() => setIsLoaded(true)}
               />
             )}
-            {/* Scrim + play button */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
             <div className="absolute inset-0 flex flex-col items-end justify-end p-3 gap-1.5">
               <p className="text-white text-xs font-medium leading-tight line-clamp-2 w-full">
@@ -187,43 +178,41 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           </a>
         )
       }
-      // Desktop or size 2+: compact embed with explicit dimensions
-      const isCollection = ['playlist', 'album', 'artist'].includes(spotifyInfo.type)
-      const embedHeight = isCollection ? 352 : 152
-      return (
-        <div ref={containerRef} className="w-full fp-tile overflow-hidden bg-[#191414]" style={{ height: `${embedHeight}px`, maxWidth: '100%' }}>
-          {isInView ? (
-            <iframe
-              style={{ border: 'none', background: 'transparent', maxWidth: '100%' }}
-              src={`https://open.spotify.com/embed/${spotifyInfo.type}/${spotifyInfo.id}?theme=0`}
-              width="100%"
-              height="100%"
-              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-              loading="lazy"
-              className="materialize"
-            />
-          ) : (
-            <div className="w-full h-full bg-[#191414]" />
-          )}
-        </div>
-      )
+      const embed = parseEmbed(content.url)
+      if (embed) {
+        return (
+          <div ref={containerRef} className="w-full fp-tile overflow-hidden bg-[#191414]" style={{ height: `${embed.height}px`, maxWidth: '100%' }}>
+            {isInView ? (
+              <iframe
+                style={{ border: 'none', background: 'transparent', maxWidth: '100%' }}
+                src={embed.embedUrl}
+                width="100%"
+                height="100%"
+                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                loading="lazy"
+                sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                referrerPolicy="no-referrer"
+                className="materialize"
+                onError={() => setIframeFailed(true)}
+              />
+            ) : (
+              <div className="w-full h-full bg-[#191414]" />
+            )}
+          </div>
+        )
+      }
     }
-    return (
-      <a href={content.url} target="_blank" rel="noopener noreferrer"
-        className="block w-full h-full fp-tile overflow-hidden flex items-center justify-center">
-        <span className="text-white/40 text-xs tracking-wider">spotify</span>
-      </a>
-    )
   }
 
   // ════════════════════════════════════════
-  // SOUNDCLOUD — FACADE 2.0
-  // Gradient card first. Click loads embed.
+  // SOUNDCLOUD — facade first, click loads embed
   // ════════════════════════════════════════
-  if (content.type === 'soundcloud') {
+  if (content.type === 'soundcloud' && !iframeFailed) {
+    const embed = parseEmbed(content.url)
     if (!isActivated) {
       return (
         <div
+          ref={containerRef}
           className={`w-full ${aspectClass} fp-tile overflow-hidden cursor-pointer relative group bg-black`}
           onClick={handleActivate}
         >
@@ -238,6 +227,28 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         </div>
       )
     }
+    if (embed) {
+      return (
+        <div
+          ref={containerRef}
+          className={`w-full fp-tile overflow-hidden materialize bg-black`}
+          style={{ height: `${embed.height}px` }}
+        >
+          <iframe
+            src={embed.embedUrl}
+            width="100%"
+            height="100%"
+            style={{ border: 'none' }}
+            allow="autoplay"
+            loading="lazy"
+            sandbox="allow-scripts allow-same-origin allow-popups"
+            referrerPolicy="no-referrer"
+            onError={() => setIframeFailed(true)}
+          />
+        </div>
+      )
+    }
+    // Fallback: use stored embed_html if parseEmbed didn't match
     if (content.embed_html) {
       return (
         <div
@@ -251,39 +262,87 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   // APPLE MUSIC — lazy loaded dark embed
   // ════════════════════════════════════════
-  if (content.type === 'applemusic' && content.embed_html) {
-    let darkEmbed = content.embed_html.replace(
-      /src="(https:\/\/embed\.music\.apple\.com\/[^"]*?)"/g,
-      (_m: string, url: string) => `src="${url}${url.includes('?') ? '&' : '?'}theme=dark"`
-    )
-    darkEmbed = darkEmbed.replace(/<iframe /g, '<iframe scrolling="no" ')
-    return (
-      <div ref={containerRef} className="w-full fp-tile overflow-hidden bg-black" style={{ height: '175px', maxWidth: '100%' }}>
-        {isInView ? (
-          <div
-            className="w-full h-full overflow-hidden [&_iframe]:!w-full [&_iframe]:!h-full [&_iframe]:!max-w-full [&_iframe]:!min-h-0 [&_iframe]:!border-0 [&_iframe]:!overflow-hidden materialize"
-            style={{ overflow: 'hidden' }}
-            dangerouslySetInnerHTML={{ __html: darkEmbed }}
-          />
-        ) : null}
-      </div>
-    )
+  if (content.type === 'applemusic' && !iframeFailed) {
+    const embed = parseEmbed(content.url)
+    if (embed) {
+      return (
+        <div ref={containerRef} className="w-full fp-tile overflow-hidden bg-black" style={{ height: `${embed.height}px`, maxWidth: '100%' }}>
+          {isInView ? (
+            <iframe
+              src={`${embed.embedUrl}?theme=dark`}
+              width="100%"
+              height="100%"
+              style={{ border: 'none', overflow: 'hidden' }}
+              allow="autoplay *; encrypted-media *; fullscreen *"
+              loading="lazy"
+              sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-top-navigation-by-user-activation"
+              referrerPolicy="no-referrer"
+              scrolling="no"
+              className="materialize"
+              onError={() => setIframeFailed(true)}
+            />
+          ) : null}
+        </div>
+      )
+    }
+    // Fallback: use stored embed_html
+    if (content.embed_html) {
+      let darkEmbed = content.embed_html.replace(
+        /src="(https:\/\/embed\.music\.apple\.com\/[^"]*?)"/g,
+        (_m: string, url: string) => `src="${url}${url.includes('?') ? '&' : '?'}theme=dark"`
+      )
+      darkEmbed = darkEmbed.replace(/<iframe /g, '<iframe scrolling="no" ')
+      return (
+        <div ref={containerRef} className="w-full fp-tile overflow-hidden bg-black" style={{ height: '175px', maxWidth: '100%' }}>
+          {isInView ? (
+            <div
+              className="w-full h-full overflow-hidden [&_iframe]:!w-full [&_iframe]:!h-full [&_iframe]:!max-w-full [&_iframe]:!min-h-0 [&_iframe]:!border-0 [&_iframe]:!overflow-hidden materialize"
+              style={{ overflow: 'hidden' }}
+              dangerouslySetInnerHTML={{ __html: darkEmbed }}
+            />
+          ) : null}
+        </div>
+      )
+    }
   }
 
   // ════════════════════════════════════════
   // VIMEO — lazy loaded embed
   // ════════════════════════════════════════
-  if (content.type === 'vimeo' && content.embed_html) {
-    return (
-      <div ref={containerRef} className={`w-full ${aspectClass} fp-tile overflow-hidden relative bg-black`}>
-        {isInView ? (
-          <div
-            className="absolute inset-0 [&_iframe]:!w-full [&_iframe]:!h-full materialize"
-            dangerouslySetInnerHTML={{ __html: content.embed_html }}
-          />
-        ) : null}
-      </div>
-    )
+  if (content.type === 'vimeo' && !iframeFailed) {
+    const embed = parseEmbed(content.url)
+    if (embed) {
+      return (
+        <div ref={containerRef} className={`w-full ${aspectClass} fp-tile overflow-hidden relative bg-black`}>
+          {isInView ? (
+            <iframe
+              src={embed.embedUrl}
+              className="absolute inset-0 w-full h-full materialize"
+              style={{ border: 'none' }}
+              allow="autoplay; fullscreen; picture-in-picture"
+              allowFullScreen
+              loading="lazy"
+              sandbox="allow-scripts allow-same-origin allow-popups"
+              referrerPolicy="no-referrer"
+              onError={() => setIframeFailed(true)}
+            />
+          ) : null}
+        </div>
+      )
+    }
+    // Fallback: stored embed_html
+    if (content.embed_html) {
+      return (
+        <div ref={containerRef} className={`w-full ${aspectClass} fp-tile overflow-hidden relative bg-black`}>
+          {isInView ? (
+            <div
+              className="absolute inset-0 [&_iframe]:!w-full [&_iframe]:!h-full materialize"
+              dangerouslySetInnerHTML={{ __html: content.embed_html }}
+            />
+          ) : null}
+        </div>
+      )
+    }
   }
 
   // ════════════════════════════════════════
@@ -347,7 +406,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   if (content.type === 'thought') {
     const text = content.title || content.description || ''
     const len = text.length
-    // Adaptive sizing: short → big and bold, long → smaller
     const typo = len <= 6
       ? 'text-[28px] font-light tracking-[-0.035em] leading-none'
       : len <= 20
@@ -356,7 +414,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       ? 'text-[15px] font-light tracking-[-0.01em] leading-snug'
       : 'text-[15px] font-light tracking-[-0.01em] leading-relaxed'
 
-    // Glassmorphic annotation style for public view
     if (isPublicView) {
       return (
         <div
@@ -435,10 +492,28 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }
 
   // ════════════════════════════════════════
-  // DEFAULT LINK — visual tile, not a list card
+  // UNIVERSAL EMBED ENGINE — Tier 2 platforms
+  // Bandcamp, Google Maps, CodePen, Are.na, Figma
+  // Try iframe with 3s timeout → fallback to link card
+  // ════════════════════════════════════════
+  const embed = parseEmbed(content.url)
+  if (embed && !iframeFailed) {
+    return (
+      <Tier2EmbedTile
+        embed={embed}
+        url={content.url}
+        containerRef={containerRef}
+        isInView={isInView}
+        onFail={() => setIframeFailed(true)}
+      />
+    )
+  }
+
+  // ════════════════════════════════════════
+  // LINK CARD — beautiful fallback for everything else
+  // Favicon + title + domain. Works for any URL on earth.
   // ════════════════════════════════════════
   if (content.thumbnail_url) {
-    // WITH thumbnail — image fills tile, domain label overlay
     return (
       <a
         href={content.url}
@@ -456,6 +531,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           loading="lazy"
           quality={75}
           onLoad={() => setIsLoaded(true)}
+          onError={() => setIsLoaded(true)}
         />
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/40 to-transparent h-10" />
         <span className="absolute bottom-2 left-2.5 text-[9px] font-mono tracking-wider text-white/50">
@@ -465,18 +541,223 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     )
   }
 
-  // WITHOUT thumbnail — typographic tile, domain IS the content
+  return (
+    <LinkCard
+      url={content.url}
+      title={content.title}
+      hostname={hostname}
+      containerRef={containerRef}
+      isInView={isInView}
+      aspectClass={aspectClass}
+    />
+  )
+}
+
+// ════════════════════════════════════════════════════════════
+// TIER 2 EMBED TILE — iframe with 3s timeout, silent fallback
+// ════════════════════════════════════════════════════════════
+
+function Tier2EmbedTile({
+  embed,
+  url,
+  containerRef,
+  isInView,
+  onFail,
+}: {
+  embed: EmbedResult
+  url: string
+  containerRef: React.RefObject<HTMLDivElement | null>
+  isInView: boolean
+  onFail: () => void
+}) {
+  const [loaded, setLoaded] = useState(false)
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Tier 2: 3-second timeout — if iframe doesn't load, swap to link card
+  useEffect(() => {
+    if (embed.tier !== 2 || !isInView) return
+    timeoutRef.current = setTimeout(() => {
+      if (!loaded) onFail()
+    }, 3000)
+    return () => { if (timeoutRef.current) clearTimeout(timeoutRef.current) }
+  }, [isInView, embed.tier, loaded, onFail])
+
+  const handleLoad = useCallback(() => {
+    setLoaded(true)
+    if (timeoutRef.current) clearTimeout(timeoutRef.current)
+  }, [])
+
+  const style: React.CSSProperties = embed.aspectRatio
+    ? { aspectRatio: embed.aspectRatio }
+    : { height: `${embed.height}px` }
+
+  return (
+    <div
+      ref={containerRef}
+      className="w-full fp-tile overflow-hidden relative"
+      style={{ ...style, background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', maxWidth: '100%' }}
+    >
+      {isInView ? (
+        <iframe
+          src={embed.embedUrl}
+          className={`absolute inset-0 w-full h-full transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+          style={{ border: 'none' }}
+          loading="lazy"
+          sandbox="allow-scripts allow-same-origin allow-popups"
+          referrerPolicy="no-referrer"
+          onLoad={handleLoad}
+          onError={() => onFail()}
+        />
+      ) : null}
+    </div>
+  )
+}
+
+// ════════════════════════════════════════════════════════════
+// LINK CARD — frosted glass with OG metadata
+// Favicon + title + domain. The universal fallback.
+// ════════════════════════════════════════════════════════════
+
+function LinkCard({
+  url,
+  title: initialTitle,
+  hostname,
+  containerRef,
+  isInView,
+  aspectClass,
+}: {
+  url: string
+  title: string | null
+  hostname: string
+  containerRef: React.RefObject<HTMLDivElement | null>
+  isInView: boolean
+  aspectClass: string
+}) {
+  const [meta, setMeta] = useState<{
+    title?: string | null
+    favicon?: string | null
+    image?: string | null
+  } | null>(null)
+  const [imageLoaded, setImageLoaded] = useState(false)
+  const fetched = useRef(false)
+
+  // Fetch OG metadata when tile comes into view
+  useEffect(() => {
+    if (!isInView || fetched.current) return
+    fetched.current = true
+
+    const controller = new AbortController()
+    fetch(`/api/og-preview?url=${encodeURIComponent(url)}`, { signal: controller.signal })
+      .then(r => r.json())
+      .then(data => setMeta(data))
+      .catch(() => {}) // Silent — we already have hostname fallback
+    return () => controller.abort()
+  }, [isInView, url])
+
+  const displayTitle = meta?.title || initialTitle || hostname
+  const favicon = meta?.favicon
+  const ogImage = meta?.image
+
+  // If we got an OG image, show it as visual tile
+  if (ogImage && imageLoaded) {
+    return (
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        ref={containerRef as any}
+        className={`block w-full ${aspectClass} fp-tile overflow-hidden relative`}
+        style={{ background: 'rgba(0,0,0,0.3)' }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={ogImage}
+          alt=""
+          className="w-full h-full object-cover"
+          loading="lazy"
+        />
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent h-16" />
+        <div className="absolute bottom-2.5 left-3 right-3 flex items-center gap-2">
+          {favicon && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={favicon} alt="" className="w-4 h-4 rounded-sm flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+          )}
+          <span className="text-[10px] font-mono tracking-wider text-white/70 truncate">
+            {hostname}
+          </span>
+        </div>
+      </a>
+    )
+  }
+
+  // Preload OG image in background
+  if (ogImage && !imageLoaded) {
+    return (
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        ref={containerRef as any}
+        className={`block w-full ${aspectClass} fp-tile overflow-hidden relative`}
+        style={{
+          background: 'rgba(0,0,0,0.3)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+        }}
+      >
+        {/* Hidden preloader */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={ogImage}
+          alt=""
+          className="absolute opacity-0"
+          onLoad={() => setImageLoaded(true)}
+          onError={() => setMeta(m => m ? { ...m, image: null } : m)}
+        />
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4">
+          {favicon && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={favicon} alt="" className="w-5 h-5 rounded-sm" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+          )}
+          <span className="text-[11px] font-mono tracking-wider text-white/50 text-center truncate max-w-full">
+            {displayTitle !== hostname ? displayTitle : hostname}
+          </span>
+          {displayTitle !== hostname && (
+            <span className="text-[9px] font-mono tracking-wider text-white/30">
+              {hostname}
+            </span>
+          )}
+        </div>
+      </a>
+    )
+  }
+
+  // Text-only link card — frosted glass, favicon + title + domain
   return (
     <a
-      href={content.url}
+      href={url}
       target="_blank"
       rel="noopener noreferrer"
       ref={containerRef as any}
-      className={`block w-full ${aspectClass} fp-tile overflow-hidden fp-surface flex items-center justify-center p-4`}
+      className={`block w-full ${aspectClass} fp-tile overflow-hidden flex flex-col items-center justify-center gap-2 p-4`}
+      style={{
+        background: 'rgba(0,0,0,0.3)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+      }}
     >
-      <span className="text-sm font-mono tracking-wider opacity-60 text-center truncate max-w-full">
-        {hostname}
+      {favicon && (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img src={favicon} alt="" className="w-5 h-5 rounded-sm" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+      )}
+      <span className="text-[11px] font-mono tracking-wider text-white/50 text-center truncate max-w-full">
+        {displayTitle !== hostname ? displayTitle : hostname}
       </span>
+      {displayTitle !== hostname && (
+        <span className="text-[9px] font-mono tracking-wider text-white/30">
+          {hostname}
+        </span>
+      )}
     </a>
   )
 }
