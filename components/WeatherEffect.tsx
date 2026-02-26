@@ -64,8 +64,15 @@ export default function WeatherEffect({ type }: { type: 'rain' | 'snow' | null }
     animId = requestAnimationFrame(animate)
 
     const handleResize = () => {
-      canvas.width = window.innerWidth
-      canvas.height = window.innerHeight
+      const newW = window.innerWidth
+      const newH = window.innerHeight
+      canvas.width = newW
+      canvas.height = newH
+      // Redistribute particles across the new viewport
+      particles.forEach(p => {
+        if (p.x > newW) p.x = Math.random() * newW
+        if (p.y > newH) p.y = Math.random() * newH
+      })
     }
     window.addEventListener('resize', handleResize)
     return () => {

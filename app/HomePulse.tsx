@@ -34,35 +34,21 @@ export default function HomePulse() {
 
   return (
     <div
-      className="mt-10 flex items-center gap-4"
-      style={{ animation: 'fadeUp 0.6s ease-out 0.5s backwards' }}
+      className="fixed bottom-16 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4 animate-fade-up"
     >
       <span className="w-1.5 h-1.5 rounded-full bg-green-400/60 animate-pulse flex-shrink-0" />
 
       {current && (
-        <p
-          className="text-white/15 text-xs transition-opacity duration-300"
-          style={{ fontFamily: "'DM Sans', sans-serif" }}
-        >
+        <p className="text-white/15 text-xs transition-opacity duration-300">
           #{current.serial.toLocaleString()} claimed {current.ago}
         </p>
       )}
 
       <span className="text-white/8">·</span>
 
-      <p
-        className="text-white/10 text-xs"
-        style={{ fontFamily: "'DM Sans', sans-serif" }}
-      >
+      <p className="text-white/10 text-xs">
         {pulse.remaining.toLocaleString()} left
       </p>
-
-      <style jsx>{`
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
     </div>
   )
 }

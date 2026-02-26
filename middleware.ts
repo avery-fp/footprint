@@ -45,45 +45,50 @@ function withSecurityHeaders(response: ReturnType<typeof NextResponse.next>) {
 }
 
 export function middleware(request: NextRequest) {
-  const { pathname, search } = request.nextUrl
-  const host = request.headers.get('host') || ''
+  try {
+    const { pathname, search } = request.nextUrl
+    const host = request.headers.get('host') || ''
 
-  // ── 1. Canonical host: redirect apex → www ──
-  if (host === 'footprint.onl') {
-    const canonical = new URL(`https://www.footprint.onl${pathname}${search}`)
-    return NextResponse.redirect(canonical, 301)
+    // ── 1. Canonical host: redirect apex → www ──
+    if (host === 'footprint.onl') {
+      const canonical = new URL(`https://www.footprint.onl${pathname}${search}`)
+      return NextResponse.redirect(canonical, 301)
+    }
+
+    // ── 2. Public routes ──
+    if (publicRoutes.some(route => pathname === route || pathname.startsWith(route + '/'))) {
+      return withSecurityHeaders(NextResponse.next())
+    }
+
+    // All /api routes are public (handled by their own auth)
+    if (pathname.startsWith('/api/') || pathname.startsWith('/api')) {
+      return withSecurityHeaders(NextResponse.next())
+    }
+
+    // Public profile pages: /{slug} (single segment, no sub-path)
+    const isPublicProfile = /^\/[a-zA-Z0-9_-]+$/.test(pathname)
+    if (isPublicProfile) {
+      return withSecurityHeaders(NextResponse.next())
+    }
+
+    // ── 3. Auth-required routes ──
+    // Everything below here requires a session cookie.
+    // /{slug}/home and any other sub-paths are auth-required.
+    const session = request.cookies.get('fp_session')
+
+    if (session?.value) {
+      // Cookie exists → let them through. API routes validate the JWT.
+      return withSecurityHeaders(NextResponse.next())
+    }
+
+    // No session → redirect to signup (unified auth)
+    const loginUrl = request.nextUrl.clone()
+    loginUrl.pathname = '/signup'
+    return NextResponse.redirect(loginUrl)
+  } catch {
+    // If middleware errors, allow the request through rather than 500ing the whole site
+    return NextResponse.next()
   }
-
-  // ── 2. Public routes ──
-  if (publicRoutes.some(route => pathname === route || pathname.startsWith(route + '/'))) {
-    return withSecurityHeaders(NextResponse.next())
-  }
-
-  // All /api routes are public (handled by their own auth)
-  if (pathname.startsWith('/api/') || pathname.startsWith('/api')) {
-    return withSecurityHeaders(NextResponse.next())
-  }
-
-  // Public profile pages: /{slug} (single segment, no sub-path)
-  const isPublicProfile = /^\/[a-zA-Z0-9_-]+$/.test(pathname)
-  if (isPublicProfile) {
-    return withSecurityHeaders(NextResponse.next())
-  }
-
-  // ── 3. Auth-required routes ──
-  // Everything below here requires a session cookie.
-  // /{slug}/home and any other sub-paths are auth-required.
-  const session = request.cookies.get('fp_session')
-
-  if (session?.value) {
-    // Cookie exists → let them through. API routes validate the JWT.
-    return withSecurityHeaders(NextResponse.next())
-  }
-
-  // No session → redirect to signup (unified auth)
-  const loginUrl = request.nextUrl.clone()
-  loginUrl.pathname = '/signup'
-  return NextResponse.redirect(loginUrl)
 }
 
 export const config = {
