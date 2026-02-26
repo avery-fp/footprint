@@ -8,6 +8,7 @@ import EventTracker from '@/components/EventTracker'
 import ReferralBanner from '@/components/ReferralBanner'
 import PublicPage from './[slug]/PublicPage'
 import MakeYoursCTA from './MakeYoursCTA'
+import HomePulse from './HomePulse'
 
 export const revalidate = 60
 
@@ -101,6 +102,7 @@ export default async function Home() {
         serial={serial}
         pageUrl={pageUrl}
       />
+      {!isLoggedIn && <HomePulse />}
       <MakeYoursCTA isLoggedIn={isLoggedIn} />
     </>
   )

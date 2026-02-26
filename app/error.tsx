@@ -13,8 +13,6 @@ export default function GlobalError({
 }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-[#080808]">
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');`}</style>
-
       <div className="max-w-md text-center">
         <p
           className="text-white/12 text-[10px] tracking-[0.3em] uppercase mb-10"

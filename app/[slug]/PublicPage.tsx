@@ -91,7 +91,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       const visible = rooms.filter(r => r.name && r.name.trim().length > 0)
       if (visible.length > 0) setActiveRoomId(visible[0].id)
     }
-  }, [rooms])
+  }, [rooms, activeRoomId])
 
   const [wallpaperLoaded, setWallpaperLoaded] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -569,7 +569,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
       {/* Floating CTA bar */}
       {!isDraft && (
-        <FloatingCtaBar username={footprint.username} serial={serial} />
+        <FloatingCtaBar username={footprint.username} serial={serial} isOwner={isOwner} />
       )}
 
       {/* Copied toast */}
