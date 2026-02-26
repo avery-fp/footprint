@@ -1,10 +1,13 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, memo } from 'react'
 import Image from 'next/image'
 import { motion, LayoutGroup, useReducedMotion } from 'framer-motion'
-import ContentCard from '@/components/ContentCard'
-import VideoTile from '@/components/VideoTile'
+import ContentCardBase from '@/components/ContentCard'
+import VideoTileBase from '@/components/VideoTile'
+
+const ContentCard = memo(ContentCardBase)
+const VideoTile = memo(VideoTileBase)
 import WeatherEffect from '@/components/WeatherEffect'
 import { PlusButton } from '@/components/PlusButton'
 import { RemoveBubble } from '@/components/RemoveBubble'
@@ -153,12 +156,16 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     setShowToast(true)
   }
 
-  // Mobile detection
+  // Mobile detection (debounced)
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768)
-    check()
+    let timeout: ReturnType<typeof setTimeout>
+    const check = () => {
+      clearTimeout(timeout)
+      timeout = setTimeout(() => setIsMobile(window.innerWidth < 768), 150)
+    }
+    setIsMobile(window.innerWidth < 768)
     window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
+    return () => { window.removeEventListener('resize', check); clearTimeout(timeout) }
   }, [])
 
   // Check if user is logged in + owner
@@ -260,7 +267,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             width={w}
             height={h}
             sizes={getImageSizes(size)}
-            className="w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-out"
+            className="w-full h-full object-contain opacity-0 transition-opacity duration-500 ease-out"
             loading={index < 4 ? 'eager' : 'lazy'}
             priority={index < 2}
             quality={75}
@@ -384,9 +391,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
   return (
     <div className="min-h-screen relative flex flex-col" style={{ background: theme.colors.background, color: theme.colors.text, '--fp-glass': theme.colors.glass, '--fp-text-muted': theme.colors.textMuted } as React.CSSProperties}>
-      {/* Wallpaper layer */}
+      {/* Wallpaper layer — GPU composited for 60fps scroll */}
       {footprint.background_url && (
-        <div className="fixed inset-0 z-0">
+        <div className="fixed inset-0 z-0 fp-wallpaper-gpu">
           <Image
             src={footprint.background_url}
             alt=""
@@ -394,6 +401,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             priority
             quality={60}
             sizes="100vw"
+            fetchPriority="high"
             className={`object-cover transition-opacity duration-700 ${wallpaperLoaded ? 'opacity-100' : 'opacity-0'}`}
             style={{
               filter: footprint.background_blur !== false ? wallpaperFilter : 'none',

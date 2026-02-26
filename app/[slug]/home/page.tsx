@@ -75,8 +75,8 @@ function getAspectClass(aspect: string) {
 }
 
 function getObjectFit(_aspect: string) {
-  // Always cover — no letterboxing, no pillarboxing, no black bars
-  return 'object-cover'
+  // Contain — scale proportionally, never crop content
+  return 'object-contain'
 }
 
 function SortableTile({
@@ -248,7 +248,7 @@ function SortableTile({
       ref={composedRef}
       layout
       layoutId={`editor-tile-${id}`}
-      transition={{ type: 'spring', stiffness: 350, damping: 28, mass: 0.8 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 26, mass: 0.6 }}
       style={style}
       className={sizeClass}
       data-tile
@@ -529,12 +529,16 @@ export default function EditPage() {
     }, 150)
   }, [activeRoomId, gridFade])
 
-  // Mobile detection
+  // Mobile detection (debounced)
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768)
-    check()
+    let timeout: ReturnType<typeof setTimeout>
+    const check = () => {
+      clearTimeout(timeout)
+      timeout = setTimeout(() => setIsMobile(window.innerWidth < 768), 150)
+    }
+    setIsMobile(window.innerWidth < 768)
     window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
+    return () => { window.removeEventListener('resize', check); clearTimeout(timeout) }
   }, [])
 
   // Keyboard shortcuts — Escape to dismiss, step by step
@@ -604,8 +608,8 @@ export default function EditPage() {
   }, [draft])
 
   // Desktop: click-and-drag. Mobile: tap-to-swap (no dnd-kit touch sensor).
-  const mouseSensor = useSensor(MouseSensor, { activationConstraint: { distance: 8 } })
-  const touchSensor = useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
+  const mouseSensor = useSensor(MouseSensor, { activationConstraint: { distance: 4 } })
+  const touchSensor = useSensor(TouchSensor, { activationConstraint: { delay: 100, tolerance: 8 } })
   const keyboardSensor = useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   const sensors = isMobile
     ? [mouseSensor, keyboardSensor]
