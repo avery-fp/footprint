@@ -120,7 +120,7 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
           {!isReady && (
             <div
               className="absolute inset-0"
-              style={{ background: 'rgba(255,255,255,0.04)', backdropFilter: 'blur(4px)' }}
+              style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(4px)' }}
             />
           )}
           {/* Brief play/pause tap feedback — flashes then disappears */}
@@ -146,7 +146,7 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
         // Skeleton placeholder while not near viewport
         <div
           className="w-full h-full"
-          style={{ background: 'rgba(255,255,255,0.04)', minHeight: '200px' }}
+          style={{ background: 'rgba(255,255,255,0.08)', minHeight: '200px' }}
         />
       )}
     </div>

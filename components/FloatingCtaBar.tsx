@@ -63,11 +63,11 @@ export default function FloatingCtaBar() {
       onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
     >
       <span>footprint</span>
-      <span style={{ opacity: 0.4 }}>&middot;</span>
+      <span style={{ opacity: 0.4 }}>{'\u00B7'}</span>
       <span>$10</span>
-      <span style={{ opacity: 0.4 }}>&middot;</span>
+      <span style={{ opacity: 0.4 }}>{'\u00B7'}</span>
       <span>make yours</span>
-      <span style={{ opacity: 0.5 }}>&rarr;</span>
+      <span style={{ opacity: 0.5 }}>{'\u2192'}</span>
     </a>
   )
 }
