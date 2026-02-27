@@ -348,23 +348,27 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         transition: 'opacity 250ms ease-out, transform 350ms ease-out',
       }}
     >
-      {content.map((item: any, idx: number) => (
-        <motion.div
-          key={item.id}
-          layout={!prefersReducedMotion}
-          layoutId={prefersReducedMotion ? undefined : `tile-${item.id}`}
-          initial={false}
-          animate={hasInteracted ? { opacity: 1, scale: 1 } : false}
-          transition={hasInteracted ? MODE_SPRING : { duration: 0 }}
-          style={{
-            overflow: 'hidden',
-            borderRadius: '0px',
-            background: 'rgba(255,255,255,0.06)',
-          }}
-        >
-          {renderTileContent(item, idx, 3, 'auto')}
-        </motion.div>
-      ))}
+      {content.map((item: any, idx: number) => {
+        const isVisual = item.type === 'image' || item.type === 'video' || item.type === 'youtube' || item.type === 'vimeo'
+        return (
+          <motion.div
+            key={item.id}
+            layout={!prefersReducedMotion}
+            layoutId={prefersReducedMotion ? undefined : `tile-${item.id}`}
+            initial={false}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={hasInteracted ? MODE_SPRING : { duration: 0 }}
+            style={{
+              overflow: 'hidden',
+              borderRadius: '0px',
+              background: 'rgba(255,255,255,0.06)',
+              ...(isVisual ? { aspectRatio: '16 / 9' } : {}),
+            }}
+          >
+            {renderTileContent(item, idx, 3, 'auto')}
+          </motion.div>
+        )
+      })}
     </div>
   )
 
@@ -402,7 +406,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                   layout={!prefersReducedMotion}
                   layoutId={prefersReducedMotion ? undefined : `tile-${item.id}`}
                   initial={false}
-                  animate={hasInteracted ? { opacity: 1, scale: 1 } : false}
+                  animate={{ opacity: 1, scale: 1 }}
                   transition={hasInteracted ? MODE_SPRING : { duration: 0 }}
                   style={{
                     aspectRatio: tileAspect,
@@ -442,7 +446,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             layout={!prefersReducedMotion}
             layoutId={prefersReducedMotion ? undefined : `tile-${item.id}`}
             initial={false}
-            animate={hasInteracted ? { opacity: 1, scale: 1 } : false}
+            animate={{ opacity: 1, scale: 1 }}
             transition={hasInteracted ? MODE_SPRING : { duration: 0 }}
             className="overflow-hidden aspect-square"
             style={{
