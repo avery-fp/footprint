@@ -63,43 +63,45 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
-    // Upsert reservation — only overwrite if the existing one is expired
-    const { data, error } = await supabase.rpc('reserve_username', {
-      p_username: username,
-    })
+    // Check if username is already taken by an active user
+    const { data: existingFootprint } = await supabase
+      .from('footprints')
+      .select('username')
+      .eq('username', username)
+      .single()
 
-    if (error) {
-      // If the RPC doesn't exist yet, fall back to direct insert
-      const { data: fallbackData, error: fallbackError } = await supabase
-        .from('username_reservations')
-        .upsert(
-          {
-            username,
-            token: crypto.randomUUID(),
-            expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-          },
-          { onConflict: 'username' }
-        )
-        .select('token, expires_at')
-        .single()
+    if (existingFootprint) {
+      return NextResponse.json(
+        { error: 'That username is not available.' },
+        { status: 400 }
+      )
+    }
 
-      if (fallbackError) {
-        log.error({ err: fallbackError }, 'Username reservation failed')
-        return NextResponse.json(
-          { error: 'Could not reserve username.' },
-          { status: 500 }
-        )
-      }
+    // Upsert reservation (overwrites expired ones via onConflict)
+    const { data: reservation, error: reserveError } = await supabase
+      .from('username_reservations')
+      .upsert(
+        {
+          username,
+          token: crypto.randomUUID(),
+          expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+        },
+        { onConflict: 'username' }
+      )
+      .select('token, expires_at')
+      .single()
 
-      return NextResponse.json({
-        reservation_token: fallbackData.token,
-        expires_at: fallbackData.expires_at,
-      })
+    if (reserveError) {
+      log.error({ err: reserveError }, 'Username reservation failed')
+      return NextResponse.json(
+        { error: 'Could not reserve username.' },
+        { status: 500 }
+      )
     }
 
     return NextResponse.json({
-      reservation_token: data?.token || data,
-      expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+      reservation_token: reservation.token,
+      expires_at: reservation.expires_at,
     })
   } catch (error) {
     log.error({ err: error }, 'Username reservation failed')
