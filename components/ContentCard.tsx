@@ -216,7 +216,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       return (
         <div
           ref={containerRef}
-          className={`w-full ${aspectClass} fp-tile overflow-hidden cursor-pointer relative group bg-black`}
+          className={`w-full ${aspectClass || 'aspect-square'} fp-tile overflow-hidden cursor-pointer relative group bg-black`}
           onClick={handleActivate}
         >
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
@@ -305,7 +305,9 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               style={{ overflow: 'hidden' }}
               dangerouslySetInnerHTML={{ __html: darkEmbed }}
             />
-          ) : null}
+          ) : (
+            <div className="w-full h-full" style={{ background: 'rgba(0,0,0,0.3)' }} />
+          )}
         </div>
       )
     }
@@ -340,13 +342,15 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     // Fallback: stored embed_html
     if (content.embed_html) {
       return (
-        <div ref={containerRef} className={`w-full ${aspectClass} fp-tile overflow-hidden relative bg-black`}>
+        <div ref={containerRef} className={`w-full ${aspectClass || 'aspect-video'} fp-tile overflow-hidden relative bg-black`}>
           {isInView ? (
             <div
               className="absolute inset-0 [&_iframe]:!w-full [&_iframe]:!h-full materialize"
               dangerouslySetInnerHTML={{ __html: content.embed_html }}
             />
-          ) : null}
+          ) : (
+            <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.3)' }} />
+          )}
         </div>
       )
     }
@@ -369,7 +373,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             onLoadedData={(e) => { setIsLoaded(true); (e.target as HTMLVideoElement).play().catch(() => {}) }}
           />
         ) : (
-          <div className={`w-full ${aspectClass}`} />
+          <div className={`w-full ${aspectClass || 'aspect-video'}`} style={{ background: 'rgba(0,0,0,0.3)' }} />
         )}
       </div>
     )
