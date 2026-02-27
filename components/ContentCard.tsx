@@ -184,7 +184,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       const embed = parseEmbed(content.url)
       if (embed) {
         return (
-          <div ref={containerRef} className="w-full fp-tile fp-embed-glass overflow-hidden bg-[#191414]" style={{ height: `${embed.height}px` }}>
+          <div ref={containerRef} className="w-full h-full fp-tile fp-embed-glass overflow-hidden bg-[#191414]" style={{ minHeight: `${embed.height}px` }}>
             {isInView ? (
               <iframe
                 style={{ border: 'none', background: 'transparent', maxWidth: '100%' }}
@@ -317,7 +317,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             loop
             playsInline
             preload="metadata"
-            className={`w-full ${aspectClass} ${fitClass}`}
+            className={`w-full ${aspectClass || 'aspect-video'} ${fitClass}`}
             onLoadedData={(e) => { setIsLoaded(true); (e.target as HTMLVideoElement).play().catch(() => {}) }}
           />
         ) : (
