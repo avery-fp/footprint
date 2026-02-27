@@ -367,9 +367,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                   key={item.id}
                   layout={!prefersReducedMotion}
                   layoutId={prefersReducedMotion ? undefined : `tile-${item.id}`}
-                  initial={hasInteracted || prefersReducedMotion ? false : { opacity: 0, scale: 0.97 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={prefersReducedMotion ? { duration: 0 } : hasInteracted ? MODE_SPRING : { duration: 0.4, delay: globalIdx * 0.06, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  initial={false}
+                  animate={hasInteracted ? { opacity: 1, scale: 1 } : false}
+                  transition={hasInteracted ? MODE_SPRING : { duration: 0 }}
                   style={{
                     aspectRatio: tileAspect,
                     overflow: 'hidden',
@@ -407,9 +407,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             key={item.id}
             layout={!prefersReducedMotion}
             layoutId={prefersReducedMotion ? undefined : `tile-${item.id}`}
-            initial={hasInteracted || prefersReducedMotion ? false : { opacity: 0, scale: 0.97 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={prefersReducedMotion ? { duration: 0 } : hasInteracted ? MODE_SPRING : { duration: 0.35, delay: idx * 0.04, ease: [0.25, 0.46, 0.45, 0.94] }}
+            initial={false}
+            animate={hasInteracted ? { opacity: 1, scale: 1 } : false}
+            transition={hasInteracted ? MODE_SPRING : { duration: 0 }}
             className="overflow-hidden aspect-square"
             style={{
               borderRadius: `${layoutConfig.tileRadius}px`,
