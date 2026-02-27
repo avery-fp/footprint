@@ -13,7 +13,7 @@ import { snapToPreset } from '@/lib/aspect-ratios'
 import Image from 'next/image'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import LayoutToggle from '@/components/LayoutToggle'
-import type { LayoutMode } from '@/lib/layout-engine'
+import { type LayoutMode, getLayoutConfig } from '@/lib/layout-engine'
 
 interface TileContent extends DraftContent {
   source?: 'library' | 'links'
@@ -1701,12 +1701,14 @@ export default function EditPage() {
               items={filteredContent.map(item => item.id)}
               strategy={rectSortingStrategy}
             >
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-[2px]" style={{
+              <div className="grid grid-cols-2 md:grid-cols-4" style={{
+                gap: `${getLayoutConfig(layoutMode).gap}px`,
+                '--fp-tile-radius': `${getLayoutConfig(layoutMode).tileRadius}px`,
                 gridAutoRows: 'auto',
                 gridAutoFlow: 'dense',
                 opacity: gridFade === 'out' ? 0 : 1,
-                transition: 'opacity 150ms ease-out',
-              }}>
+                transition: 'opacity 150ms ease-out, gap 350ms ease-out',
+              } as React.CSSProperties}>
                 {filteredContent.map(item => (
                   <SortableTile
                     key={item.id}
