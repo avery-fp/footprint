@@ -377,6 +377,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                     overflow: 'hidden',
                     borderRadius: `${layoutConfig.tileRadius}px`,
                     boxShadow: layoutConfig.tileShadow,
+                    background: 'rgba(255,255,255,0.06)',
                     ...(isMusicEmbed ? { alignSelf: 'start' } : {}),
                   }}
                 >
@@ -417,6 +418,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             style={{
               borderRadius: `${layoutConfig.tileRadius}px`,
               boxShadow: layoutConfig.tileShadow,
+              background: 'rgba(255,255,255,0.06)',
               ...(isMusicEmbed ? { alignSelf: 'start' } : {}),
             }}
           >
