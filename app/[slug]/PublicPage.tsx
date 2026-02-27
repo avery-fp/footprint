@@ -72,8 +72,8 @@ const DEFAULT_OVERLAY = 'rgba(0,0,0,0.35)'
 
 function getImageSizes(size: number): string {
   if (size >= 3) return '(max-width: 768px) 100vw, 880px'
-  if (size >= 2) return '(max-width: 768px) 100vw, 50vw'
-  return '(max-width: 768px) 50vw, 25vw'
+  if (size >= 2) return '(max-width: 768px) 50vw, 50vw'
+  return '(max-width: 768px) 33vw, 25vw'
 }
 
 /**
@@ -100,7 +100,7 @@ function TileImage({ src, alt, width, height, sizes, index, onWidescreen }: {
       <img
         src={src}
         alt={alt}
-        className="w-full h-full object-contain"
+        className="w-full h-full object-cover"
         loading={index < 4 ? 'eager' : 'lazy'}
         decoding="async"
       />
@@ -114,7 +114,7 @@ function TileImage({ src, alt, width, height, sizes, index, onWidescreen }: {
       width={width}
       height={height}
       sizes={sizes}
-      className={`w-full h-full object-contain transition-opacity duration-500 ease-out ${visible ? 'opacity-100' : 'opacity-0'}`}
+      className={`w-full h-full object-cover transition-opacity duration-500 ease-out ${visible ? 'opacity-100' : 'opacity-0'}`}
       loading={index < 4 ? 'eager' : 'lazy'}
       priority={index < 2}
       quality={75}
@@ -316,7 +316,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         <div className="w-full h-full overflow-hidden" data-tile-id={item.id} data-tile-type={item.type}>
           <TileImage
             src={item.url}
-            alt={item.title || item.type || ''}
+            alt={item.title || ''}
             width={w}
             height={h}
             sizes={getImageSizes(size)}
@@ -377,6 +377,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                     overflow: 'hidden',
                     borderRadius: `${layoutConfig.tileRadius}px`,
                     boxShadow: layoutConfig.tileShadow,
+                    background: 'rgba(255,255,255,0.06)',
                     ...(isMusicEmbed ? { alignSelf: 'start' } : {}),
                   }}
                 >
@@ -395,7 +396,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // ═══════════════════════════════════════════
   const uniformGrid = (
     <div
-      className="grid grid-cols-2 md:grid-cols-3"
+      className="grid grid-cols-3 md:grid-cols-4"
       style={{
         gap: `${layoutConfig.gap}px`,
         opacity: roomFade === 'out' ? 0 : 1,
@@ -417,6 +418,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             style={{
               borderRadius: `${layoutConfig.tileRadius}px`,
               boxShadow: layoutConfig.tileShadow,
+              background: 'rgba(255,255,255,0.06)',
               ...(isMusicEmbed ? { alignSelf: 'start' } : {}),
             }}
           >
@@ -428,11 +430,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   )
 
   // Select grid based on layout mode
-  const allTileIds = useMemo(() => baseContent.map((item: any) => item.id), [baseContent])
   const activeGrid = layoutMode === 'grid' ? uniformGrid : editorialGrid
 
   return (
-    <div className="min-h-screen relative flex flex-col" style={{ background: theme.colors.background, color: theme.colors.text, '--fp-glass': theme.colors.glass, '--fp-text-muted': theme.colors.textMuted } as React.CSSProperties}>
+    <div className="min-h-[100dvh] relative flex flex-col" style={{ background: theme.colors.background, color: theme.colors.text, '--fp-glass': theme.colors.glass, '--fp-text-muted': theme.colors.textMuted } as React.CSSProperties}>
       {/* Wallpaper layer — GPU composited for 60fps scroll */}
       {footprint.background_url && (
         <div className="fixed inset-0 z-0 fp-wallpaper-gpu">
@@ -619,15 +620,16 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
       {/* Floating CTA bar */}
       {!isDraft && (
-        <FloatingCtaBar username={footprint.username} serial={serial} />
+        <FloatingCtaBar />
       )}
 
       {/* Copied toast */}
       {showToast && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 bg-white/[0.08] backdrop-blur-sm rounded-md px-5 py-2 text-white/60 text-sm materialize">
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-white/[0.08] backdrop-blur-sm rounded-md px-5 py-2 text-white/60 text-sm materialize">
           copied.
         </div>
       )}
+
     </div>
   )
 }

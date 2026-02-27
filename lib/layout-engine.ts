@@ -5,12 +5,18 @@
 
 export type LayoutMode = 'editorial' | 'breathe' | 'grid'
 
+export interface TileLayer {
+  type: 'mainContent' | 'overlay' | 'background'
+  content?: any
+}
+
 export interface LayoutTile {
   id: string
   type: string
   url?: string
   aspect?: string | null
   size?: number
+  layers: TileLayer[]
   [key: string]: any
 }
 
@@ -151,7 +157,7 @@ export function getLayoutConfig(mode: LayoutMode): LayoutConfig {
     case 'editorial':
     default:
       return {
-        gap: 2,
+        gap: 3,
         tileRadius: 0,
         tileShadow: 'none',
         containerPadding: 0,
@@ -215,4 +221,16 @@ export function getRowTileAspect(rowType: RowType): string {
     default:
       return '1 / 1'
   }
+}
+
+/**
+ * Ensure every tile has a layers[] array.
+ * Default: [{ type: 'mainContent' }] — the tile itself is the first layer.
+ * The array is the foundation for depth later (overlays, backgrounds, etc.)
+ */
+export function normalizeTileLayers<T extends Record<string, any>>(tile: T): T & { layers: TileLayer[] } {
+  if (tile.layers && Array.isArray(tile.layers) && tile.layers.length > 0) {
+    return tile as T & { layers: TileLayer[] }
+  }
+  return { ...tile, layers: [{ type: 'mainContent' }] }
 }

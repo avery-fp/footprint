@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import Image from 'next/image'
-import { getContentIcon, getContentBackground, ContentType } from '@/lib/parser'
+import type { ContentType } from '@/lib/parser'
 import { audioManager } from '@/lib/audio-manager'
 import { parseEmbed, getYouTubeThumbnail } from '@/lib/parseEmbed'
 import type { EmbedResult } from '@/lib/parseEmbed'
@@ -39,7 +39,7 @@ interface ContentCardProps {
  */
 export default function ContentCard({ content, onWidescreen, isMobile = false, tileSize = 1, aspect = 'square', isPublicView = false }: ContentCardProps) {
   const aspectClass = aspect === 'wide' ? 'aspect-video' : aspect === 'tall' ? 'aspect-[9/16]' : aspect === 'auto' ? '' : 'aspect-square'
-  const fitClass = 'object-contain'
+  const fitClass = 'object-cover'
   const [isActivated, setIsActivated] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
   const [isInView, setIsInView] = useState(false)
@@ -119,13 +119,12 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     }
     if (embed) {
       return (
-        <div className={`w-full ${aspectClass} fp-tile overflow-hidden relative materialize`}>
+        <div className={`w-full ${aspectClass} fp-tile overflow-hidden relative bg-black`}>
           <iframe
             src={`${embed.embedUrl}?autoplay=1&rel=0`}
             className="absolute inset-0 w-full h-full"
             allow="autoplay; encrypted-media"
             allowFullScreen
-            loading="lazy"
             sandbox="allow-scripts allow-same-origin allow-popups allow-presentation allow-forms"
             referrerPolicy="origin"
             onError={() => setIframeFailed(true)}
@@ -181,7 +180,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       const embed = parseEmbed(content.url)
       if (embed) {
         return (
-          <div ref={containerRef} className="w-full fp-tile overflow-hidden bg-[#191414]" style={{ height: `${embed.height}px`, maxWidth: '100%' }}>
+          <div ref={containerRef} className="w-full fp-tile fp-embed-glass overflow-hidden" style={{ height: `${embed.height}px`, maxWidth: '100%' }}>
             {isInView ? (
               <iframe
                 style={{ border: 'none', background: 'transparent', maxWidth: '100%' }}
@@ -231,7 +230,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       return (
         <div
           ref={containerRef}
-          className={`w-full fp-tile overflow-hidden materialize bg-black`}
+          className={`w-full fp-tile fp-embed-glass overflow-hidden`}
           style={{ height: `${embed.height}px` }}
         >
           <iframe
@@ -252,7 +251,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     if (content.embed_html) {
       return (
         <div
-          className={`w-full ${aspectClass} fp-tile overflow-hidden materialize bg-black [&_iframe]:!h-full`}
+          className={`w-full ${aspectClass} fp-tile overflow-hidden bg-black [&_iframe]:!h-full`}
           dangerouslySetInnerHTML={{ __html: content.embed_html }}
         />
       )
@@ -266,7 +265,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     const embed = parseEmbed(content.url)
     if (embed) {
       return (
-        <div ref={containerRef} className="w-full fp-tile overflow-hidden bg-black" style={{ height: `${embed.height}px`, maxWidth: '100%' }}>
+        <div ref={containerRef} className="w-full fp-tile fp-embed-glass overflow-hidden" style={{ height: `${embed.height}px`, maxWidth: '100%' }}>
           {isInView ? (
             <iframe
               src={`${embed.embedUrl}?theme=dark`}
@@ -313,7 +312,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     const embed = parseEmbed(content.url)
     if (embed) {
       return (
-        <div ref={containerRef} className={`w-full ${aspectClass} fp-tile overflow-hidden relative bg-black`}>
+        <div ref={containerRef} className={`w-full ${aspectClass} fp-tile fp-embed-glass overflow-hidden relative`}>
           {isInView ? (
             <iframe
               src={embed.embedUrl}
@@ -384,7 +383,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             width={600}
             height={800}
             sizes="(max-width: 768px) 50vw, 25vw"
-            className={`w-full h-auto object-contain transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+            className={`w-full h-full object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
             loading="lazy"
             quality={75}
             onLoad={(e) => {
@@ -525,7 +524,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           alt={content.title || ''}
           fill
           sizes={tileSize >= 2 ? '(max-width: 768px) 100vw, 50vw' : '(max-width: 768px) 50vw, 25vw'}
-          className={`object-contain transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+          className={`object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
           loading="lazy"
           quality={75}
           onLoad={() => setIsLoaded(true)}
