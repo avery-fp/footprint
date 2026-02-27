@@ -182,6 +182,8 @@ input:-webkit-autofill:focus {
 /* Individual tile — flush edges, tessellates */
 .fp-tile {
   background: rgba(255, 255, 255, 0.025);
+  border-radius: var(--fp-tile-radius, 0px);
+  transition: border-radius 350ms ease-out;
 }
 
 /* ═══ Resize behavior: fill the tile edge to edge ═══ */
@@ -372,7 +374,7 @@ input:-webkit-autofill:focus {
 /* Desktop tile hover — subtle brightness on pointer devices */
 @media (hover: hover) {
   .fp-tile {
-    transition: filter 0.15s ease;
+    transition: filter 0.15s ease, border-radius 350ms ease-out;
   }
   .tile-container:not(.tile-arranging):hover .fp-tile {
     filter: brightness(1.06);
