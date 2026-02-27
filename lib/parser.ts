@@ -38,6 +38,7 @@ const PATTERNS: Record<string, { regex: RegExp; type: ContentType }[]> = {
   youtube: [
     { regex: /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/, type: 'youtube' },
     { regex: /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/, type: 'youtube' },
+    { regex: /youtube\.com\/live\/([a-zA-Z0-9_-]{11})/, type: 'youtube' },
   ],
   spotify: [
     { regex: /open\.spotify\.com\/(track|album|playlist|artist|episode)\/([a-zA-Z0-9]+)/, type: 'spotify' },

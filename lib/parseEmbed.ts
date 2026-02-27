@@ -47,7 +47,7 @@ function parseSpotify(url: string): EmbedResult | null {
 
 function parseYouTube(url: string): EmbedResult | null {
   const m = url.match(
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/
   )
   if (!m) return null
   return {
@@ -198,7 +198,7 @@ export function parseEmbed(url: string): EmbedResult | null {
  */
 export function getYouTubeThumbnail(url: string): string | null {
   const m = url.match(
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/
   )
   return m ? `https://img.youtube.com/vi/${m[1]}/hqdefault.jpg` : null
 }
