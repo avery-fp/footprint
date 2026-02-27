@@ -254,7 +254,7 @@ function SortableTile({
       data-tile
     >
       <div
-        className={`tile-inner relative fp-tile overflow-hidden w-full ${aspect !== 'auto' ? 'h-full' : ''} ${
+        className={`tile-inner relative fp-tile overflow-hidden w-full ${aspect !== 'auto' ? 'h-full' : isVideo ? 'aspect-video' : ''} ${
           isArranging
             ? isMobile
               ? 'tile-arranging ring-1 ring-white/20'
@@ -273,7 +273,7 @@ function SortableTile({
               <video
                 ref={videoRef}
                 src={content.url}
-                className={`${aspect === 'auto' ? 'w-full h-auto' : 'absolute inset-0 w-full h-full'} ${getObjectFit(aspect)} cursor-pointer ${isArranging ? 'pointer-events-none' : ''}`}
+                className={`absolute inset-0 w-full h-full object-cover cursor-pointer ${isArranging ? 'pointer-events-none' : ''}`}
                 muted
                 loop
                 playsInline
