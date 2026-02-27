@@ -77,26 +77,17 @@ function getImageSizes(size: number): string {
 }
 
 /**
- * TileImage — bulletproof image tile with error recovery + timeout safety.
- *
- * Three layers of protection:
- * 1. onLoad → standard fade-in (happy path)
- * 2. onError → fallback to raw <img> bypassing Next.js optimizer
- * 3. 4s timeout → force-reveal if neither load nor error fired
+ * TileImage — bulletproof image tile with error recovery.
+ * Always visible immediately. onError falls back to raw <img>.
  */
 function TileImage({ src, alt, width, height, sizes, index, onWidescreen }: {
   src: string; alt: string; width: number; height: number; sizes: string; index: number; onWidescreen?: () => void
 }) {
-  const [visible, setVisible] = useState(false)
   const [failed, setFailed] = useState(false)
-
-  useEffect(() => {
-    const t = setTimeout(() => setVisible(true), 4000)
-    return () => clearTimeout(t)
-  }, [])
 
   if (failed) {
     return (
+      // eslint-disable-next-line @next/next/no-img-element
       <img
         src={src}
         alt={alt}
@@ -114,13 +105,12 @@ function TileImage({ src, alt, width, height, sizes, index, onWidescreen }: {
       width={width}
       height={height}
       sizes={sizes}
-      className={`w-full h-full object-cover transition-opacity duration-500 ease-out ${visible ? 'opacity-100' : 'opacity-0'}`}
+      className="w-full h-full object-cover"
       loading={index < 4 ? 'eager' : 'lazy'}
       priority={index < 2}
       quality={75}
       fetchPriority={index === 0 ? 'high' : undefined}
       onLoad={(e) => {
-        setVisible(true)
         const img = e.currentTarget as HTMLImageElement
         if (img.naturalWidth > img.naturalHeight * 1.3) onWidescreen?.()
       }}
@@ -303,7 +293,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
     if (isVideo) {
       return (
-        <div className="w-full h-full aspect-video" data-tile-id={item.id} data-tile-type={item.type}>
+        <div className="w-full h-full" data-tile-id={item.id} data-tile-type={item.type}>
           <VideoTile src={item.url} onWidescreen={noop} />
         </div>
       )
@@ -355,7 +345,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             key={item.id}
             layout={!prefersReducedMotion}
             layoutId={prefersReducedMotion ? undefined : `tile-${item.id}`}
-            initial={false}
+            initial={{ opacity: 1, scale: 1 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={hasInteracted ? MODE_SPRING : { duration: 0 }}
             style={{
@@ -445,7 +435,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             key={item.id}
             layout={!prefersReducedMotion}
             layoutId={prefersReducedMotion ? undefined : `tile-${item.id}`}
-            initial={false}
+            initial={{ opacity: 1, scale: 1 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={hasInteracted ? MODE_SPRING : { duration: 0 }}
             className="overflow-hidden aspect-square"
