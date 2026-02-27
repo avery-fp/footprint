@@ -88,25 +88,28 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     const embed = parseEmbed(content.url)
     const thumbnailUrl = content.thumbnail_url || getYouTubeThumbnail(content.url)
 
-    if (!isActivated && thumbnailUrl) {
+    // Facade — show thumbnail (or dark bg) with play button until tapped
+    if (!isActivated) {
       return (
         <div
           ref={containerRef}
-          className={`w-full ${aspectClass} fp-tile overflow-hidden cursor-pointer relative group`}
+          className="w-full aspect-video fp-tile overflow-hidden cursor-pointer relative group bg-black"
           onClick={handleActivate}
         >
-          <Image
-            src={thumbnailUrl}
-            alt=""
-            width={tileSize >= 2 ? 800 : 480}
-            height={tileSize >= 2 ? 800 : 270}
-            sizes={tileSize >= 3 ? '(max-width: 768px) 100vw, 75vw' : tileSize >= 2 ? '(max-width: 768px) 100vw, 50vw' : '(max-width: 768px) 50vw, 25vw'}
-            className={`w-full h-full ${fitClass} transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
-            loading="lazy"
-            quality={75}
-            onLoad={() => setIsLoaded(true)}
-            onError={() => setIsLoaded(true)}
-          />
+          {thumbnailUrl && (
+            <Image
+              src={thumbnailUrl}
+              alt=""
+              width={tileSize >= 2 ? 800 : 480}
+              height={tileSize >= 2 ? 450 : 270}
+              sizes={tileSize >= 3 ? '(max-width: 768px) 100vw, 75vw' : tileSize >= 2 ? '(max-width: 768px) 100vw, 50vw' : '(max-width: 768px) 50vw, 25vw'}
+              className={`w-full h-full ${fitClass} transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+              loading="lazy"
+              quality={75}
+              onLoad={() => setIsLoaded(true)}
+              onError={() => setIsLoaded(true)}
+            />
+          )}
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center group-hover:scale-105 transition-transform">
               <svg className="w-3 h-3 text-white/80 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
@@ -117,9 +120,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         </div>
       )
     }
+    // Activated — show iframe
     if (embed) {
       return (
-        <div className={`w-full ${aspectClass} fp-tile overflow-hidden relative bg-black`}>
+        <div className="w-full aspect-video fp-tile overflow-hidden relative bg-black">
           <iframe
             src={`${embed.embedUrl}?autoplay=1&rel=0`}
             className="absolute inset-0 w-full h-full"
@@ -280,7 +284,9 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               className="materialize"
               onError={() => setIframeFailed(true)}
             />
-          ) : null}
+          ) : (
+            <div className="w-full h-full" style={{ background: 'rgba(0,0,0,0.3)' }} />
+          )}
         </div>
       )
     }
@@ -312,7 +318,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     const embed = parseEmbed(content.url)
     if (embed) {
       return (
-        <div ref={containerRef} className={`w-full ${aspectClass} fp-tile fp-embed-glass overflow-hidden relative`}>
+        <div ref={containerRef} className={`w-full ${aspectClass || 'aspect-video'} fp-tile fp-embed-glass overflow-hidden relative`}>
           {isInView ? (
             <iframe
               src={embed.embedUrl}
@@ -325,7 +331,9 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               referrerPolicy="no-referrer"
               onError={() => setIframeFailed(true)}
             />
-          ) : null}
+          ) : (
+            <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.3)' }} />
+          )}
         </div>
       )
     }
@@ -601,7 +609,9 @@ function Tier2EmbedTile({
           onLoad={handleLoad}
           onError={() => onFail()}
         />
-      ) : null}
+      ) : (
+        <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.3)' }} />
+      )}
     </div>
   )
 }
