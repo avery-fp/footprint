@@ -12,7 +12,6 @@
 export type EmbedPlatform =
   | 'spotify'
   | 'youtube'
-  | 'apple-music'
   | 'soundcloud'
   | 'vimeo'
   | 'bandcamp'
@@ -59,25 +58,7 @@ function parseYouTube(url: string): EmbedResult | null {
   }
 }
 
-function parseAppleMusic(url: string): EmbedResult | null {
-  // music.apple.com/{country}/album/{slug}/{id}
-  // music.apple.com/{country}/playlist/{slug}/{id}
-  const m = url.match(/music\.apple\.com\/([a-z]{2})\/(album|playlist|song)\/([^/?]+)(?:\/(\d+))?/)
-  if (!m) return null
-  const country = m[1]
-  const type = m[2]
-  const slugOrId = m[3]
-  const id = m[4]
-  // Reconstruct the path faithfully
-  const path = id ? `${country}/${type}/${slugOrId}/${id}` : `${country}/${type}/${slugOrId}`
-  const isCollection = type === 'playlist' || type === 'album'
-  return {
-    platform: 'apple-music',
-    embedUrl: `https://embed.music.apple.com/${path}`,
-    height: isCollection ? 450 : 175,
-    tier: 1,
-  }
-}
+// Apple Music embeds removed — treated as regular link tiles
 
 function parseSoundCloud(url: string): EmbedResult | null {
   const m = url.match(/soundcloud\.com\/([a-zA-Z0-9_-]+)\/([a-zA-Z0-9_-]+)/)
@@ -172,7 +153,6 @@ const PARSERS: Array<(url: string) => EmbedResult | null> = [
   // Tier 1
   parseSpotify,
   parseYouTube,
-  parseAppleMusic,
   parseSoundCloud,
   parseVimeo,
   // Tier 2
