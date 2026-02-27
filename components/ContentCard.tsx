@@ -184,7 +184,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       const embed = parseEmbed(content.url)
       if (embed) {
         return (
-          <div ref={containerRef} className="w-full h-full fp-tile fp-embed-glass overflow-hidden bg-[#191414]" style={{ minHeight: `${embed.height}px`, maxWidth: '100%' }}>
+          <div ref={containerRef} className="w-full h-full fp-tile fp-embed-glass overflow-hidden bg-[#191414]">
             {isInView ? (
               <iframe
                 style={{ border: 'none', background: 'transparent', maxWidth: '100%' }}
