@@ -221,20 +221,18 @@ input:-webkit-autofill:focus {
   background: var(--fp-glass, rgba(255, 255, 255, 0.05));
 }
 
-/* Block arrival — the whole grid fades up as one object */
+/* Block arrival — the whole grid slides up subtly */
 @keyframes grid-arrive {
   from {
-    opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(8px);
   }
   to {
-    opacity: 1;
     transform: translateY(0);
   }
 }
 
 .fp-grid-arrive {
-  animation: grid-arrive 600ms ease-out both;
+  animation: grid-arrive 400ms ease-out both;
 }
 
 /* Grid container — centered, constrained */

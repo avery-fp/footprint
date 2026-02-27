@@ -103,7 +103,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               width={tileSize >= 2 ? 800 : 480}
               height={tileSize >= 2 ? 450 : 270}
               sizes={tileSize >= 3 ? '(max-width: 768px) 100vw, 75vw' : tileSize >= 2 ? '(max-width: 768px) 100vw, 50vw' : '(max-width: 768px) 50vw, 25vw'}
-              className={`w-full h-full ${fitClass} transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+              className={`w-full h-full ${fitClass}`}
               loading="lazy"
               quality={75}
               onLoad={() => setIsLoaded(true)}
@@ -159,7 +159,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 alt=""
                 fill
                 sizes="(max-width: 768px) 50vw, 25vw"
-                className={`${fitClass} transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+                className={fitClass}
                 loading="lazy"
                 quality={75}
                 onLoad={() => setIsLoaded(true)}
@@ -333,9 +333,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   if (content.type === 'image') {
     return (
       <div ref={containerRef} className="fp-tile overflow-hidden relative">
-        <div
-          className={`absolute inset-0 vapor-box fp-tile ${isLoaded ? 'opacity-0' : ''} transition-opacity duration-500`}
-        />
         <a href={content.url} target="_blank" rel="noopener noreferrer">
           <Image
             src={content.url}
@@ -343,7 +340,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             width={600}
             height={800}
             sizes="(max-width: 768px) 50vw, 25vw"
-            className={`w-full h-full object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+            className="w-full h-full object-cover"
             loading="lazy"
             quality={75}
             onLoad={(e) => {
@@ -415,17 +412,13 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           ref={containerRef as any}
           className="block fp-tile overflow-hidden relative"
         >
-          <div
-            className={`absolute inset-0 vapor-box fp-tile ${isLoaded ? 'opacity-0' : ''} transition-opacity duration-500`}
-            style={{ aspectRatio: aspect === 'wide' ? '16/9' : aspect === 'tall' ? '9/16' : '1/1' }}
-          />
           <Image
             src={content.thumbnail_url}
             alt=""
             width={400}
             height={400}
             sizes="(max-width: 768px) 50vw, 25vw"
-            className={`w-full ${aspectClass} ${fitClass} transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+            className={`w-full ${aspectClass} ${fitClass}`}
             loading="lazy"
             quality={75}
             onLoad={() => setIsLoaded(true)}
@@ -484,7 +477,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           alt={content.title || ''}
           fill
           sizes={tileSize >= 2 ? '(max-width: 768px) 100vw, 50vw' : '(max-width: 768px) 50vw, 25vw'}
-          className={`object-cover transition-opacity duration-[800ms] ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+          className="object-cover"
           loading="lazy"
           quality={75}
           onLoad={() => setIsLoaded(true)}
@@ -553,7 +546,7 @@ function Tier2EmbedTile({
       {isInView ? (
         <iframe
           src={embed.embedUrl}
-          className={`absolute inset-0 w-full h-full transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+          className="absolute inset-0 w-full h-full"
           style={{ border: 'none' }}
           loading="lazy"
           sandbox="allow-scripts allow-same-origin allow-popups"

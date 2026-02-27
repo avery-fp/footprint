@@ -44,12 +44,12 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
     }
   }, [isVisible, isReady])
 
-  // Timeout — if video doesn't load in 15s, hide it
+  // Timeout — if video doesn't load in 8s, show fallback
   useEffect(() => {
     if (!isNear) return
     const timer = setTimeout(() => {
       if (!isReady) setHasFailed(true)
-    }, 15000)
+    }, 8000)
     return () => clearTimeout(timer)
   }, [isNear, isReady])
 
@@ -105,7 +105,7 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
             muted
             loop
             playsInline
-            preload="metadata"
+            preload="auto"
             onClick={handleClick}
             onError={() => setHasFailed(true)}
             onLoadedData={() => setIsReady(true)}
@@ -116,13 +116,6 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
               }
             }}
           />
-          {/* Skeleton while loading */}
-          {!isReady && (
-            <div
-              className="absolute inset-0"
-              style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(4px)' }}
-            />
-          )}
           {/* Brief play/pause tap feedback — flashes then disappears */}
           {showTapFeedback && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ animation: 'fadeIn 400ms ease-out forwards' }}>
@@ -143,10 +136,10 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
           )}
         </>
       ) : (
-        // Skeleton placeholder while not near viewport
+        // Placeholder while not near viewport
         <div
           className="w-full h-full"
-          style={{ background: 'rgba(255,255,255,0.08)', minHeight: '200px' }}
+          style={{ background: 'rgba(0,0,0,0.3)', minHeight: '200px' }}
         />
       )}
     </div>
