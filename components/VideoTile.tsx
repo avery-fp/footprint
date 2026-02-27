@@ -95,7 +95,7 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
   }
 
   return (
-    <div ref={containerRef} className="relative w-full h-full">
+    <div ref={containerRef} className="relative w-full h-full aspect-video">
       {isNear ? (
         <>
           <video
