@@ -125,7 +125,7 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
           )}
           {/* Brief play/pause tap feedback — flashes then disappears */}
           {showTapFeedback && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ animation: 'materialize 400ms ease-out forwards' }}>
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ animation: 'fadeIn 400ms ease-out forwards' }}>
               <div className="w-10 h-10 rounded-full bg-black/30 flex items-center justify-center backdrop-blur-sm">
                 <svg className="w-4 h-4 text-white/70" fill="currentColor" viewBox="0 0 24 24">
                   {isMuted ? (

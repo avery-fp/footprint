@@ -303,7 +303,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
     if (isVideo) {
       return (
-        <div className="w-full h-full" data-tile-id={item.id} data-tile-type={item.type}>
+        <div className="w-full h-full aspect-video" data-tile-id={item.id} data-tile-type={item.type}>
           <VideoTile src={item.url} onWidescreen={noop} />
         </div>
       )
