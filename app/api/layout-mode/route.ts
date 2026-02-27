@@ -45,7 +45,7 @@ export async function PATCH(request: NextRequest) {
       .eq('id', footprint.id)
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: 'Internal error' }, { status: 500 })
     }
 
     revalidatePath(`/${slug}`)

@@ -28,6 +28,13 @@ import { createServerSupabaseClient } from '@/lib/supabase'
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
+
+    // Require ARO key
+    const aroKey = searchParams.get('aro_key')
+    if (!aroKey || aroKey !== process.env.ARO_KEY) {
+      return NextResponse.json({ error: 'Invalid aro_key' }, { status: 401 })
+    }
+
     const sinceParam = searchParams.get('since')
     const footprintId = searchParams.get('footprint_id')
 

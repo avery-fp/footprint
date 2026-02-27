@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
 
   if (error || !footprint) {
     return new NextResponse(
-      `console.error('[Footprint] Footprint not found: ${slug}');`,
+      `console.error('[Footprint] Footprint not found: ' + ${JSON.stringify(slug)});`,
       { headers: { 'Content-Type': 'application/javascript' } }
     )
   }

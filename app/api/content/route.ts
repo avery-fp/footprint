@@ -22,7 +22,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'footprint_id required' }, { status: 400 })
     }
 
+    // Require authentication — prevents IDOR on unpublished footprints
+    const userId = await getUserIdFromRequest(request)
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const supabase = createServerSupabaseClient()
+
+    // Verify user owns this footprint
+    const { data: footprint } = await supabase
+      .from('footprints')
+      .select('user_id')
+      .eq('id', footprintId)
+      .single()
+
+    if (!footprint || footprint.user_id !== userId) {
+      return NextResponse.json({ error: 'Not your footprint' }, { status: 403 })
+    }
 
     const { data: content, error } = await supabase
       .from('content')
@@ -31,7 +48,7 @@ export async function GET(request: NextRequest) {
       .order('position', { ascending: true })
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to fetch content' }, { status: 500 })
     }
 
     return NextResponse.json({ content })
@@ -111,7 +128,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: 'Internal error' }, { status: 500 })
     }
 
     return NextResponse.json({ content })
@@ -161,7 +178,7 @@ export async function DELETE(request: NextRequest) {
       .eq('id', contentId)
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: 'Internal error' }, { status: 500 })
     }
 
     return NextResponse.json({ success: true })

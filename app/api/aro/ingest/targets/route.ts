@@ -4,7 +4,11 @@ import { ingestTargets } from '@/src/aro/targeting'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { source, payload } = body
+    const { aro_key, source, payload } = body
+
+    if (!aro_key || aro_key !== process.env.ARO_KEY) {
+      return NextResponse.json({ error: 'Invalid aro_key' }, { status: 401 })
+    }
 
     if (!source || !payload) {
       return NextResponse.json(
@@ -16,7 +20,6 @@ export async function POST(request: NextRequest) {
     const result = await ingestTargets({ source, payload })
     return NextResponse.json(result)
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Ingest failed'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({ error: 'Ingest failed' }, { status: 500 })
   }
 }

@@ -240,7 +240,7 @@ export async function POST(request: NextRequest) {
           return { url: publicUrl, status: 'ok' }
         } catch (err: any) {
           console.error(`Failed to process image ${imageUrl}:`, err.message)
-          return { url: imageUrl, status: 'failed', error: err.message }
+          return { url: imageUrl, status: 'failed', error: 'Processing failed' }
         }
       })
     )

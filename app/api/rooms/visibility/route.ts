@@ -45,7 +45,7 @@ export async function PATCH(request: NextRequest) {
       .eq('id', roomId)
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: 'Internal error' }, { status: 500 })
     }
 
     if (footprint.username) revalidatePath(`/${footprint.username}`)

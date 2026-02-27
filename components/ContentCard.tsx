@@ -357,7 +357,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             loop
             playsInline
             preload="metadata"
-            className={`w-full ${aspectClass} ${fitClass} transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+            className={`w-full ${aspectClass} ${fitClass}`}
             onLoadedData={(e) => { setIsLoaded(true); (e.target as HTMLVideoElement).play().catch(() => {}) }}
           />
         ) : (

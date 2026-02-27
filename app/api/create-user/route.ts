@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { nanoid } from 'nanoid'
+import { getUserIdFromRequest } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   try {
+    // Require authentication
+    const userId = await getUserIdFromRequest(request)
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { email: rawEmail } = await request.json()
     if (!rawEmail) return NextResponse.json({ error: 'Email required' }, { status: 400 })
 
@@ -85,6 +92,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ serial, exists: false })
   } catch (error: any) {
     console.error('Create user error:', error)
-    return NextResponse.json({ error: error?.message || 'Failed' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed' }, { status: 500 })
   }
 }

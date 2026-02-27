@@ -36,6 +36,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true })
   } catch (err: any) {
     log.error({ err }, 'Set password failed')
-    return NextResponse.json({ error: err?.message || 'Failed' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed' }, { status: 500 })
   }
 }

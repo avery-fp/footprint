@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { parseURL } from '@/lib/parser'
+import { validateFetchUrl } from '@/lib/ssrf'
 
 /**
  * POST /api/parse
@@ -16,6 +17,12 @@ export async function POST(request: NextRequest) {
 
     if (!url) {
       return NextResponse.json({ error: 'URL is required' }, { status: 400 })
+    }
+
+    // SSRF protection — block private/internal hosts
+    const check = validateFetchUrl(url)
+    if (!check.valid) {
+      return NextResponse.json({ error: check.error }, { status: 400 })
     }
 
     const parsed = await parseURL(url)

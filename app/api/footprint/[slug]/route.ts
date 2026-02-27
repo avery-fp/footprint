@@ -156,7 +156,7 @@ export async function PUT(
       .eq('username', username)
 
     if (updateError) {
-      return NextResponse.json({ error: updateError.message }, { status: 500 })
+      return NextResponse.json({ error: 'Update failed' }, { status: 500 })
     }
 
     revalidatePath(`/${username}`)

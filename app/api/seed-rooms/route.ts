@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
       .select()
 
     if (roomError) {
-      return NextResponse.json({ error: roomError.message }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to seed rooms' }, { status: 500 })
     }
 
     // 3. Get all existing content

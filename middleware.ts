@@ -32,12 +32,23 @@ const publicRoutes = [
 /**
  * Add security headers to all responses.
  */
-function withSecurityHeaders(response: ReturnType<typeof NextResponse.next>) {
+function withSecurityHeaders(response: NextResponse) {
   response.headers.set('X-Content-Type-Options', 'nosniff')
   response.headers.set('X-Frame-Options', 'DENY')
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
-  response.headers.set('X-XSS-Protection', '1; mode=block')
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+  response.headers.set('Content-Security-Policy', [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' https: data:",
+    "frame-src https://www.youtube.com https://open.spotify.com https://embed.music.apple.com https://player.vimeo.com https://w.soundcloud.com",
+    "connect-src 'self' https://*.supabase.co https://api.stripe.com",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join('; '))
   if (process.env.NODE_ENV === 'production') {
     response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload')
   }
@@ -51,7 +62,7 @@ export function middleware(request: NextRequest) {
   // ── 1. Canonical host: redirect apex → www ──
   if (host === 'footprint.onl') {
     const canonical = new URL(`https://www.footprint.onl${pathname}${search}`)
-    return NextResponse.redirect(canonical, 301)
+    return withSecurityHeaders(NextResponse.redirect(canonical, 301))
   }
 
   // ── 2. Public routes ──
