@@ -335,9 +335,43 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   }
 
   // ═══════════════════════════════════════════
-  // EDITORIAL / BREATHE GRID — composed rows
+  // EDITORIAL — single-column, full-width, Apple keynote simplicity
   // ═══════════════════════════════════════════
   const editorialGrid = (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '24px',
+        opacity: roomFade === 'out' ? 0 : 1,
+        transform: roomFade === 'out' ? 'translateY(6px)' : roomFade === 'in' ? 'translateY(-6px)' : 'translateY(0)',
+        transition: 'opacity 250ms ease-out, transform 350ms ease-out',
+      }}
+    >
+      {content.map((item: any, idx: number) => (
+        <motion.div
+          key={item.id}
+          layout={!prefersReducedMotion}
+          layoutId={prefersReducedMotion ? undefined : `tile-${item.id}`}
+          initial={false}
+          animate={hasInteracted ? { opacity: 1, scale: 1 } : false}
+          transition={hasInteracted ? MODE_SPRING : { duration: 0 }}
+          style={{
+            overflow: 'hidden',
+            borderRadius: '0px',
+            background: 'rgba(255,255,255,0.06)',
+          }}
+        >
+          {renderTileContent(item, idx, 3, 'auto')}
+        </motion.div>
+      ))}
+    </div>
+  )
+
+  // ═══════════════════════════════════════════
+  // BREATHE — composed rows with rounded tiles
+  // ═══════════════════════════════════════════
+  const breatheGrid = (
     <div
       style={{
         display: 'flex',
@@ -367,9 +401,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                   key={item.id}
                   layout={!prefersReducedMotion}
                   layoutId={prefersReducedMotion ? undefined : `tile-${item.id}`}
-                  initial={hasInteracted || prefersReducedMotion ? false : { opacity: 0, scale: 0.97 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={prefersReducedMotion ? { duration: 0 } : hasInteracted ? MODE_SPRING : { duration: 0.4, delay: globalIdx * 0.06, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  initial={false}
+                  animate={hasInteracted ? { opacity: 1, scale: 1 } : false}
+                  transition={hasInteracted ? MODE_SPRING : { duration: 0 }}
                   style={{
                     aspectRatio: tileAspect,
                     overflow: 'hidden',
@@ -407,9 +441,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             key={item.id}
             layout={!prefersReducedMotion}
             layoutId={prefersReducedMotion ? undefined : `tile-${item.id}`}
-            initial={hasInteracted || prefersReducedMotion ? false : { opacity: 0, scale: 0.97 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={prefersReducedMotion ? { duration: 0 } : hasInteracted ? MODE_SPRING : { duration: 0.35, delay: idx * 0.04, ease: [0.25, 0.46, 0.45, 0.94] }}
+            initial={false}
+            animate={hasInteracted ? { opacity: 1, scale: 1 } : false}
+            transition={hasInteracted ? MODE_SPRING : { duration: 0 }}
             className="overflow-hidden aspect-square"
             style={{
               borderRadius: `${layoutConfig.tileRadius}px`,
@@ -425,7 +459,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   )
 
   // Select grid based on layout mode
-  const activeGrid = layoutMode === 'grid' ? uniformGrid : editorialGrid
+  const activeGrid = layoutMode === 'grid' ? uniformGrid : layoutMode === 'breathe' ? breatheGrid : editorialGrid
 
   return (
     <div className="min-h-[100dvh] relative flex flex-col" style={{ background: theme.colors.background, color: theme.colors.text, '--fp-glass': theme.colors.glass, '--fp-text-muted': theme.colors.textMuted } as React.CSSProperties}>
