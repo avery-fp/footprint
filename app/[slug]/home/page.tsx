@@ -279,7 +279,7 @@ function SortableTile({
                 playsInline
                 preload="none"
                 onClick={handleVideoClick}
-                onLoadedData={() => setIsLoaded(true)} onError={(e) => { setIsLoaded(true); (e.target as HTMLVideoElement).style.display = 'none' }}
+                onLoadedData={() => setIsLoaded(true)} onError={() => setIsLoaded(true)}
               />
               {!isMuted && (
                 <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60 z-10" />
@@ -298,14 +298,14 @@ function SortableTile({
               loading="lazy"
               decoding="async"
               quality={75}
-              onError={(e) => { ((e.target as HTMLElement).closest('[data-tile]') as HTMLElement | null)?.style.setProperty('display', 'none') }}
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
             />
           )
         ) : (
           <div className={`${aspect === 'auto' ? 'w-full min-h-[80px]' : 'absolute inset-0'} flex flex-col items-center justify-center bg-white/[0.05] p-2`}>
             {content.thumbnail_url ? (
               <Image src={content.thumbnail_url} alt="" width={200} height={200} sizes="(max-width: 640px) 50vw, 25vw" className={`${aspect === 'auto' ? 'w-full h-auto' : 'absolute inset-0 w-full h-full'} ${getObjectFit(aspect)}`} loading="lazy" decoding="async" quality={75}
-                onError={(e) => { ((e.target as HTMLElement).closest('[data-tile]') as HTMLElement | null)?.style.setProperty('display', 'none') }} />
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
             ) : (
               content.type === 'thought' ? (
                 <p className={`text-white text-center line-clamp-4 px-2 ${
