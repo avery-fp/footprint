@@ -66,7 +66,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
 
   // Register audio-producing types with AudioManager
   useEffect(() => {
-    const isAudioType = ['youtube', 'soundcloud', 'spotify', 'applemusic'].includes(content.type)
+    const isAudioType = ['youtube', 'soundcloud', 'spotify'].includes(content.type)
     if (!isAudioType) return
     audioManager.register(audioIdRef.current, () => {
       setIsActivated(false)
@@ -75,7 +75,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }, [content.type, content.id])
 
   const handleActivate = () => {
-    if (['youtube', 'soundcloud', 'spotify', 'applemusic'].includes(content.type)) {
+    if (['youtube', 'soundcloud', 'spotify'].includes(content.type)) {
       audioManager.play(audioIdRef.current)
     }
     setIsActivated(true)
@@ -151,7 +151,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             href={content.url}
             target="_blank"
             rel="noopener noreferrer"
-            className={`block w-full ${aspectClass} fp-tile overflow-hidden relative bg-[#191414] cursor-pointer group`}
+            className={`block w-full h-full ${aspectClass || 'aspect-square'} fp-tile overflow-hidden relative bg-[#191414] cursor-pointer group`}
           >
             {content.thumbnail_url && isInView && (
               <Image
@@ -184,7 +184,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       const embed = parseEmbed(content.url)
       if (embed) {
         return (
-          <div ref={containerRef} className="w-full fp-tile fp-embed-glass overflow-hidden" style={{ height: `${embed.height}px`, maxWidth: '100%' }}>
+          <div ref={containerRef} className="w-full h-full fp-tile fp-embed-glass overflow-hidden bg-[#191414]" style={{ minHeight: `${embed.height}px`, maxWidth: '100%' }}>
             {isInView ? (
               <iframe
                 style={{ border: 'none', background: 'transparent', maxWidth: '100%' }}
@@ -258,57 +258,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           className={`w-full ${aspectClass} fp-tile overflow-hidden bg-black [&_iframe]:!h-full`}
           dangerouslySetInnerHTML={{ __html: content.embed_html }}
         />
-      )
-    }
-  }
-
-  // ════════════════════════════════════════
-  // APPLE MUSIC — lazy loaded dark embed
-  // ════════════════════════════════════════
-  if (content.type === 'applemusic' && !iframeFailed) {
-    const embed = parseEmbed(content.url)
-    if (embed) {
-      return (
-        <div ref={containerRef} className="w-full fp-tile fp-embed-glass overflow-hidden" style={{ height: `${embed.height}px`, maxWidth: '100%' }}>
-          {isInView ? (
-            <iframe
-              src={`${embed.embedUrl}?theme=dark`}
-              width="100%"
-              height="100%"
-              style={{ border: 'none', overflow: 'hidden' }}
-              allow="autoplay *; encrypted-media *; fullscreen *"
-              loading="lazy"
-              sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-top-navigation-by-user-activation"
-              referrerPolicy="no-referrer"
-              scrolling="no"
-              className="materialize"
-              onError={() => setIframeFailed(true)}
-            />
-          ) : (
-            <div className="w-full h-full" style={{ background: 'rgba(0,0,0,0.3)' }} />
-          )}
-        </div>
-      )
-    }
-    // Fallback: use stored embed_html
-    if (content.embed_html) {
-      let darkEmbed = content.embed_html.replace(
-        /src="(https:\/\/embed\.music\.apple\.com\/[^"]*?)"/g,
-        (_m: string, url: string) => `src="${url}${url.includes('?') ? '&' : '?'}theme=dark"`
-      )
-      darkEmbed = darkEmbed.replace(/<iframe /g, '<iframe scrolling="no" ')
-      return (
-        <div ref={containerRef} className="w-full fp-tile overflow-hidden bg-black" style={{ height: '175px', maxWidth: '100%' }}>
-          {isInView ? (
-            <div
-              className="w-full h-full overflow-hidden [&_iframe]:!w-full [&_iframe]:!h-full [&_iframe]:!max-w-full [&_iframe]:!min-h-0 [&_iframe]:!border-0 [&_iframe]:!overflow-hidden materialize"
-              style={{ overflow: 'hidden' }}
-              dangerouslySetInnerHTML={{ __html: darkEmbed }}
-            />
-          ) : (
-            <div className="w-full h-full" style={{ background: 'rgba(0,0,0,0.3)' }} />
-          )}
-        </div>
       )
     }
   }

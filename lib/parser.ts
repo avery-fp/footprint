@@ -11,7 +11,6 @@
 export type ContentType =
   | 'youtube'
   | 'spotify'
-  | 'applemusic'
   | 'twitter'
   | 'instagram'
   | 'tiktok'
@@ -43,10 +42,7 @@ const PATTERNS: Record<string, { regex: RegExp; type: ContentType }[]> = {
   spotify: [
     { regex: /open\.spotify\.com\/(track|album|playlist|artist|episode)\/([a-zA-Z0-9]+)/, type: 'spotify' },
   ],
-  applemusic: [
-    { regex: /music\.apple\.com\/([a-z]{2})\/(album|playlist|song)\/[^/]+\/(\d+)/, type: 'applemusic' },
-    { regex: /music\.apple\.com\/([a-z]{2})\/(album|playlist|song)\/(\d+)/, type: 'applemusic' },
-  ],
+  // Apple Music — removed, treated as regular link tile
   twitter: [
     { regex: /(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]+)\/status\/(\d+)/, type: 'twitter' },
   ],
@@ -115,7 +111,6 @@ async function parseByType(type: ContentType, url: string, match: RegExpMatchArr
   switch (type) {
     case 'youtube': return parseYouTube(url, match)
     case 'spotify': return await parseSpotify(url, match)
-    case 'applemusic': return parseAppleMusic(url, match)
     case 'twitter': return parseTwitter(url, match)
     case 'instagram': return parseInstagram(url, match)
     case 'tiktok': return parseTikTok(url, match)
@@ -176,28 +171,6 @@ async function parseSpotify(url: string, match: RegExpMatchArray): Promise<Parse
     description: null,
     thumbnail_url: thumbnail,
     embed_html: `<iframe src="https://open.spotify.com/embed/${contentType}/${spotifyId}?theme=0" frameborder="0" allowtransparency="true" allow="encrypted-media" loading="lazy" class="w-full rounded-xl"></iframe>`,
-  }
-}
-
-// ============================================
-// APPLE MUSIC
-// ============================================
-function parseAppleMusic(url: string, match: RegExpMatchArray): ParsedContent {
-  const region = match[1] || 'us'
-  const contentType = match[2] // album, playlist, song
-  const contentId = match[3]
-
-  // Apple Music embed URL format
-  const embedUrl = `https://embed.music.apple.com/${region}/${contentType}/${contentId}`
-
-  return {
-    type: 'applemusic',
-    url,
-    external_id: contentId,
-    title: `Apple Music ${contentType}`,
-    description: null,
-    thumbnail_url: null,
-    embed_html: `<iframe src="${embedUrl}" frameborder="0" allow="autoplay *; encrypted-media *; fullscreen *" sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-top-navigation-by-user-activation" loading="lazy" class="w-full rounded-xl h-[175px]"></iframe>`,
   }
 }
 
@@ -349,7 +322,6 @@ export function getContentIcon(type: ContentType): string {
   const icons: Record<ContentType, string> = {
     youtube: '▶',
     spotify: '♫',
-    applemusic: '♫',
     twitter: '𝕏',
     instagram: '◎',
     tiktok: '♪',
@@ -369,7 +341,6 @@ export function getContentIcon(type: ContentType): string {
 export function getContentBackground(type: ContentType): string | null {
   const backgrounds: Partial<Record<ContentType, string>> = {
     spotify: 'linear-gradient(135deg, #1DB954, #191414)',
-    applemusic: 'linear-gradient(135deg, #fc3c44, #000000)',
     soundcloud: 'linear-gradient(135deg, #ff5500, #ff7700)',
   }
   return backgrounds[type] || null

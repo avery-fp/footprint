@@ -273,14 +273,18 @@ function SortableTile({
               <video
                 ref={videoRef}
                 src={content.url}
-                className={`${aspect === 'auto' ? 'w-full h-auto' : 'absolute inset-0 w-full h-full'} ${getObjectFit(aspect)} cursor-pointer transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${isArranging ? 'pointer-events-none' : ''}`}
+                className={`${aspect === 'auto' ? 'w-full h-auto' : 'absolute inset-0 w-full h-full'} ${getObjectFit(aspect)} cursor-pointer ${isArranging ? 'pointer-events-none' : ''}`}
                 muted
                 loop
                 playsInline
-                preload="none"
+                preload="metadata"
                 onClick={handleVideoClick}
                 onLoadedData={() => setIsLoaded(true)} onError={() => setIsLoaded(true)}
               />
+              {/* Skeleton while video loads */}
+              {!isLoaded && (
+                <div className="absolute inset-0" style={{ background: 'rgba(255,255,255,0.08)' }} />
+              )}
               {!isMuted && (
                 <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60 z-10" />
               )}
