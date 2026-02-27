@@ -195,7 +195,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 loading="lazy"
                 sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
                 referrerPolicy="no-referrer"
-                className="materialize"
                 onError={() => setIframeFailed(true)}
               />
             ) : (
@@ -273,7 +272,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           {isInView ? (
             <iframe
               src={embed.embedUrl}
-              className="absolute inset-0 w-full h-full materialize"
+              className="absolute inset-0 w-full h-full"
               style={{ border: 'none' }}
               allow="autoplay; fullscreen; picture-in-picture"
               allowFullScreen
@@ -294,7 +293,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         <div ref={containerRef} className={`w-full ${aspectClass || 'aspect-video'} fp-tile overflow-hidden relative bg-black`}>
           {isInView ? (
             <div
-              className="absolute inset-0 [&_iframe]:!w-full [&_iframe]:!h-full materialize"
+              className="absolute inset-0 [&_iframe]:!w-full [&_iframe]:!h-full"
               dangerouslySetInnerHTML={{ __html: content.embed_html }}
             />
           ) : (
