@@ -313,7 +313,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   if (content.type === 'video') {
     return (
-      <div ref={containerRef} className="fp-tile overflow-hidden relative">
+      <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative">
         {isInView ? (
           <video
             src={content.url}
@@ -321,11 +321,11 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             loop
             playsInline
             preload="metadata"
-            className={`w-full ${aspectClass || 'aspect-video'} ${fitClass}`}
+            className={`w-full h-full ${fitClass}`}
             onLoadedData={(e) => { setIsLoaded(true); (e.target as HTMLVideoElement).play().catch(() => {}) }}
           />
         ) : (
-          <div className={`w-full ${aspectClass || 'aspect-video'}`} style={{ background: 'rgba(0,0,0,0.3)' }} />
+          <div className="w-full h-full" style={{ background: 'rgba(0,0,0,0.3)' }} />
         )}
       </div>
     )

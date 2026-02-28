@@ -9,7 +9,6 @@ import VideoTileBase from '@/components/VideoTile'
 const ContentCard = memo(ContentCardBase)
 const VideoTile = memo(VideoTileBase)
 import WeatherEffect from '@/components/WeatherEffect'
-import { PlusButton } from '@/components/PlusButton'
 import { RemoveBubble } from '@/components/RemoveBubble'
 import { RolodexDrawer } from '@/components/RolodexDrawer'
 import FloatingCtaBar from '@/components/FloatingCtaBar'
@@ -125,7 +124,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
   // Layout mode — owner's default from DB, visitor can toggle locally
   const gm = footprint.grid_mode
-  const defaultMode: LayoutMode = (gm === 'editorial' || gm === 'breathe' || gm === 'grid') ? gm : 'editorial'
+  const defaultMode: LayoutMode = (gm === 'editorial' || gm === 'breathe' || gm === 'grid') ? gm : 'breathe'
   const [layoutMode, setLayoutMode] = useState<LayoutMode>(defaultMode)
   const [hasInteracted, setHasInteracted] = useState(false)
 
@@ -493,7 +492,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
       {/* Top-right action */}
       <div className="fixed top-5 right-4 md:right-6 z-30 flex items-center gap-2">
-        {isLoggedIn ? (
+        {isLoggedIn && (
           <a
             href={`/${footprint.username}/home`}
             className="w-11 h-11 flex items-center justify-center rounded-full bg-white/[0.06] hover:bg-white/[0.12] transition touch-manipulation"
@@ -502,8 +501,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
             </svg>
           </a>
-        ) : (
-          <PlusButton slug={footprint.slug} />
         )}
       </div>
 

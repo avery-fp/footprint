@@ -89,13 +89,13 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
       <div
         ref={containerRef}
         className="relative w-full h-full"
-        style={{ background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(8px)', minHeight: '200px' }}
+        style={{ background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(8px)' }}
       />
     )
   }
 
   return (
-    <div ref={containerRef} className="relative w-full h-full aspect-video">
+    <div ref={containerRef} className="relative w-full h-full">
       {isNear ? (
         <>
           <video
@@ -139,7 +139,7 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
         // Placeholder while not near viewport
         <div
           className="w-full h-full"
-          style={{ background: 'rgba(0,0,0,0.3)', minHeight: '200px' }}
+          style={{ background: 'rgba(0,0,0,0.3)' }}
         />
       )}
     </div>
