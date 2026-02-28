@@ -92,27 +92,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
-    // ── New user: need a valid reservation ──
+    // ── New user: need a valid reservation (token = username) ──
     if (!reservation_token) {
       return NextResponse.json({ ok: true })
     }
 
-    // Validate reservation token
-    const { data: reservation } = await supabase
-      .from('username_reservations')
-      .select('username, token, expires_at')
-      .eq('token', reservation_token)
-      .single()
-
-    if (!reservation || new Date(reservation.expires_at) < new Date()) {
-      return NextResponse.json({ ok: true })
-    }
+    // reservation_token IS the username (set by /api/auth/username-reserve)
+    const reservedUsername = reservation_token
 
     // Check the username isn't already taken
     const { data: existingFp } = await supabase
       .from('footprints')
       .select('id')
-      .eq('username', reservation.username)
+      .eq('username', reservedUsername)
       .single()
 
     if (existingFp) {
@@ -134,7 +126,7 @@ export async function POST(request: NextRequest) {
     // Create unpublished footprint with reserved username
     const { error: fpError } = await supabase.from('footprints').insert({
       user_id: newUser.id,
-      username: reservation.username,
+      username: reservedUsername,
       name: 'Everything',
       icon: '◈',
       is_primary: true,
@@ -144,12 +136,6 @@ export async function POST(request: NextRequest) {
     if (fpError) {
       log.error({ err: fpError }, 'Footprint creation failed during signup')
     }
-
-    // Delete reservation
-    await supabase
-      .from('username_reservations')
-      .delete()
-      .eq('token', reservation_token)
 
     // Send OTP to new user
     const code = await generateOTP(email)
