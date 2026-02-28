@@ -2,9 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { usernameReserveSchema } from '@/lib/schemas'
 import { validateBody } from '@/lib/validate'
-import { routeLogger } from '@/lib/logger'
-
-const log = routeLogger('POST', '/api/auth/username-reserve')
 
 // Reserved words that cannot be used as usernames
 const RESERVED_WORDS = [
@@ -34,8 +31,13 @@ function checkRateLimit(key: string): boolean {
 /**
  * POST /api/auth/username-reserve
  *
- * Temporarily reserves a username during the signup flow.
- * Reservation expires after 15 minutes.
+ * Checks username availability against the footprints table and returns
+ * a reservation_token (the username itself) for the signup flow.
+ *
+ * The actual claim happens in /api/auth/magic-link when the user
+ * completes email verification — it re-checks availability before
+ * inserting. The footprints.username UNIQUE constraint is the
+ * authoritative guard against races.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -63,10 +65,10 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
-    // Check if username is already taken by an active user
+    // Check if username is already claimed in footprints
     const { data: existingFootprint } = await supabase
       .from('footprints')
-      .select('username')
+      .select('id')
       .eq('username', username)
       .single()
 
@@ -77,34 +79,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Upsert reservation (overwrites expired ones via onConflict)
-    const { data: reservation, error: reserveError } = await supabase
-      .from('username_reservations')
-      .upsert(
-        {
-          username,
-          token: crypto.randomUUID(),
-          expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-        },
-        { onConflict: 'username' }
-      )
-      .select('token, expires_at')
-      .single()
-
-    if (reserveError) {
-      log.error({ err: reserveError }, 'Username reservation failed')
-      return NextResponse.json(
-        { error: 'Could not reserve username.' },
-        { status: 500 }
-      )
-    }
-
+    // Username is available — return it as the reservation token.
+    // The magic-link route re-checks availability + the UNIQUE constraint
+    // on footprints.username prevents races.
     return NextResponse.json({
-      reservation_token: reservation.token,
-      expires_at: reservation.expires_at,
+      reservation_token: username,
+      expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
     })
   } catch (error) {
-    log.error({ err: error }, 'Username reservation failed')
+    console.error('Username reservation failed:', error)
     return NextResponse.json(
       { error: 'Something went wrong.' },
       { status: 500 }
