@@ -125,7 +125,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
   // Layout mode — owner's default from DB, visitor can toggle locally
   const gm = footprint.grid_mode
-  const defaultMode: LayoutMode = (gm === 'editorial' || gm === 'breathe' || gm === 'grid') ? gm : 'editorial'
+  const defaultMode: LayoutMode = (gm === 'breathe' || gm === 'mosaic' || gm === 'grid') ? gm : 'breathe'
   const [layoutMode, setLayoutMode] = useState<LayoutMode>(defaultMode)
   const [hasInteracted, setHasInteracted] = useState(false)
 
@@ -177,9 +177,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     return baseContent
   }, [baseContent, layoutMode, serialNumber])
 
-  // Editorial composition (used by editorial + breathe modes)
+  // Editorial composition (used by breathe mode only)
   const composedRows = useMemo(() => {
-    if (layoutMode === 'editorial' || layoutMode === 'breathe') {
+    if (layoutMode === 'breathe') {
       return composeEditorial(baseContent)
     }
     return []
@@ -325,21 +325,21 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   }
 
   // ═══════════════════════════════════════════
-  // EDITORIAL — single-column, full-width, Apple keynote simplicity
+  // MOSAIC — 2-column portrait grid, Spotify spans full width
   // ═══════════════════════════════════════════
-  const editorialGrid = (
+  const mosaicGrid = (
     <div
+      className="grid grid-cols-2"
       style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '24px',
+        gap: `${layoutConfig.gap}px`,
         opacity: roomFade === 'out' ? 0 : 1,
         transform: roomFade === 'out' ? 'translateY(6px)' : roomFade === 'in' ? 'translateY(-6px)' : 'translateY(0)',
         transition: 'opacity 250ms ease-out, transform 350ms ease-out',
       }}
     >
       {content.map((item: any, idx: number) => {
-        const isVisual = item.type === 'image' || item.type === 'video' || item.type === 'youtube' || item.type === 'vimeo'
+        const isSpotify = item.type === 'spotify'
+        const isTextual = item.type === 'thought' || item.type === 'quote' || item.type === 'link'
         return (
           <motion.div
             key={item.id}
@@ -348,14 +348,15 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             initial={{ opacity: 1, scale: 1 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={hasInteracted ? MODE_SPRING : { duration: 0 }}
+            className={isSpotify ? 'col-span-2' : ''}
             style={{
               overflow: 'hidden',
-              borderRadius: '0px',
+              borderRadius: `${layoutConfig.tileRadius}px`,
               background: 'rgba(255,255,255,0.06)',
-              ...(isVisual ? { aspectRatio: '16 / 9' } : {}),
+              ...(!isTextual && !isSpotify ? { aspectRatio: '4 / 5' } : {}),
             }}
           >
-            {renderTileContent(item, idx, 3, 'auto')}
+            {renderTileContent(item, idx, isSpotify ? 2 : 1, isSpotify ? 'auto' : 'portrait')}
           </motion.div>
         )
       })}
@@ -454,7 +455,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   )
 
   // Select grid based on layout mode
-  const activeGrid = layoutMode === 'grid' ? uniformGrid : layoutMode === 'breathe' ? breatheGrid : editorialGrid
+  const activeGrid = layoutMode === 'grid' ? uniformGrid : layoutMode === 'mosaic' ? mosaicGrid : breatheGrid
 
   return (
     <div className="min-h-[100dvh] relative flex flex-col" style={{ background: theme.colors.background, color: theme.colors.text, '--fp-glass': theme.colors.glass, '--fp-text-muted': theme.colors.textMuted } as React.CSSProperties}>

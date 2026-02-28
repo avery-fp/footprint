@@ -90,7 +90,7 @@ CREATE TABLE footprints (
 
     -- Customization
     dimension VARCHAR(50) DEFAULT 'midnight',
-    grid_mode VARCHAR(50) DEFAULT 'editorial',
+    grid_mode VARCHAR(50) DEFAULT 'breathe',
     background_url TEXT,
     background_blur BOOLEAN DEFAULT TRUE,
     weather_effect VARCHAR(50),
@@ -344,7 +344,7 @@ ALTER TABLE footprints ADD COLUMN IF NOT EXISTS serial_number INTEGER UNIQUE REF
 ALTER TABLE footprints ADD COLUMN IF NOT EXISTS background_url TEXT;
 ALTER TABLE footprints ADD COLUMN IF NOT EXISTS background_blur BOOLEAN DEFAULT TRUE;
 ALTER TABLE footprints ADD COLUMN IF NOT EXISTS weather_effect VARCHAR(50);
-ALTER TABLE footprints ADD COLUMN IF NOT EXISTS grid_mode VARCHAR(50) DEFAULT 'editorial';
+ALTER TABLE footprints ADD COLUMN IF NOT EXISTS grid_mode VARCHAR(50) DEFAULT 'breathe';
 
 -- Rename slug → username if needed (skip if username already exists)
 DO $$ BEGIN
@@ -493,14 +493,14 @@ ALTER TABLE footprints ALTER COLUMN published SET DEFAULT FALSE;
 
 -- =====================================================
 -- LAYOUT MODES MIGRATION (004_layout_modes)
--- grid_mode: 'editorial' (default), 'breathe', 'grid'
+-- grid_mode: 'breathe' (default), 'mosaic', 'grid'
 -- =====================================================
 
--- Update default from 'edit' to 'editorial'
-ALTER TABLE footprints ALTER COLUMN grid_mode SET DEFAULT 'editorial';
+-- Update default to 'breathe'
+ALTER TABLE footprints ALTER COLUMN grid_mode SET DEFAULT 'breathe';
 
--- Migrate existing 'edit' values to 'editorial'
-UPDATE footprints SET grid_mode = 'editorial' WHERE grid_mode = 'edit' OR grid_mode IS NULL;
+-- Migrate existing 'edit' and 'editorial' values to 'breathe'
+UPDATE footprints SET grid_mode = 'breathe' WHERE grid_mode IN ('edit', 'editorial') OR grid_mode IS NULL;
 
 
 -- =====================================================

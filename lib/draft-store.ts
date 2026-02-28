@@ -26,7 +26,7 @@ export interface DraftFootprint {
   handle: string
   bio: string
   theme: string
-  grid_mode?: 'editorial' | 'breathe' | 'grid'
+  grid_mode?: 'breathe' | 'mosaic' | 'grid'
   avatar_url: string | null
   content: DraftContent[]
   updated_at: number

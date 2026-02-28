@@ -9,17 +9,6 @@ interface LayoutToggleProps {
 
 const MODES: { mode: LayoutMode; icon: React.ReactNode; label: string }[] = [
   {
-    mode: 'editorial',
-    label: 'Editorial',
-    icon: (
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-        <rect x="1" y="1" width="12" height="5" rx="0.5" fill="currentColor" />
-        <rect x="1" y="8" width="5.5" height="5" rx="0.5" fill="currentColor" />
-        <rect x="8" y="8" width="5" height="5" rx="0.5" fill="currentColor" />
-      </svg>
-    ),
-  },
-  {
     mode: 'breathe',
     label: 'Breathe',
     icon: (
@@ -27,6 +16,18 @@ const MODES: { mode: LayoutMode; icon: React.ReactNode; label: string }[] = [
         <rect x="1.5" y="1.5" width="11" height="4" rx="1.5" fill="currentColor" />
         <rect x="1.5" y="7.5" width="4.5" height="5" rx="1.5" fill="currentColor" />
         <rect x="8" y="7.5" width="4.5" height="5" rx="1.5" fill="currentColor" />
+      </svg>
+    ),
+  },
+  {
+    mode: 'mosaic',
+    label: 'Mosaic',
+    icon: (
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <rect x="1" y="1" width="5.5" height="7" rx="0.5" fill="currentColor" />
+        <rect x="7.5" y="1" width="5.5" height="5" rx="0.5" fill="currentColor" />
+        <rect x="1" y="9" width="5.5" height="4" rx="0.5" fill="currentColor" />
+        <rect x="7.5" y="7" width="5.5" height="6" rx="0.5" fill="currentColor" />
       </svg>
     ),
   },
