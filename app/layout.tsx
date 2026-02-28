@@ -1,6 +1,5 @@
 import './globals.css'
 import { Toaster } from 'sonner'
-import AddToHomeScreen from '@/components/AddToHomeScreen'
 
 // Force dynamic rendering for all routes
 export const dynamic = 'force-dynamic'
@@ -55,7 +54,6 @@ export default function RootLayout({
       </head>
       <body className="font-sans" style={{ backgroundColor: '#050505' }}>
         {children}
-        <AddToHomeScreen />
         <Toaster
           position="bottom-center"
           toastOptions={{

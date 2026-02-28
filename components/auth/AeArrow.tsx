@@ -10,9 +10,9 @@ export default function AeArrow({ onClick, disabled, visible }: AeArrowProps) {
   return (
     <div
       style={{
-        opacity: visible ? 1 : 0,
-        transform: visible ? 'translateY(0)' : 'translateY(4px)',
-        transition: 'opacity 200ms ease, transform 200ms ease',
+        opacity: visible ? 1 : 0.15,
+        transform: 'translateY(0)',
+        transition: 'opacity 200ms ease',
         pointerEvents: visible ? 'auto' : 'none',
       }}
     >
