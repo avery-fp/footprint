@@ -173,12 +173,21 @@ export function parseEmbed(url: string): EmbedResult | null {
 }
 
 /**
- * Get a YouTube thumbnail URL for facade rendering.
+ * Extract a YouTube video ID from any YouTube URL format.
  * Returns null for non-YouTube URLs.
  */
-export function getYouTubeThumbnail(url: string): string | null {
+export function extractYouTubeId(url: string): string | null {
   const m = url.match(
     /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/
   )
-  return m ? `https://img.youtube.com/vi/${m[1]}/hqdefault.jpg` : null
+  return m ? m[1] : null
+}
+
+/**
+ * Get a YouTube thumbnail URL for facade rendering.
+ * Returns maxresdefault; caller should fallback to hqdefault on error.
+ */
+export function getYouTubeThumbnail(url: string): string | null {
+  const id = extractYouTubeId(url)
+  return id ? `https://i.ytimg.com/vi/${id}/maxresdefault.jpg` : null
 }

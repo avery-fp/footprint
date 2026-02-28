@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import type { ContentType } from '@/lib/parser'
 import { audioManager } from '@/lib/audio-manager'
-import { parseEmbed, getYouTubeThumbnail } from '@/lib/parseEmbed'
+import { parseEmbed, getYouTubeThumbnail, extractYouTubeId } from '@/lib/parseEmbed'
 import type { EmbedResult } from '@/lib/parseEmbed'
 
 function extractSpotifyInfo(url: string): { type: string; id: string } | null {
@@ -84,35 +84,36 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   // YOUTUBE — FACADE: thumbnail first, iframe on tap
   // ════════════════════════════════════════
-  if (content.type === 'youtube' && !iframeFailed) {
-    const embed = parseEmbed(content.url)
-    const thumbnailUrl = content.thumbnail_url || getYouTubeThumbnail(content.url)
-
-    // Facade — show thumbnail (or dark bg) with play button until tapped
+  const youtubeId = content.type === 'youtube' ? extractYouTubeId(content.url) : null
+  if (content.type === 'youtube' && youtubeId && !iframeFailed) {
+    // Facade — always shows a thumbnail, never collapses
     if (!isActivated) {
+      const thumbSrc = content.thumbnail_url || `https://i.ytimg.com/vi/${youtubeId}/maxresdefault.jpg`
       return (
         <div
           ref={containerRef}
-          className="w-full aspect-video fp-tile overflow-hidden cursor-pointer relative group bg-black"
+          className="w-full fp-tile overflow-hidden cursor-pointer relative group bg-black"
+          style={{ aspectRatio: '16/9' }}
           onClick={handleActivate}
         >
-          {thumbnailUrl && (
-            <Image
-              src={thumbnailUrl}
-              alt=""
-              width={tileSize >= 2 ? 800 : 480}
-              height={tileSize >= 2 ? 450 : 270}
-              sizes={tileSize >= 3 ? '(max-width: 768px) 100vw, 75vw' : tileSize >= 2 ? '(max-width: 768px) 100vw, 50vw' : '(max-width: 768px) 50vw, 25vw'}
-              className={`w-full h-full ${fitClass}`}
-              loading="lazy"
-              quality={75}
-              onLoad={() => setIsLoaded(true)}
-              onError={() => setIsLoaded(true)}
-            />
-          )}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={thumbSrc}
+            alt=""
+            className="w-full h-full object-cover"
+            loading="lazy"
+            decoding="async"
+            onError={(e) => {
+              const img = e.currentTarget as HTMLImageElement
+              const hqFallback = `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg`
+              if (!img.src.includes('hqdefault')) {
+                img.src = hqFallback
+              }
+            }}
+          />
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center group-hover:scale-105 transition-transform">
-              <svg className="w-3 h-3 text-white/80 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+            <div className="w-10 h-10 rounded-full bg-black/50 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M8 5v14l11-7z"/>
               </svg>
             </div>
@@ -120,22 +121,23 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         </div>
       )
     }
-    // Activated — show iframe
-    if (embed) {
-      return (
-        <div className="w-full aspect-video fp-tile overflow-hidden relative bg-black">
-          <iframe
-            src={`${embed.embedUrl}?autoplay=1&rel=0`}
-            className="absolute inset-0 w-full h-full"
-            allow="autoplay; encrypted-media"
-            allowFullScreen
-            sandbox="allow-scripts allow-same-origin allow-popups allow-presentation allow-forms"
-            referrerPolicy="origin"
-            onError={() => setIframeFailed(true)}
-          />
-        </div>
-      )
-    }
+    // Activated — swap facade for iframe
+    return (
+      <div
+        className="w-full fp-tile overflow-hidden relative bg-black"
+        style={{ aspectRatio: '16/9' }}
+      >
+        <iframe
+          src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&rel=0`}
+          className="absolute inset-0 w-full h-full"
+          allow="autoplay; encrypted-media"
+          allowFullScreen
+          sandbox="allow-scripts allow-same-origin allow-popups allow-presentation allow-forms"
+          referrerPolicy="origin"
+          onError={() => setIframeFailed(true)}
+        />
+      </div>
+    )
   }
 
   // ════════════════════════════════════════
@@ -184,13 +186,17 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       const embed = parseEmbed(content.url)
       if (embed) {
         return (
-          <div ref={containerRef} className="w-full fp-tile overflow-hidden bg-[#191414]" style={{ height: `${embed.height}px` }}>
+          <div
+            ref={containerRef}
+            className="w-full fp-tile overflow-hidden rounded-[inherit] bg-[#191414]"
+            style={{ height: `${embed.height}px` }}
+          >
             {isInView ? (
               <iframe
                 style={{ border: 'none', background: 'transparent' }}
                 src={embed.embedUrl}
                 width="100%"
-                height={embed.height}
+                height="100%"
                 allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
                 loading="lazy"
                 sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
@@ -198,7 +204,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 onError={() => setIframeFailed(true)}
               />
             ) : (
-              <div className="w-full bg-[#191414]" style={{ height: `${embed.height}px` }} />
+              <div className="w-full h-full bg-[#191414]" />
             )}
           </div>
         )
