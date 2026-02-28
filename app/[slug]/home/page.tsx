@@ -12,7 +12,6 @@ import { getTheme } from '@/lib/themes'
 import { snapToPreset } from '@/lib/aspect-ratios'
 import Image from 'next/image'
 import ErrorBoundary from '@/components/ErrorBoundary'
-import LayoutToggle from '@/components/LayoutToggle'
 import { type LayoutMode, getLayoutConfig } from '@/lib/layout-engine'
 
 interface TileContent extends DraftContent {
@@ -367,7 +366,7 @@ export default function EditPage() {
   const [backgroundBlur, setBackgroundBlur] = useState(true)
   const [serialNumber, setSerialNumber] = useState<number | null>(null)
   const [isPublished, setIsPublished] = useState(false)
-  const [layoutMode, setLayoutMode] = useState<LayoutMode>('breathe')
+  const layoutMode: LayoutMode = 'grid'
   const [statusToast, setStatusToast] = useState<string | null>(null)
   const [pasteUrl, setPasteUrl] = useState('')
   const [thoughtText, setThoughtText] = useState('')
@@ -645,11 +644,6 @@ export default function EditPage() {
           setWallpaperUrl(data.footprint.background_url || '')
           setBackgroundBlur(data.footprint.background_blur ?? true)
           setIsPublished(data.footprint.published !== false)
-          const gm = data.footprint.grid_mode
-          const resolvedGridMode: LayoutMode =
-            (gm === 'breathe' || gm === 'mosaic' || gm === 'grid') ? gm : 'breathe'
-          setLayoutMode(resolvedGridMode)
-
           const sources: Record<string, 'library' | 'links'> = {}
           const content = (data.tiles || []).map((tile: any) => {
             sources[tile.id] = tile.source
@@ -676,7 +670,7 @@ export default function EditPage() {
             handle: data.footprint.handle || '',
             bio: data.footprint.bio || '',
             theme: data.footprint.dimension || 'midnight',
-            grid_mode: resolvedGridMode,
+            grid_mode: 'grid',
             avatar_url: data.footprint.avatar_url || null,
             content,
             updated_at: Date.now(),
@@ -702,7 +696,7 @@ export default function EditPage() {
             handle: '',
             bio: '',
             theme: 'midnight',
-            grid_mode: 'breathe',
+            grid_mode: 'grid',
             avatar_url: null,
             content: [],
             updated_at: Date.now(),
@@ -761,17 +755,6 @@ export default function EditPage() {
     }).catch(e => console.error('Failed to toggle published:', e))
     trackOp(op)
   }, [isPublished, slug, trackOp])
-
-  // Switch layout mode — saved immediately, not through autosave
-  const switchLayoutMode = useCallback((mode: LayoutMode) => {
-    setLayoutMode(mode)
-    const op = fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ grid_mode: mode }),
-    }).catch(e => console.error('Failed to switch layout mode:', e))
-    trackOp(op)
-  }, [slug, trackOp])
 
   useEffect(() => {
     if (pillMode === 'url') {
@@ -1670,15 +1653,6 @@ export default function EditPage() {
         </div>
       </div>
 
-      {/* Layout toggle — below room pills, right-aligned */}
-      {!isArranging && filteredContent.length > 0 && (
-        <div className="fixed top-0 left-0 right-0 z-[39] pointer-events-none" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 88px)' }}>
-          <div className="max-w-7xl mx-auto px-4 md:px-7 flex justify-end pointer-events-auto">
-            <LayoutToggle mode={layoutMode} onChange={switchLayoutMode} />
-          </div>
-        </div>
-      )}
-
       {/* ═══ TILE GRID ═══ */}
       <div className="max-w-7xl mx-auto px-3 md:px-6 pt-28 md:pt-24 pb-32 relative z-10"
         onClick={(e) => {
@@ -2200,3 +2174,4 @@ export default function EditPage() {
     </ErrorBoundary>
   )
 }
+
