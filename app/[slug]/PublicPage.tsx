@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useMemo, memo } from 'react'
 import Image from 'next/image'
-import { motion, LayoutGroup, useReducedMotion } from 'framer-motion'
 import ContentCardBase from '@/components/ContentCard'
 import VideoTileBase from '@/components/VideoTile'
 
@@ -13,15 +12,10 @@ import { PlusButton } from '@/components/PlusButton'
 import { RemoveBubble } from '@/components/RemoveBubble'
 import { RolodexDrawer } from '@/components/RolodexDrawer'
 import FloatingCtaBar from '@/components/FloatingCtaBar'
-import LayoutToggle from '@/components/LayoutToggle'
 import {
   type LayoutMode,
-  type ComposedRow,
-  composeEditorial,
   shuffleForGrid,
   getLayoutConfig,
-  getRowGridStyle,
-  getRowTileAspect,
 } from '@/lib/layout-engine'
 
 interface Room {
@@ -38,13 +32,6 @@ interface PublicPageProps {
   serial: string
   pageUrl: string
   isDraft?: boolean
-}
-
-// Spring physics — the mode switch animation
-const MODE_SPRING = {
-  type: 'spring' as const,
-  stiffness: 200,
-  damping: 25,
 }
 
 const noop = () => {}
@@ -121,13 +108,7 @@ function TileImage({ src, alt, width, height, sizes, index, onWidescreen }: {
 
 export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl, isDraft }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
-  const prefersReducedMotion = useReducedMotion()
-
-  // Layout mode — owner's default from DB, visitor can toggle locally
-  const gm = footprint.grid_mode
-  const defaultMode: LayoutMode = (gm === 'breathe' || gm === 'mosaic' || gm === 'grid') ? gm : 'breathe'
-  const [layoutMode, setLayoutMode] = useState<LayoutMode>(defaultMode)
-  const [hasInteracted, setHasInteracted] = useState(false)
+  const layoutMode: LayoutMode = 'grid'
 
   const serialNumber = footprint.serial_number || 0
 
@@ -169,21 +150,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     ? visibleRooms.find(r => r.id === activeRoomId)?.content || []
     : validContent
 
-  // Apply layout mode to content — grid shuffles, editorial/breathe preserve order
-  const content = useMemo(() => {
-    if (layoutMode === 'grid') {
-      return shuffleForGrid(baseContent, serialNumber)
-    }
-    return baseContent
-  }, [baseContent, layoutMode, serialNumber])
-
-  // Editorial composition (used by breathe mode only)
-  const composedRows = useMemo(() => {
-    if (layoutMode === 'breathe') {
-      return composeEditorial(baseContent)
-    }
-    return []
-  }, [baseContent, layoutMode])
+  // Deterministic shuffle — same serial → same order every visit
+  const content = useMemo(() => shuffleForGrid(baseContent, serialNumber), [baseContent, serialNumber])
 
   // Wallpaper filter
   const activeRoomIndex = activeRoomId ? visibleRooms.findIndex(r => r.id === activeRoomId) : -1
@@ -242,23 +210,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     const t = setTimeout(() => setShowToast(false), 2000)
     return () => clearTimeout(t)
   }, [showToast])
-
-  // Mode switch — owner saves to DB, visitor is local only
-  const handleModeChange = useCallback((newMode: LayoutMode) => {
-    setLayoutMode(newMode)
-    setHasInteracted(true)
-
-    if (isOwner) {
-      fetch('/api/layout-mode', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          slug: footprint.username,
-          grid_mode: newMode,
-        }),
-      }).catch(() => {})
-    }
-  }, [isOwner, footprint.username])
 
   // Layout config
   const layoutConfig = useMemo(() => getLayoutConfig(layoutMode), [layoutMode])
@@ -322,105 +273,12 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         <ContentCard content={item} isMobile={isMobile} tileSize={size} aspect={aspect} isPublicView />
       </div>
     )
-  }
+    }
 
   // ═══════════════════════════════════════════
-  // MOSAIC — 2-column portrait grid, Spotify spans full width
+  // THE GRID — uniform tiles, rounded corners, clean
   // ═══════════════════════════════════════════
-  const mosaicGrid = (
-    <div
-      className="grid grid-cols-2"
-      style={{
-        gap: `${layoutConfig.gap}px`,
-        opacity: roomFade === 'out' ? 0 : 1,
-        transform: roomFade === 'out' ? 'translateY(6px)' : roomFade === 'in' ? 'translateY(-6px)' : 'translateY(0)',
-        transition: 'opacity 250ms ease-out, transform 350ms ease-out',
-      }}
-    >
-      {content.map((item: any, idx: number) => {
-        const isSpotify = item.type === 'spotify'
-        const isTextual = item.type === 'thought' || item.type === 'quote' || item.type === 'link'
-        return (
-          <motion.div
-            key={item.id}
-            layout={!prefersReducedMotion}
-            layoutId={prefersReducedMotion ? undefined : `tile-${item.id}`}
-            initial={{ opacity: 1, scale: 1 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={hasInteracted ? MODE_SPRING : { duration: 0 }}
-            className={isSpotify ? 'col-span-2' : ''}
-            style={{
-              overflow: 'hidden',
-              borderRadius: `${layoutConfig.tileRadius}px`,
-              background: 'rgba(255,255,255,0.06)',
-              ...(!isTextual && !isSpotify ? { aspectRatio: '4 / 5' } : {}),
-            }}
-          >
-            {renderTileContent(item, idx, isSpotify ? 2 : 1, isSpotify ? 'auto' : 'portrait')}
-          </motion.div>
-        )
-      })}
-    </div>
-  )
-
-  // ═══════════════════════════════════════════
-  // BREATHE — composed rows with rounded tiles
-  // ═══════════════════════════════════════════
-  const breatheGrid = (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: `${layoutConfig.gap}px`,
-        opacity: roomFade === 'out' ? 0 : 1,
-        transform: roomFade === 'out' ? 'translateY(6px)' : roomFade === 'in' ? 'translateY(-6px)' : 'translateY(0)',
-        transition: 'opacity 250ms ease-out, transform 350ms ease-out',
-      }}
-    >
-      {composedRows.map((row: ComposedRow, rowIdx: number) => {
-        const rowStyle = getRowGridStyle(row)
-        const tileAspect = getRowTileAspect(row.type)
-
-        return (
-          <div
-            key={`row-${rowIdx}`}
-            style={{
-              ...rowStyle,
-              gap: `${layoutConfig.gap}px`,
-            }}
-          >
-            {row.tiles.map((item: any, tileIdx: number) => {
-              const globalIdx = composedRows.slice(0, rowIdx).reduce((sum, r) => sum + r.tiles.length, 0) + tileIdx
-              return (
-                <motion.div
-                  key={item.id}
-                  layout={!prefersReducedMotion}
-                  layoutId={prefersReducedMotion ? undefined : `tile-${item.id}`}
-                  initial={false}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={hasInteracted ? MODE_SPRING : { duration: 0 }}
-                  style={{
-                    aspectRatio: tileAspect,
-                    overflow: 'hidden',
-                    borderRadius: `${layoutConfig.tileRadius}px`,
-                    boxShadow: layoutConfig.tileShadow,
-                    background: 'rgba(255,255,255,0.06)',
-                  }}
-                >
-                  {renderTileContent(item, globalIdx, row.type === 'hero' ? 3 : row.type === 'breath' ? 2 : 1, 'auto')}
-                </motion.div>
-              )
-            })}
-          </div>
-        )
-      })}
-    </div>
-  )
-
-  // ═══════════════════════════════════════════
-  // GRID MODE — uniform tiles, shuffled
-  // ═══════════════════════════════════════════
-  const uniformGrid = (
+  const activeGrid = (
     <div
       className="grid grid-cols-3 md:grid-cols-4"
       style={{
@@ -433,13 +291,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       {content.map((item: any, idx: number) => {
         const isSpotify = item.type === 'spotify'
         return (
-          <motion.div
+          <div
             key={item.id}
-            layout={!prefersReducedMotion}
-            layoutId={prefersReducedMotion ? undefined : `tile-${item.id}`}
-            initial={{ opacity: 1, scale: 1 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={hasInteracted ? MODE_SPRING : { duration: 0 }}
             className={`overflow-hidden ${isSpotify ? 'col-span-2' : 'aspect-square'}`}
             style={{
               borderRadius: `${layoutConfig.tileRadius}px`,
@@ -448,14 +301,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             }}
           >
             {renderTileContent(item, idx, isSpotify ? 2 : 1, isSpotify ? 'auto' : 'square')}
-          </motion.div>
+          </div>
         )
       })}
     </div>
   )
-
-  // Select grid based on layout mode
-  const activeGrid = layoutMode === 'grid' ? uniformGrid : layoutMode === 'mosaic' ? mosaicGrid : breatheGrid
 
   return (
     <div className="min-h-[100dvh] relative flex flex-col" style={{ background: theme.colors.background, color: theme.colors.text, '--fp-glass': theme.colors.glass, '--fp-text-muted': theme.colors.textMuted } as React.CSSProperties}>
@@ -565,27 +415,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </div>
         )}
 
-        {/* Layout toggle — below room nav, right-aligned within grid container */}
-        {content.length > 0 && (
-          <div className="mx-auto w-full px-3 md:px-0 mb-3" style={{ maxWidth: '880px' }}>
-            <div className="flex justify-end">
-              <LayoutToggle mode={layoutMode} onChange={handleModeChange} />
-            </div>
-          </div>
-        )}
-
         {/* The Grid */}
         <div
           className="fp-grid-container mx-auto w-full"
-          style={{
-            maxWidth: '880px',
-            paddingLeft: layoutMode === 'breathe' ? `${isMobile ? 16 : layoutConfig.containerPadding}px` : '0',
-            paddingRight: layoutMode === 'breathe' ? `${isMobile ? 16 : layoutConfig.containerPadding}px` : '0',
-            transition: 'padding 350ms ease-out',
-          }}
+          style={{ maxWidth: '880px' }}
         >
           <div className="fp-grid-arrive">
-            <LayoutGroup>{activeGrid}</LayoutGroup>
+            {activeGrid}
           </div>
         </div>
 
@@ -658,3 +494,4 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     </div>
   )
 }
+
