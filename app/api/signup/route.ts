@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
 import { createSessionToken } from '@/lib/auth'
-import * as bcrypt from 'bcryptjs'
-import { signupSchema } from '@/lib/schemas'
-import { validateBody } from '@/lib/validate'
 import { routeLogger } from '@/lib/logger'
 
 const log = routeLogger('POST', '/api/signup')
@@ -11,30 +8,54 @@ const log = routeLogger('POST', '/api/signup')
 /**
  * POST /api/signup
  *
- * Username + email + password signup.
- * Creates user + unpublished footprint with chosen username, sets fp_session cookie.
- * No serial number, no payment. Free to create.
+ * Creates a user record + unpublished footprint after Supabase Auth signup.
+ * Expects Authorization: Bearer <supabase_access_token> and { username } in body.
+ * Sets fp_session cookie and returns slug.
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const v = validateBody(signupSchema, body)
-    if (!v.success) return v.response
-    const { email, username, password } = v.data
+    const { username } = body
 
-    const supabase = createServerSupabaseClient()
+    if (!username || typeof username !== 'string' || username.length < 2) {
+      return NextResponse.json({ error: 'Username is required' }, { status: 400 })
+    }
 
-    // Check if email already exists
-    const { data: existingUser } = await supabase
-      .from('users')
-      .select('id, email, serial_number')
-      .ilike('email', email)
-      .single()
+    const cleanUsername = username.toLowerCase().trim()
+
+    // Extract Supabase access token
+    const authHeader = request.headers.get('Authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Missing authorization' }, { status: 401 })
+    }
+    const accessToken = authHeader.slice(7)
+
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    )
+
+    // Verify the Supabase token
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(accessToken)
+
+    if (authError || !authUser?.email) {
+      return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
+    }
+
+    const email = authUser.email
 
     const hostname = new URL(request.url).hostname
     const cookieDomain = hostname.endsWith('.footprint.onl') || hostname === 'footprint.onl'
       ? '.footprint.onl'
       : undefined
+
+    // Check if email already exists in our users table
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id, email, serial_number')
+      .ilike('email', email)
+      .single()
 
     if (existingUser) {
       // Already has account — find their footprint and log them in
@@ -68,20 +89,17 @@ export async function POST(request: NextRequest) {
     const { data: existingFp } = await supabase
       .from('footprints')
       .select('id')
-      .eq('username', username)
+      .eq('username', cleanUsername)
       .single()
 
     if (existingFp) {
       return NextResponse.json({ error: 'That name is already claimed. Try another.' }, { status: 409 })
     }
 
-    // Hash password
-    const passwordHash = await bcrypt.hash(password, 10)
-
-    // Create user (no serial number — unpublished)
+    // Create user (no password_hash — Supabase Auth handles passwords)
     const { data: user, error: userError } = await supabase
       .from('users')
-      .insert({ email, password_hash: passwordHash })
+      .insert({ email })
       .select()
       .single()
 
@@ -93,7 +111,7 @@ export async function POST(request: NextRequest) {
     // Create unpublished footprint with chosen username
     const { error: fpError } = await supabase.from('footprints').insert({
       user_id: user.id,
-      username,
+      username: cleanUsername,
       name: 'Everything',
       icon: '◈',
       is_primary: true,
@@ -109,7 +127,7 @@ export async function POST(request: NextRequest) {
     const sessionToken = await createSessionToken(user.id, user.email)
     const response = NextResponse.json({
       success: true,
-      slug: username,
+      slug: cleanUsername,
       existing: false,
     })
 

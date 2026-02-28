@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { createBrowserSupabaseClient } from '@/lib/supabase'
 import AeInput from '@/components/auth/AeInput'
 import AeArrow from '@/components/auth/AeArrow'
 import URLPreview from '@/components/auth/URLPreview'
@@ -67,23 +68,43 @@ export default function SignupPage() {
     setError('')
 
     try {
+      const supabase = createBrowserSupabaseClient()
+      const { data, error: authError } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+      })
+
+      if (authError) {
+        setError(authError.message || 'something went wrong')
+        doShake()
+        return
+      }
+
+      if (!data.session) {
+        setError('something went wrong')
+        doShake()
+        return
+      }
+
+      // Create user record + footprint via server
       const res = await fetch('/api/signup', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${data.session.access_token}`,
+        },
         body: JSON.stringify({
           username: username.trim(),
-          email: email.trim(),
-          password,
         }),
       })
 
-      const data = await res.json()
+      const result = await res.json()
 
-      if (data.success) {
-        const dest = data.slug ? `/${data.slug}/home` : '/build'
+      if (result.success) {
+        const dest = result.slug ? `/${result.slug}/home` : '/build'
         window.location.href = dest
       } else {
-        setError(data.error || 'something went wrong')
+        setError(result.error || 'something went wrong')
         doShake()
       }
     } catch {

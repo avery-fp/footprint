@@ -224,7 +224,7 @@ export default function SuccessPage() {
               set a password
             </p>
             <p className="text-white/30 text-[13px] leading-relaxed mb-8">
-              you can also sign in with a magic link anytime.
+              you can sign in with your password anytime.
             </p>
             <form onSubmit={handleSetPassword} className="space-y-3">
               <input

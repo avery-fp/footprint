@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { createBrowserSupabaseClient } from '@/lib/supabase'
 import AeInput from '@/components/auth/AeInput'
 import AeArrow from '@/components/auth/AeArrow'
 import AeQuietLink from '@/components/auth/AeQuietLink'
@@ -13,7 +14,6 @@ export default function LoginPage() {
   const [error, setError] = useState('')
 
   const emailRef = useRef<HTMLInputElement>(null)
-  const passwordRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     setTimeout(() => emailRef.current?.focus(), 100)
@@ -28,19 +28,33 @@ export default function LoginPage() {
     setError('')
 
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), password }),
+      const supabase = createBrowserSupabaseClient()
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
       })
 
-      const data = await res.json()
+      if (authError || !data.session) {
+        setError('invalid email or password')
+        doShake()
+        return
+      }
 
-      if (data.success) {
-        const dest = data.slug ? `/${data.slug}/home` : '/build'
+      // Create fp_session cookie via server
+      const res = await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${data.session.access_token}`,
+        },
+      })
+
+      const result = await res.json()
+
+      if (result.success) {
+        const dest = result.slug ? `/${result.slug}/home` : '/build'
         window.location.href = dest
       } else {
-        setError(data.error || 'invalid email or password')
+        setError(result.error || 'something went wrong')
         doShake()
       }
     } catch {
@@ -86,7 +100,6 @@ export default function LoginPage() {
 
           <div style={{ width: '100%', marginTop: '16px' }}>
             <AeInput
-              ref={passwordRef}
               placeholder="password"
               value={password}
               onChange={(e) => { setPassword(e.target.value); setError('') }}
