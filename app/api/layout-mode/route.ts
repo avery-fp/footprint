@@ -3,13 +3,13 @@ import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getUserIdFromRequest } from '@/lib/auth'
 
-const VALID_MODES = ['breathe', 'mosaic', 'grid']
+const VALID_MODES = ['grid']
 
 /**
  * PATCH /api/layout-mode
  *
  * Owner sets their default layout mode for a footprint.
- * Body: { slug: string, grid_mode: 'breathe' | 'mosaic' | 'grid' }
+ * Body: { slug: string, grid_mode: 'grid' }
  */
 export async function PATCH(request: NextRequest) {
   try {
