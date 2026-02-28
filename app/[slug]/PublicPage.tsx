@@ -430,6 +430,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       }}
     >
       {content.map((item: any, idx: number) => {
+        const isSpotify = item.type === 'spotify'
         return (
           <motion.div
             key={item.id}
@@ -438,14 +439,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             initial={{ opacity: 1, scale: 1 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={hasInteracted ? MODE_SPRING : { duration: 0 }}
-            className="overflow-hidden aspect-square"
+            className={`overflow-hidden ${isSpotify ? 'col-span-2' : 'aspect-square'}`}
             style={{
               borderRadius: `${layoutConfig.tileRadius}px`,
               boxShadow: layoutConfig.tileShadow,
               background: 'rgba(255,255,255,0.06)',
             }}
           >
-            {renderTileContent(item, idx, 1, 'square')}
+            {renderTileContent(item, idx, isSpotify ? 2 : 1, isSpotify ? 'auto' : 'square')}
           </motion.div>
         )
       })}

@@ -156,6 +156,7 @@ export async function PUT(
       .eq('username', username)
 
     if (updateError) {
+      console.error('Footprint update error:', updateError)
       return NextResponse.json({ error: 'Update failed' }, { status: 500 })
     }
 
