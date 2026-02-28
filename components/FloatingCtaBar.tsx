@@ -7,7 +7,7 @@ export default function FloatingCtaBar() {
   const [hide, setHide] = useState(false)
 
   useEffect(() => {
-    const timer = setTimeout(() => setVisible(true), 2000)
+    const timer = setTimeout(() => setVisible(true), 800)
     return () => clearTimeout(timer)
   }, [])
 
@@ -45,7 +45,8 @@ export default function FloatingCtaBar() {
         fontWeight: 400,
         letterSpacing: '0.5px',
         textDecoration: 'none',
-        transition: 'opacity 1s ease, background 0.3s ease',
+        transition: 'opacity 0.8s ease, background 0.3s ease',
+        pointerEvents: visible ? 'auto' : 'none',
         cursor: 'pointer',
         whiteSpace: 'nowrap',
       }}

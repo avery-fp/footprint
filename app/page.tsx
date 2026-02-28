@@ -1,13 +1,10 @@
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { cookies } from 'next/headers'
 import { getTheme } from '@/lib/themes'
-import { verifySessionToken } from '@/lib/auth'
 import AnalyticsTracker from '@/components/AnalyticsTracker'
 import ShareEngine from '@/components/ShareEngine'
 import EventTracker from '@/components/EventTracker'
 import ReferralBanner from '@/components/ReferralBanner'
 import PublicPage from './[slug]/PublicPage'
-import MakeYoursCTA from './MakeYoursCTA'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,17 +28,6 @@ export default async function Home() {
       </div>
     )
   }
-
-  // Check if user is logged in (server-side)
-  let isLoggedIn = false
-  try {
-    const cookieStore = cookies()
-    const token = cookieStore.get('fp_session')?.value
-    if (token) {
-      const session = await verifySessionToken(token)
-      if (session) isLoggedIn = true
-    }
-  } catch {}
 
   // Fetch tiles + rooms
   const [{ data: images }, { data: links }, { data: roomsData }] = await Promise.all([
@@ -101,7 +87,6 @@ export default async function Home() {
         serial={serial}
         pageUrl={pageUrl}
       />
-      <MakeYoursCTA isLoggedIn={isLoggedIn} />
     </>
   )
 }
