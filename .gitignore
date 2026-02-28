@@ -46,3 +46,4 @@ output/messages.csv
 output/distribution_plan.json
 output/lift.json
 output/snapshots/
+supabase/.temp/
