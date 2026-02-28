@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createSessionToken } from '@/lib/auth'
+import { loginSchema } from '@/lib/schemas'
+import { validateBody } from '@/lib/validate'
 import { routeLogger } from '@/lib/logger'
 
-const log = routeLogger('POST', '/api/auth/session')
+const log = routeLogger('POST', '/api/auth/login')
 
 // IP rate limit: 20 attempts per 15 min
 const ipAttempts = new Map<string, { count: number; resetAt: number }>()
@@ -25,11 +27,11 @@ function checkIpRate(ip: string): boolean {
 }
 
 /**
- * POST /api/auth/session
+ * POST /api/auth/login
  *
- * Accepts a Supabase access token (Authorization: Bearer <token>),
- * verifies it, looks up the user, creates an fp_session cookie,
- * and returns the user's primary footprint slug.
+ * Accepts { email, password } in body.
+ * Authenticates via Supabase Auth server-side, then creates
+ * an fp_session JWT cookie and returns the user's slug.
  */
 export async function POST(request: NextRequest) {
   if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
@@ -37,37 +39,44 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const body = await request.json()
+    const v = validateBody(loginSchema, body)
+    if (!v.success) return v.response
+    const { email, password } = v.data
+
     // IP rate limit
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
     if (!checkIpRate(ip)) {
       return NextResponse.json({ error: 'Too many attempts. Try again later.' }, { status: 429 })
     }
 
-    // Extract Supabase access token from Authorization header
-    const authHeader = request.headers.get('Authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Missing authorization' }, { status: 401 })
-    }
-    const accessToken = authHeader.slice(7)
+    // Authenticate with Supabase Auth using the anon key (not service role)
+    const authClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    )
 
-    // Verify the token with Supabase
+    const { error: authError } = await authClient.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (authError) {
+      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
+    }
+
+    // Use service role client to look up user in our custom users table
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(accessToken)
-
-    if (authError || !authUser?.email) {
-      return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
-    }
-
-    // Look up user in our users table
     const { data: user, error: userError } = await supabase
       .from('users')
       .select('id, email')
-      .ilike('email', authUser.email)
+      .ilike('email', email)
       .single()
 
     if (userError || !user) {
@@ -105,7 +114,7 @@ export async function POST(request: NextRequest) {
 
     return response
   } catch (err: any) {
-    log.error({ err }, 'Session creation failed')
-    return NextResponse.json({ error: 'Session creation failed' }, { status: 500 })
+    log.error({ err }, 'Login failed')
+    return NextResponse.json({ error: 'Login failed' }, { status: 500 })
   }
 }
