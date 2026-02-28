@@ -1,6 +1,5 @@
 import { SignJWT, jwtVerify } from 'jose'
 import { createServerSupabaseClient } from './supabase'
-import { nanoid } from 'nanoid'
 import type { NextRequest } from 'next/server'
 
 // Secret key for JWT signing — MUST be set via JWT_SECRET env var in production
@@ -19,104 +18,17 @@ function JWT_SECRET_KEY() {
   return _jwtSecret
 }
 
-// Token expiration times
-const MAGIC_LINK_EXPIRY = '15m'  // Magic link valid for 15 minutes
 const SESSION_EXPIRY = '30d'     // Session valid for 30 days
 
 /**
- * Generate a magic link token for passwordless auth
- * 
- * The flow:
- * 1. User enters email
- * 2. We generate a secure token
- * 3. Send email with link containing token
- * 4. User clicks link, we verify token, create session
- * 
- * Simple. Secure. No passwords to remember.
- */
-export async function generateMagicLink(email: string, redirect?: string): Promise<string> {
-  const supabase = createServerSupabaseClient()
-
-  // Generate a unique token
-  const token = nanoid(32)
-
-  // Calculate expiry time (15 minutes from now)
-  const expiresAt = new Date(Date.now() + 15 * 60 * 1000)
-
-  // Store the magic link in the database
-  const { error } = await supabase
-    .from('magic_links')
-    .insert({
-      email,
-      token,
-      expires_at: expiresAt.toISOString(),
-    })
-
-  if (error) {
-    console.error('Magic link DB insert error:', error)
-    throw new Error(`Failed to create magic link: ${error.message}`)
-  }
-
-  // Build the magic link URL
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-  const url = `${baseUrl}/auth/verify?token=${token}`
-  return redirect ? `${url}&redirect=${encodeURIComponent(redirect)}` : url
-}
-
-/**
- * Verify a magic link token and create a session
- * 
- * Returns the user data and a session token if valid.
- * Returns null if invalid or expired.
- */
-export async function verifyMagicLink(token: string): Promise<{
-  user: any
-  sessionToken: string
-} | null> {
-  const supabase = createServerSupabaseClient()
-
-  // Atomically consume the token: UPDATE where used_at IS NULL
-  // If two requests race, only one will succeed (the other gets 0 rows)
-  const { data: consumed, error: consumeError } = await supabase
-    .from('magic_links')
-    .update({ used_at: new Date().toISOString() })
-    .eq('token', token)
-    .is('used_at', null)
-    .gte('expires_at', new Date().toISOString())
-    .select('email')
-    .single()
-
-  if (consumeError || !consumed) {
-    return null
-  }
-
-  // Get the user
-  const { data: user } = await supabase
-    .from('users')
-    .select('*')
-    .eq('email', consumed.email)
-    .single()
-
-  // If no user exists, they haven't paid yet
-  if (!user) {
-    return null
-  }
-
-  // Create a session token
-  const sessionToken = await createSessionToken(user.id, user.email)
-
-  return { user, sessionToken }
-}
-
-/**
  * Create a JWT session token
- * 
+ *
  * This token is stored in a cookie and used to authenticate requests.
  * Contains the user ID and email, signed with our secret.
  */
 export async function createSessionToken(userId: string, email: string): Promise<string> {
-  const token = await new SignJWT({ 
-    userId, 
+  const token = await new SignJWT({
+    userId,
     email,
   })
     .setProtectedHeader({ alg: 'HS256' })
@@ -129,7 +41,7 @@ export async function createSessionToken(userId: string, email: string): Promise
 
 /**
  * Verify a session token and return the payload
- * 
+ *
  * Used in middleware and API routes to check authentication.
  */
 export async function verifySessionToken(token: string): Promise<{
@@ -155,18 +67,18 @@ export async function verifySessionToken(token: string): Promise<{
 
 /**
  * Get user from session token
- * 
+ *
  * Convenience function that verifies token and fetches full user data.
  */
 export async function getUserFromSession(token: string) {
   const session = await verifySessionToken(token)
-  
+
   if (!session) {
     return null
   }
 
   const supabase = createServerSupabaseClient()
-  
+
   const { data: user } = await supabase
     .from('users')
     .select('*')
@@ -174,108 +86,6 @@ export async function getUserFromSession(token: string) {
     .single()
 
   return user
-}
-
-// ── OTP code auth (replaces magic link for login/signup) ────
-
-/**
- * Generate a 6-digit OTP code for email verification.
- * Stored in the magic_links table (reuses existing infra).
- * Returns the code.
- */
-export async function generateOTP(email: string): Promise<string> {
-  const supabase = createServerSupabaseClient()
-
-  // 6-digit numeric code (crypto-secure)
-  const array = new Uint32Array(1)
-  crypto.getRandomValues(array)
-  const code = (array[0] % 900000 + 100000).toString()
-
-  const expiresAt = new Date(Date.now() + 15 * 60 * 1000) // 15 min
-
-  const { error } = await supabase
-    .from('magic_links')
-    .insert({
-      email,
-      token: code,
-      expires_at: expiresAt.toISOString(),
-    })
-
-  if (error) {
-    console.error('OTP insert error:', error)
-    throw new Error(`Failed to create OTP: ${error.message}`)
-  }
-
-  return code
-}
-
-/**
- * Verify a 6-digit OTP code + email.
- * Atomically consumes the code (single-use).
- */
-export async function verifyOTP(email: string, code: string): Promise<{
-  user: any
-  sessionToken: string
-} | null> {
-  const supabase = createServerSupabaseClient()
-
-  // Consume the code atomically
-  const { data: consumed, error: consumeError } = await supabase
-    .from('magic_links')
-    .update({ used_at: new Date().toISOString() })
-    .eq('token', code)
-    .ilike('email', email)
-    .is('used_at', null)
-    .gte('expires_at', new Date().toISOString())
-    .select('email')
-    .single()
-
-  if (consumeError || !consumed) {
-    return null
-  }
-
-  const { data: user } = await supabase
-    .from('users')
-    .select('*')
-    .ilike('email', consumed.email)
-    .single()
-
-  if (!user) return null
-
-  const sessionToken = await createSessionToken(user.id, user.email)
-  return { user, sessionToken }
-}
-
-/**
- * Send OTP code email via Resend.
- * Returns true on success, throws on failure.
- */
-export async function sendOTPEmail(email: string, code: string) {
-  if (!process.env.RESEND_API_KEY) {
-    console.log(`[DEV] OTP for ${email}: ${code}`)
-    return true
-  }
-
-  await sendEmail({
-    from: 'Footprint <login@footprint.onl>',
-    to: email,
-    subject: `${code} — your Footprint code`,
-    html: `
-      <div style="font-family: -apple-system, sans-serif; max-width: 400px; margin: 0 auto; padding: 40px 20px;">
-        <p style="color: #666; font-size: 15px; line-height: 1.6;">
-          Your sign-in code:
-        </p>
-        <p style="font-size: 36px; font-weight: 600; letter-spacing: 0.3em; color: #000; margin: 20px 0;">
-          ${code}
-        </p>
-        <p style="color: #999; font-size: 12px; margin-top: 30px;">
-          Expires in 15 minutes. If you didn't request this, ignore this email.
-        </p>
-      </div>
-    `,
-  })
-
-  return true
 }
 
 /**
@@ -300,48 +110,14 @@ async function sendEmail(params: { from: string; to: string; subject: string; ht
 }
 
 /**
- * Send magic link email via Resend
- *
- * Requires RESEND_API_KEY env var.
- * Falls back to console.log in development if no key is set.
- */
-export async function sendMagicLinkEmail(email: string, magicLink: string) {
-  if (!process.env.RESEND_API_KEY) {
-    console.log(`[DEV] Magic link for ${email}: ${magicLink}`)
-    return true
-  }
-
-  await sendEmail({
-    from: 'Footprint <login@footprint.onl>',
-    to: email,
-    subject: 'Your Footprint login link',
-    html: `
-      <div style="font-family: -apple-system, sans-serif; max-width: 400px; margin: 0 auto; padding: 40px 20px;">
-        <p style="color: #666; font-size: 15px; line-height: 1.6;">
-          Tap below to sign in to your Footprint.
-        </p>
-        <a href="${magicLink}" style="display: inline-block; background: #000; color: #fff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-size: 15px; margin: 20px 0;">
-          Sign in
-        </a>
-        <p style="color: #999; font-size: 12px; margin-top: 30px;">
-          This link expires in 15 minutes. If you didn't request this, ignore this email.
-        </p>
-      </div>
-    `,
-  })
-
-  return true
-}
-
-/**
- * Send welcome email with magic link after purchase
+ * Send welcome email after purchase
  */
 export async function sendWelcomeEmail(email: string, serialNumber: number, username?: string) {
-  const redirect = username ? `/${username}/home` : '/build'
-  const magicLink = await generateMagicLink(email, redirect)
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.footprint.onl'
+  const loginUrl = `${baseUrl}/login`
 
   if (!process.env.RESEND_API_KEY) {
-    console.log(`[DEV] Welcome email for ${email} (FP #${serialNumber}): ${magicLink}`)
+    console.log(`[DEV] Welcome email for ${email} (FP #${serialNumber}): ${loginUrl}`)
     return true
   }
 
@@ -356,20 +132,16 @@ export async function sendWelcomeEmail(email: string, serialNumber: number, user
             You're FP #${serialNumber.toLocaleString()}
           </p>
           <p style="color: #666; font-size: 15px; line-height: 1.6;">
-            Your footprint is live. Tap below to sign in and start posting.
+            Your footprint is live. Sign in to start posting.
           </p>
-          <a href="${magicLink}" style="display: inline-block; background: #000; color: #fff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-size: 15px; margin: 20px 0;">
+          <a href="${loginUrl}" style="display: inline-block; background: #000; color: #fff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-size: 15px; margin: 20px 0;">
             Sign in &amp; start posting
           </a>
-          <p style="color: #999; font-size: 12px; margin-top: 30px;">
-            This link expires in 15 minutes. You can always request a new one at footprint.onl.
-          </p>
         </div>
       `,
     })
   } catch (err) {
     console.error('Welcome email failed:', err)
-    // Don't throw — user is already created, they can request a magic link manually
   }
 
   return true

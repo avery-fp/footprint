@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest'
 import {
   signupSchema,
   loginSchema,
-  magicLinkSchema,
   contentPostSchema,
   contentReorderSchema,
   eventsSchema,
@@ -60,25 +59,6 @@ describe('loginSchema', () => {
   it('rejects empty fields', () => {
     expect(loginSchema.safeParse({ email: '', password: 'test' }).success).toBe(false)
     expect(loginSchema.safeParse({ email: 'a@b.com', password: '' }).success).toBe(false)
-  })
-})
-
-describe('magicLinkSchema', () => {
-  it('accepts valid email and normalizes', () => {
-    const result = magicLinkSchema.safeParse({ email: ' Test@Example.COM ' })
-    expect(result.success).toBe(true)
-    if (result.success) {
-      expect(result.data.email).toBe('test@example.com')
-    }
-  })
-
-  it('rejects invalid email', () => {
-    expect(magicLinkSchema.safeParse({ email: 'invalid' }).success).toBe(false)
-  })
-
-  it('accepts optional redirect', () => {
-    const result = magicLinkSchema.safeParse({ email: 'a@b.com', redirect: '/dashboard' })
-    expect(result.success).toBe(true)
   })
 })
 
