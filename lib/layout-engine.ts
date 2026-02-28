@@ -3,7 +3,7 @@
 // Three modes, one tile array, different arrangements
 // ═══════════════════════════════════════════
 
-export type LayoutMode = 'editorial' | 'breathe' | 'grid'
+export type LayoutMode = 'breathe' | 'mosaic' | 'grid'
 
 export interface TileLayer {
   type: 'mainContent' | 'overlay' | 'background'
@@ -147,6 +147,13 @@ export function getLayoutConfig(mode: LayoutMode): LayoutConfig {
         tileShadow: '0 2px 16px rgba(0,0,0,0.12)',
         containerPadding: 20,
       }
+    case 'mosaic':
+      return {
+        gap: 4,
+        tileRadius: 2,
+        tileShadow: 'none',
+        containerPadding: 0,
+      }
     case 'grid':
       return {
         gap: 2,
@@ -154,13 +161,12 @@ export function getLayoutConfig(mode: LayoutMode): LayoutConfig {
         tileShadow: 'none',
         containerPadding: 0,
       }
-    case 'editorial':
     default:
       return {
-        gap: 3,
-        tileRadius: 0,
-        tileShadow: 'none',
-        containerPadding: 0,
+        gap: 12,
+        tileRadius: 8,
+        tileShadow: '0 2px 16px rgba(0,0,0,0.12)',
+        containerPadding: 20,
       }
   }
 }

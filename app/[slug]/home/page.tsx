@@ -367,7 +367,7 @@ export default function EditPage() {
   const [backgroundBlur, setBackgroundBlur] = useState(true)
   const [serialNumber, setSerialNumber] = useState<number | null>(null)
   const [isPublished, setIsPublished] = useState(false)
-  const [layoutMode, setLayoutMode] = useState<LayoutMode>('editorial')
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>('breathe')
   const [statusToast, setStatusToast] = useState<string | null>(null)
   const [pasteUrl, setPasteUrl] = useState('')
   const [thoughtText, setThoughtText] = useState('')
@@ -647,7 +647,7 @@ export default function EditPage() {
           setIsPublished(data.footprint.published !== false)
           const gm = data.footprint.grid_mode
           const resolvedGridMode: LayoutMode =
-            (gm === 'editorial' || gm === 'breathe' || gm === 'grid') ? gm : 'editorial'
+            (gm === 'breathe' || gm === 'mosaic' || gm === 'grid') ? gm : 'breathe'
           setLayoutMode(resolvedGridMode)
 
           const sources: Record<string, 'library' | 'links'> = {}
@@ -702,7 +702,7 @@ export default function EditPage() {
             handle: '',
             bio: '',
             theme: 'midnight',
-            grid_mode: 'editorial',
+            grid_mode: 'breathe',
             avatar_url: null,
             content: [],
             updated_at: Date.now(),
