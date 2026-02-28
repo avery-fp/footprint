@@ -92,8 +92,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       return (
         <div
           ref={containerRef}
-          className="w-full fp-tile overflow-hidden cursor-pointer relative group bg-black"
-          style={{ aspectRatio: '16/9' }}
+          className="w-full h-full fp-tile overflow-hidden cursor-pointer relative group bg-black"
           onClick={handleActivate}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -124,8 +123,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     // Activated — swap facade for iframe
     return (
       <div
-        className="w-full fp-tile overflow-hidden relative bg-black"
-        style={{ aspectRatio: '16/9' }}
+        className="w-full h-full fp-tile overflow-hidden relative bg-black"
       >
         <iframe
           src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&rel=0`}
