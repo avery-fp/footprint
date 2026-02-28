@@ -186,13 +186,17 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       const embed = parseEmbed(content.url)
       if (embed) {
         return (
-          <div ref={containerRef} className="w-full fp-tile overflow-hidden bg-[#191414]" style={{ height: `${embed.height}px` }}>
+          <div
+            ref={containerRef}
+            className="w-full fp-tile overflow-hidden rounded-[inherit] bg-[#191414]"
+            style={{ height: `${embed.height}px` }}
+          >
             {isInView ? (
               <iframe
                 style={{ border: 'none', background: 'transparent' }}
                 src={embed.embedUrl}
                 width="100%"
-                height={embed.height}
+                height="100%"
                 allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
                 loading="lazy"
                 sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
@@ -200,7 +204,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 onError={() => setIframeFailed(true)}
               />
             ) : (
-              <div className="w-full bg-[#191414]" style={{ height: `${embed.height}px` }} />
+              <div className="w-full h-full bg-[#191414]" />
             )}
           </div>
         )
