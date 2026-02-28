@@ -14,9 +14,9 @@ export const usernameSchema = z
   .transform(v => v.toLowerCase().trim())
   .pipe(
     z.string()
-      .min(2, 'Names must be 2-20 characters.')
-      .max(20, 'Names must be 2-20 characters.')
-      .regex(/^[a-z0-9_]+$/, 'Names can only contain letters, numbers, and underscores.')
+      .min(3, 'Names must be 3-20 characters.')
+      .max(20, 'Names must be 3-20 characters.')
+      .regex(/^[a-z0-9-]+$/, 'Lowercase letters, numbers, and hyphens only.')
   )
 
 export const passwordSchema = z

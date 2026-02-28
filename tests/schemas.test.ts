@@ -33,11 +33,11 @@ describe('signupSchema', () => {
   })
 
   it('rejects short password', () => {
-    expect(signupSchema.safeParse({ username: 'ab', email: 'a@b.com', password: '12345' }).success).toBe(false)
+    expect(signupSchema.safeParse({ username: 'abc', email: 'a@b.com', password: '12345' }).success).toBe(false)
   })
 
   it('rejects invalid email', () => {
-    expect(signupSchema.safeParse({ username: 'ab', email: 'notanemail', password: 'hunter2' }).success).toBe(false)
+    expect(signupSchema.safeParse({ username: 'abc', email: 'notanemail', password: 'hunter2' }).success).toBe(false)
   })
 
   it('rejects invalid username characters', () => {
@@ -47,6 +47,7 @@ describe('signupSchema', () => {
 
   it('rejects username too short', () => {
     expect(signupSchema.safeParse({ username: 'a', email: 'a@b.com', password: 'hunter2' }).success).toBe(false)
+    expect(signupSchema.safeParse({ username: 'ab', email: 'a@b.com', password: 'hunter2' }).success).toBe(false)
   })
 })
 
