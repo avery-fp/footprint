@@ -99,15 +99,21 @@ export async function POST(request: NextRequest) {
       .eq('email', email.toLowerCase().trim())
       .single()
 
-    if (error || !user || !user.password_hash) {
+    if (error || !user) {
       recordFailedAttempt(email)
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
     }
 
-    const valid = await bcrypt.compare(password, user.password_hash)
-    if (!valid) {
-      recordFailedAttempt(email)
-      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
+    if (!user.password_hash) {
+      // Legacy user without hash — set it now (migration)
+      const hash = await bcrypt.hash(password, 10)
+      await supabase.from('users').update({ password_hash: hash }).eq('id', user.id)
+    } else {
+      const valid = await bcrypt.compare(password, user.password_hash)
+      if (!valid) {
+        recordFailedAttempt(email)
+        return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
+      }
     }
 
     // Success -- clear failed attempts
