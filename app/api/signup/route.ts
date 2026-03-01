@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import * as bcrypt from 'bcryptjs'
 import { createSessionToken } from '@/lib/auth'
 import { signupSchema } from '@/lib/schemas'
 import { validateBody } from '@/lib/validate'
@@ -36,24 +37,18 @@ export async function POST(request: NextRequest) {
     // Check if email already exists in our users table
     const { data: existingUser } = await supabase
       .from('users')
-      .select('id, email')
+      .select('id, email, password_hash')
       .ilike('email', email)
       .single()
 
     if (existingUser) {
-      // Already has account — log them in via Supabase Auth
-      const authClient = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        { auth: { autoRefreshToken: false, persistSession: false } }
-      )
+      // Already has account — verify via bcrypt
+      if (!existingUser.password_hash) {
+        return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
+      }
 
-      const { error: signInError } = await authClient.auth.signInWithPassword({
-        email,
-        password,
-      })
-
-      if (signInError) {
+      const valid = await bcrypt.compare(password, existingUser.password_hash)
+      if (!valid) {
         return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
       }
 
@@ -109,10 +104,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create user in our custom users table
+    // Hash password and create user in our custom users table
+    const password_hash = await bcrypt.hash(password, 10)
     const { data: user, error: userError } = await supabase
       .from('users')
-      .insert({ email })
+      .insert({ email, password_hash })
       .select()
       .single()
 
