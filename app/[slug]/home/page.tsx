@@ -1369,8 +1369,8 @@ export default function EditPage() {
       const isVideo = VIDEO_MIME.includes(file.type) || /\.(mp4|mov|webm|m4v)$/i.test(file.name)
       return {
         id: tempIds[i],
-        url: isVideo ? '' : URL.createObjectURL(file),
-        type: isVideo ? ('video' as const) : ('image' as const),
+        url: URL.createObjectURL(file) + (isVideo ? '#.mp4' : ''),
+        type: 'image' as const,
         title: null,
         description: null,
         thumbnail_url: null,
@@ -1389,24 +1389,6 @@ export default function EditPage() {
       updated_at: Date.now(),
     } : null)
 
-    // Generate thumbnails for videos
-    files.forEach((file, i) => {
-      const isVideo = VIDEO_MIME.includes(file.type) || /\.(mp4|mov|webm|m4v)$/i.test(file.name)
-      if (isVideo) {
-        getVideoThumbnail(file).then(thumbUrl => {
-          setDraft(prev => prev ? {
-            ...prev,
-            content: prev.content.map(c => c.id === tempIds[i] ? { ...c, url: thumbUrl } : c),
-          } : null)
-        }).catch(() => {
-          const fallbackUrl = URL.createObjectURL(file)
-          setDraft(prev => prev ? {
-            ...prev,
-            content: prev.content.map(c => c.id === tempIds[i] && !c.url ? { ...c, url: fallbackUrl } : c),
-          } : null)
-        })
-      }
-    })
 
     const uploadOne = async (file: File, idx: number) => {
       const isVideo = VIDEO_MIME.includes(file.type) || /\.(mp4|mov|webm|m4v)$/i.test(file.name)
