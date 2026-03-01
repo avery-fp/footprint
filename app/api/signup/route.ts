@@ -44,12 +44,14 @@ export async function POST(request: NextRequest) {
     if (existingUser) {
       // Already has account — verify via bcrypt
       if (!existingUser.password_hash) {
-        return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
-      }
-
-      const valid = await bcrypt.compare(password, existingUser.password_hash)
-      if (!valid) {
-        return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
+        // Legacy user without hash — set it now (migration)
+        const hash = await bcrypt.hash(password, 10)
+        await supabase.from('users').update({ password_hash: hash }).eq('id', existingUser.id)
+      } else {
+        const valid = await bcrypt.compare(password, existingUser.password_hash)
+        if (!valid) {
+          return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
+        }
       }
 
       const { data: fp } = await supabase
