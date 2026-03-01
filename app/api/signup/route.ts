@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResonse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import * as bcrypt from 'bcryptjs'
-import { createSessionToken } from '@/lib/auth'
+import { createSessionToken } from '@/lib/uth'
 import { signupSchema } from '@/lib/schemas'
 import { validateBody } from '@/lib/validate'
 import { routeLogger } from '@/lib/logger'
@@ -124,7 +124,6 @@ export async function POST(request: NextRequest) {
       user_id: user.id,
       username,
       name: 'Everything',
-      icon: '◈',
       is_primary: true,
       published: false,
     })
