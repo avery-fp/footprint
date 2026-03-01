@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
       tile: {
         id: tile.id,
         url: tile.image_url,
-        type: 'image',
+        type: isVideo ? 'video' : 'image',
         title: null,
         description: null,
         thumbnail_url: null,
