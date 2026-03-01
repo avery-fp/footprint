@@ -1,159 +1,57 @@
 import { SignJWT, jwtVerify } from 'jose'
-import { createServerSupabaseClient } from './supabase'
-import type { NextRequest } from 'next/server'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 
-// Secret key for JWT signing — MUST be set via JWT_SECRET env var in production
-function getJwtSecret() {
-  const secret = process.env.JWT_SECRET
-  if (!secret && process.env.NODE_ENV === 'production') {
-    throw new Error('FATAL: JWT_SECRET environment variable is not set')
-  }
-  return new TextEncoder().encode(secret || 'dev-only-unsafe-key-do-not-use-in-prod')
+const JWT_SECRET = process.env.JWT_SECRET
+if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
+  throw new Error('JWT_SECRET is required in production')
 }
 
-// Lazy-init: deferred so the build step doesn't throw at module load time
+const SESSION_EXPIRY = '30d'
+
+/** Shared cookie name for the session identifier. */
+export const SESSION_COOKIE_NAME = 'fp_session'
+
+/** Shared options so every route sets the cookie identically. */
+export const SESSION_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
+  maxAge: 60 * 60 * 24 * 30, // 30 days
+  path: '/',
+  domain: process.env.NODE_ENV === 'production' ? '.footprint.onl' : undefined,
+}
+
 let _jwtSecret: Uint8Array | null = null
-function JWT_SECRET_KEY() {
-  if (!_jwtSecret) _jwtSecret = getJwtSecret()
+function getSecret(): Uint8Array {
+  if (_jwtSecret) return _jwtSecret
+  const secret = JWT_SECRET || 'dev-secret-change-me'
+  _jwtSecret = new TextEncoder().encode(secret)
   return _jwtSecret
 }
 
-const SESSION_EXPIRY = '30d'     // Session valid for 30 days
-
-/**
- * Create a JWT session token
- *
- * This token is stored in a cookie and used to authenticate requests.
- * Contains the user ID and email, signed with our secret.
- */
 export async function createSessionToken(userId: string, email: string): Promise<string> {
-  const token = await new SignJWT({
-    userId,
-    email,
-  })
+  return new SignJWT({ userId, email })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(SESSION_EXPIRY)
-    .sign(JWT_SECRET_KEY())
-
-  return token
+    .sign(getSecret())
 }
 
-/**
- * Verify a session token and return the payload
- *
- * Used in middleware and API routes to check authentication.
- */
-export async function verifySessionToken(token: string): Promise<{
-  userId: string
-  email: string
-} | null> {
+export async function verifySessionToken(token: string): Promise<{ userId: string; email: string } | null> {
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET_KEY())
-
-    // Validate payload shape to prevent crashes from malformed JWTs
-    if (typeof payload.userId !== 'string' || typeof payload.email !== 'string') {
-      return null
-    }
-
-    return {
-      userId: payload.userId,
-      email: payload.email,
-    }
-  } catch {
-    return null
-  }
-}
-
-/**
- * Get user from session token
- *
- * Convenience function that verifies token and fetches full user data.
- */
-export async function getUserFromSession(token: string) {
-  const session = await verifySessionToken(token)
-
-  if (!session) {
-    return null
-  }
-
-  const supabase = createServerSupabaseClient()
-
-  const { data: user } = await supabase
-    .from('users')
-    .select('*')
-    .eq('id', session.userId)
-    .single()
-
-  return user
-}
-
-/**
- * Send an email via Resend's REST API (no SDK needed)
- */
-async function sendEmail(params: { from: string; to: string; subject: string; html: string }) {
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(params),
-  })
-
-  if (!res.ok) {
-    const body = await res.text()
-    throw new Error(`Resend API error (${res.status}): ${body}`)
-  }
-
-  return res.json()
-}
-
-/**
- * Send welcome email after purchase
- */
-export async function sendWelcomeEmail(email: string, serialNumber: number, username?: string) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.footprint.onl'
-  const loginUrl = `${baseUrl}/login`
-
-  if (!process.env.RESEND_API_KEY) {
-    console.log(`[DEV] Welcome email for ${email} (FP #${serialNumber}): ${loginUrl}`)
-    return true
-  }
-
-  try {
-    await sendEmail({
-      from: 'Footprint <hello@footprint.onl>',
-      to: email,
-      subject: `Welcome — you're FP #${serialNumber}`,
-      html: `
-        <div style="font-family: -apple-system, sans-serif; max-width: 400px; margin: 0 auto; padding: 40px 20px;">
-          <p style="font-size: 28px; font-weight: 300; margin-bottom: 8px;">
-            You're FP #${serialNumber.toLocaleString()}
-          </p>
-          <p style="color: #666; font-size: 15px; line-height: 1.6;">
-            Your footprint is live. Sign in to start posting.
-          </p>
-          <a href="${loginUrl}" style="display: inline-block; background: #000; color: #fff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-size: 15px; margin: 20px 0;">
-            Sign in &amp; start posting
-          </a>
-        </div>
-      `,
-    })
+    const { payload } = await jwtVerify(token, getSecret())
+    return { userId: payload.userId as string, email: payload.email as string }
   } catch (err) {
-    console.error('Welcome email failed:', err)
+    console.error('[auth] JWT verify failed:', err instanceof Error ? err.message : err)
+    return null
   }
-
-  return true
 }
 
-/**
- * Extract userId from fp_session cookie on an incoming request.
- * Returns null if cookie is missing or JWT is invalid/expired.
- */
-export async function getUserIdFromRequest(request: NextRequest): Promise<string | null> {
-  const token = request.cookies.get('fp_session')?.value
-  if (!token) return null
-  const session = await verifySessionToken(token)
-  return session?.userId ?? null
+export async function getUserIdFromRequest(request: Request): Promise<string | null> {
+  const cookieHeader = request.headers.get('cookie') || ''
+  const match = cookieHeader.match(/fp_session=([^;]+)/)
+  if (!match) return null
+
+  const session = await verifySessionToken(match[1])
+  return session?.userId || null
 }
