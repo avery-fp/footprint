@@ -31,7 +31,40 @@ export async function POST(request: NextRequest) {
       .ilike('email', email)
       .single()
 
-    response.cookies.set(SESSION_COOKIE_NAME, sessionToken, SESSION_COOKIE_OPTIONS)
+      ? '.footprint.onl'
+      : undefined
+
+    if (existingUser) {
+      // Already has account — find their footprint and log them in
+      let { data: fp } = await supabase
+        .from('footprints')
+        .select('username, published')
+        .eq('user_id', existingUser.id)
+        .eq('is_primary', true)
+        .single()
+
+      // If user exists but footprint is missing (orphaned from failed signup), create it now
+      if (!fp) {
+        const { error: fpError } = await supabase.from('footprints').insert({
+          user_id: existingUser.id,
+          username,
+          name: 'Everything',
+          is_primary: true,
+          published: false,
+        })
+        if (!fpError) {
+          fp = { username, published: false }
+        }
+      }
+
+      const sessionToken = await createSessionToken(existingUser.id, existingUser.email)
+      const response = NextResponse.json({
+        success: true,
+        slug: fp?.username || null,
+        existing: true,
+      })
+
+      response.cookies.set(SESSION_COOKIE_NAME, sessionToken, SESSION_COOKIE_OPTIONS)
 
       return response
     }
@@ -84,14 +117,7 @@ export async function POST(request: NextRequest) {
       existing: false,
     })
 
-    response.cookies.set('fp_session', sessionToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30,
-      path: '/',
-      ...(cookieDomain && { domain: cookieDomain }),
-    })
+    response.cookies.set(SESSION_COOKIE_NAME, sessionToken, SESSION_COOKIE_OPTIONS)
 
     return response
   } catch (error: any) {
