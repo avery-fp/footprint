@@ -10,6 +10,7 @@ import EventTracker from '@/components/EventTracker'
 import ReferralBanner from '@/components/ReferralBanner'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { normalizeTileLayers } from '@/lib/layout-engine'
+import { mediaTypeFromUrl } from '@/lib/media'
 import PublicPage from './PublicPage'
 
 // ISR — cache page at the edge, revalidate every 60 seconds
@@ -98,7 +99,7 @@ export default async function FootprintPage({ params }: Props) {
     content = [
       ...(images || []).map((img: any) => ({
         id: img.id,
-        type: 'image',
+        type: mediaTypeFromUrl(img.image_url),
         url: img.image_url,
         position: img.position,
         room_id: img.room_id,
