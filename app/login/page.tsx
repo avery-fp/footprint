@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useSearchParams } from 'next/navigation'
 import AeInput from '@/components/auth/AeInput'
 import AeArrow from '@/components/auth/AeArrow'
 import AeQuietLink from '@/components/auth/AeQuietLink'
@@ -13,6 +14,8 @@ export default function LoginPage() {
   const [error, setError] = useState('')
 
   const emailRef = useRef<HTMLInputElement>(null)
+  const searchParams = useSearchParams()
+  const redirectTo = searchParams.get('redirect')
 
   useEffect(() => {
     setTimeout(() => emailRef.current?.focus(), 100)
@@ -36,7 +39,7 @@ export default function LoginPage() {
       const data = await res.json()
 
       if (data.success) {
-        const dest = data.slug ? `/${data.slug}/home` : '/build'
+        const dest = redirectTo || (data.slug ? `/${data.slug}/home` : '/build')
         window.location.href = dest
       } else {
         setError(data.error || 'invalid email or password')
