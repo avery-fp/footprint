@@ -651,8 +651,13 @@ export default function EditPage() {
           router.push(`/signin?redirect=${encodeURIComponent(`/${slug}/home`)}`)
           return
         }
+        if (res.status === 401) {
+          router.push(`/login?redirect=${encodeURIComponent(`/${slug}/home`)}`)
+          return
+        }
         if (res.status === 403) {
-          router.push('/signin')
+          // Logged in but wrong user
+          router.push('/build')
           return
         }
 
