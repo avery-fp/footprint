@@ -81,7 +81,6 @@ export async function POST(request: NextRequest) {
           username,
           serial_number: serialNumber,
           name: 'Everything',
-          icon: '◈',
           is_primary: true,
           published: true,
         })
