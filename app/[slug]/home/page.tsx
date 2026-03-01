@@ -18,33 +18,33 @@ interface TileContent extends DraftContent {
   source?: 'library' | 'links'
 }
 
-// âââââââââââââââââââââââââââââââââââââââââââ
-// Page Mode â single state machine, no competing booleans
-// âââââââââââââââââââââââââââââââââââââââââââ
+// ═══════════════════════════════════════════
+// Page Mode — single state machine, no competing booleans
+// ═══════════════════════════════════════════
 type PageMode =
   | { type: 'viewing' }
   | { type: 'arranging' }
   | { type: 'tile_menu'; tileId: string }
   | { type: 'adding'; method: 'idle' | 'url' | 'thought' }
 
-// âââââââââââââââââââââââââââââââââââââââââââ
+// ═══════════════════════════════════════════
 // Sortable Tile
-// âââââââââââââââââââââââââââââââââââââââââââ
-// âââââââââââââââââââââââââââââââââââââââââââ
-// Grid class helpers â size Ã aspect â col-span, row-span, aspect-ratio
-// âââââââââââââââââââââââââââââââââââââââââââ
+// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════
+// Grid class helpers — size × aspect → col-span, row-span, aspect-ratio
+// ═══════════════════════════════════════════
 
 // Smart default: when user hasn't explicitly set an aspect, pick one based on content type
 function resolveAspect(explicitAspect: string | undefined | null, type: string, url?: string): string {
   if (explicitAspect && explicitAspect !== 'square') return explicitAspect
   // If user explicitly chose square, respect it
   if (explicitAspect === 'square') return 'square'
-  // No explicit choice â use content-type defaults
+  // No explicit choice — use content-type defaults
   if (type === 'youtube' || type === 'vimeo') return 'wide'
   if (type === 'video') return 'auto'
   if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return 'auto'
   if (type === 'image') return 'auto'
-  // embeds, thoughts, social â square works well
+  // embeds, thoughts, social — square works well
   return 'square'
 }
 
@@ -59,7 +59,7 @@ function getGridClass(size: number, aspect: string) {
     if (size >= 2) return 'col-span-1 row-span-3 md:col-span-2 md:row-span-3'
     return 'col-span-1 row-span-2'
   }
-  // square or auto â same spanning as before
+  // square or auto — same spanning as before
   if (size >= 3) return 'col-span-2 row-span-2 md:col-span-3 md:row-span-3'
   if (size >= 2) return 'col-span-2 row-span-2'
   return ''
@@ -74,7 +74,7 @@ function getAspectClass(aspect: string) {
 }
 
 function getObjectFit(_aspect: string) {
-  // Contain â scale proportionally, never crop content
+  // Contain — scale proportionally, never crop content
   return 'object-contain'
 }
 
@@ -128,7 +128,7 @@ function SortableTile({
 
   const isVideo = content.type === 'image' && content.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
 
-  // Video visibility â only play when on-screen, pause when off
+  // Video visibility — only play when on-screen, pause when off
   useEffect(() => {
     if (!isVideo) return
     const el = tileRef.current
@@ -177,12 +177,12 @@ function SortableTile({
     }
   }
 
-  // Grid class based on size Ã aspect â determines col/row spanning and aspect ratio
+  // Grid class based on size × aspect — determines col/row spanning and aspect ratio
   const gridClass = getGridClass(size, aspect)
   const aspectClass = getAspectClass(aspect)
   const sizeClass = `${gridClass} ${aspectClass}`.trim()
 
-  // Polaroid reveal â tile develops from frosted to crystal clear
+  // Polaroid reveal — tile develops from frosted to crystal clear
   const isTemp = id.toString().startsWith('temp-')
   const progress = (content as any)?._progress ?? 0
   const revealStyle: React.CSSProperties | undefined = isTemp ? {
@@ -265,7 +265,7 @@ function SortableTile({
         {...touchHandlers}
         onContextMenu={(e) => e.preventDefault()}
       >
-        {/* Tile content â absolute fill, object-fit based on aspect */}
+        {/* Tile content — absolute fill, object-fit based on aspect */}
         {content.type === 'image' ? (
           isVideo ? (
             <>
@@ -283,7 +283,6 @@ function SortableTile({
                   onError={() => setIsLoaded(true)}
                 />
               ) : null}
-              {/* Placeholder while video loads or if URL is empty */}
               {(!isLoaded || !content.url) && (
                 <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.06)' }}>
                   <div className="text-white/25 text-3xl">▶</div>
@@ -314,14 +313,14 @@ function SortableTile({
                   const fallback = document.createElement('div')
                   fallback.className = 'tile-fallback absolute inset-0 flex items-center justify-center'
                   fallback.style.background = 'rgba(255,255,255,0.06)'
-                  fallback.innerHTML = '<span style="color:rgba(255,255,255,0.2);font-size:1.5rem">\u229e</span>'
+                  fallback.innerHTML = '<span style="color:rgba(255,255,255,0.2);font-size:1.5rem">⊞</span>'
                   parent.appendChild(fallback)
                 }
               }}
             />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.06)' }}>
-              <div className="text-white/20 text-2xl">\u229e</div>
+              <div className="text-white/20 text-2xl">⊞</div>
             </div>
           )
         ) : (
@@ -341,7 +340,7 @@ function SortableTile({
               ) : (
                 <>
                   <div className="text-2xl mb-1 opacity-60">
-                    {content.type === 'youtube' ? 'â¶' : content.type === 'spotify' ? 'â«' : content.type === 'soundcloud' ? 'â«' : content.type ? 'ð' : '?'}
+                    {content.type === 'youtube' ? '▶' : content.type === 'spotify' ? '♫' : content.type === 'soundcloud' ? '♫' : content.type ? '🔗' : '?'}
                   </div>
                   <p className="text-[10px] text-white/50 text-center truncate w-full font-mono">
                     {content.title || content.type || '?'}
@@ -356,9 +355,9 @@ function SortableTile({
   )
 }
 
-// âââââââââââââââââââââââââââââââââââââââââââ
+// ═══════════════════════════════════════════
 // EDIT PAGE
-// âââââââââââââââââââââââââââââââââââââââââââ
+// ═══════════════════════════════════════════
 export default function EditPage() {
   const params = useParams()
   const router = useRouter()
@@ -527,7 +526,7 @@ export default function EditPage() {
     if (pendingOpsRef.current.size > 0) {
       await Promise.allSettled(Array.from(pendingOpsRef.current))
     }
-    // Full page load â bypasses Next.js Router Cache, guarantees fresh server render
+    // Full page load — bypasses Next.js Router Cache, guarantees fresh server render
     window.location.href = `/${slug}`
   }, [slug, draft, isOwner])
 
@@ -564,7 +563,7 @@ export default function EditPage() {
     return () => { window.removeEventListener('resize', check); clearTimeout(timeout) }
   }, [])
 
-  // Keyboard shortcuts â Escape to dismiss, step by step
+  // Keyboard shortcuts — Escape to dismiss, step by step
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key !== 'Escape') return
@@ -576,7 +575,7 @@ export default function EditPage() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [mode.type])
 
-  // Long-press: viewing â enter edit mode, arranging â open tile menu
+  // Long-press: viewing → enter edit mode, arranging → open tile menu
   const handleTouchStart = useCallback((e: React.TouchEvent, tileId?: string) => {
     if (!isMobile) return
     const touch = e.touches[0]
@@ -647,7 +646,7 @@ export default function EditPage() {
           next: { revalidate: 0 },
         })
 
-        // Auth/ownership failure â redirect to login or show error
+        // Auth/ownership failure → redirect to login or show error
         if (res.status === 401) {
           router.push(`/signin?redirect=${encodeURIComponent(`/${slug}/home`)}`)
           return
@@ -698,7 +697,7 @@ export default function EditPage() {
 
           setSerialNumber(data.footprint.serial_number || null)
 
-          // Fetch rooms via server API (bypasses RLS) â only if serial exists
+          // Fetch rooms via server API (bypasses RLS) — only if serial exists
           if (data.footprint.serial_number) {
             const roomsRes = await fetch(`/api/rooms?serial_number=${data.footprint.serial_number}`)
             const roomsJson = await roomsRes.json()
@@ -708,7 +707,7 @@ export default function EditPage() {
             }
           }
         } else {
-          // No footprint data but no error â empty state for owner
+          // No footprint data but no error — empty state for owner
           setIsOwner(true)
           setDraft({
             slug,
@@ -724,7 +723,7 @@ export default function EditPage() {
         }
       } catch (error) {
         console.error('Failed to load footprint:', error)
-        // Network error â redirect to login as safest fallback
+        // Network error — redirect to login as safest fallback
         router.push(`/auth/login?redirect=${encodeURIComponent(`/${slug}/home`)}`)
         return
       }
@@ -784,7 +783,7 @@ export default function EditPage() {
     }
   }, [pillMode])
 
-  // ââ Tile actions ââ
+  // ── Tile actions ──
 
   async function handleAddContent() {
     if (!pasteUrl.trim() || !draft) return
@@ -946,7 +945,7 @@ export default function EditPage() {
     trackOp(op)
   }
 
-  // ââ Tap-to-swap (mobile only) ââ
+  // ── Tap-to-swap (mobile only) ──
 
   function handleTileSwap(tileId: string) {
     if (!isMobile || !isArranging || !draft) return
@@ -985,7 +984,7 @@ export default function EditPage() {
     trackOp(op)
   }
 
-  // ââ Wallpaper from tile ââ
+  // ── Wallpaper from tile ──
 
   async function handleSetWallpaper(tileId: string) {
     if (!draft) return
@@ -1038,7 +1037,7 @@ export default function EditPage() {
     }
   }
 
-  // ââ Room creation ââ
+  // ── Room creation ──
 
   async function handleCreateRoom() {
     if (!draft || !serialNumber) return
@@ -1125,7 +1124,7 @@ export default function EditPage() {
     }
   }
 
-  // ââ Tile size ââ
+  // ── Tile size ──
 
   async function setTileSize(id: string, newSize: number) {
     if (!draft) return
@@ -1133,14 +1132,14 @@ export default function EditPage() {
     if (!tile) return
     const source = tileSources[id]
     if (!source) {
-      console.warn('setTileSize: no source for tile', id, 'â tileSources keys:', Object.keys(tileSources).length)
+      console.warn('setTileSize: no source for tile', id, '— tileSources keys:', Object.keys(tileSources).length)
       return
     }
 
     const currentSize = tile.size || 1
     if (currentSize === newSize) return
 
-    // Optimistic â apply immediately, don't roll back (server is best-effort)
+    // Optimistic — apply immediately, don't roll back (server is best-effort)
     setDraft(prev => prev ? {
       ...prev,
       content: prev.content.map(c => c.id === id ? { ...c, size: newSize } : c),
@@ -1157,7 +1156,7 @@ export default function EditPage() {
     trackOp(op)
   }
 
-  // ââ Tile aspect ââ
+  // ── Tile aspect ──
 
   async function setTileAspect(id: string, newAspect: string) {
     if (!draft) return
@@ -1191,7 +1190,7 @@ export default function EditPage() {
     }
   }
 
-  // ââ Room assign ââ
+  // ── Room assign ──
 
   async function assignTileRoom(tileId: string, newRoomId: string | null) {
     const source = tileSources[tileId]
@@ -1212,7 +1211,7 @@ export default function EditPage() {
     trackOp(op)
   }
 
-  // ââ File upload ââ
+  // ── File upload ──
 
   const VIDEO_MIME = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v', 'video/mov']
 
@@ -1240,7 +1239,6 @@ export default function EditPage() {
       xhr.open('POST', `${supabaseUrl}/storage/v1/object/content/${path}`)
       xhr.setRequestHeader('Authorization', `Bearer ${supabaseKey}`)
       xhr.setRequestHeader('apikey', supabaseKey)
-      // Use the file's MIME type, normalizing common mobile formats
       const mimeType = file.type === 'video/quicktime' ? 'video/mp4' : (file.type || 'application/octet-stream')
       xhr.setRequestHeader('Content-Type', mimeType)
       xhr.setRequestHeader('x-upsert', 'true')
@@ -1258,9 +1256,7 @@ export default function EditPage() {
       video.src = blobUrl
       let cleaned = false
       const cleanup = () => { if (!cleaned) { cleaned = true; URL.revokeObjectURL(blobUrl) } }
-
       video.onloadeddata = () => {
-        // Seek to 0.5s or 0 for very short videos
         video.currentTime = Math.min(0.5, video.duration || 0)
       }
       video.onseeked = () => {
@@ -1279,7 +1275,6 @@ export default function EditPage() {
         }
       }
       video.onerror = () => { cleanup(); reject(new Error('Could not load video')) }
-      // Shorter timeout — don't make user wait 10s for a thumbnail
       setTimeout(() => { cleanup(); reject(new Error('Thumbnail timeout')) }, 4000)
     })
   }
@@ -1311,7 +1306,7 @@ export default function EditPage() {
     })
   }
 
-  // Detect image dimensions from a File â snap to aspect preset
+  // Detect image dimensions from a File → snap to aspect preset
   function detectImageAspect(file: File): Promise<string> {
     return new Promise((resolve) => {
       if (!file.type.startsWith('image/')) { resolve('square'); return }
@@ -1326,7 +1321,7 @@ export default function EditPage() {
     })
   }
 
-  // Detect video dimensions from a File â snap to aspect preset
+  // Detect video dimensions from a File → snap to aspect preset
   function detectVideoAspect(file: File): Promise<string> {
     return new Promise((resolve) => {
       const video = document.createElement('video')
@@ -1353,7 +1348,7 @@ export default function EditPage() {
       return
     }
 
-    // 8 uploaded-video cap (YouTube/Vimeo/embed tiles are free â only count direct uploads)
+    // 8 uploaded-video cap (YouTube/Vimeo/embed tiles are free — only count direct uploads)
     const isUploadedVideo = (c: DraftContent) =>
       c.type === 'image' && c.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
     const existingVideos = draft.content.filter(isUploadedVideo).length
@@ -1394,7 +1389,7 @@ export default function EditPage() {
       updated_at: Date.now(),
     } : null)
 
-    // Generate thumbnails for videos (fire-and-forget, don't block)
+    // Generate thumbnails for videos
     files.forEach((file, i) => {
       const isVideo = VIDEO_MIME.includes(file.type) || /\.(mp4|mov|webm|m4v)$/i.test(file.name)
       if (isVideo) {
@@ -1404,7 +1399,6 @@ export default function EditPage() {
             content: prev.content.map(c => c.id === tempIds[i] ? { ...c, url: thumbUrl } : c),
           } : null)
         }).catch(() => {
-          // Thumbnail failed — set a blob URL so at least the video element can show something
           const fallbackUrl = URL.createObjectURL(file)
           setDraft(prev => prev ? {
             ...prev,
@@ -1427,13 +1421,12 @@ export default function EditPage() {
           detectedAspect = 'square'
         }
 
-        // For HEIC images: convert to JPEG via canvas (if browser supports it)
         let uploadFile: File
         if (!isVideo && (file.type === 'image/heic' || file.type === 'image/heif' || /\.heic$/i.test(file.name))) {
           try {
             uploadFile = await resizeImage(new File([file], file.name.replace(/\.heic$/i, '.jpg'), { type: 'image/jpeg' }), 2400)
           } catch {
-            uploadFile = file // fallback: upload as-is
+            uploadFile = file
           }
         } else {
           uploadFile = isVideo ? file : await resizeImage(file)
@@ -1444,7 +1437,6 @@ export default function EditPage() {
           : 'jpg'
         const filename = `${serialNumber}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
 
-        // Force correct content-type for common mobile formats
         const contentType = isVideo
           ? (file.type === 'video/quicktime' ? 'video/mp4' : file.type || 'video/mp4')
           : (uploadFile.type || 'image/jpeg')
@@ -1511,7 +1503,6 @@ export default function EditPage() {
       }
     }
 
-    // Process uploads 2 at a time to prevent freezing on mobile
     const CONCURRENCY = 2
     for (let i = 0; i < files.length; i += CONCURRENCY) {
       const batch = files.slice(i, i + CONCURRENCY)
@@ -1522,13 +1513,13 @@ export default function EditPage() {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  // ââ Derived values ââ
+  // ── Derived values ──
 
   const selectedTile = selectedTileId ? draft?.content.find(c => c.id === selectedTileId) : null
   const selectedIsImage = selectedTile?.type === 'image' && !selectedTile?.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
   const selectedHasThumbnail = selectedTile?.thumbnail_url
 
-  // ââ Render ââ
+  // ── Render ──
 
   if (isLoading || !draft) {
     return (
@@ -1562,7 +1553,7 @@ export default function EditPage() {
         />
       )}
 
-      {/* âââ HEADER âââ */}
+      {/* ═══ HEADER ═══ */}
       <div className="fixed top-0 left-0 right-0 z-50 bg-black/60 backdrop-blur-sm border-b border-white/[0.06]"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="flex items-center justify-between px-4 pt-4 pb-2" style={{ minHeight: '52px' }}>
@@ -1572,7 +1563,7 @@ export default function EditPage() {
               className="text-sm text-white/60 hover:text-white/90 transition font-mono flex items-center justify-center"
               style={{ minWidth: '44px', minHeight: '44px' }}
             >
-              â
+              ←
             </button>
             {!isArranging && (
               <button
@@ -1619,12 +1610,12 @@ export default function EditPage() {
             <div className="flex items-center gap-2">
               {isPublished ? (
                 <>
-                  {/* Published/draft toggle â only for published rooms */}
+                  {/* Published/draft toggle — only for published rooms */}
                   <button
                     onClick={togglePublished}
                     className="flex items-center justify-center rounded-full bg-white/[0.06] hover:bg-white/[0.12] transition"
                     style={{ minHeight: '44px', minWidth: '44px' }}
-                    title="Published â tap to set draft"
+                    title="Published — tap to set draft"
                   >
                     <svg className="w-4 h-4 text-white/60" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
@@ -1633,10 +1624,10 @@ export default function EditPage() {
                   </button>
                 </>
               ) : (
-                /* "go live â" button â only for unpublished rooms */
+                /* "go live ↗" button — only for unpublished rooms */
                 <button
                   onClick={async () => {
-                    // Already paid (has serial) â skip checkout, just publish + redirect
+                    // Already paid (has serial) — skip checkout, just publish + redirect
                     if (serialNumber) {
                       setGoLiveLoading(true)
                       try {
@@ -1658,7 +1649,7 @@ export default function EditPage() {
                         return
                       }
                     }
-                    // No serial â first-time publish, show checkout modal
+                    // No serial — first-time publish, show checkout modal
                     try {
                       const res = await fetch('/api/next-serial')
                       const data = await res.json()
@@ -1724,7 +1715,7 @@ export default function EditPage() {
         </div>
       </div>
 
-      {/* âââ TILE GRID âââ */}
+      {/* ═══ TILE GRID ═══ */}
       <div className="max-w-7xl mx-auto px-3 md:px-6 pt-28 md:pt-24 pb-32 relative z-10"
         onClick={(e) => {
           // Tap background to deselect swap
@@ -1818,12 +1809,12 @@ export default function EditPage() {
         onChange={handleFileUpload}
       />
 
-      {/* âââ TILE ACTION SHEET âââ */}
+      {/* ═══ TILE ACTION SHEET ═══ */}
       {mode.type === 'tile_menu' && selectedTile && (
         <>
-          {/* Scrim â tap to close */}
+          {/* Scrim — tap to close */}
           <div className="fixed inset-0 z-[60] animate-overlay-fade" style={{ backgroundColor: 'rgba(0,0,0,0.3)' }} onClick={closeTileMenu} />
-          {/* Sheet â swipe down to close */}
+          {/* Sheet — swipe down to close */}
           <div
             className="fixed bottom-0 left-0 right-0 z-[70] bg-[#111214] rounded-t-2xl border-t border-white/[0.08] pb-[env(safe-area-inset-bottom)] animate-slide-up"
             style={{ maxHeight: '60vh' }}
@@ -1881,7 +1872,7 @@ export default function EditPage() {
                 </p>
               </div>
 
-              {/* Resize â segmented control */}
+              {/* Resize — segmented control */}
               <div className="flex items-center justify-between py-3">
                 <span className="text-sm text-white/50 font-mono">size</span>
                 <div className="flex gap-1 bg-white/[0.04] rounded-lg p-0.5">
@@ -1901,7 +1892,7 @@ export default function EditPage() {
                 </div>
               </div>
 
-              {/* Aspect ratio â segmented control */}
+              {/* Aspect ratio — segmented control */}
               {(() => {
                 const resolvedAspect = resolveAspect(selectedTile.aspect, selectedTile.type, selectedTile.url)
                 return (
@@ -1954,11 +1945,11 @@ export default function EditPage() {
                   onClick={() => handleSetWallpaper(mode.tileId)}
                   className="w-full text-left text-sm text-white/50 hover:text-white/80 transition font-mono py-3 border-t border-white/[0.06] flex items-center gap-2"
                 >
-                  <span className="text-white/30 text-xs">â</span> set as wallpaper
+                  <span className="text-white/30 text-xs">◐</span> set as wallpaper
                 </button>
               )}
 
-              {/* Delete â visually separated */}
+              {/* Delete — visually separated */}
               <button
                 onClick={() => { handleDelete(mode.tileId); closeTileMenu() }}
                 className="w-full text-left text-sm transition font-mono py-3 mt-2 border-t border-white/[0.06] flex items-center"
@@ -1971,14 +1962,14 @@ export default function EditPage() {
         </>
       )}
 
-      {/* Swap hint â shown when a tile is selected for swap on mobile */}
+      {/* Swap hint — shown when a tile is selected for swap on mobile */}
       {isMobile && isArranging && swapSourceId && mode.type !== 'tile_menu' && (
         <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-black/70 backdrop-blur-sm rounded-full border border-white/10 animate-overlay-fade">
           <span className="text-xs text-white/70 font-mono">tap another to swap</span>
         </div>
       )}
 
-      {/* âââ BOTTOM BAR â only in arranging/adding âââ */}
+      {/* ═══ BOTTOM BAR — only in arranging/adding ═══ */}
       <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-3 pb-[env(safe-area-inset-bottom)] transition-all duration-300 ${isArranging && mode.type !== 'tile_menu' ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
 
         {/* URL input */}
@@ -2016,7 +2007,7 @@ export default function EditPage() {
                 onClick={() => { stopAdding(); setPasteUrl('') }}
                 className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white/60 rounded-xl font-mono text-xs transition"
               >
-                Ã
+                ×
               </button>
             </div>
           </div>
@@ -2037,7 +2028,7 @@ export default function EditPage() {
               rows={3}
               className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl font-mono text-sm focus:border-white/30 focus:outline-none text-white placeholder:text-white/30 resize-none"
             />
-            <p className="text-[10px] text-white/20 font-mono mt-1 px-1">â+enter to save</p>
+            <p className="text-[10px] text-white/20 font-mono mt-1 px-1">⌘+enter to save</p>
             <div className="flex gap-2 mt-2">
               <button
                 onClick={handleAddThought}
@@ -2050,7 +2041,7 @@ export default function EditPage() {
                 onClick={() => { stopAdding(); setThoughtText('') }}
                 className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white/60 rounded-xl font-mono text-xs transition"
               >
-                Ã
+                ×
               </button>
             </div>
           </div>
@@ -2080,7 +2071,7 @@ export default function EditPage() {
                 onClick={() => fileInputRef.current?.click()}
                 className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all"
               >
-                <span className="text-white/60 text-sm font-bold">â</span>
+                <span className="text-white/60 text-sm font-bold">↑</span>
               </button>
               <div className="w-px h-6 bg-white/10" />
               <button
@@ -2101,14 +2092,14 @@ export default function EditPage() {
         )}
       </div>
 
-      {/* âââ GO LIVE â full page takeover âââ */}
+      {/* ═══ GO LIVE — full page takeover ═══ */}
       {showGoLive && !isPublished && (
         <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center birth-takeover">
           {/* Dismiss zone */}
           <div className="absolute inset-0" onClick={() => !goLiveLoading && setShowGoLive(false)} />
 
           <div className="relative z-10 text-center px-6" style={{ animation: 'birth-fade-up 0.6s ease-out' }}>
-            {/* Serial preview â huge, faint */}
+            {/* Serial preview — huge, faint */}
             {nextSerial && (
               <p className="font-mono text-white/[0.08] tracking-[0.3em] mb-10"
                 style={{ fontSize: 'clamp(48px, 12vw, 80px)', fontWeight: 300 }}
@@ -2122,7 +2113,7 @@ export default function EditPage() {
               footprint.onl/{slug}
             </p>
 
-            {/* Price â quiet */}
+            {/* Price — quiet */}
             <p className="text-white/50 text-[13px] font-mono mb-12">
               $10
             </p>
@@ -2173,12 +2164,12 @@ export default function EditPage() {
         </div>
       )}
 
-      {/* âââ BIRTH MOMENT â cinematic page takeover âââ */}
+      {/* ═══ BIRTH MOMENT — cinematic page takeover ═══ */}
       {birthMoment && (
         <div className="fixed inset-0 z-[200] birth-takeover">
           <div className="absolute inset-0 flex items-center justify-center">
 
-            {/* Phase: counting â huge serial ticking up */}
+            {/* Phase: counting — huge serial ticking up */}
             {birthPhase === 'counting' && (
               <p className="font-mono text-white/20 tracking-[0.3em] birth-counter"
                 style={{ fontSize: 'clamp(56px, 15vw, 96px)', fontWeight: 300 }}
@@ -2187,10 +2178,10 @@ export default function EditPage() {
               </p>
             )}
 
-            {/* Phase: reveal â serial locks, details fade in */}
+            {/* Phase: reveal — serial locks, details fade in */}
             {(birthPhase === 'reveal' || birthPhase === 'done') && (
               <div className="text-center px-6 w-full" style={{ animation: 'birth-fade-up 0.8s ease-out' }}>
-                {/* Serial â huge, locks in */}
+                {/* Serial — huge, locks in */}
                 <p className="font-mono text-white/30 tracking-[0.3em] mb-6"
                   style={{ fontSize: 'clamp(48px, 12vw, 80px)', fontWeight: 300 }}
                 >
@@ -2202,7 +2193,7 @@ export default function EditPage() {
                   footprint.onl/{birthMoment.slug}
                 </p>
 
-                {/* Actions â minimal */}
+                {/* Actions — minimal */}
                 <button
                   onClick={() => {
                     window.location.href = `/${birthMoment.slug}`
