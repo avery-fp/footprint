@@ -5,6 +5,7 @@ import ShareEngine from '@/components/ShareEngine'
 import EventTracker from '@/components/EventTracker'
 import ReferralBanner from '@/components/ReferralBanner'
 import PublicPage from './[slug]/PublicPage'
+import { mediaTypeFromUrl } from '@/lib/media'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,7 +41,7 @@ export default async function Home() {
   const content = [
     ...(images || []).map((img: any) => ({
       id: img.id,
-      type: 'image',
+      type: mediaTypeFromUrl(img.image_url),
       url: img.image_url,
       position: img.position,
       room_id: img.room_id,
@@ -87,6 +88,22 @@ export default async function Home() {
         serial={serial}
         pageUrl={pageUrl}
       />
+
+      {/* Floating CTA */}
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+        <a
+          href="/signup"
+          className="block px-6 py-3 rounded-full text-white/90 text-sm font-medium tracking-wide transition-opacity hover:opacity-80"
+          style={{
+            background: 'rgba(255, 255, 255, 0.08)',
+            backdropFilter: 'blur(20px) saturate(120%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(120%)',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+          }}
+        >
+          make yours
+        </a>
+      </div>
     </>
   )
 }
