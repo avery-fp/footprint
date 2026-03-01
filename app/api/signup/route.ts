@@ -38,12 +38,26 @@ export async function POST(request: NextRequest) {
 
     if (existingUser) {
       // Already has account — find their footprint and log them in
-      const { data: fp } = await supabase
+      let { data: fp } = await supabase
         .from('footprints')
         .select('username, published')
         .eq('user_id', existingUser.id)
         .eq('is_primary', true)
         .single()
+
+      // If user exists but footprint is missing (orphaned from failed signup), create it now
+      if (!fp) {
+        const { error: fpError } = await supabase.from('footprints').insert({
+          user_id: existingUser.id,
+          username,
+          name: 'Everything',
+          is_primary: true,
+          published: false,
+        })
+        if (!fpError) {
+          fp = { username, published: false }
+        }
+      }
 
       const sessionToken = await createSessionToken(existingUser.id, existingUser.email)
       const response = NextResponse.json({
