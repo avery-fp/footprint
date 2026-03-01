@@ -1344,7 +1344,7 @@ export default function EditPage() {
       return {
         id: tempIds[i],
         url: isVideo ? '' : URL.createObjectURL(file),
-        type: 'image' as const,
+        type: (isVideo ? 'video' : 'image') as const,
         title: null,
         description: null,
         thumbnail_url: null,
