@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
     // ── 4. Check username taken ──
     const { data: existingFp, error: usernameCheckErr } = await supabase
       .from('footprints')
-      .select('id')
+      .select('username')
       .eq('username', cleanUsername)
       .maybeSingle()
 
