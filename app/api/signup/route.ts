@@ -1,124 +1,124 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
 import { createSessionToken, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from '@/lib/auth'
 import * as bcrypt from 'bcryptjs'
-import { signupSchema } from '@/lib/schemas'
-import { validateBody } from '@/lib/validate'
-import { routeLogger } from '@/lib/logger'
-
-const log = routeLogger('POST', '/api/signup')
 
 /**
  * POST /api/signup
  *
- * Username + email + password signup.
- * Creates user + unpublished footprint with chosen username, sets fp_session cookie.
- * No serial number, no payment. Free to create.
+ * Dead-simple signup: username + email + password.
+ * Creates user + unpublished footprint, sets session cookie.
  */
 export async function POST(request: NextRequest) {
   try {
+    // ── 1. Parse body ──
     const body = await request.json()
-    const v = validateBody(signupSchema, body)
-    if (!v.success) return v.response
-    const { email, username, password } = v.data
+    const { username, email, password } = body || {}
 
-    const supabase = createServerSupabaseClient()
+    if (!username || !email || !password) {
+      return NextResponse.json({ error: 'Username, email, and password are required.' }, { status: 400 })
+    }
 
-    // Check if email already exists
-    const { data: existingUser } = await supabase
+    const cleanUsername = String(username).toLowerCase().trim()
+    const cleanEmail = String(email).toLowerCase().trim()
+
+    if (cleanUsername.length < 3 || cleanUsername.length > 20) {
+      return NextResponse.json({ error: 'Username must be 3-20 characters.' }, { status: 400 })
+    }
+    if (!/^[a-z0-9-]+$/.test(cleanUsername)) {
+      return NextResponse.json({ error: 'Username: lowercase letters, numbers, hyphens only.' }, { status: 400 })
+    }
+    if (String(password).length < 6) {
+      return NextResponse.json({ error: 'Password must be at least 6 characters.' }, { status: 400 })
+    }
+
+    // ── 2. Connect to Supabase ──
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!supabaseUrl || !serviceKey) {
+      console.error('[signup] MISSING ENV VARS:', { supabaseUrl: !!supabaseUrl, serviceKey: !!serviceKey })
+      return NextResponse.json({ error: 'Server misconfigured.' }, { status: 500 })
+    }
+
+    const supabase = createClient(supabaseUrl, serviceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    })
+
+    // ── 3. Check email taken ──
+    const { data: existingUser, error: emailCheckErr } = await supabase
       .from('users')
-      .select('id, email, serial_number')
-      .ilike('email', email)
-      .single()
+      .select('id, email')
+      .eq('email', cleanEmail)
+      .maybeSingle()
+
+    if (emailCheckErr) {
+      console.error('[signup] email check error:', emailCheckErr)
+      return NextResponse.json({ error: 'Something went wrong. Try again.' }, { status: 500 })
+    }
 
     if (existingUser) {
-      // Already has account — find their footprint and log them in
-      let { data: fp } = await supabase
-        .from('footprints')
-        .select('username, published')
-        .eq('user_id', existingUser.id)
-        .eq('is_primary', true)
-        .single()
-
-      // If user exists but footprint is missing (orphaned from failed signup), create it now
-      if (!fp) {
-        const { error: fpError } = await supabase.from('footprints').insert({
-          user_id: existingUser.id,
-          username,
-          name: 'Everything',
-          is_primary: true,
-          published: false,
-        })
-        if (!fpError) {
-          fp = { username, published: false }
-        }
-      }
-
-      const sessionToken = await createSessionToken(existingUser.id, existingUser.email)
-      const response = NextResponse.json({
-        success: true,
-        slug: fp?.username || null,
-        existing: true,
-      })
-
-      response.cookies.set(SESSION_COOKIE_NAME, sessionToken, SESSION_COOKIE_OPTIONS)
-
-      return response
+      return NextResponse.json({ error: 'An account with that email already exists. Try logging in.' }, { status: 409 })
     }
 
-    // Check if username is taken
-    const { data: existingFp } = await supabase
+    // ── 4. Check username taken ──
+    const { data: existingFp, error: usernameCheckErr } = await supabase
       .from('footprints')
       .select('id')
-      .eq('username', username)
-      .single()
+      .eq('username', cleanUsername)
+      .maybeSingle()
+
+    if (usernameCheckErr) {
+      console.error('[signup] username check error:', usernameCheckErr)
+      return NextResponse.json({ error: 'Something went wrong. Try again.' }, { status: 500 })
+    }
 
     if (existingFp) {
-      return NextResponse.json({ error: 'That name is already claimed. Try another.' }, { status: 409 })
+      return NextResponse.json({ error: 'That name is taken. Try another.' }, { status: 409 })
     }
 
-    // Hash password
-    const passwordHash = await bcrypt.hash(password, 10)
+    // ── 5. Create user ──
+    const passwordHash = await bcrypt.hash(String(password), 10)
 
-    // Create user (no serial number — unpublished)
-    const { data: user, error: userError } = await supabase
+    const { data: user, error: userErr } = await supabase
       .from('users')
-      .insert({ email, password_hash: passwordHash })
-      .select()
+      .insert({ email: cleanEmail, password_hash: passwordHash })
+      .select('id, email')
       .single()
 
-    if (userError || !user) {
-      log.error({ err: userError }, 'User creation failed')
-      return NextResponse.json({ error: 'Something went wrong on our end. Try again in a moment.' }, { status: 500 })
+    if (userErr || !user) {
+      console.error('[signup] user insert error:', userErr)
+      return NextResponse.json({ error: 'Could not create account. Try again.' }, { status: 500 })
     }
 
-    // Create unpublished footprint with chosen username
-    const { error: fpError } = await supabase.from('footprints').insert({
+    // ── 6. Create footprint ──
+    const { error: fpErr } = await supabase.from('footprints').insert({
       user_id: user.id,
-      username,
+      username: cleanUsername,
       name: 'Everything',
       is_primary: true,
       published: false,
     })
 
-    if (fpError) {
-      log.error({ err: fpError }, 'Footprint creation failed')
-      return NextResponse.json({ error: 'Something went wrong on our end. Try again in a moment.' }, { status: 500 })
+    if (fpErr) {
+      console.error('[signup] footprint insert error:', fpErr)
+      // User was created but footprint failed — still let them in
     }
 
-    // Create session + set cookie
+    // ── 7. Session cookie ──
     const sessionToken = await createSessionToken(user.id, user.email)
+
     const response = NextResponse.json({
       success: true,
-      slug: username,
-      existing: false,
+      slug: cleanUsername,
     })
 
     response.cookies.set(SESSION_COOKIE_NAME, sessionToken, SESSION_COOKIE_OPTIONS)
 
+    console.log('[signup] success:', cleanUsername, user.id)
     return response
-  } catch (error: any) {
-    log.error({ err: error }, 'Signup failed')
-    return NextResponse.json({ error: 'Something went wrong' }, { status: 500 })
+  } catch (err: any) {
+    console.error('[signup] unexpected error:', err?.message || err)
+    return NextResponse.json({ error: 'Something went wrong.' }, { status: 500 })
   }
 }
