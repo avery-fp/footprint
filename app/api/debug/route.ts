@@ -11,28 +11,29 @@ export async function GET() {
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
-    // 1. Query footprints with select('*') to see actual columns
-    const t1 = await supabase.from('footprints').select('*').limit(3)
-    results.footprintsSelectAll = {
-      data: t1.data,
-      error: t1.error,
-      columns: t1.data?.[0] ? Object.keys(t1.data[0]) : null,
-    }
-
-    // 2. Find demo user
+    // Find quantum-test user
     const { data: user } = await supabase
       .from('users')
       .select('id, email')
-      .eq('email', 'demo@footprint.onl')
+      .eq('email', 'quantum@footprint.onl')
       .maybeSingle()
-    results.demoUser = user
+    results.quantumUser = user
 
-    // 3. If user found, try insert with same shape as signup
-    if (user) {
+    // Check if quantum-test footprint exists
+    const { data: fp, error: fpErr } = await supabase
+      .from('footprints')
+      .select('*')
+      .eq('username', 'quantum-test')
+      .maybeSingle()
+    results.quantumFootprint = { data: fp, error: fpErr }
+
+    // Try the EXACT insert the new signup code does
+    if (user && !fp) {
       const insertPayload = {
         user_id: user.id,
-        username: 'debug-test-delete-me',
-        name: 'Everything',
+        username: 'quantum-test',
+        display_name: 'quantum-test',
+        email: 'quantum@footprint.onl',
         is_primary: true,
         published: false,
       }
@@ -46,9 +47,9 @@ export async function GET() {
 
       results.insertResult = { data: inserted, error: insertErr }
 
-      // Clean up if it succeeded
+      // Clean up
       if (inserted) {
-        await supabase.from('footprints').delete().eq('username', 'debug-test-delete-me')
+        await supabase.from('footprints').delete().eq('username', 'quantum-test')
         results.cleanedUp = true
       }
     }
