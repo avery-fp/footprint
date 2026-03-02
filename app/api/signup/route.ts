@@ -95,7 +95,8 @@ export async function POST(request: NextRequest) {
     const { error: fpErr } = await supabase.from('footprints').insert({
       user_id: user.id,
       username: cleanUsername,
-      name: 'Everything',
+      display_name: cleanUsername,
+      email: cleanEmail,
       is_primary: true,
       published: false,
     })
