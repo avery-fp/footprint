@@ -29,10 +29,7 @@ export async function POST(request: NextRequest) {
       .from('users')
       .select('id, email, serial_number')
       .ilike('email', email)
-      .single()
-
-      ? '.footprint.onl'
-      : undefined
+      .single(
 
     if (existingUser) {
       // Already has account — find their footprint and log them in
