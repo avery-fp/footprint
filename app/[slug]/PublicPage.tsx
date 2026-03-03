@@ -57,6 +57,23 @@ const ROOM_OVERLAYS = [
 ]
 const DEFAULT_OVERLAY = 'rgba(0,0,0,0.35)'
 
+function getGridClass(size: number, aspect: string | null | undefined): string {
+  if (aspect === 'wide' || aspect === 'landscape') {
+    if (size >= 3) return 'col-span-2 row-span-1 md:col-span-4 md:row-span-2'
+    if (size >= 2) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-1'
+    return 'col-span-2 row-span-1'
+  }
+  if (aspect === 'tall' || aspect === 'portrait') {
+    if (size >= 3) return 'col-span-2 row-span-3 md:col-span-2 md:row-span-4'
+    if (size >= 2) return 'col-span-1 row-span-3 md:col-span-2 md:row-span-3'
+    return 'col-span-1 row-span-2'
+  }
+  // square or auto — same spanning as before
+  if (size >= 3) return 'col-span-2 row-span-2 md:col-span-3 md:row-span-3'
+  if (size >= 2) return 'col-span-2 row-span-2'
+  return ''
+}
+
 function getImageSizes(size: number): string {
   if (size >= 3) return '(max-width: 768px) 100vw, 880px'
   if (size >= 2) return '(max-width: 768px) 50vw, 50vw'
@@ -127,6 +144,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [showToast, setShowToast] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [roomFade, setRoomFade] = useState<'visible' | 'out' | 'in'>('visible')
+  const [focusedItem, setFocusedItem] = useState<any>(null)
 
   // Content filtering
   const validContent = useMemo(() =>
@@ -276,31 +294,37 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     }
 
   // ═══════════════════════════════════════════
-  // THE GRID — uniform tiles, rounded corners, clean
+  // THE GRID — matches edit page layout with size + aspect support
   // ═══════════════════════════════════════════
   const activeGrid = (
     <div
-      className="grid grid-cols-3 md:grid-cols-4"
+      className="grid grid-cols-2 md:grid-cols-4"
       style={{
-        gap: `${layoutConfig.gap}px`,
+        gap: '3px',
+        gridAutoRows: 'auto',
+        gridAutoFlow: 'dense',
         opacity: roomFade === 'out' ? 0 : 1,
         transform: roomFade === 'out' ? 'translateY(6px)' : roomFade === 'in' ? 'translateY(-6px)' : 'translateY(0)',
         transition: 'opacity 250ms ease-out, transform 350ms ease-out',
       }}
     >
       {content.map((item: any, idx: number) => {
-        const isSpotify = item.type === 'spotify'
+        const size = item.size || 1
+        const aspect = item.aspect || 'square'
+        const gridClassStr = getGridClass(size, aspect)
+
         return (
           <div
             key={item.id}
-            className={`overflow-hidden ${isSpotify ? 'col-span-2' : 'aspect-square'}`}
+            className={`overflow-hidden cursor-pointer hover:opacity-90 transition-opacity ${gridClassStr}`}
             style={{
               borderRadius: `${layoutConfig.tileRadius}px`,
               boxShadow: layoutConfig.tileShadow,
               background: 'rgba(255,255,255,0.06)',
             }}
+            onClick={() => setFocusedItem(item)}
           >
-            {renderTileContent(item, idx, isSpotify ? 2 : 1, isSpotify ? 'auto' : 'square')}
+            {renderTileContent(item, idx, size, aspect)}
           </div>
         )
       })}
@@ -488,6 +512,49 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       {showToast && (
         <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-white/[0.08] backdrop-blur-sm rounded-md px-5 py-2 text-white/60 text-sm materialize">
           copied.
+        </div>
+      )}
+
+      {/* Lightbox overlay */}
+      {focusedItem && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setFocusedItem(null)}
+        >
+          <button
+            className="absolute top-4 right-4 text-white text-2xl z-50"
+            onClick={() => setFocusedItem(null)}
+          >✕</button>
+          <div className="max-w-3xl max-h-[90vh] w-full" onClick={e => e.stopPropagation()}>
+            {focusedItem.type === 'image' && focusedItem.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i) ? (
+              <video
+                src={focusedItem.url}
+                controls
+                autoPlay
+                playsInline
+                className="w-full max-h-[85vh] object-contain rounded-xl"
+              />
+            ) : focusedItem.type === 'image' ? (
+              <img
+                src={focusedItem.url}
+                alt={focusedItem.title || ''}
+                className="w-full max-h-[85vh] object-contain rounded-xl"
+              />
+            ) : focusedItem.type === 'spotify' ? (
+              <iframe
+                src={focusedItem.embed_html || focusedItem.url}
+                className="w-full h-[380px] rounded-xl"
+                allow="encrypted-media"
+              />
+            ) : focusedItem.url ? (
+              <div className="bg-zinc-900 rounded-xl p-6 text-center">
+                <p className="text-white text-lg mb-4">{focusedItem.title || focusedItem.url}</p>
+                <a href={focusedItem.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 underline">
+                  Open link ↗
+                </a>
+              </div>
+            ) : null}
+          </div>
         </div>
       )}
 

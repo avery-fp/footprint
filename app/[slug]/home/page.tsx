@@ -1287,26 +1287,45 @@ export default function EditPage() {
   async function resizeImage(file: File, maxWidth = 1600): Promise<File> {
     if (file.size < 300 * 1024) return file
 
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const img = document.createElement('img')
-      img.onload = () => {
-        if (img.width <= maxWidth) {
-          URL.revokeObjectURL(img.src)
-          resolve(file)
-          return
-        }
-        const scale = maxWidth / img.width
-        const canvas = document.createElement('canvas')
-        canvas.width = Math.round(img.width * scale)
-        canvas.height = Math.round(img.height * scale)
-        canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+      const timeout = setTimeout(() => {
         URL.revokeObjectURL(img.src)
-        canvas.toBlob(blob => {
-          resolve(new File([blob!],
-            file.name.replace(/\.[^.]+$/, '.jpg'),
-            { type: 'image/jpeg' }))
-        }, 'image/jpeg', 0.82)
+        reject(new Error('Resize timeout'))
+      }, 10000)
+
+      img.onload = () => {
+        try {
+          clearTimeout(timeout)
+          if (img.width <= maxWidth) {
+            URL.revokeObjectURL(img.src)
+            resolve(file)
+            return
+          }
+          const scale = maxWidth / img.width
+          const canvas = document.createElement('canvas')
+          canvas.width = Math.round(img.width * scale)
+          canvas.height = Math.round(img.height * scale)
+          canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+          URL.revokeObjectURL(img.src)
+          canvas.toBlob(blob => {
+            resolve(new File([blob!],
+              file.name.replace(/\.[^.]+$/, '.jpg'),
+              { type: 'image/jpeg' }))
+          }, 'image/jpeg', 0.82)
+        } catch (e) {
+          clearTimeout(timeout)
+          URL.revokeObjectURL(img.src)
+          reject(e)
+        }
       }
+
+      img.onerror = () => {
+        clearTimeout(timeout)
+        URL.revokeObjectURL(img.src)
+        reject(new Error('Image load failed'))
+      }
+
       img.src = URL.createObjectURL(file)
     })
   }
@@ -1481,12 +1500,14 @@ export default function EditPage() {
           if (thumb?.startsWith('blob:')) URL.revokeObjectURL(thumb)
         }
       } catch (err) {
+        // Mark tile as failed instead of removing it silently
         setDraft(prev => prev ? {
           ...prev,
-          content: prev.content.filter(c => c.id !== tempId),
+          content: prev.content.map(c => c.id === tempId ? { ...c, _failed: true, _progress: 0 } : c),
           updated_at: Date.now(),
         } : null)
-        console.error(`Upload failed for ${file.name}:`, err)
+        console.error('UPLOAD_FAIL', { name: file.name, size: file.size, type: file.type, err })
+        alert(`Upload failed: ${file.name}. Tap the tile to retry.`)
       }
     }
 
@@ -1654,13 +1675,13 @@ export default function EditPage() {
                   {goLiveLoading ? '...' : 'go live'}
                 </button>
               )}
-              {/* Edit button */}
+              {/* Home button */}
               <button
                 onClick={enterEdit}
                 className="text-sm text-white/90 hover:text-white transition font-mono flex items-center justify-center px-5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
                 style={{ minHeight: '44px', minWidth: '44px' }}
               >
-                edit
+                home
               </button>
             </div>
           )}
