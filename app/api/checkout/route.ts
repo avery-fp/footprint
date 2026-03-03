@@ -21,6 +21,13 @@ export async function POST(request: NextRequest) {
     if (!v.success) return v.response
     const { email, slug, remix_source, remix_room, ref } = v.data
 
+    // ── SID attribution: read from cookie or request body ──
+    const cookieSid = request.cookies.get('fp_sid')?.value ?? null
+    const bodySid = (body.sid && typeof body.sid === 'string') ? body.sid : null
+    const rawSid = bodySid || cookieSid
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    const validSid = rawSid && uuidRegex.test(rawSid) ? rawSid : null
+
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://footprint.onl'
 
     const successUrl = slug
@@ -60,7 +67,9 @@ export async function POST(request: NextRequest) {
         ref: ref || '',
         ...(remix_source ? { remix_source } : {}),
         ...(remix_room ? { remix_room } : {}),
+        ...(validSid ? { sid: validSid } : {}),
       },
+      ...(validSid ? { client_reference_id: validSid } : {}),
     })
 
     return NextResponse.json({ url: session.url })

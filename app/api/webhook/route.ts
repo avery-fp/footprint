@@ -46,6 +46,12 @@ async function handleCheckoutComplete(session: any) {
   if (!rawEmail) throw new Error('No email found in checkout session')
   const email = rawEmail.toLowerCase().trim()
 
+  // ── SID attribution: extract from Stripe metadata or client_reference_id ──
+  const sid: string | null =
+    session.metadata?.sid ||
+    session.client_reference_id ||
+    null
+
   // Idempotency: check if this session was already processed
   const { data: existingPayment } = await supabase
     .from('payments')
@@ -75,6 +81,11 @@ async function handleCheckoutComplete(session: any) {
       currency: session.currency,
       status: 'completed',
     }, { onConflict: 'stripe_session_id', ignoreDuplicates: true })
+
+    // ── ARO: record purchase event for existing user ──
+    if (sid) {
+      await recordAroEvent(supabase, 'purchase', sid, session.id, session.amount_total, session.currency, email)
+    }
 
     log.info(`User already exists: ${email} #${existingUser.serial_number}`)
     return
@@ -146,6 +157,12 @@ async function handleCheckoutComplete(session: any) {
   if (payError) {
     log.error({ err: payError }, 'CRITICAL: Webhook payment record failed')
     // Don't throw — user and footprint exist, payment record is secondary
+  }
+
+  // ── ARO: record signup + purchase events for new user ──
+  if (sid) {
+    await recordAroEvent(supabase, 'signup', sid)
+    await recordAroEvent(supabase, 'purchase', sid, session.id, session.amount_total, session.currency, email)
   }
 
   // Handle remix: clone room content from source footprint
@@ -230,6 +247,45 @@ async function handleCheckoutComplete(session: any) {
   sendWelcomeEmail(email, serialNumber, username)
     .then(() => log.info(`Welcome email sent: ${email}`))
     .catch((err) => log.error({ err }, `Welcome email failed for ${email}`))
+}
+
+/**
+ * Record an ARO attribution event (signup or purchase).
+ * Non-critical — errors are logged but never block the webhook.
+ */
+async function recordAroEvent(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  eventType: 'signup' | 'purchase',
+  sid: string,
+  stripeSessionId?: string,
+  amount?: number | null,
+  currency?: string | null,
+  customerEmail?: string,
+) {
+  try {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    const isValidUuid = uuidRegex.test(sid)
+
+    const metadata: Record<string, unknown> = { sid }
+    if (eventType === 'purchase') {
+      metadata.stripe_session_id = stripeSessionId || null
+      metadata.amount = amount || 0
+      metadata.currency = currency || 'usd'
+      metadata.customer_email = customerEmail || null
+    }
+
+    const { error } = await supabase.from('aro_events').insert({
+      target_id: isValidUuid ? sid : null,
+      event_type: eventType,
+      metadata,
+    })
+
+    if (error) {
+      log.error({ err: error, sid, eventType, stripeSessionId, amount, currency, customerEmail }, `ARO ${eventType} event insert failed`)
+    }
+  } catch (err) {
+    log.error({ err, sid, eventType, stripeSessionId, amount, currency, customerEmail }, `ARO ${eventType} event failed`)
+  }
 }
 
 /**

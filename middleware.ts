@@ -66,18 +66,24 @@ export function middleware(request: NextRequest) {
   }
 
   // ── 2. Public routes ──
-  if (publicRoutes.some(route => pathname === route || pathname.startsWith(route + '/'))) {
-    return withSecurityHeaders(NextResponse.next())
-  }
-
-  // All /api routes are public (handled by their own auth)
-  if (pathname.startsWith('/api/') || pathname.startsWith('/api')) {
-    return withSecurityHeaders(NextResponse.next())
-  }
-
-  // Public profile pages: /{slug} (single segment, no sub-path)
+  const isPublicRoute = publicRoutes.some(route => pathname === route || pathname.startsWith(route + '/'))
+  const isApiRoute = pathname.startsWith('/api/') || pathname.startsWith('/api')
   const isPublicProfile = /^\/[a-zA-Z0-9_-]+$/.test(pathname)
-  if (isPublicProfile) {
+
+  if (isPublicRoute || isApiRoute || isPublicProfile) {
+    // ── SID attribution cookie: capture ?sid= on any public/profile route ──
+    const sid = request.nextUrl.searchParams.get('sid')
+    if (sid && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sid)) {
+      const response = withSecurityHeaders(NextResponse.next())
+      response.cookies.set('fp_sid', sid, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 30 * 24 * 60 * 60, // 30 days
+      })
+      return response
+    }
     return withSecurityHeaders(NextResponse.next())
   }
 
