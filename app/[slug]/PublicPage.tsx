@@ -59,19 +59,19 @@ const DEFAULT_OVERLAY = 'rgba(0,0,0,0.35)'
 
 function getGridClass(size: number, aspect: string | null | undefined): string {
   if (aspect === 'wide' || aspect === 'landscape') {
-    if (size >= 3) return 'col-span-2 row-span-1 md:col-span-4 md:row-span-2'
-    if (size >= 2) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-1'
-    return 'col-span-2 row-span-1'
+    if (size >= 3) return 'col-span-2 row-span-1 md:col-span-4 md:row-span-2 aspect-video'
+    if (size >= 2) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-1 aspect-video'
+    return 'col-span-2 row-span-1 aspect-video'
   }
   if (aspect === 'tall' || aspect === 'portrait') {
-    if (size >= 3) return 'col-span-2 row-span-3 md:col-span-2 md:row-span-4'
-    if (size >= 2) return 'col-span-1 row-span-3 md:col-span-2 md:row-span-3'
-    return 'col-span-1 row-span-2'
+    if (size >= 3) return 'col-span-2 row-span-3 md:col-span-2 md:row-span-4 aspect-[3/4]'
+    if (size >= 2) return 'col-span-1 row-span-3 md:col-span-2 md:row-span-3 aspect-[3/4]'
+    return 'col-span-1 row-span-2 aspect-[3/4]'
   }
-  // square or auto — same spanning as before
-  if (size >= 3) return 'col-span-2 row-span-2 md:col-span-3 md:row-span-3'
-  if (size >= 2) return 'col-span-2 row-span-2'
-  return ''
+  // square or auto — default 1×1 tile
+  if (size >= 3) return 'col-span-2 row-span-2 md:col-span-3 md:row-span-3 aspect-square'
+  if (size >= 2) return 'col-span-2 row-span-2 aspect-square'
+  return 'aspect-square'
 }
 
 function getImageSizes(size: number): string {
@@ -301,7 +301,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       className="grid grid-cols-2 md:grid-cols-4"
       style={{
         gap: '3px',
-        gridAutoRows: 'auto',
         gridAutoFlow: 'dense',
         opacity: roomFade === 'out' ? 0 : 1,
         transform: roomFade === 'out' ? 'translateY(6px)' : roomFade === 'in' ? 'translateY(-6px)' : 'translateY(0)',
