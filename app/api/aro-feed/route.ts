@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { requireAdminOrMachine } from '@/src/aro/lib/auth'
 
 /**
  * GET /api/aro-feed
@@ -27,14 +28,11 @@ import { createServerSupabaseClient } from '@/lib/supabase'
  */
 export async function GET(request: NextRequest) {
   try {
+    // Auth: admin session cookie OR Authorization: Bearer CRON_SECRET/ARO_KEY
+    const auth = await requireAdminOrMachine(request)
+    if (auth instanceof NextResponse) return auth
+
     const { searchParams } = new URL(request.url)
-
-    // Require ARO key
-    const aroKey = searchParams.get('aro_key')
-    if (!aroKey || aroKey !== process.env.ARO_KEY) {
-      return NextResponse.json({ error: 'Invalid aro_key' }, { status: 401 })
-    }
-
     const sinceParam = searchParams.get('since')
     const footprintId = searchParams.get('footprint_id')
 

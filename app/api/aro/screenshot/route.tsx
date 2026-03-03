@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { requireAdminOrMachine } from '@/src/aro/lib/auth'
 import { ImageResponse } from '@vercel/og'
 
 /**
@@ -25,12 +26,11 @@ const VALID_FORMATS = Object.keys(FORMAT_DIMENSIONS)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { aro_key, slug, room_name, formats } = body
+    const { slug, room_name, formats } = body
 
-    // 1. Auth
-    if (!aro_key || aro_key !== process.env.ARO_KEY) {
-      return NextResponse.json({ error: 'Invalid aro_key' }, { status: 401 })
-    }
+    // 1. Auth: admin session cookie OR Authorization: Bearer CRON_SECRET/ARO_KEY
+    const auth = await requireAdminOrMachine(request)
+    if (auth instanceof NextResponse) return auth
 
     if (!slug) {
       return NextResponse.json({ error: 'slug required' }, { status: 400 })

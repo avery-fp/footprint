@@ -1,23 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { requireAdminOrMachine } from '@/src/aro/lib/auth'
 
 /**
- * GET /api/aro/stats?aro_key=xxx
+ * GET /api/aro/stats
  *
  * Returns conversion data grouped by channel, surface, pack_id.
  * Shows which placements are performing.
  *
+ * Auth: admin session cookie OR Authorization: Bearer CRON_SECRET/ARO_KEY.
  * Optional filters: ?channel=reddit&pack_id=nba-allstar&days=7
  */
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requireAdminOrMachine(request)
+    if (auth instanceof NextResponse) return auth
+
     const { searchParams } = new URL(request.url)
-    const aroKey = searchParams.get('aro_key')
-
-    if (!aroKey || aroKey !== process.env.ARO_KEY) {
-      return NextResponse.json({ error: 'Invalid aro_key' }, { status: 401 })
-    }
-
     const channel = searchParams.get('channel')
     const packId = searchParams.get('pack_id')
     const days = parseInt(searchParams.get('days') || '30', 10)
@@ -117,13 +116,14 @@ export async function GET(request: NextRequest) {
  * POST /api/aro/stats
  *
  * Record a deployment event (mark something as posted).
- * Body: { aro_key, serial_number, channel, surface?, pack_id?, placement_url?, caption_tone?, room_id?, notes? }
+ * Body: { serial_number, channel, surface?, pack_id?, placement_url?, caption_tone?, room_id?, notes? }
+ *
+ * Auth: admin session cookie OR Authorization: Bearer CRON_SECRET/ARO_KEY.
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const {
-      aro_key,
       serial_number,
       channel,
       surface,
@@ -134,9 +134,8 @@ export async function POST(request: NextRequest) {
       notes,
     } = body
 
-    if (!aro_key || aro_key !== process.env.ARO_KEY) {
-      return NextResponse.json({ error: 'Invalid aro_key' }, { status: 401 })
-    }
+    const auth = await requireAdminOrMachine(request)
+    if (auth instanceof NextResponse) return auth
 
     if (!serial_number || !channel) {
       return NextResponse.json(
@@ -180,17 +179,17 @@ export async function POST(request: NextRequest) {
  * PATCH /api/aro/stats
  *
  * Update an event (e.g., add placement_url after posting, increment clicks).
- * Body: { aro_key, event_id, placement_url?, clicks?, conversions?, notes? }
+ * Body: { event_id, placement_url?, clicks?, conversions?, notes? }
+ *
+ * Auth: admin session cookie OR Authorization: Bearer CRON_SECRET/ARO_KEY.
  */
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json()
-    const { aro_key, event_id, placement_url, clicks, conversions, notes } =
-      body
+    const { event_id, placement_url, clicks, conversions, notes } = body
 
-    if (!aro_key || aro_key !== process.env.ARO_KEY) {
-      return NextResponse.json({ error: 'Invalid aro_key' }, { status: 401 })
-    }
+    const auth = await requireAdminOrMachine(request)
+    if (auth instanceof NextResponse) return auth
 
     if (!event_id) {
       return NextResponse.json(

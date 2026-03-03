@@ -25,7 +25,6 @@ export interface CreativeBrief {
 }
 
 export interface MintPayload {
-  aro_key: string
   slug: string
   room_name: string
   image_urls: string[]

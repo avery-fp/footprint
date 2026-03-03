@@ -33,8 +33,7 @@ interface Screenshots {
 }
 
 export default function AroDashboard() {
-  const [aroKey, setAroKey] = useState('')
-  const [authenticated, setAuthenticated] = useState(false)
+  const [authenticated, setAuthenticated] = useState<boolean | null>(null)
   const [packs, setPacks] = useState<Pack[]>([])
   const [currentPackIndex, setCurrentPackIndex] = useState(0)
   const [stats, setStats] = useState<Stats | null>(null)
@@ -43,24 +42,28 @@ export default function AroDashboard() {
   const [copiedCaption, setCopiedCaption] = useState<number | null>(null)
   const [newPackForm, setNewPackForm] = useState(false)
 
-  // Auth gate
-  const handleAuth = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (aroKey.trim()) {
-      setAuthenticated(true)
-      localStorage.setItem('aro_key', aroKey)
-      loadData(aroKey)
-    }
-  }
-
-  // Load from localStorage on mount
+  /**
+   * Auth check: call session-verified API endpoint.
+   * The server verifies fp_session cookie + admin allowlist.
+   * No client-side secrets. No localStorage. No spoofable headers.
+   */
   useEffect(() => {
-    const saved = localStorage.getItem('aro_key')
-    if (saved) {
-      setAroKey(saved)
-      setAuthenticated(true)
-      loadData(saved)
+    async function checkSession() {
+      try {
+        const res = await fetch('/api/aro/stats?days=1', {
+          credentials: 'include',
+        })
+        if (res.ok) {
+          setAuthenticated(true)
+          loadData()
+        } else {
+          setAuthenticated(false)
+        }
+      } catch {
+        setAuthenticated(false)
+      }
     }
+    checkSession()
   }, [])
 
   // Keyboard navigation
@@ -77,19 +80,19 @@ export default function AroDashboard() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [authenticated, packs.length])
 
-  const loadData = useCallback(async (key: string) => {
-    // Load packs
+  const loadData = useCallback(async () => {
+    // Load packs — cookie sent automatically
     try {
-      const packRes = await fetch(`/api/aro/packs?aro_key=${key}`)
+      const packRes = await fetch('/api/aro/packs', { credentials: 'include' })
       if (packRes.ok) {
         const packData = await packRes.json()
         setPacks(packData.packs || [])
       }
     } catch {}
 
-    // Load stats
+    // Load stats — cookie sent automatically
     try {
-      const statsRes = await fetch(`/api/aro/stats?aro_key=${key}`)
+      const statsRes = await fetch('/api/aro/stats', { credentials: 'include' })
       if (statsRes.ok) {
         const statsData = await statsRes.json()
         setStats(statsData)
@@ -106,8 +109,8 @@ export default function AroDashboard() {
       const res = await fetch('/api/aro/screenshot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
-          aro_key: aroKey,
           slug: currentPack.slug,
           room_name: currentPack.room_name,
           formats: ['1x1', '4x5', '16x9', '9x16'],
@@ -133,13 +136,13 @@ export default function AroDashboard() {
     if (!currentPack) return
     const target = currentPack.targets[targetIndex]
 
-    // Record to distribution events
+    // Record to distribution events — cookie auth, no aro_key in body
     await fetch('/api/aro/stats', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({
-        aro_key: aroKey,
-        serial_number: 0, // will be resolved by slug
+        serial_number: 0,
         channel: target.channel,
         surface: target.surface,
         pack_id: currentPack.pack_id,
@@ -155,12 +158,12 @@ export default function AroDashboard() {
     }
     setPacks(updated)
 
-    // Update pack in DB
+    // Update pack in DB — cookie auth, no aro_key in body
     await fetch('/api/aro/packs', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({
-        aro_key: aroKey,
         pack_id: currentPack.pack_id,
         targets: updated[currentPackIndex].targets,
       }),
@@ -180,37 +183,50 @@ export default function AroDashboard() {
     await fetch('/api/aro/packs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({
-        aro_key: aroKey,
         pack_id: packId,
         ...formData,
       }),
     })
 
     setNewPackForm(false)
-    loadData(aroKey)
+    loadData()
   }
 
-  // Auth screen
+  // Loading state
+  if (authenticated === null) {
+    return (
+      <div style={styles.authContainer}>
+        <div style={styles.authBox}>
+          <h1 style={styles.authTitle}>ARO</h1>
+          <p style={styles.authSubtitle}>verifying session...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Not authenticated — no client-side key entry, redirect to login
   if (!authenticated) {
     return (
       <div style={styles.authContainer}>
         <div style={styles.authBox}>
           <h1 style={styles.authTitle}>ARO</h1>
           <p style={styles.authSubtitle}>deployment dashboard</p>
-          <form onSubmit={handleAuth} style={styles.authForm}>
-            <input
-              type="password"
-              value={aroKey}
-              onChange={(e) => setAroKey(e.target.value)}
-              placeholder="ARO_KEY"
-              style={styles.authInput}
-              autoFocus
-            />
-            <button type="submit" style={styles.authButton}>
-              Enter
-            </button>
-          </form>
+          <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '14px', marginTop: '16px' }}>
+            Admin session required.
+          </p>
+          <a
+            href="/login"
+            style={{
+              ...styles.authButton,
+              display: 'inline-block',
+              textDecoration: 'none',
+              marginTop: '12px',
+            }}
+          >
+            Sign in
+          </a>
         </div>
       </div>
     )
@@ -233,16 +249,9 @@ export default function AroDashboard() {
           >
             + New Pack
           </button>
-          <button
-            onClick={() => {
-              localStorage.removeItem('aro_key')
-              setAuthenticated(false)
-              setAroKey('')
-            }}
-            style={styles.logoutButton}
-          >
-            Exit
-          </button>
+          <a href="/api/auth/signout" style={styles.logoutButton}>
+            Sign out
+          </a>
         </div>
       </header>
 
@@ -597,6 +606,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '6px 10px',
     fontSize: '13px',
     cursor: 'pointer',
+    textDecoration: 'none',
   },
   statsBar: {
     display: 'flex',
@@ -766,7 +776,6 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '60px 20px',
     color: 'rgba(255,255,255,0.3)',
   },
-  // Auth
   authContainer: {
     display: 'flex',
     alignItems: 'center',
@@ -786,17 +795,6 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'rgba(255,255,255,0.4)',
     margin: '0 0 32px',
   },
-  authForm: { display: 'flex', gap: '8px' },
-  authInput: {
-    background: 'rgba(255,255,255,0.06)',
-    border: '1px solid rgba(255,255,255,0.15)',
-    borderRadius: '8px',
-    padding: '10px 16px',
-    color: '#F5F5F5',
-    fontSize: '14px',
-    width: '240px',
-    outline: 'none',
-  },
   authButton: {
     background: 'rgba(255,255,255,0.1)',
     color: '#F5F5F5',
@@ -806,7 +804,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '14px',
     cursor: 'pointer',
   },
-  // Modal
   modalOverlay: {
     position: 'fixed' as const,
     inset: 0,

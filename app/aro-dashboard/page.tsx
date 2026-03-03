@@ -1,6 +1,18 @@
+import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
+import { verifySessionToken } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
+
+/** Admin email allowlist — mirrors src/aro/lib/auth.ts */
+function getAdminEmails(): string[] {
+  const envList = process.env.ARO_ADMIN_EMAILS
+  if (envList) {
+    return envList.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean)
+  }
+  return ['nickocorder@gmail.com']
+}
 
 interface Stats {
   sent: number
@@ -14,6 +26,24 @@ function newStats(): Stats {
 }
 
 export default async function ARODashboard() {
+  // ── Auth gate: server-side session verification ──
+  const cookieStore = await cookies()
+  const token = cookieStore.get('fp_session')?.value
+
+  if (!token) {
+    redirect('/login')
+  }
+
+  const session = await verifySessionToken(token)
+  if (!session) {
+    redirect('/login')
+  }
+
+  const admins = getAdminEmails()
+  if (!admins.includes(session.email.toLowerCase())) {
+    redirect('/')
+  }
+
   const supabase = createServerSupabaseClient()
 
   // Fetch counts

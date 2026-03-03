@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { requireAdminOrMachine } from '@/src/aro/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
+/**
+ * GET /api/aro/plan
+ *
+ * Auth: admin session cookie OR Authorization: Bearer CRON_SECRET/ARO_KEY.
+ */
 export async function GET(request: NextRequest) {
-  const aroKey = new URL(request.url).searchParams.get('aro_key')
-  if (!aroKey || aroKey !== process.env.ARO_KEY) {
-    return NextResponse.json({ error: 'Invalid aro_key' }, { status: 401 })
-  }
+  const auth = await requireAdminOrMachine(request)
+  if (auth instanceof NextResponse) return auth
 
   const supabase = createServerSupabaseClient()
 

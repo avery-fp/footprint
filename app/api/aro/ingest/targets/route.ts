@@ -1,14 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ingestTargets } from '@/src/aro/targeting'
+import { requireAdminOrMachine } from '@/src/aro/lib/auth'
 
+/**
+ * POST /api/aro/ingest/targets
+ *
+ * Auth: admin session cookie OR Authorization: Bearer CRON_SECRET/ARO_KEY.
+ */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { aro_key, source, payload } = body
+    const auth = await requireAdminOrMachine(request)
+    if (auth instanceof NextResponse) return auth
 
-    if (!aro_key || aro_key !== process.env.ARO_KEY) {
-      return NextResponse.json({ error: 'Invalid aro_key' }, { status: 401 })
-    }
+    const body = await request.json()
+    const { source, payload } = body
 
     if (!source || !payload) {
       return NextResponse.json(

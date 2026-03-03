@@ -511,9 +511,8 @@ export async function curate(input: TasteInput): Promise<MintPayload> {
     console.log(`  [taste] found track: ${music_url}`)
   }
 
-  // Assemble the mint payload
+  // Assemble the mint payload (no secrets — auth is via Authorization header)
   const payload: MintPayload = {
-    aro_key: config.ARO_KEY,
     slug: brief.slug,
     room_name: brief.display_name,
     image_urls: scoredImages,
