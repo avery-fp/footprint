@@ -12,6 +12,145 @@ function extractSpotifyInfo(url: string): { type: string; id: string } | null {
   return match ? { type: match[1], id: match[2] } : null
 }
 
+// ════════════════════════════════════════
+// AE Glass Embed Frame — universal frosted glass wrapper for all embeds
+// ════════════════════════════════════════
+
+const GLASS_STYLE: React.CSSProperties = {
+  borderRadius: '16px',
+  background: 'rgba(255, 255, 255, 0.06)',
+  backdropFilter: 'blur(22px) saturate(140%)',
+  WebkitBackdropFilter: 'blur(22px) saturate(140%)',
+  boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.12)',
+}
+
+function GlassEmbedFrame({
+  src,
+  height,
+  allow,
+  sandbox,
+  allowFullScreen,
+  onError,
+  onLoad: onLoadCallback,
+  children,
+}: {
+  src: string
+  height?: number
+  allow?: string
+  sandbox?: string
+  allowFullScreen?: boolean
+  onError?: () => void
+  onLoad?: () => void
+  children?: React.ReactNode
+}) {
+  const [loaded, setLoaded] = useState(false)
+  const [failed, setFailed] = useState(false)
+
+  const handleLoad = () => {
+    setLoaded(true)
+    onLoadCallback?.()
+  }
+
+  const handleError = () => {
+    setFailed(true)
+    onError?.()
+  }
+
+  if (failed) {
+    return (
+      <div
+        className="glass-embed-frame relative w-full h-full overflow-hidden flex items-center justify-center"
+        style={{ ...GLASS_STYLE, ...(height ? { height: `${height}px` } : {}) }}
+      >
+        <span className="text-xs text-white/40 font-mono" style={{ opacity: 0.7 }}>embed unavailable</span>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className="glass-embed-frame relative w-full h-full overflow-hidden"
+      style={{ ...GLASS_STYLE, ...(height ? { height: `${height}px` } : {}) }}
+    >
+      <iframe
+        src={src}
+        width="100%"
+        height="100%"
+        allow={allow}
+        sandbox={sandbox}
+        allowFullScreen={allowFullScreen}
+        referrerPolicy="no-referrer"
+        loading="lazy"
+        onLoad={handleLoad}
+        onError={handleError}
+        style={{
+          border: 'none',
+          width: '100%',
+          height: '100%',
+          background: 'transparent',
+          overflow: 'hidden',
+          padding: 0,
+          margin: 0,
+          opacity: loaded ? 1 : 0,
+          transition: 'opacity 250ms ease-out',
+        }}
+      />
+      {children}
+    </div>
+  )
+}
+
+// ════════════════════════════════════════
+// AE Embed Heights — stable per-provider defaults
+// ════════════════════════════════════════
+
+function getAEEmbedHeight(provider: string): number {
+  switch (provider) {
+    case 'youtube':    return 315
+    case 'spotify':    return 152
+    case 'tiktok':     return 580
+    case 'soundcloud': return 166
+    case 'vimeo':      return 315
+    case 'twitter':    return 300
+    case 'reddit':     return 400
+    default:           return 400
+  }
+}
+
+// ════════════════════════════════════════
+// AE Dark Mode URL enforcement per provider
+// ════════════════════════════════════════
+
+function enforceEmbedDarkMode(url: string, provider: string): string {
+  const sep = url.includes('?') ? '&' : '?'
+  switch (provider) {
+    case 'youtube':
+      if (!url.includes('color=white')) return url + sep + 'color=white'
+      return url
+    case 'spotify':
+      if (!url.includes('theme=0')) return url + sep + 'theme=0'
+      return url
+    case 'soundcloud':
+      // visual=true + white controls already dark; ensure color param
+      if (!url.includes('color=')) return url + sep + 'color=%23000000'
+      return url
+    case 'vimeo':
+      return url + (url.includes('color=') ? '' : sep + 'color=ffffff')
+    default:
+      return url
+  }
+}
+
+// Glass placeholder for offscreen embeds
+function GlassPlaceholder({ height, aspectClass }: { height?: number; aspectClass?: string }) {
+  return (
+    <div
+      className={`w-full h-full ${aspectClass || ''}`}
+      style={{ ...GLASS_STYLE, ...(height ? { height: `${height}px` } : {}) }}
+    />
+  )
+}
+
 interface ContentCardProps {
   content: {
     id: string
@@ -120,18 +259,21 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         </div>
       )
     }
-    // Activated — swap facade for iframe
+    // Activated — swap facade for glass iframe
+    const ytSrc = enforceEmbedDarkMode(
+      `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&rel=0`,
+      'youtube'
+    )
     return (
       <div
-        className="w-full h-full fp-tile overflow-hidden relative bg-black"
+        ref={containerRef}
+        className="w-full h-full fp-tile overflow-hidden relative"
       >
-        <iframe
-          src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&rel=0`}
-          className="absolute inset-0 w-full h-full"
+        <GlassEmbedFrame
+          src={ytSrc}
           allow="autoplay; encrypted-media"
           allowFullScreen
           sandbox="allow-scripts allow-same-origin allow-popups allow-presentation allow-forms"
-          referrerPolicy="origin"
           onError={() => setIframeFailed(true)}
         />
       </div>
@@ -183,26 +325,25 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       }
       const embed = parseEmbed(content.url)
       if (embed) {
+        const spotifySrc = enforceEmbedDarkMode(embed.embedUrl, 'spotify')
+        const spotifyHeight = embed.height || getAEEmbedHeight('spotify')
+
         return (
           <div
             ref={containerRef}
-            className="w-full fp-tile overflow-hidden rounded-[inherit] bg-[#191414]"
-            style={{ height: `${embed.height}px` }}
+            className="w-full fp-tile overflow-hidden rounded-[inherit]"
+            style={{ height: `${spotifyHeight}px` }}
           >
             {isInView ? (
-              <iframe
-                style={{ border: 'none', background: 'transparent' }}
-                src={embed.embedUrl}
-                width="100%"
-                height="100%"
+              <GlassEmbedFrame
+                src={spotifySrc}
+                height={spotifyHeight}
                 allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                loading="lazy"
                 sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-                referrerPolicy="no-referrer"
                 onError={() => setIframeFailed(true)}
               />
             ) : (
-              <div className="w-full h-full bg-[#191414]" />
+              <GlassPlaceholder height={spotifyHeight} />
             )}
           </div>
         )
@@ -234,21 +375,19 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       )
     }
     if (embed) {
+      const scSrc = enforceEmbedDarkMode(embed.embedUrl, 'soundcloud')
+      const scHeight = embed.height || getAEEmbedHeight('soundcloud')
       return (
         <div
           ref={containerRef}
-          className={`w-full fp-tile fp-embed-glass overflow-hidden`}
-          style={{ height: `${embed.height}px` }}
+          className="w-full fp-tile overflow-hidden"
+          style={{ height: `${scHeight}px` }}
         >
-          <iframe
-            src={embed.embedUrl}
-            width="100%"
-            height="100%"
-            style={{ border: 'none' }}
+          <GlassEmbedFrame
+            src={scSrc}
+            height={scHeight}
             allow="autoplay"
-            loading="lazy"
             sandbox="allow-scripts allow-same-origin allow-popups"
-            referrerPolicy="no-referrer"
             onError={() => setIframeFailed(true)}
           />
         </div>
@@ -266,27 +405,24 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }
 
   // ════════════════════════════════════════
-  // VIMEO — lazy loaded embed
+  // VIMEO — lazy loaded embed via GlassEmbedFrame
   // ════════════════════════════════════════
   if (content.type === 'vimeo' && !iframeFailed) {
     const embed = parseEmbed(content.url)
     if (embed) {
+      const vimeoSrc = enforceEmbedDarkMode(embed.embedUrl, 'vimeo')
       return (
-        <div ref={containerRef} className={`w-full ${aspectClass || 'aspect-video'} fp-tile fp-embed-glass overflow-hidden relative`}>
+        <div ref={containerRef} className={`w-full ${aspectClass || 'aspect-video'} fp-tile overflow-hidden relative`}>
           {isInView ? (
-            <iframe
-              src={embed.embedUrl}
-              className="absolute inset-0 w-full h-full"
-              style={{ border: 'none' }}
+            <GlassEmbedFrame
+              src={vimeoSrc}
               allow="autoplay; fullscreen; picture-in-picture"
               allowFullScreen
-              loading="lazy"
               sandbox="allow-scripts allow-same-origin allow-popups"
-              referrerPolicy="no-referrer"
               onError={() => setIframeFailed(true)}
             />
           ) : (
-            <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.3)' }} />
+            <GlassPlaceholder aspectClass={aspectClass || 'aspect-video'} />
           )}
         </div>
       )
@@ -301,7 +437,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               dangerouslySetInnerHTML={{ __html: content.embed_html }}
             />
           ) : (
-            <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.3)' }} />
+            <GlassPlaceholder aspectClass={aspectClass || 'aspect-video'} />
           )}
         </div>
       )
@@ -507,7 +643,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
 }
 
 // ════════════════════════════════════════════════════════════
-// TIER 2 EMBED TILE — iframe with 3s timeout, silent fallback
+// TIER 2 EMBED TILE — GlassEmbedFrame with 3s timeout, silent fallback
 // ════════════════════════════════════════════════════════════
 
 function Tier2EmbedTile({
@@ -532,34 +668,33 @@ function Tier2EmbedTile({
     return () => { if (timeoutRef.current) clearTimeout(timeoutRef.current) }
   }, [isInView, embed.tier, loaded, onFail])
 
-  const handleLoad = useCallback(() => {
+  const handleGlassLoad = useCallback(() => {
     setLoaded(true)
     if (timeoutRef.current) clearTimeout(timeoutRef.current)
   }, [])
 
+  const fallbackHeight = embed.height || getAEEmbedHeight(embed.platform)
+
   const style: React.CSSProperties = embed.aspectRatio
     ? { aspectRatio: embed.aspectRatio }
-    : { height: `${embed.height}px` }
+    : { height: `${fallbackHeight}px` }
 
   return (
     <div
       ref={localRef}
       className="w-full fp-tile overflow-hidden relative"
-      style={{ ...style, background: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', maxWidth: '100%' }}
+      style={{ ...style, maxWidth: '100%' }}
     >
       {isInView ? (
-        <iframe
+        <GlassEmbedFrame
           src={embed.embedUrl}
-          className="absolute inset-0 w-full h-full"
-          style={{ border: 'none' }}
-          loading="lazy"
+          height={embed.aspectRatio ? undefined : fallbackHeight}
           sandbox="allow-scripts allow-same-origin allow-popups"
-          referrerPolicy="no-referrer"
-          onLoad={handleLoad}
+          onLoad={handleGlassLoad}
           onError={() => onFail()}
         />
       ) : (
-        <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.3)' }} />
+        <GlassPlaceholder height={embed.aspectRatio ? undefined : fallbackHeight} />
       )}
     </div>
   )

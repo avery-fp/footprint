@@ -211,6 +211,15 @@ input:-webkit-autofill:focus {
   overflow: hidden;
 }
 
+/* AE Glass Embed Frame — universal embed styling */
+.glass-embed-frame iframe {
+  background: transparent !important;
+  scrollbar-width: none;
+}
+.glass-embed-frame iframe::-webkit-scrollbar {
+  display: none !important;
+}
+
 /* Tile size transitions — smooth grid reflow via framer-motion layout */
 .tile-container {
   transition: box-shadow 0.3s ease;
