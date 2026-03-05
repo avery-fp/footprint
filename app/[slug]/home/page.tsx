@@ -265,6 +265,24 @@ function SortableTile({
         {...touchHandlers}
         onContextMenu={(e) => e.preventDefault()}
       >
+        {/* Upload progress overlay */}
+        {isTemp && !(content as any)._failed && progress < 100 && (
+          <div className="absolute inset-x-0 bottom-0 z-20 pointer-events-none">
+            <div className="h-1 bg-white/10 rounded-full mx-1 mb-1">
+              <div className="h-full bg-white/60 rounded-full transition-all duration-300 ease-out" style={{ width: `${progress}%` }} />
+            </div>
+            <div className="absolute bottom-2 right-2 text-[10px] text-white/50 font-mono tabular-nums">
+              {progress}%
+            </div>
+          </div>
+        )}
+        {/* Upload failed overlay */}
+        {(content as any)._failed && (
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 gap-1">
+            <span className="text-xs text-red-400/90 font-mono">failed</span>
+            <span className="text-[10px] text-white/30 font-mono">tap to retry</span>
+          </div>
+        )}
         {/* Tile content — absolute fill, object-fit based on aspect */}
         {content.type === 'image' ? (
           isVideo ? (
@@ -421,6 +439,17 @@ export default function EditPage() {
         })
 
         const data = await res.json()
+        if (!res.ok || !data.success) {
+          const msg = data.error || 'publish failed'
+          setStatusToast(msg)
+          setTimeout(() => setStatusToast(null), 5000)
+          // Clean URL params
+          const url = new URL(window.location.href)
+          url.searchParams.delete('session_id')
+          url.searchParams.delete('username')
+          window.history.replaceState({}, '', url.toString())
+          return
+        }
         if (data.success) {
           // Start birth moment animation
           const targetSerial = data.serial
@@ -481,6 +510,8 @@ export default function EditPage() {
         }
       } catch (err) {
         console.error('Finalize error:', err)
+        setStatusToast('something went wrong — try refreshing')
+        setTimeout(() => setStatusToast(null), 5000)
       }
     }
 
@@ -562,6 +593,30 @@ export default function EditPage() {
     window.addEventListener('resize', check)
     return () => { window.removeEventListener('resize', check); clearTimeout(timeout) }
   }, [])
+
+  // Flush pending saves on tab close / navigation
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (saveTimeoutRef.current && draft && isOwner) {
+        clearTimeout(saveTimeoutRef.current)
+        saveTimeoutRef.current = null
+        // keepalive fetch survives page unload
+        fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            display_name: draft.display_name,
+            handle: draft.handle,
+            bio: draft.bio,
+            theme: draft.theme,
+          }),
+          keepalive: true,
+        }).catch(() => {})
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [draft, isOwner, slug])
 
   // Keyboard shortcuts — Escape to dismiss, step by step
   useEffect(() => {
@@ -1230,6 +1285,7 @@ export default function EditPage() {
 
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest()
+      xhr.timeout = 5 * 60 * 1000 // 5 minutes for large videos
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100))
       }
@@ -1237,9 +1293,23 @@ export default function EditPage() {
         if (xhr.status >= 200 && xhr.status < 300) {
           const url = `${supabaseUrl}/storage/v1/object/public/content/${path}`
           resolve(url)
-        } else reject(new Error(`Upload failed (${xhr.status}): ${xhr.responseText}`))
+        } else {
+          console.error('UPLOAD_XHR_FAIL', { status: xhr.status, response: xhr.responseText, path })
+          reject(new Error(`Upload failed (${xhr.status}): ${xhr.responseText}`))
+        }
       }
-      xhr.onerror = () => reject(new Error('Network error during upload'))
+      xhr.onerror = () => {
+        console.error('UPLOAD_XHR_ONERROR', { status: xhr.status, response: xhr.responseText, path })
+        reject(new Error('Network error during upload'))
+      }
+      xhr.ontimeout = () => {
+        console.error('UPLOAD_XHR_TIMEOUT', { path, timeout: xhr.timeout })
+        reject(new Error('Upload timed out — video may be too large for your connection'))
+      }
+      xhr.onabort = () => {
+        console.error('UPLOAD_XHR_ABORT', { path })
+        reject(new Error('Upload was cancelled'))
+      }
 
       xhr.open('POST', `${supabaseUrl}/storage/v1/object/content/${path}`)
       xhr.setRequestHeader('Authorization', `Bearer ${supabaseKey}`)
@@ -1467,6 +1537,19 @@ export default function EditPage() {
         const data = await res.json()
 
         if (data.tile) {
+          // ── Post-upload verification: confirm file exists in storage ──
+          try {
+            const headRes = await fetch(data.tile.url, { method: 'HEAD' })
+            if (!headRes.ok) {
+              console.error('UPLOAD_VERIFY_FAIL', { tileId: data.tile.id, url: data.tile.url, status: headRes.status })
+              throw new Error(`Verification failed: file not accessible (${headRes.status})`)
+            }
+          } catch (verifyErr: any) {
+            if (verifyErr?.message?.startsWith('Verification failed')) throw verifyErr
+            console.error('UPLOAD_VERIFY_NETWORK', { tileId: data.tile.id, url: data.tile.url, err: verifyErr })
+            // Network error on HEAD — non-fatal, file likely exists but CDN may be slow
+          }
+
           setDraft(prev => prev ? {
             ...prev,
             content: prev.content.map(c => c.id === tempId ? { ...c, _progress: 100 } : c),
@@ -1499,14 +1582,20 @@ export default function EditPage() {
           const thumb = tempTiles[idx]?.url
           if (thumb?.startsWith('blob:')) URL.revokeObjectURL(thumb)
         }
-      } catch (err) {
-        // Mark tile as failed instead of removing it silently
+      } catch (err: any) {
+        // Mark tile as failed — tile persists with FAILED state, no ghost tiles
         setDraft(prev => prev ? {
           ...prev,
           content: prev.content.map(c => c.id === tempId ? { ...c, _failed: true, _progress: 0 } : c),
           updated_at: Date.now(),
         } : null)
-        console.error('UPLOAD_FAIL', { name: file.name, size: file.size, type: file.type, err })
+        console.error('UPLOAD_FAIL', {
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          message: err?.message || String(err),
+          stack: err?.stack,
+        })
         alert(`Upload failed: ${file.name}. Tap the tile to retry.`)
       }
     }
@@ -2234,8 +2323,15 @@ export default function EditPage() {
       )}
 
 
+      {/* Upload indicator */}
+      {isAdding && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[80] px-5 py-2 bg-black/70 backdrop-blur-sm rounded-full border border-white/10 flex items-center gap-2">
+          <div className="w-3 h-3 border border-white/30 border-t-white/70 rounded-full animate-spin" />
+          <span className="text-xs text-white/70 font-mono">uploading</span>
+        </div>
+      )}
       {/* Status toast */}
-      {statusToast && (
+      {!isAdding && statusToast && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[80] px-5 py-2 bg-black/70 backdrop-blur-sm rounded-full border border-white/10 materialize">
           <span className="text-xs text-white/70 font-mono">{statusToast}</span>
         </div>

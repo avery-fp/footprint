@@ -9,32 +9,22 @@ import { requireAdminOrMachine } from '@/src/aro/lib/auth'
  * Aggregates: visits, tile_clicks, referrals, conversions.
  *
  * Query params:
- *   since - ISO date (default: 7 days ago)
+ *   since        - ISO date (default: 7 days ago)
  *   footprint_id - optional filter to single footprint
- *
- * Returns:
- * {
- *   generated_at: string,
- *   period_start: string,
- *   period_end: string,
- *   footprints: [{
- *     footprint_id, slug, serial,
- *     visits, tile_clicks, referral_visits, shares, conversions,
- *     top_tiles: [{tile_id, clicks}],
- *     top_referrers: [{domain, count}],
- *     daily: [{date, visits, clicks}]
- *   }]
- * }
+ *   limit        - max events to scan (default: 5000, max: 50000)
  */
 export async function GET(request: NextRequest) {
   try {
-    // Auth: admin session cookie OR Authorization: Bearer CRON_SECRET/ARO_KEY
     const auth = await requireAdminOrMachine(request)
     if (auth instanceof NextResponse) return auth
 
     const { searchParams } = new URL(request.url)
     const sinceParam = searchParams.get('since')
     const footprintId = searchParams.get('footprint_id')
+    const limit = Math.min(
+      Number(searchParams.get('limit') || '5000'),
+      50000
+    )
 
     const since = sinceParam
       ? new Date(sinceParam)
@@ -42,7 +32,7 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
-    // Build query
+    // Build query with bounded limit
     let query = supabase
       .from('fp_events')
       .select('footprint_id, event_type, event_data, referrer, created_at')
@@ -53,29 +43,53 @@ export async function GET(request: NextRequest) {
       query = query.eq('footprint_id', footprintId)
     }
 
-    const { data: events, error } = await query.limit(50000)
+    const { data: events, error } = await query.limit(limit)
 
     if (error) {
-      return NextResponse.json({ error: 'Failed to fetch events' }, { status: 500 })
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Get footprint metadata
-    const fpIds = Array.from(new Set((events || []).map(e => e.footprint_id)))
+    // Collect unique IDs for batch lookup (avoids N+1)
+    const fpIds = Array.from(new Set((events || []).map(e => e.footprint_id).filter(Boolean)))
 
-    const { data: footprints } = await supabase
-      .from('footprints')
-      .select('id, slug, user_id')
-      .in('id', fpIds.length > 0 ? fpIds : ['none'])
+    if (fpIds.length === 0) {
+      return NextResponse.json({
+        generated_at: new Date().toISOString(),
+        period_start: since.toISOString(),
+        period_end: new Date().toISOString(),
+        total_footprints: 0,
+        totals: { visits: 0, tile_clicks: 0, referral_visits: 0, shares: 0, conversions: 0 },
+        footprints: [],
+      })
+    }
 
-    // Get serial numbers
-    const userIds = Array.from(new Set((footprints || []).map(f => f.user_id)))
-    const { data: users } = await supabase
-      .from('users')
-      .select('id, serial_number')
-      .in('id', userIds.length > 0 ? userIds : ['none'])
+    // Parallel batch lookups (not waterfall)
+    const [{ data: footprints }, { data: users }] = await Promise.all([
+      supabase
+        .from('footprints')
+        .select('id, username, user_id')
+        .in('id', fpIds),
+      // We need user_ids — get them from footprints, then batch users.
+      // But we don't have user_ids yet. So we do a join approach:
+      supabase
+        .from('footprints')
+        .select('user_id')
+        .in('id', fpIds)
+        .then(async ({ data: fpRows }) => {
+          const userIds = Array.from(new Set((fpRows || []).map(f => f.user_id).filter(Boolean)))
+          if (userIds.length === 0) return { data: [] }
+          return supabase
+            .from('users')
+            .select('id, serial_number')
+            .in('id', userIds)
+        }),
+    ])
 
-    const serialMap = new Map((users || []).map(u => [u.id, u.serial_number]))
-    const fpMeta = new Map((footprints || []).map(f => [f.id, { slug: f.slug, serial: serialMap.get(f.user_id) || 0 }]))
+    const userSerialMap = new Map((users || []).map((u: any) => [u.id, u.serial_number]))
+    const fpMeta = new Map((footprints || []).map(f => [
+      f.id,
+      { slug: f.username, serial: userSerialMap.get(f.user_id) || 0 },
+    ]))
 
     // Aggregate by footprint
     const grouped: Record<string, {
@@ -133,7 +147,6 @@ export async function GET(request: NextRequest) {
           break
       }
 
-      // Track referrers
       if (event.referrer) {
         try {
           const domain = new URL(event.referrer).hostname.replace('www.', '')
@@ -175,7 +188,6 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Sort by visits descending
     footprintFeed.sort((a, b) => b.visits - a.visits)
 
     return NextResponse.json({
@@ -183,6 +195,8 @@ export async function GET(request: NextRequest) {
       period_start: since.toISOString(),
       period_end: new Date().toISOString(),
       total_footprints: footprintFeed.length,
+      event_count: (events || []).length,
+      truncated: (events || []).length >= limit,
       totals: {
         visits: footprintFeed.reduce((s, f) => s + f.visits, 0),
         tile_clicks: footprintFeed.reduce((s, f) => s + f.tile_clicks, 0),
@@ -192,8 +206,8 @@ export async function GET(request: NextRequest) {
       },
       footprints: footprintFeed,
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('ARO feed error:', error)
-    return NextResponse.json({ error: 'Feed generation failed' }, { status: 500 })
+    return NextResponse.json({ error: error?.message || 'Feed generation failed' }, { status: 500 })
   }
 }

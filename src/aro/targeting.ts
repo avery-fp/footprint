@@ -12,16 +12,9 @@
  * No scraping. Targets come from user-provided CSV/JSON or manual entry.
  */
 
-import { createClient } from '@supabase/supabase-js'
 import { readFileSync } from 'fs'
 import type { Target, TargetCSVRow } from './types'
-
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-}
+import { getSupabase } from './lib/supabase'
 
 // ─── Ingest targets from CSV/JSON ──────────────────────────
 

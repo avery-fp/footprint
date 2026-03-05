@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
             currency: 'usd',
             status: 'completed',
           })
-        } catch {}
+        } catch (e) { log.error({ err: e }, 'Free payment record failed') }
 
         // Record conversion event (non-critical)
         try {
@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
               promo_code: cleanPromo,
             },
           })
-        } catch {}
+        } catch (e) { log.error({ err: e }, 'Promo conversion event failed') }
 
         return NextResponse.json({
           success: true,
@@ -190,6 +190,18 @@ export async function POST(request: NextRequest) {
 
         if (taken) {
           return NextResponse.json({ error: 'Username taken' }, { status: 409 })
+        }
+
+        // Reserve slug on the footprint BEFORE Stripe redirect
+        // This prevents another user from claiming it during checkout
+        const { error: reserveError } = await supabase
+          .from('footprints')
+          .update({ username: cleanUsername })
+          .eq('id', footprint.id)
+
+        if (reserveError) {
+          log.error({ err: reserveError }, 'Failed to reserve slug')
+          return NextResponse.json({ error: 'Failed to reserve username' }, { status: 500 })
         }
 
         // Get user email for Stripe
@@ -322,7 +334,7 @@ export async function POST(request: NextRequest) {
             currency: session.currency,
             status: 'completed',
           })
-        } catch {}
+        } catch (e) { log.error({ err: e }, 'Finalize payment record failed') }
 
         // Record conversion event (non-critical)
         try {
@@ -335,7 +347,7 @@ export async function POST(request: NextRequest) {
               source: 'stripe_publish',
             },
           })
-        } catch {}
+        } catch (e) { log.error({ err: e }, 'Finalize conversion event failed') }
 
         return NextResponse.json({
           success: true,

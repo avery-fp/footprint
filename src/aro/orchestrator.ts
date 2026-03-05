@@ -14,18 +14,11 @@
 
 import { existsSync, writeFileSync, mkdirSync } from 'fs'
 import { join } from 'path'
-import { createClient } from '@supabase/supabase-js'
 import { ingestFromFile, scoreTargets, applyVoidLayer, buildRankedTargets } from './targeting'
 import { seedMessageVariants, generateMessages } from './messages'
 import { buildPlan } from './distribution'
 import { ingestEventsFromFile, evolve, computeLift } from './learning'
-
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-}
+import { getSupabase } from './lib/supabase'
 
 export async function runARO(opts: { dryRun?: boolean } = {}): Promise<void> {
   const startTime = Date.now()

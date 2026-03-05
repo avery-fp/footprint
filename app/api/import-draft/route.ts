@@ -170,7 +170,11 @@ export async function POST(request: NextRequest) {
         image_url: item.url,
         position: index,
       }))
-      await supabase.from('library').insert(libraryRows)
+      const { error: libError } = await supabase.from('library').insert(libraryRows)
+      if (libError) {
+        console.error('Failed to insert library tiles:', libError)
+        return NextResponse.json({ error: 'Failed to save images' }, { status: 500 })
+      }
     }
 
     // 7. Insert tiles into links (embeds/urls)
@@ -188,7 +192,11 @@ export async function POST(request: NextRequest) {
           embed_html: item.embed_html,
         },
       }))
-      await supabase.from('links').insert(linkRows)
+      const { error: linkError } = await supabase.from('links').insert(linkRows)
+      if (linkError) {
+        console.error('Failed to insert link tiles:', linkError)
+        return NextResponse.json({ error: 'Failed to save links' }, { status: 500 })
+      }
     }
 
     // Auto-sign in the user by setting session cookie

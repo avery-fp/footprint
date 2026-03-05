@@ -14,7 +14,7 @@ import { runARO } from '../src/aro/orchestrator'
 import { ingestFromFile } from '../src/aro/targeting'
 import { ingestEventsFromFile, computeLift } from '../src/aro/learning'
 import { buildRankedTargets } from '../src/aro/targeting'
-import { createClient } from '@supabase/supabase-js'
+import { getSupabase } from '../src/aro/lib/supabase'
 import { writeFileSync, mkdirSync } from 'fs'
 import { join } from 'path'
 
@@ -61,10 +61,7 @@ async function main() {
       const outputDir = join(process.cwd(), 'output')
       mkdirSync(outputDir, { recursive: true })
 
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
-      )
+      const supabase = getSupabase()
 
       // Ranked targets
       const { targets, byLayer } = await buildRankedTargets()

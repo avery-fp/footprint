@@ -36,10 +36,10 @@ export async function GET(request: NextRequest) {
     if (channel) query = query.eq('channel', channel)
     if (packId) query = query.eq('pack_id', packId)
 
-    const { data: events, error } = await query
+    const { data: events, error } = await query.limit(5000)
 
     if (error) {
-      return NextResponse.json({ error: 'Internal error' }, { status: 500 })
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
     const allEvents = events || []
@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      return NextResponse.json({ error: 'Internal error' }, { status: 500 })
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
     return NextResponse.json({ event })
@@ -221,7 +221,7 @@ export async function PATCH(request: NextRequest) {
       .single()
 
     if (error) {
-      return NextResponse.json({ error: 'Internal error' }, { status: 500 })
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
     return NextResponse.json({ event })

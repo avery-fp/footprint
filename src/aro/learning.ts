@@ -8,16 +8,9 @@
  * Deactivates losing variants, boosts winners, adjusts priors.
  */
 
-import { createClient } from '@supabase/supabase-js'
 import { readFileSync } from 'fs'
 import type { Lift, EventCSVRow } from './types'
-
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-}
+import { getSupabase } from './lib/supabase'
 
 // ─── Ingest events from CSV/JSON ───────────────────────────
 
