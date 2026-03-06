@@ -571,6 +571,22 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                   allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
                 />
               </div>
+            ) : focusedItem.type === 'youtube' ? (
+              (() => {
+                const ytMatch = focusedItem.url?.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
+                const ytId = ytMatch?.[1]
+                return ytId ? (
+                  <div className="w-full aspect-video overflow-hidden" style={{ borderRadius: '16px' }}>
+                    <iframe
+                      src={`https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0&color=white`}
+                      className="w-full h-full"
+                      style={{ border: 'none', borderRadius: '16px' }}
+                      allow="autoplay; encrypted-media; fullscreen"
+                      allowFullScreen
+                    />
+                  </div>
+                ) : null
+              })()
             ) : focusedItem.type === 'thought' ? (
               <div
                 className="rounded-2xl p-8 text-center max-w-lg mx-auto"
