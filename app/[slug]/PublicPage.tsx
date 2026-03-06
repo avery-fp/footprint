@@ -323,8 +323,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               background: 'rgba(255,255,255,0.06)',
             }}
             onClick={() => {
-              // YouTube plays inline via ContentCard facade; links navigate via <a> tag
-              if (item.type === 'youtube' || item.type === 'link') return
+              // YouTube plays inline, Spotify opens outbound, links navigate via <a> — no modal
+              if (item.type === 'youtube' || item.type === 'spotify' || item.type === 'link') return
               setFocusedItem(item)
             }}
           >
@@ -548,24 +548,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 alt={focusedItem.title || ''}
                 className="w-full max-h-[85vh] object-contain rounded-2xl"
               />
-            ) : focusedItem.type === 'spotify' ? (
-              <div
-                className="w-full overflow-hidden"
-                style={{
-                  borderRadius: '16px',
-                  background: 'rgba(255, 255, 255, 0.06)',
-                  backdropFilter: 'blur(22px) saturate(140%)',
-                  WebkitBackdropFilter: 'blur(22px) saturate(140%)',
-                  boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.12)',
-                }}
-              >
-                <iframe
-                  src={parseEmbed(focusedItem.url)?.embedUrl || focusedItem.url}
-                  className="w-full h-[380px]"
-                  style={{ border: 'none', borderRadius: '16px' }}
-                  allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                />
-              </div>
             ) : focusedItem.type === 'thought' ? (
               <div
                 className="rounded-2xl p-8 text-center max-w-lg mx-auto"
