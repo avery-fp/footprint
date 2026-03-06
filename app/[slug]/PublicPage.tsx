@@ -323,8 +323,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               background: 'rgba(255,255,255,0.06)',
             }}
             onClick={() => {
-              // YouTube plays inline via ContentCard facade; links navigate via <a> tag
-              if (item.type === 'youtube' || item.type === 'link') return
+              // Embeds play inline via ContentCard; links navigate via <a> tag
+              const inlineTypes = ['youtube', 'link', 'soundcloud', 'vimeo', 'twitter', 'instagram', 'tiktok']
+              if (inlineTypes.includes(item.type)) return
               setFocusedItem(item)
             }}
           >
@@ -594,7 +595,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 }}
               >
                 <p className="text-white text-lg font-light leading-relaxed mb-2" style={{ letterSpacing: '-0.01em' }}>
-                  {focusedItem.title || new URL(focusedItem.url).hostname.replace('www.', '')}
+                  {focusedItem.title || (() => { try { return new URL(focusedItem.url).hostname.replace('www.', '') } catch { return focusedItem.url || '' } })()}
                 </p>
                 <span className="text-white/30 text-xs font-mono tracking-wider">
                   {(() => { try { return new URL(focusedItem.url).hostname.replace('www.', '') } catch { return '' } })()}

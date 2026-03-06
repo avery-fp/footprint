@@ -46,7 +46,7 @@ function parseSpotify(url: string): EmbedResult | null {
 
 function parseYouTube(url: string): EmbedResult | null {
   const m = url.match(
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/
+    /(?:(?:m\.)?youtube\.com\/watch\?v=|youtu\.be\/|(?:m\.)?youtube\.com\/embed\/|(?:m\.)?youtube\.com\/shorts\/|(?:m\.)?youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/
   )
   if (!m) return null
   return {
@@ -178,7 +178,7 @@ export function parseEmbed(url: string): EmbedResult | null {
  */
 export function extractYouTubeId(url: string): string | null {
   const m = url.match(
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/
+    /(?:(?:m\.)?youtube\.com\/watch\?v=|youtu\.be\/|(?:m\.)?youtube\.com\/embed\/|(?:m\.)?youtube\.com\/shorts\/|(?:m\.)?youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/
   )
   return m ? m[1] : null
 }

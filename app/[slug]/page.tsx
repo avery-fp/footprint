@@ -78,6 +78,7 @@ export default async function FootprintPage({ params }: Props) {
       position: img.position,
       room_id: img.room_id,
       size: img.size || 1,
+      aspect: img.aspect || null,
       caption: img.caption || null,
     })),
     ...(links || []).map((link: any) => ({
@@ -91,6 +92,7 @@ export default async function FootprintPage({ params }: Props) {
       position: link.position,
       room_id: link.room_id,
       size: link.size || 1,
+      aspect: link.aspect || null,
     })),
   ].sort((a, b) => a.position - b.position)
 
