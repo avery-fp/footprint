@@ -234,7 +234,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
   // Tile renderer
   const renderTileContent = (item: any, index: number, size: number, aspect: string) => {
-    const isVideo = item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
+    const isVideo = item.type === 'video' || (item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i))
 
     if (item.type === 'thought') {
       const text = item.title || ''
@@ -321,7 +321,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               boxShadow: layoutConfig.tileShadow,
               background: 'rgba(255,255,255,0.06)',
             }}
-            onClick={() => setFocusedItem(item)}
+            onClick={() => {
+              // YouTube plays inline via ContentCard facade; links navigate via <a> tag
+              if (item.type === 'youtube' || item.type === 'link') return
+              setFocusedItem(item)
+            }}
           >
             {renderTileContent(item, idx, size, aspect)}
           </div>
@@ -529,7 +533,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
           <div className="max-w-3xl max-h-[90vh] w-full" onClick={e => e.stopPropagation()}>
-            {focusedItem.type === 'image' && focusedItem.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i) ? (
+            {focusedItem.type === 'video' || (focusedItem.type === 'image' && focusedItem.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) ? (
               <video
                 src={focusedItem.url}
                 controls
