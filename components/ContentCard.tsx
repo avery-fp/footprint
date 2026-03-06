@@ -261,7 +261,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     }
     // Activated — swap facade for glass iframe
     const ytSrc = enforceEmbedDarkMode(
-      `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&rel=0`,
+      `https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0`,
       'youtube'
     )
     return (
@@ -286,44 +286,68 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   if (content.type === 'spotify') {
     const spotifyInfo = extractSpotifyInfo(content.url)
     if (spotifyInfo) {
-      // Clean outbound music object — album art + play badge + link to Spotify
-      return (
-        <a
-          ref={containerRef as any}
-          href={content.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`block w-full h-full ${aspectClass || 'aspect-square'} fp-tile overflow-hidden relative cursor-pointer group`}
-          style={{
-            ...GLASS_STYLE,
-            borderRadius: 'inherit',
-          }}
-        >
-          {content.thumbnail_url && isInView && (
-            <Image
-              src={content.thumbnail_url}
-              alt=""
-              fill
-              sizes="(max-width: 768px) 50vw, 25vw"
-              className={fitClass}
-              loading="lazy"
-              quality={75}
-              onLoad={() => setIsLoaded(true)}
-            />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-          <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-[#1DB954] flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform shadow-lg">
-              <svg className="w-3.5 h-3.5 text-black ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z"/>
-              </svg>
+      // Compact glass player for small tiles (any device)
+      // Click bubbles to grid wrapper → opens lightbox with proper Spotify embed
+      if (tileSize <= 1) {
+        return (
+          <div
+            ref={containerRef}
+            className={`w-full h-full ${aspectClass || 'aspect-square'} fp-tile overflow-hidden relative cursor-pointer group`}
+            style={{
+              ...GLASS_STYLE,
+              borderRadius: 'inherit',
+            }}
+          >
+            {content.thumbnail_url && isInView && (
+              <Image
+                src={content.thumbnail_url}
+                alt=""
+                fill
+                sizes="(max-width: 768px) 50vw, 25vw"
+                className={fitClass}
+                loading="lazy"
+                quality={75}
+                onLoad={() => setIsLoaded(true)}
+              />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+            <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-[#1DB954] flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform shadow-lg">
+                <svg className="w-3.5 h-3.5 text-black ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+              </div>
+              <p className="text-white text-xs font-medium leading-tight line-clamp-2 min-w-0">
+                {content.title || 'Spotify'}
+              </p>
             </div>
-            <p className="text-white text-xs font-medium leading-tight line-clamp-2 min-w-0">
-              {content.title || 'Spotify'}
-            </p>
           </div>
-        </a>
-      )
+        )
+      }
+      const embed = parseEmbed(content.url)
+      if (embed) {
+        const spotifySrc = enforceEmbedDarkMode(embed.embedUrl, 'spotify')
+        const spotifyHeight = embed.height || getAEEmbedHeight('spotify')
+
+        return (
+          <div
+            ref={containerRef}
+            className="w-full fp-tile overflow-hidden rounded-[inherit]"
+            style={{ height: `${spotifyHeight}px` }}
+          >
+            {isInView ? (
+              <GlassEmbedFrame
+                src={spotifySrc}
+                height={spotifyHeight}
+                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                onError={() => setIframeFailed(true)}
+              />
+            ) : (
+              <GlassPlaceholder height={spotifyHeight} />
+            )}
+          </div>
+        )
     }
   }
 

@@ -51,7 +51,7 @@ function parseYouTube(url: string): EmbedResult | null {
   if (!m) return null
   return {
     platform: 'youtube',
-    embedUrl: `https://www.youtube-nocookie.com/embed/${m[1]}`,
+    embedUrl: `https://www.youtube.com/embed/${m[1]}`,
     height: 0, // aspect-ratio driven
     aspectRatio: '16/9',
     tier: 1,
