@@ -13,6 +13,7 @@ import { snapToPreset } from '@/lib/aspect-ratios'
 import Image from 'next/image'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { type LayoutMode, getLayoutConfig } from '@/lib/layout-engine'
+import { markInteraction } from '@/lib/dev-timing'
 
 interface TileContent extends DraftContent {
   source?: 'library' | 'links'
@@ -253,7 +254,7 @@ function SortableTile({
       data-tile
     >
       <div
-        className={`tile-inner relative fp-tile overflow-hidden w-full ${aspect !== 'auto' ? 'h-full' : isVideo ? 'aspect-video' : ''} ${
+        className={`tile-inner relative fp-tile fp-tile-pressable overflow-hidden w-full ${aspect !== 'auto' ? 'h-full' : isVideo ? 'aspect-video' : ''} ${
           isArranging
             ? isMobile
               ? 'tile-arranging ring-1 ring-white/20'
@@ -565,10 +566,20 @@ export default function EditPage() {
   const enterEdit = () => setMode({ type: 'arranging' })
   const exitEdit = () => { setSwapSourceId(null); setMode({ type: 'viewing' }) }
   const openTileMenu = (tileId: string) => {
+    const mark = markInteraction('tile_menu')
+    const emit = mark()
+    emit('pressed')
     setMode({ type: 'tile_menu', tileId })
+    // Modal shell opens synchronously via state — emit timing
+    requestAnimationFrame(() => emit('modal_shell'))
   }
   const closeTileMenu = () => setMode({ type: 'arranging' })
-  const startAdding = (method: 'url' | 'thought') => setMode({ type: 'adding', method })
+  const startAdding = (method: 'url' | 'thought') => {
+    const mark = markInteraction(`add_${method}`)
+    const emit = mark()
+    emit('pressed')
+    setMode({ type: 'adding', method })
+  }
   const stopAdding = () => setMode({ type: 'arranging' })
 
   // Switch rooms with crossfade
@@ -1755,13 +1766,17 @@ export default function EditPage() {
                     setShowGoLive(true)
                   }}
                   disabled={goLiveLoading}
-                  className="text-[13px] text-white/60 hover:text-white/90 transition font-mono flex items-center justify-center px-5 rounded-full border border-white/[0.10] hover:border-white/25 disabled:opacity-30"
+                  className="text-[13px] text-white/60 hover:text-white/90 transition font-mono flex items-center justify-center px-5 rounded-full border border-white/[0.10] hover:border-white/25 disabled:opacity-30 fp-pressable"
                   style={{
                     minHeight: '36px',
                     background: 'rgba(255, 255, 255, 0.04)',
                   }}
                 >
-                  {goLiveLoading ? '...' : 'go live'}
+                  {goLiveLoading ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 border border-white/30 border-t-white/70 rounded-full animate-spin fp-delayed-loading" />
+                    </span>
+                  ) : 'go live'}
                 </button>
               )}
               {/* Home button */}
@@ -1880,14 +1895,14 @@ export default function EditPage() {
             {isArranging ? (
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="text-xs text-white/50 hover:text-white/80 font-mono px-5 py-2.5 rounded-full bg-white/[0.06] hover:bg-white/[0.10] border border-white/10 transition-all"
+                className="text-xs text-white/50 hover:text-white/80 font-mono px-5 py-2.5 rounded-full bg-white/[0.06] hover:bg-white/[0.10] border border-white/10 transition-all fp-pressable"
               >
                 add something
               </button>
             ) : (
               <button
                 onClick={enterEdit}
-                className="text-xs text-white/50 hover:text-white/80 font-mono px-5 py-2.5 rounded-full bg-white/[0.06] hover:bg-white/[0.10] border border-white/10 transition-all"
+                className="text-xs text-white/50 hover:text-white/80 font-mono px-5 py-2.5 rounded-full bg-white/[0.06] hover:bg-white/[0.10] border border-white/10 transition-all fp-pressable"
               >
                 tap to start
               </button>
@@ -2094,11 +2109,21 @@ export default function EditPage() {
             />
             <div className="flex gap-2 mt-2">
               <button
-                onClick={handleAddContent}
+                onClick={() => {
+                  const mark = markInteraction('add_content')
+                  const emit = mark()
+                  emit('pressed')
+                  handleAddContent()
+                }}
                 disabled={isAdding || !pasteUrl.trim()}
-                className="flex-1 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl font-mono text-xs transition disabled:opacity-50"
+                className="flex-1 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl font-mono text-xs transition disabled:opacity-50 fp-pressable"
               >
-                {isAdding ? 'adding...' : 'add'}
+                {isAdding ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 border border-white/30 border-t-white/70 rounded-full animate-spin fp-delayed-loading" />
+                    <span>adding</span>
+                  </span>
+                ) : 'add'}
               </button>
               <button
                 onClick={() => { stopAdding(); setPasteUrl('') }}
@@ -2128,11 +2153,21 @@ export default function EditPage() {
             <p className="text-[10px] text-white/20 font-mono mt-1 px-1">⌘+enter to save</p>
             <div className="flex gap-2 mt-2">
               <button
-                onClick={handleAddThought}
+                onClick={() => {
+                  const mark = markInteraction('add_thought')
+                  const emit = mark()
+                  emit('pressed')
+                  handleAddThought()
+                }}
                 disabled={isAdding || !thoughtText.trim()}
-                className="flex-1 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl font-mono text-xs transition disabled:opacity-50"
+                className="flex-1 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl font-mono text-xs transition disabled:opacity-50 fp-pressable"
               >
-                {isAdding ? 'adding...' : 'add'}
+                {isAdding ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 border border-white/30 border-t-white/70 rounded-full animate-spin fp-delayed-loading" />
+                    <span>adding</span>
+                  </span>
+                ) : 'add'}
               </button>
               <button
                 onClick={() => { stopAdding(); setThoughtText('') }}
@@ -2165,22 +2200,27 @@ export default function EditPage() {
             )}
             <div className="flex items-center gap-0 bg-black/50 backdrop-blur-sm rounded-full border border-white/20 overflow-hidden">
               <button
-                onClick={() => fileInputRef.current?.click()}
-                className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all"
+                onClick={() => {
+                  const mark = markInteraction('upload_trigger')
+                  const emit = mark()
+                  emit('pressed')
+                  fileInputRef.current?.click()
+                }}
+                className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all fp-pressable"
               >
                 <span className="text-white/60 text-sm font-bold">↑</span>
               </button>
               <div className="w-px h-6 bg-white/10" />
               <button
                 onClick={() => startAdding('url')}
-                className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all"
+                className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all fp-pressable"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-white/60"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
               </button>
               <div className="w-px h-6 bg-white/10" />
               <button
                 onClick={() => startAdding('thought')}
-                className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all"
+                className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all fp-pressable"
               >
                 <span className="text-white/60 text-sm font-medium">Aa</span>
               </button>
@@ -2243,9 +2283,14 @@ export default function EditPage() {
                 }
               }}
               disabled={goLiveLoading}
-              className="px-8 py-3 rounded-full bg-white text-black text-[13px] font-medium hover:bg-white/90 transition-all disabled:opacity-30"
+              className="px-8 py-3 rounded-full bg-white text-black text-[13px] font-medium hover:bg-white/90 transition-all disabled:opacity-30 fp-pressable-primary"
             >
-              {goLiveLoading ? '...' : 'go live'}
+              {goLiveLoading ? (
+                <span className="inline-flex items-center gap-2">
+                  <span className="w-3 h-3 border border-black/30 border-t-black/70 rounded-full animate-spin fp-delayed-loading" />
+                  <span>publishing</span>
+                </span>
+              ) : 'go live'}
             </button>
 
             <div className="mt-6">
@@ -2323,9 +2368,9 @@ export default function EditPage() {
       )}
 
 
-      {/* Upload indicator */}
+      {/* Upload indicator — delayed appearance (300ms) */}
       {isAdding && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[80] px-5 py-2 bg-black/70 backdrop-blur-sm rounded-full border border-white/10 flex items-center gap-2">
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[80] px-5 py-2 bg-black/70 backdrop-blur-sm rounded-full border border-white/10 flex items-center gap-2 fp-delayed-loading">
           <div className="w-3 h-3 border border-white/30 border-t-white/70 rounded-full animate-spin" />
           <span className="text-xs text-white/70 font-mono">uploading</span>
         </div>

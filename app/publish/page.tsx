@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { markInteraction } from '@/lib/dev-timing'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { FOOTPRINT_PRICE_DISPLAY } from '@/lib/constants'
@@ -21,6 +22,7 @@ export default function PublishPage() {
   const [checking, setChecking] = useState(false)
   const [promo, setPromo] = useState('')
   const [loading, setLoading] = useState(false)
+  const [pressed, setPressed] = useState(false)
   const [serial, setSerial] = useState<number | null>(null)
   const [finalSlug, setFinalSlug] = useState('')
 
@@ -161,6 +163,12 @@ export default function PublishPage() {
   }
 
   const handlePublish = () => {
+    const mark = markInteraction('publish')
+    const emit = mark()
+    setPressed(true)
+    emit('pressed')
+    // Linger pressed state for 120ms minimum
+    setTimeout(() => setPressed(false), 120)
     if (promo.trim()) {
       handlePublishFree()
     } else {
@@ -276,9 +284,15 @@ export default function PublishPage() {
           <button
             onClick={handlePublish}
             disabled={loading || !available || !username.trim()}
-            className="w-full py-3.5 rounded-xl bg-white text-black text-[14px] font-medium hover:bg-white/90 transition-all disabled:opacity-40"
+            className={`w-full py-3.5 rounded-xl bg-white text-black text-[14px] font-medium hover:bg-white/90 transition-all disabled:opacity-40 fp-pressable-primary ${pressed ? 'fp-linger' : ''}`}
+            style={pressed ? { transform: 'scale(0.97)', filter: 'brightness(0.92)' } : undefined}
           >
-            {loading ? '...' : promo.trim() ? 'publish' : `publish — ${FOOTPRINT_PRICE_DISPLAY}`}
+            {loading ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="w-3 h-3 border border-black/30 border-t-black/70 rounded-full animate-spin fp-delayed-loading" />
+                <span>publishing</span>
+              </span>
+            ) : promo.trim() ? 'publish' : `publish — ${FOOTPRINT_PRICE_DISPLAY}`}
           </button>
         </div>
 

@@ -402,3 +402,58 @@ input:-webkit-autofill:focus {
 .fp-grid-container {
   touch-action: manipulation;
 }
+
+/* ═══ Responsiveness — immediate interaction feedback ═══ */
+
+/* Pressed state — instant scale/brightness acknowledgement */
+.fp-pressable {
+  transition: transform 150ms ease-out, filter 150ms ease-out;
+  will-change: transform;
+}
+.fp-pressable:active {
+  transform: scale(0.97);
+  filter: brightness(0.85);
+}
+
+/* Primary button pressed — stronger feedback */
+.fp-pressable-primary:active {
+  transform: scale(0.97);
+  filter: brightness(0.92);
+}
+
+/* Tile tap — subtle acknowledgement without layout shift */
+.fp-tile-pressable {
+  transition: filter 120ms ease-out, opacity 120ms ease-out;
+}
+.fp-tile-pressable:active {
+  filter: brightness(0.8);
+  opacity: 0.85;
+}
+
+/* Delayed loading spinner — only appears after 300ms */
+@keyframes delayed-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.fp-delayed-loading {
+  opacity: 0;
+  animation: delayed-fade-in 200ms ease-out 300ms forwards;
+}
+
+/* Linger — keeps pressed state visible for 120ms minimum */
+.fp-linger {
+  transition: transform 120ms ease-out, filter 120ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fp-pressable:active,
+  .fp-pressable-primary:active,
+  .fp-tile-pressable:active {
+    transform: none;
+    filter: none;
+  }
+  .fp-delayed-loading {
+    animation: none;
+    opacity: 1;
+  }
+}
