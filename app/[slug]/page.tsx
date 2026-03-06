@@ -7,6 +7,7 @@ import ShareEngine from '@/components/ShareEngine'
 import EventTracker from '@/components/EventTracker'
 import ReferralBanner from '@/components/ReferralBanner'
 import PublicPage from './PublicPage'
+import { mediaTypeFromUrl } from '@/lib/media'
 
 // ISR — cache page at the edge, revalidate every 60 seconds
 export const revalidate = 60
@@ -72,7 +73,7 @@ export default async function FootprintPage({ params }: Props) {
   const content = [
     ...(images || []).map((img: any) => ({
       id: img.id,
-      type: 'image',
+      type: mediaTypeFromUrl(img.image_url),
       url: img.image_url,
       position: img.position,
       room_id: img.room_id,
