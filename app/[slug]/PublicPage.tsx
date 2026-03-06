@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useMemo, memo } from 'react'
 import Image from 'next/image'
 import ContentCardBase from '@/components/ContentCard'
-import { parseEmbed } from '@/lib/parseEmbed'
 import VideoTileBase from '@/components/VideoTile'
 
 const ContentCard = memo(ContentCardBase)
@@ -235,8 +234,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
   // Tile renderer
   const renderTileContent = (item: any, index: number, size: number, aspect: string) => {
-    const isVideo = item.type === 'video' || (item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i))
-
     if (item.type === 'thought') {
       const text = item.title || ''
       const len = text.length
@@ -261,9 +258,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       )
     }
 
-    if (isVideo) {
+    if (item.type === 'video') {
       return (
-        <div className="w-full h-full" data-tile-id={item.id} data-tile-type={item.type}>
+        <div className="w-full h-full" data-tile-id={item.id} data-tile-type="video">
           <VideoTile src={item.url} onWidescreen={noop} />
         </div>
       )
@@ -323,8 +320,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               background: 'rgba(255,255,255,0.06)',
             }}
             onClick={() => {
-              // YouTube plays inline, Spotify opens outbound, links navigate via <a> — no modal
-              if (item.type === 'youtube' || item.type === 'spotify' || item.type === 'link') return
+              // Playable media handles its own inline interaction — don't hijack with lightbox
+              if (['youtube', 'vimeo', 'soundcloud', 'video'].includes(item.type)) return
+              // Generic links: open directly, no modal intermediary
+              if (!['image', 'thought', 'spotify'].includes(item.type) && item.url) {
+                window.open(item.url, '_blank', 'noopener,noreferrer')
+                return
+              }
               setFocusedItem(item)
             }}
           >
@@ -534,7 +536,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
           <div className="max-w-3xl max-h-[90vh] w-full" onClick={e => e.stopPropagation()}>
-            {focusedItem.type === 'video' || (focusedItem.type === 'image' && focusedItem.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) ? (
+            {focusedItem.type === 'video' ? (
               <video
                 src={focusedItem.url}
                 controls
@@ -548,6 +550,43 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 alt={focusedItem.title || ''}
                 className="w-full max-h-[85vh] object-contain rounded-2xl"
               />
+            ) : focusedItem.type === 'spotify' ? (
+              <div
+                className="w-full overflow-hidden"
+                style={{
+                  borderRadius: '16px',
+                  background: 'rgba(255, 255, 255, 0.06)',
+                  backdropFilter: 'blur(22px) saturate(140%)',
+                  WebkitBackdropFilter: 'blur(22px) saturate(140%)',
+                  boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.12)',
+                }}
+              >
+                <iframe
+                  src={(() => {
+                    const m = focusedItem.url?.match(/open\.spotify\.com\/(track|album|playlist|artist|episode|show)\/([a-zA-Z0-9]+)/)
+                    return m ? `https://open.spotify.com/embed/${m[1]}/${m[2]}?theme=0` : focusedItem.url
+                  })()}
+                  className="w-full h-[380px]"
+                  style={{ border: 'none', borderRadius: '16px' }}
+                  allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                />
+              </div>
+            ) : focusedItem.type === 'youtube' ? (
+              (() => {
+                const ytMatch = focusedItem.url?.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
+                const ytId = ytMatch?.[1]
+                return ytId ? (
+                  <div className="w-full aspect-video overflow-hidden" style={{ borderRadius: '16px' }}>
+                    <iframe
+                      src={`https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0&color=white`}
+                      className="w-full h-full"
+                      style={{ border: 'none', borderRadius: '16px' }}
+                      allow="autoplay; encrypted-media; fullscreen"
+                      allowFullScreen
+                    />
+                  </div>
+                ) : null
+              })()
             ) : focusedItem.type === 'thought' ? (
               <div
                 className="rounded-2xl p-8 text-center max-w-lg mx-auto"

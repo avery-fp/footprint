@@ -56,10 +56,11 @@ export async function GET(
           .order('position', { ascending: true }),
       ])
 
+      const VIDEO_EXT = /\.(mp4|mov|webm|m4v)($|\?)/i
       const libraryTiles = (libraryResult.data || []).map(item => ({
         id: item.id,
         url: item.image_url,
-        type: 'image',
+        type: VIDEO_EXT.test(item.image_url || '') ? 'video' : 'image',
         title: item.title || null,
         description: null,
         thumbnail_url: null,

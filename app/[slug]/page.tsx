@@ -7,7 +7,6 @@ import ShareEngine from '@/components/ShareEngine'
 import EventTracker from '@/components/EventTracker'
 import ReferralBanner from '@/components/ReferralBanner'
 import PublicPage from './PublicPage'
-import { mediaTypeFromUrl } from '@/lib/media'
 
 // ISR — cache page at the edge, revalidate every 60 seconds
 export const revalidate = 60
@@ -69,11 +68,14 @@ export default async function FootprintPage({ params }: Props) {
     supabase.from('rooms').select('*').eq('serial_number', footprint.serial_number).neq('hidden', true).order('position'),
   ])
 
+  // Canonical type from URL — library has no type column, so derive once here
+  const VIDEO_EXT = /\.(mp4|mov|webm|m4v)($|\?)/i
+
   // Merge and sort by position
   const content = [
     ...(images || []).map((img: any) => ({
       id: img.id,
-      type: mediaTypeFromUrl(img.image_url),
+      type: VIDEO_EXT.test(img.image_url || '') ? 'video' : 'image',
       url: img.image_url,
       position: img.position,
       room_id: img.room_id,

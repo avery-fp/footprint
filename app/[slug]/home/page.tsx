@@ -126,7 +126,7 @@ function SortableTile({
     opacity: isDragging ? 1 : deleting ? 0.5 : anyDragging ? 0.9 : 1,
   }
 
-  const isVideo = content.type === 'image' && content.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
+  const isVideo = content.type === 'video' || (content.type === 'image' && /\.(mp4|mov|webm|m4v)($|\?)/i.test(content.url || ''))
 
   // Video visibility — only play when on-screen, pause when off
   useEffect(() => {
@@ -1464,7 +1464,7 @@ export default function EditPage() {
       return {
         id: tempIds[i],
         url: URL.createObjectURL(file) + (isVideo ? '#.mp4' : ''),
-        type: 'image' as const,
+        type: (isVideo ? 'video' : 'image') as any,
         title: null,
         description: null,
         thumbnail_url: null,
