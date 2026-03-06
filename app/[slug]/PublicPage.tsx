@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, memo } from 'react'
 import Image from 'next/image'
 import ContentCardBase from '@/components/ContentCard'
+import { parseEmbed } from '@/lib/parseEmbed'
 import VideoTileBase from '@/components/VideoTile'
 
 const ContentCard = memo(ContentCardBase)
@@ -559,7 +560,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 }}
               >
                 <iframe
-                  src={focusedItem.embed_html || focusedItem.url}
+                  src={parseEmbed(focusedItem.url)?.embedUrl || focusedItem.url}
                   className="w-full h-[380px]"
                   style={{ border: 'none', borderRadius: '16px' }}
                   allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
