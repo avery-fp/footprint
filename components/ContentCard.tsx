@@ -286,14 +286,19 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   if (content.type === 'spotify' && !iframeFailed) {
     const spotifyInfo = extractSpotifyInfo(content.url)
     if (spotifyInfo) {
-      if (isMobile && tileSize <= 1) {
+      // Compact glass player for small tiles (any device)
+      if (tileSize <= 1) {
         return (
           <a
             ref={containerRef as any}
             href={content.url}
             target="_blank"
             rel="noopener noreferrer"
-            className={`block w-full h-full ${aspectClass || 'aspect-square'} fp-tile overflow-hidden relative bg-[#191414] cursor-pointer group`}
+            className={`block w-full h-full ${aspectClass || 'aspect-square'} fp-tile overflow-hidden relative cursor-pointer group`}
+            style={{
+              ...GLASS_STYLE,
+              borderRadius: 'inherit',
+            }}
           >
             {content.thumbnail_url && isInView && (
               <Image
@@ -307,18 +312,16 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 onLoad={() => setIsLoaded(true)}
               />
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-            <div className="absolute inset-0 flex flex-col items-end justify-end p-3 gap-1.5">
-              <p className="text-white text-xs font-medium leading-tight line-clamp-2 w-full">
-                {content.title || 'Spotify'}
-              </p>
-            </div>
-            <div className="absolute top-2.5 right-2.5">
-              <div className="w-7 h-7 rounded-full bg-[#1DB954]/80 flex items-center justify-center group-hover:scale-105 transition-transform">
-                <svg className="w-3 h-3 text-black ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+            <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-[#1DB954] flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform shadow-lg">
+                <svg className="w-3.5 h-3.5 text-black ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M8 5v14l11-7z"/>
                 </svg>
               </div>
+              <p className="text-white text-xs font-medium leading-tight line-clamp-2 min-w-0">
+                {content.title || 'Spotify'}
+              </p>
             </div>
           </a>
         )

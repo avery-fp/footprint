@@ -517,13 +517,17 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       {/* Lightbox overlay */}
       {focusedItem && (
         <div
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0, 0, 0, 0.85)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}
           onClick={() => setFocusedItem(null)}
         >
           <button
-            className="absolute top-4 right-4 text-white text-2xl z-50"
+            className="absolute top-5 right-5 w-9 h-9 flex items-center justify-center rounded-full text-white/50 hover:text-white/80 transition-colors z-50"
+            style={{ background: 'rgba(255,255,255,0.08)' }}
             onClick={() => setFocusedItem(null)}
-          >✕</button>
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
           <div className="max-w-3xl max-h-[90vh] w-full" onClick={e => e.stopPropagation()}>
             {focusedItem.type === 'image' && focusedItem.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i) ? (
               <video
@@ -531,27 +535,66 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 controls
                 autoPlay
                 playsInline
-                className="w-full max-h-[85vh] object-contain rounded-xl"
+                className="w-full max-h-[85vh] object-contain rounded-2xl"
               />
             ) : focusedItem.type === 'image' ? (
               <img
                 src={focusedItem.url}
                 alt={focusedItem.title || ''}
-                className="w-full max-h-[85vh] object-contain rounded-xl"
+                className="w-full max-h-[85vh] object-contain rounded-2xl"
               />
             ) : focusedItem.type === 'spotify' ? (
-              <iframe
-                src={focusedItem.embed_html || focusedItem.url}
-                className="w-full h-[380px] rounded-xl"
-                allow="encrypted-media"
-              />
-            ) : focusedItem.url ? (
-              <div className="bg-zinc-900 rounded-xl p-6 text-center">
-                <p className="text-white text-lg mb-4">{focusedItem.title || focusedItem.url}</p>
-                <a href={focusedItem.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 underline">
-                  Open link ↗
-                </a>
+              <div
+                className="w-full overflow-hidden"
+                style={{
+                  borderRadius: '16px',
+                  background: 'rgba(255, 255, 255, 0.06)',
+                  backdropFilter: 'blur(22px) saturate(140%)',
+                  WebkitBackdropFilter: 'blur(22px) saturate(140%)',
+                  boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.12)',
+                }}
+              >
+                <iframe
+                  src={focusedItem.embed_html || focusedItem.url}
+                  className="w-full h-[380px]"
+                  style={{ border: 'none', borderRadius: '16px' }}
+                  allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                />
               </div>
+            ) : focusedItem.type === 'thought' ? (
+              <div
+                className="rounded-2xl p-8 text-center max-w-lg mx-auto"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.06)',
+                  backdropFilter: 'blur(22px) saturate(140%)',
+                  WebkitBackdropFilter: 'blur(22px) saturate(140%)',
+                  boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.10)',
+                }}
+              >
+                <p className="text-white text-lg font-light leading-relaxed" style={{ letterSpacing: '-0.01em' }}>
+                  {focusedItem.title || ''}
+                </p>
+              </div>
+            ) : focusedItem.url ? (
+              <a
+                href={focusedItem.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block rounded-2xl p-8 text-center max-w-lg mx-auto cursor-pointer hover:scale-[1.01] transition-transform"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.06)',
+                  backdropFilter: 'blur(22px) saturate(140%)',
+                  WebkitBackdropFilter: 'blur(22px) saturate(140%)',
+                  boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.10)',
+                }}
+              >
+                <p className="text-white text-lg font-light leading-relaxed mb-2" style={{ letterSpacing: '-0.01em' }}>
+                  {focusedItem.title || new URL(focusedItem.url).hostname.replace('www.', '')}
+                </p>
+                <span className="text-white/30 text-xs font-mono tracking-wider">
+                  {(() => { try { return new URL(focusedItem.url).hostname.replace('www.', '') } catch { return '' } })()}
+                </span>
+              </a>
             ) : null}
           </div>
         </div>
