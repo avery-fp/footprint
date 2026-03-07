@@ -7,6 +7,7 @@ import { audioManager } from '@/lib/audio-manager'
 import { parseEmbed, getYouTubeThumbnail, extractYouTubeId } from '@/lib/parseEmbed'
 import type { EmbedResult } from '@/lib/parseEmbed'
 import GlassEmbedFrameExtracted, { GLASS_STYLE as GLASS_STYLE_IMPORTED, GlassPlaceholder as GlassPlaceholderExtracted } from '@/components/GlassEmbedFrame'
+import { transformImageUrl } from '@/lib/image'
 
 function extractSpotifyInfo(url: string): { type: string; id: string } | null {
   const match = url.match(/open\.spotify\.com\/(track|album|playlist|artist|episode|show)\/([a-zA-Z0-9]+)/)
@@ -225,7 +226,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           >
             {content.thumbnail_url && isInView && (
               <Image
-                src={content.thumbnail_url}
+                src={transformImageUrl(content.thumbnail_url)}
                 alt=""
                 fill
                 sizes="(max-width: 768px) 50vw, 25vw"
@@ -402,7 +403,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       <div ref={containerRef} className="fp-tile overflow-hidden relative">
         <a href={content.url} target="_blank" rel="noopener noreferrer">
           <Image
-            src={content.url}
+            src={transformImageUrl(content.url)}
             alt={content.title || ''}
             width={600}
             height={800}
@@ -480,7 +481,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           className="block fp-tile overflow-hidden relative"
         >
           <Image
-            src={content.thumbnail_url}
+            src={transformImageUrl(content.thumbnail_url)}
             alt=""
             width={400}
             height={400}
@@ -540,7 +541,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         className={`block w-full ${aspectClass} fp-tile overflow-hidden relative`}
       >
         <Image
-          src={content.thumbnail_url}
+          src={transformImageUrl(content.thumbnail_url)}
           alt={content.title || ''}
           fill
           sizes={tileSize >= 2 ? '(max-width: 768px) 100vw, 50vw' : '(max-width: 768px) 50vw, 25vw'}

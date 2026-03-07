@@ -2,6 +2,7 @@ import { createServerSupabaseClient } from '@/lib/supabase'
 import { notFound } from 'next/navigation'
 import { Metadata } from 'next'
 import { getTheme } from '@/lib/themes'
+import { transformImageUrl } from '@/lib/image'
 import AnalyticsTracker from '@/components/AnalyticsTracker'
 import ShareEngine from '@/components/ShareEngine'
 import EventTracker from '@/components/EventTracker'
@@ -73,22 +74,25 @@ export default async function FootprintPage({ params }: Props) {
 
   // Merge and sort by position
   const content = [
-    ...(images || []).map((img: any) => ({
-      id: img.id,
-      type: VIDEO_EXT.test(img.image_url || '') ? 'video' : 'image',
-      url: img.image_url,
-      position: img.position,
-      room_id: img.room_id,
-      size: img.size || 1,
-      aspect: img.aspect || null,
-      caption: img.caption || null,
-    })),
+    ...(images || []).map((img: any) => {
+      const isVideo = VIDEO_EXT.test(img.image_url || '')
+      return {
+        id: img.id,
+        type: isVideo ? 'video' : 'image',
+        url: isVideo ? img.image_url : transformImageUrl(img.image_url),
+        position: img.position,
+        room_id: img.room_id,
+        size: img.size || 1,
+        aspect: img.aspect || null,
+        caption: img.caption || null,
+      }
+    }),
     ...(links || []).map((link: any) => ({
       id: link.id,
       type: link.platform,
       url: link.url,
       title: link.title,
-      thumbnail_url: link.thumbnail,
+      thumbnail_url: transformImageUrl(link.thumbnail),
       embed_html: link.metadata?.embed_html,
       description: link.metadata?.description,
       position: link.position,
