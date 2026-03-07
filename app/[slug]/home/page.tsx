@@ -401,6 +401,7 @@ export default function EditPage() {
   const [gridFade, setGridFade] = useState<'visible' | 'out' | 'in'>('visible')
   const [wallpaperUrl, setWallpaperUrl] = useState('')
   const [backgroundBlur, setBackgroundBlur] = useState(true)
+  const [publicLayout, setPublicLayout] = useState<'default' | 'home'>('default')
   const [serialNumber, setSerialNumber] = useState<number | null>(null)
   const [isPublished, setIsPublished] = useState(false)
   const layoutMode: LayoutMode = 'grid'
@@ -722,6 +723,7 @@ export default function EditPage() {
           setIsOwner(true)
           setWallpaperUrl(data.footprint.background_url || '')
           setBackgroundBlur(data.footprint.background_blur ?? true)
+          setPublicLayout(data.footprint.grid_mode === 'home' ? 'home' : 'default')
           setIsPublished(data.footprint.published !== false)
           const sources: Record<string, 'library' | 'links'> = {}
           const content = (data.tiles || []).map((tile: any) => {
@@ -1094,6 +1096,19 @@ export default function EditPage() {
       setBackgroundBlur(newBlur)
     } catch (e) {
       console.error('Failed to toggle blur:', e)
+    }
+  }
+
+  async function handleLayoutToggle(mode: 'default' | 'home') {
+    setPublicLayout(mode)
+    try {
+      await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ grid_mode: mode === 'home' ? 'home' : 'grid' }),
+      })
+    } catch (e) {
+      console.error('Failed to toggle layout:', e)
     }
   }
 
@@ -1764,13 +1779,13 @@ export default function EditPage() {
                   {goLiveLoading ? '...' : 'go live'}
                 </button>
               )}
-              {/* Home button */}
+              {/* Edit button */}
               <button
                 onClick={enterEdit}
                 className="text-sm text-white/90 hover:text-white transition font-mono flex items-center justify-center px-5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
                 style={{ minHeight: '44px', minWidth: '44px' }}
               >
-                home
+                edit
               </button>
             </div>
           )}
@@ -2144,25 +2159,41 @@ export default function EditPage() {
           </div>
         )}
 
-        {/* Default pill: upload | link | thought + wallpaper controls */}
+        {/* Default pill: upload | link | thought + wallpaper/layout controls */}
         {pillMode === 'idle' && (
           <div className="flex flex-col items-center gap-2">
-            {wallpaperUrl && (
-              <div className="flex items-center gap-1.5 bg-black/40 backdrop-blur-sm rounded-full border border-white/10 overflow-hidden px-1">
+            <div className="flex items-center gap-1.5">
+              {wallpaperUrl && (
+                <div className="flex items-center gap-0 bg-black/40 backdrop-blur-sm rounded-full border border-white/10 overflow-hidden px-1">
+                  <button
+                    onClick={handleToggleBlur}
+                    className={`text-[10px] font-mono px-3 py-1.5 rounded-full transition-all ${backgroundBlur ? 'text-white/80 bg-white/10' : 'text-white/40 hover:text-white/60'}`}
+                  >
+                    blur
+                  </button>
+                  <button
+                    onClick={handleClearWallpaper}
+                    className="text-[10px] font-mono text-white/40 hover:text-red-400/80 px-3 py-1.5 rounded-full transition-all"
+                  >
+                    clear bg
+                  </button>
+                </div>
+              )}
+              <div className="flex items-center gap-0 bg-black/40 backdrop-blur-sm rounded-full border border-white/10 overflow-hidden px-1">
                 <button
-                  onClick={handleToggleBlur}
-                  className={`text-[10px] font-mono px-3 py-1.5 rounded-full transition-all ${backgroundBlur ? 'text-white/80 bg-white/10' : 'text-white/40 hover:text-white/60'}`}
+                  onClick={() => handleLayoutToggle('default')}
+                  className={`text-[10px] font-mono px-3 py-1.5 rounded-full transition-all ${publicLayout === 'default' ? 'text-white/80 bg-white/10' : 'text-white/40 hover:text-white/60'}`}
                 >
-                  blur
+                  default
                 </button>
                 <button
-                  onClick={handleClearWallpaper}
-                  className="text-[10px] font-mono text-white/40 hover:text-red-400/80 px-3 py-1.5 rounded-full transition-all"
+                  onClick={() => handleLayoutToggle('home')}
+                  className={`text-[10px] font-mono px-3 py-1.5 rounded-full transition-all ${publicLayout === 'home' ? 'text-white/80 bg-white/10' : 'text-white/40 hover:text-white/60'}`}
                 >
-                  clear bg
+                  home
                 </button>
               </div>
-            )}
+            </div>
             <div className="flex items-center gap-0 bg-black/50 backdrop-blur-sm rounded-full border border-white/20 overflow-hidden">
               <button
                 onClick={() => fileInputRef.current?.click()}

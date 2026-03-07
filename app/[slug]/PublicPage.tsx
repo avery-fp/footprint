@@ -57,6 +57,7 @@ const ROOM_OVERLAYS = [
 ]
 const DEFAULT_OVERLAY = 'rgba(0,0,0,0.35)'
 
+// Default public grid — aspect bundled into grid class
 function getGridClass(size: number, aspect: string | null | undefined): string {
   if (aspect === 'wide' || aspect === 'landscape') {
     if (size >= 3) return 'col-span-2 row-span-1 md:col-span-4 md:row-span-2 aspect-video'
@@ -72,6 +73,41 @@ function getGridClass(size: number, aspect: string | null | undefined): string {
   if (size >= 3) return 'col-span-2 row-span-2 md:col-span-3 md:row-span-3 aspect-square'
   if (size >= 2) return 'col-span-2 row-span-2 aspect-square'
   return 'aspect-square'
+}
+
+// Home-style grid — spanning only, aspect handled separately
+function getGridClassHome(size: number, aspect: string): string {
+  if (aspect === 'wide' || aspect === 'landscape') {
+    if (size >= 3) return 'col-span-2 row-span-1 md:col-span-4 md:row-span-2'
+    if (size >= 2) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-1'
+    return 'col-span-2 row-span-1'
+  }
+  if (aspect === 'tall' || aspect === 'portrait') {
+    if (size >= 3) return 'col-span-2 row-span-3 md:col-span-2 md:row-span-4'
+    if (size >= 2) return 'col-span-1 row-span-3 md:col-span-2 md:row-span-3'
+    return 'col-span-1 row-span-2'
+  }
+  if (size >= 3) return 'col-span-2 row-span-2 md:col-span-3 md:row-span-3'
+  if (size >= 2) return 'col-span-2 row-span-2'
+  return ''
+}
+
+function getAspectClass(aspect: string): string {
+  if (aspect === 'wide' || aspect === 'landscape') return 'aspect-video'
+  if (aspect === 'tall') return 'aspect-[9/16]'
+  if (aspect === 'portrait') return 'aspect-[3/4]'
+  if (aspect === 'auto') return ''
+  return 'aspect-square'
+}
+
+function resolveAspect(stored: string | null | undefined, type: string, url?: string): string {
+  if (stored && stored !== 'square') return stored
+  if (stored === 'square') return 'square'
+  if (type === 'youtube' || type === 'vimeo') return 'wide'
+  if (type === 'video') return 'auto'
+  if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return 'auto'
+  if (type === 'image') return 'auto'
+  return 'square'
 }
 
 function getImageSizes(size: number): string {
@@ -126,6 +162,7 @@ function TileImage({ src, alt, width, height, sizes, index, onWidescreen }: {
 export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl, isDraft }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
   const layoutMode: LayoutMode = 'grid'
+  const publicLayout = footprint.grid_mode === 'home' ? 'home' : 'default'
 
   const serialNumber = footprint.serial_number || 0
 
@@ -294,12 +331,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // ═══════════════════════════════════════════
   // THE GRID — matches edit page layout with size + aspect support
   // ═══════════════════════════════════════════
+  const isHomeLayout = publicLayout === 'home'
   const activeGrid = (
     <div
       className="grid grid-cols-2 md:grid-cols-4"
       style={{
         gap: '3px',
         gridAutoFlow: 'dense',
+        ...(isHomeLayout ? { gridAutoRows: 'auto' } : {}),
         opacity: roomFade === 'out' ? 0 : 1,
         transform: roomFade === 'out' ? 'translateY(6px)' : roomFade === 'in' ? 'translateY(-6px)' : 'translateY(0)',
         transition: 'opacity 250ms ease-out, transform 350ms ease-out',
@@ -307,8 +346,12 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     >
       {content.map((item: any, idx: number) => {
         const size = item.size || 1
-        const aspect = item.aspect || 'square'
-        const gridClassStr = getGridClass(size, aspect)
+        const aspect = isHomeLayout
+          ? resolveAspect(item.aspect, item.type, item.url)
+          : (item.aspect || 'square')
+        const gridClassStr = isHomeLayout
+          ? `${getGridClassHome(size, aspect)} ${getAspectClass(aspect)}`.trim()
+          : getGridClass(size, aspect)
 
         return (
           <div
@@ -369,14 +412,19 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
       {/* Top-right action */}
       <div className="fixed top-5 right-4 md:right-6 z-30 flex items-center gap-2">
-        {isLoggedIn ? (
+        {isOwner ? (
           <a
             href={`/${footprint.username}/home`}
-            className="w-11 h-11 flex items-center justify-center rounded-full bg-white/[0.06] hover:bg-white/[0.12] transition touch-manipulation"
+            className="h-9 px-4 flex items-center justify-center rounded-full bg-white/[0.06] hover:bg-white/[0.12] transition touch-manipulation text-[13px] font-mono text-white/50 hover:text-white/80"
           >
-            <svg className="w-3.5 h-3.5 text-white/40" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-            </svg>
+            edit
+          </a>
+        ) : isLoggedIn ? (
+          <a
+            href="/build"
+            className="h-9 px-4 flex items-center justify-center rounded-full bg-white/[0.06] hover:bg-white/[0.12] transition touch-manipulation text-[13px] font-mono text-white/50 hover:text-white/80"
+          >
+            home
           </a>
         ) : (
           <PlusButton slug={footprint.slug} />
