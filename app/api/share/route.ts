@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
     .eq('referrer_serial', serial)
     .eq('converted', true)
 
-  const shareUrl = `${baseUrl}/${slug}?ref=${referralCode}`
+  const shareUrl = `${baseUrl}/${slug}/fp?ref=${referralCode}`
   const cardUrl = `${baseUrl}/api/share/card?slug=${slug}`
 
   return NextResponse.json({

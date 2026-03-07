@@ -177,6 +177,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [wallpaperLoaded, setWallpaperLoaded] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [isOwner, setIsOwner] = useState(false)
+  const [authUserSlug, setAuthUserSlug] = useState<string | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [showToast, setShowToast] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
@@ -218,7 +219,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     : DEFAULT_OVERLAY
 
   const handleShare = () => {
-    navigator.clipboard.writeText(window.location.href)
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://footprint.onl'
+    const fpUrl = `${baseUrl}/${footprint.username}/fp`
+    navigator.clipboard.writeText(fpUrl)
     setShowToast(true)
   }
 
@@ -234,7 +237,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     return () => { window.removeEventListener('resize', check); clearTimeout(timeout) }
   }, [])
 
-  // Check if user is logged in + owner
+  // Check if user is logged in + owner, and fetch their own slug for portal navigation
   useEffect(() => {
     fetch('/api/user', { credentials: 'include' })
       .then(async r => {
@@ -244,6 +247,15 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           if (data.user?.id === footprint.user_id) {
             setIsOwner(true)
           }
+          // Fetch their own footprint slug for portal navigation
+          fetch('/api/footprint-for-user', { credentials: 'include' })
+            .then(async r2 => {
+              if (r2.ok) {
+                const fpData = await r2.json()
+                if (fpData.slug) setAuthUserSlug(fpData.slug)
+              }
+            })
+            .catch(() => {})
         }
       })
       .catch(() => {})
@@ -410,16 +422,27 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
       )}
 
-      {/* Top-right action — always home icon */}
+      {/* Top-right action — always globe icon, context-aware navigation */}
       <div className="fixed top-5 right-4 md:right-6 z-30 flex items-center gap-2">
-        <a
-          href={`/${footprint.username}/home`}
+        <button
+          onClick={() => {
+            if (!isLoggedIn) {
+              window.location.href = '/build'
+            } else if (isOwner) {
+              window.location.href = `/${footprint.username}/home`
+            } else if (authUserSlug) {
+              window.location.href = `/${authUserSlug}/home`
+            } else {
+              window.location.href = '/build'
+            }
+          }}
           className="h-9 w-9 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition text-white/70 hover:text-white"
         >
           <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+            <circle cx="12" cy="12" r="10" />
+            <path strokeLinecap="round" d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10A15.3 15.3 0 0112 2z" />
           </svg>
-        </a>
+        </button>
       </div>
 
       <div className="relative z-10 flex-1 flex flex-col">

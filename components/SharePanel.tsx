@@ -29,7 +29,7 @@ export default function SharePanel({ slug, footprintId }: SharePanelProps) {
     ? window.location.origin 
     : process.env.NEXT_PUBLIC_APP_URL || 'https://footprint.onl'
   
-  const footprintUrl = `${baseUrl}/${slug}`
+  const footprintUrl = `${baseUrl}/${slug}/fp`
   const qrUrl = `${baseUrl}/api/qr?slug=${slug}`
   const embedUrl = `${baseUrl}/api/embed?slug=${slug}&style=${embedStyle}`
 

@@ -2251,7 +2251,7 @@ export default function EditPage() {
 
             {/* URL */}
             <p className="font-mono text-white/30 text-[13px] tracking-[0.02em] mb-2">
-              footprint.onl/{slug}
+              footprint.onl/{slug}/fp
             </p>
 
             {/* Price — quiet */}
@@ -2347,7 +2347,7 @@ export default function EditPage() {
                 <div className="mt-6">
                   <button
                     onClick={() => {
-                      const url = `https://footprint.onl/${birthMoment.slug}`
+                      const url = `https://footprint.onl/${birthMoment.slug}/fp`
                       navigator.clipboard.writeText(url)
                       const el = document.getElementById('birth-copied')
                       if (el) { el.style.opacity = '1'; setTimeout(() => { el.style.opacity = '0' }, 1200) }

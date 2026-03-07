@@ -20,7 +20,7 @@ export default function SuccessPage() {
   const [saving, setSaving] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  const pageUrl = slug ? `https://footprint.onl/${slug}` : ''
+  const pageUrl = slug ? `https://footprint.onl/${slug}/fp` : ''
 
   useEffect(() => {
     async function publishDraft() {
@@ -171,7 +171,7 @@ export default function SuccessPage() {
               rel="noopener noreferrer"
               className="inline-block text-white/40 text-[13px] font-mono tracking-wide hover:text-white/60 transition-colors mb-10"
             >
-              footprint.onl/{slug}
+              footprint.onl/{slug}/fp
             </a>
 
             {/* Primary actions */}
