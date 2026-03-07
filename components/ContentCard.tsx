@@ -6,9 +6,7 @@ import type { ContentType } from '@/lib/parser'
 import { audioManager } from '@/lib/audio-manager'
 import { parseEmbed, getYouTubeThumbnail, extractYouTubeId } from '@/lib/parseEmbed'
 import type { EmbedResult } from '@/lib/parseEmbed'
-
-// LAUNCH CUT — Photos + YouTube only. All other embeds → link card.
-const LAUNCH_DISABLED = new Set(['spotify', 'soundcloud', 'vimeo', 'bandcamp', 'google-maps', 'codepen', 'arena', 'figma'])
+import GlassEmbedFrameExtracted, { GLASS_STYLE as GLASS_STYLE_IMPORTED, GlassPlaceholder as GlassPlaceholderExtracted } from '@/components/GlassEmbedFrame'
 
 function extractSpotifyInfo(url: string): { type: string; id: string } | null {
   const match = url.match(/open\.spotify\.com\/(track|album|playlist|artist|episode|show)\/([a-zA-Z0-9]+)/)
@@ -16,92 +14,12 @@ function extractSpotifyInfo(url: string): { type: string; id: string } | null {
 }
 
 // ════════════════════════════════════════
-// AE Glass Embed Frame — universal frosted glass wrapper for all embeds
+// Glass Embed Frame — imported from extracted component
 // ════════════════════════════════════════
 
-const GLASS_STYLE: React.CSSProperties = {
-  borderRadius: '16px',
-  background: 'rgba(255, 255, 255, 0.06)',
-  backdropFilter: 'blur(22px) saturate(140%)',
-  WebkitBackdropFilter: 'blur(22px) saturate(140%)',
-  boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.12)',
-}
-
-function GlassEmbedFrame({
-  src,
-  height,
-  allow,
-  sandbox,
-  allowFullScreen,
-  onError,
-  onLoad: onLoadCallback,
-  children,
-}: {
-  src: string
-  height?: number
-  allow?: string
-  sandbox?: string
-  allowFullScreen?: boolean
-  onError?: () => void
-  onLoad?: () => void
-  children?: React.ReactNode
-}) {
-  const [loaded, setLoaded] = useState(false)
-  const [failed, setFailed] = useState(false)
-
-  const handleLoad = () => {
-    setLoaded(true)
-    onLoadCallback?.()
-  }
-
-  const handleError = () => {
-    setFailed(true)
-    onError?.()
-  }
-
-  if (failed) {
-    return (
-      <div
-        className="glass-embed-frame relative w-full h-full overflow-hidden flex items-center justify-center"
-        style={{ ...GLASS_STYLE, ...(height ? { height: `${height}px` } : {}) }}
-      >
-        <span className="text-xs text-white/40 font-mono" style={{ opacity: 0.7 }}>embed unavailable</span>
-      </div>
-    )
-  }
-
-  return (
-    <div
-      className="glass-embed-frame relative w-full h-full overflow-hidden"
-      style={{ ...GLASS_STYLE, ...(height ? { height: `${height}px` } : {}) }}
-    >
-      <iframe
-        src={src}
-        width="100%"
-        height="100%"
-        allow={allow}
-        sandbox={sandbox}
-        allowFullScreen={allowFullScreen}
-        referrerPolicy="no-referrer"
-        loading="lazy"
-        onLoad={handleLoad}
-        onError={handleError}
-        style={{
-          border: 'none',
-          width: '100%',
-          height: '100%',
-          background: 'transparent',
-          overflow: 'hidden',
-          padding: 0,
-          margin: 0,
-          opacity: loaded ? 1 : 0,
-          transition: 'opacity 250ms ease-out',
-        }}
-      />
-      {children}
-    </div>
-  )
-}
+const GLASS_STYLE = GLASS_STYLE_IMPORTED
+const GlassEmbedFrame = GlassEmbedFrameExtracted
+const GlassPlaceholder = GlassPlaceholderExtracted
 
 // ════════════════════════════════════════
 // AE Embed Heights — stable per-provider defaults
@@ -144,16 +62,6 @@ function enforceEmbedDarkMode(url: string, provider: string): string {
   }
 }
 
-// Glass placeholder for offscreen embeds
-function GlassPlaceholder({ height, aspectClass }: { height?: number; aspectClass?: string }) {
-  return (
-    <div
-      className={`w-full h-full ${aspectClass || ''}`}
-      style={{ ...GLASS_STYLE, ...(height ? { height: `${height}px` } : {}) }}
-    />
-  )
-}
-
 interface ContentCardProps {
   content: {
     id: string
@@ -169,6 +77,8 @@ interface ContentCardProps {
   tileSize?: number
   aspect?: string
   isPublicView?: boolean
+  /** When true, show full embed immediately (no facade). Used in lightbox. */
+  isExpanded?: boolean
 }
 
 /**
@@ -179,7 +89,7 @@ interface ContentCardProps {
  * null → link card (OG metadata via /api/og-preview)
  * Everything fails gracefully. No broken states.
  */
-export default function ContentCard({ content, onWidescreen, isMobile = false, tileSize = 1, aspect = 'square', isPublicView = false }: ContentCardProps) {
+export default function ContentCard({ content, onWidescreen, isMobile = false, tileSize = 1, aspect = 'square', isPublicView = false, isExpanded = false }: ContentCardProps) {
   const aspectClass = aspect === 'wide' ? 'aspect-video' : aspect === 'tall' ? 'aspect-[9/16]' : aspect === 'auto' ? '' : 'aspect-square'
   const fitClass = 'object-cover'
   const [isActivated, setIsActivated] = useState(false)
@@ -228,6 +138,22 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   const youtubeId = content.type === 'youtube' ? extractYouTubeId(content.url) : null
   if (content.type === 'youtube' && youtubeId && !iframeFailed) {
+    // isExpanded: skip facade, render iframe immediately (used in lightbox)
+    if (isExpanded) {
+      const ytSrc = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0&color=white`
+      return (
+        <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative bg-black">
+          <iframe
+            src={ytSrc}
+            className="w-full h-full"
+            style={{ border: 'none' }}
+            allow="autoplay; encrypted-media; fullscreen"
+            allowFullScreen
+            referrerPolicy="origin"
+          />
+        </div>
+      )
+    }
     // Facade — always shows a thumbnail, never collapses
     if (!isActivated) {
       const thumbSrc = content.thumbnail_url || `https://i.ytimg.com/vi/${youtubeId}/maxresdefault.jpg`
@@ -281,12 +207,13 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   // SPOTIFY — album art facade on mobile, iframe on desktop
   // ════════════════════════════════════════
-  if (content.type === 'spotify' && !LAUNCH_DISABLED.has(content.type)) {
+  if (content.type === 'spotify') {
     const spotifyInfo = extractSpotifyInfo(content.url)
     if (spotifyInfo) {
+      // isExpanded: skip compact facade, render full embed (used in lightbox)
       // Compact glass player for small tiles (any device)
       // Click bubbles to grid wrapper → opens lightbox with proper Spotify embed
-      if (tileSize <= 1) {
+      if (tileSize <= 1 && !isExpanded) {
         return (
           <div
             ref={containerRef}
@@ -339,6 +266,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 height={spotifyHeight}
                 allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
                 sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                referrerPolicy="origin"
                 onError={() => setIframeFailed(true)}
               />
             ) : (
@@ -353,7 +281,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   // SOUNDCLOUD — facade first, click loads embed
   // ════════════════════════════════════════
-  if (content.type === 'soundcloud' && !iframeFailed && !LAUNCH_DISABLED.has(content.type)) {
+  if (content.type === 'soundcloud' && !iframeFailed) {
     const embed = parseEmbed(content.url)
     if (!isActivated) {
       return (
@@ -406,7 +334,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   // VIMEO — lazy loaded embed via GlassEmbedFrame
   // ════════════════════════════════════════
-  if (content.type === 'vimeo' && !iframeFailed && !LAUNCH_DISABLED.has(content.type)) {
+  if (content.type === 'vimeo' && !iframeFailed) {
     const embed = parseEmbed(content.url)
     if (embed) {
       const vimeoSrc = enforceEmbedDarkMode(embed.embedUrl, 'vimeo')
@@ -588,7 +516,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // Try iframe with 3s timeout → fallback to link card
   // ════════════════════════════════════════
   const embed = parseEmbed(content.url)
-  if (embed && !iframeFailed && !LAUNCH_DISABLED.has(embed.platform)) {
+  if (embed && !iframeFailed) {
     return (
       <Tier2EmbedTile
         embed={embed}

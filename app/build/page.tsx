@@ -18,21 +18,10 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable'
 import { saveDraft, loadDraft, DraftContent, DraftFootprint } from '@/lib/draft-store'
+import { extractYouTubeId } from '@/lib/parseEmbed'
+import { isVideoFile } from '@/lib/upload'
 
 const SANDBOX_SLUG = '_sandbox'
-
-// ─── YouTube ID extraction ───
-function extractYouTubeId(url: string): string | null {
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
-    /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
-  ]
-  for (const p of patterns) {
-    const m = url.match(p)
-    if (m) return m[1]
-  }
-  return null
-}
 
 // ─── Sortable tile wrapper ───
 function SandboxTile({
@@ -255,9 +244,7 @@ export default function BuildPage() {
 
       files.forEach((file, idx) => {
         const reader = new FileReader()
-        const isVideo =
-          file.type.startsWith('video/') ||
-          /\.(mp4|mov|webm|m4v)$/i.test(file.name)
+        const isVideo = isVideoFile(file)
 
         reader.onload = () => {
           const dataUrl = reader.result as string

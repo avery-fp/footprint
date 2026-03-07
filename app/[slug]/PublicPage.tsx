@@ -4,6 +4,15 @@ import { useState, useEffect, useCallback, useMemo, memo } from 'react'
 import Image from 'next/image'
 import ContentCardBase from '@/components/ContentCard'
 import VideoTileBase from '@/components/VideoTile'
+import TileImageExtracted from '@/components/TileImage'
+import UnifiedTile from '@/components/UnifiedTile'
+import {
+  resolveAspect,
+  getGridClass,
+  getGridClassHome,
+  getAspectClass,
+  getImageSizes,
+} from '@/lib/media/aspect'
 
 const ContentCard = memo(ContentCardBase)
 const VideoTile = memo(VideoTileBase)
@@ -57,107 +66,10 @@ const ROOM_OVERLAYS = [
 ]
 const DEFAULT_OVERLAY = 'rgba(0,0,0,0.35)'
 
-// Default public grid — aspect bundled into grid class
-function getGridClass(size: number, aspect: string | null | undefined): string {
-  if (aspect === 'wide' || aspect === 'landscape') {
-    if (size >= 3) return 'col-span-2 row-span-1 md:col-span-4 md:row-span-2 aspect-video'
-    if (size >= 2) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-1 aspect-video'
-    return 'col-span-2 row-span-1 aspect-video'
-  }
-  if (aspect === 'tall' || aspect === 'portrait') {
-    if (size >= 3) return 'col-span-2 row-span-3 md:col-span-2 md:row-span-4 aspect-[3/4]'
-    if (size >= 2) return 'col-span-1 row-span-3 md:col-span-2 md:row-span-3 aspect-[3/4]'
-    return 'col-span-1 row-span-2 aspect-[3/4]'
-  }
-  // square or auto — default 1×1 tile
-  if (size >= 3) return 'col-span-2 row-span-2 md:col-span-3 md:row-span-3 aspect-square'
-  if (size >= 2) return 'col-span-2 row-span-2 aspect-square'
-  return 'aspect-square'
-}
+// Grid helpers + aspect resolution imported from @/lib/media/aspect
 
-// Home-style grid — spanning only, aspect handled separately
-function getGridClassHome(size: number, aspect: string): string {
-  if (aspect === 'wide' || aspect === 'landscape') {
-    if (size >= 3) return 'col-span-2 row-span-1 md:col-span-4 md:row-span-2'
-    if (size >= 2) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-1'
-    return 'col-span-2 row-span-1'
-  }
-  if (aspect === 'tall' || aspect === 'portrait') {
-    if (size >= 3) return 'col-span-2 row-span-3 md:col-span-2 md:row-span-4'
-    if (size >= 2) return 'col-span-1 row-span-3 md:col-span-2 md:row-span-3'
-    return 'col-span-1 row-span-2'
-  }
-  if (size >= 3) return 'col-span-2 row-span-2 md:col-span-3 md:row-span-3'
-  if (size >= 2) return 'col-span-2 row-span-2'
-  return ''
-}
-
-function getAspectClass(aspect: string): string {
-  if (aspect === 'wide' || aspect === 'landscape') return 'aspect-video'
-  if (aspect === 'tall') return 'aspect-[9/16]'
-  if (aspect === 'portrait') return 'aspect-[3/4]'
-  if (aspect === 'auto') return ''
-  return 'aspect-square'
-}
-
-function resolveAspect(stored: string | null | undefined, type: string, url?: string): string {
-  if (stored && stored !== 'square') return stored
-  if (stored === 'square') return 'square'
-  if (type === 'youtube' || type === 'vimeo') return 'wide'
-  if (type === 'video') return 'auto'
-  if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return 'auto'
-  if (type === 'image') return 'auto'
-  return 'square'
-}
-
-function getImageSizes(size: number): string {
-  if (size >= 3) return '(max-width: 768px) 100vw, 880px'
-  if (size >= 2) return '(max-width: 768px) 50vw, 50vw'
-  return '(max-width: 768px) 33vw, 25vw'
-}
-
-/**
- * TileImage — bulletproof image tile with error recovery.
- * Always visible immediately. onError falls back to raw <img>.
- */
-function TileImage({ src, alt, width, height, sizes, index, onWidescreen }: {
-  src: string; alt: string; width: number; height: number; sizes: string; index: number; onWidescreen?: () => void
-}) {
-  const [failed, setFailed] = useState(false)
-
-  if (failed) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={src}
-        alt={alt}
-        className="w-full h-full object-cover"
-        loading={index < 4 ? 'eager' : 'lazy'}
-        decoding="async"
-      />
-    )
-  }
-
-  return (
-    <Image
-      src={src}
-      alt={alt}
-      width={width}
-      height={height}
-      sizes={sizes}
-      className="w-full h-full object-cover"
-      loading={index < 4 ? 'eager' : 'lazy'}
-      priority={index < 2}
-      quality={75}
-      fetchPriority={index === 0 ? 'high' : undefined}
-      onLoad={(e) => {
-        const img = e.currentTarget as HTMLImageElement
-        if (img.naturalWidth > img.naturalHeight * 1.3) onWidescreen?.()
-      }}
-      onError={() => setFailed(true)}
-    />
-  )
-}
+// TileImage imported from @/components/TileImage
+const TileImage = TileImageExtracted
 
 export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl, isDraft }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
@@ -281,64 +193,17 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // Layout config
   const layoutConfig = useMemo(() => getLayoutConfig(layoutMode), [layoutMode])
 
-  // Tile renderer
-  const renderTileContent = (item: any, index: number, size: number, aspect: string) => {
-    if (item.type === 'thought') {
-      const text = item.title || ''
-      const len = text.length
-      const fontSize = len <= 6 ? '24px' : len <= 20 ? '17px' : len <= 60 ? '14px' : '13px'
-      const letterSpacing = len <= 6 ? '-0.03em' : len <= 20 ? '-0.02em' : '-0.01em'
-      return (
-        <div
-          className="w-full h-full flex items-center justify-center p-4"
-          style={{
-            background: 'rgba(255,255,255,0.04)',
-          }}
-          data-tile-id={item.id}
-          data-tile-type="thought"
-        >
-          <p
-            className="whitespace-pre-wrap text-center text-white"
-            style={{ fontSize, fontWeight: 300, letterSpacing, lineHeight: 1.5 }}
-          >
-            {text}
-          </p>
-        </div>
-      )
-    }
-
-    if (item.type === 'video') {
-      return (
-        <div className="w-full h-full" data-tile-id={item.id} data-tile-type="video">
-          <VideoTile src={item.url} onWidescreen={noop} />
-        </div>
-      )
-    }
-
-    if (item.type === 'image') {
-      const w = size >= 3 ? 880 : size >= 2 ? 440 : 220
-      const h = size >= 3 ? 495 : size >= 2 ? 330 : 220
-      return (
-        <div className="w-full h-full overflow-hidden" data-tile-id={item.id} data-tile-type={item.type}>
-          <TileImage
-            src={item.url}
-            alt={item.title || ''}
-            width={w}
-            height={h}
-            sizes={getImageSizes(size)}
-            index={index}
-            onWidescreen={noop}
-          />
-        </div>
-      )
-    }
-
-    return (
-      <div className="w-full h-full" data-tile-id={item.id} data-tile-type={item.type}>
-        <ContentCard content={item} isMobile={isMobile} tileSize={size} aspect={aspect} isPublicView />
-      </div>
-    )
-    }
+  // Tile renderer — delegates to UnifiedTile
+  const renderTileContent = (item: any, index: number, size: number, aspect: string) => (
+    <UnifiedTile
+      item={item}
+      index={index}
+      size={size}
+      aspect={aspect}
+      mode="public"
+      isMobile={isMobile}
+    />
+  )
 
   // ═══════════════════════════════════════════
   // THE GRID — matches edit page layout with size + aspect support
@@ -375,8 +240,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               background: 'rgba(255,255,255,0.06)',
             }}
             onClick={() => {
-              // LAUNCH CUT: lightbox only for photos + thoughts. YouTube plays inline. Everything else → link card.
-              if (!['image', 'thought'].includes(item.type)) return
+              // Lightbox for all media types
               setFocusedItem(item)
             }}
           >
@@ -593,7 +457,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
           <div className="max-w-3xl max-h-[90vh] w-full" onClick={e => e.stopPropagation()}>
-            {focusedItem.type === 'video' ? (
+            {focusedItem.type === 'video' || (focusedItem.type === 'image' && focusedItem.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) ? (
               <video
                 src={focusedItem.url}
                 controls
@@ -602,6 +466,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 className="w-full max-h-[85vh] object-contain rounded-2xl"
               />
             ) : focusedItem.type === 'image' ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 src={focusedItem.url}
                 alt={focusedItem.title || ''}
@@ -621,6 +486,17 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                   {focusedItem.title || ''}
                 </p>
               </div>
+            ) : ['youtube', 'spotify', 'soundcloud', 'vimeo'].includes(focusedItem.type) ? (
+              <div className="w-full rounded-2xl overflow-hidden" style={{ aspectRatio: focusedItem.type === 'youtube' || focusedItem.type === 'vimeo' ? '16/9' : undefined }}>
+                <ContentCard
+                  content={focusedItem}
+                  isMobile={isMobile}
+                  tileSize={3}
+                  aspect={focusedItem.type === 'youtube' || focusedItem.type === 'vimeo' ? 'wide' : 'square'}
+                  isPublicView
+                  isExpanded
+                />
+              </div>
             ) : focusedItem.url ? (
               <a
                 href={focusedItem.url}
@@ -635,7 +511,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 }}
               >
                 <p className="text-white text-lg font-light leading-relaxed mb-2" style={{ letterSpacing: '-0.01em' }}>
-                  {focusedItem.title || new URL(focusedItem.url).hostname.replace('www.', '')}
+                  {focusedItem.title || (() => { try { return new URL(focusedItem.url).hostname.replace('www.', '') } catch { return 'Link' } })()}
                 </p>
                 <span className="text-white/30 text-xs font-mono tracking-wider">
                   {(() => { try { return new URL(focusedItem.url).hostname.replace('www.', '') } catch { return '' } })()}

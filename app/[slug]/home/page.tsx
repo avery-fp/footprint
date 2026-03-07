@@ -13,6 +13,22 @@ import { snapToPreset } from '@/lib/aspect-ratios'
 import Image from 'next/image'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { type LayoutMode, getLayoutConfig } from '@/lib/layout-engine'
+import {
+  resolveAspect as resolveAspectShared,
+  getGridClass as getGridClassShared,
+  getAspectClass as getAspectClassShared,
+  getObjectFit as getObjectFitShared,
+} from '@/lib/media/aspect'
+import {
+  VIDEO_MIME as VIDEO_MIME_SHARED,
+  isVideoFile,
+  isHEIC,
+  uploadWithProgress as uploadWithProgressShared,
+  getVideoThumbnail as getVideoThumbnailShared,
+  resizeImage as resizeImageShared,
+  detectImageAspect as detectImageAspectShared,
+  detectVideoAspect as detectVideoAspectShared,
+} from '@/lib/upload'
 
 interface TileContent extends DraftContent {
   source?: 'library' | 'links'
@@ -34,49 +50,11 @@ type PageMode =
 // Grid class helpers — size × aspect → col-span, row-span, aspect-ratio
 // ═══════════════════════════════════════════
 
-// Smart default: when user hasn't explicitly set an aspect, pick one based on content type
-function resolveAspect(explicitAspect: string | undefined | null, type: string, url?: string): string {
-  if (explicitAspect && explicitAspect !== 'square') return explicitAspect
-  // If user explicitly chose square, respect it
-  if (explicitAspect === 'square') return 'square'
-  // No explicit choice — use content-type defaults
-  if (type === 'youtube' || type === 'vimeo') return 'wide'
-  if (type === 'video') return 'auto'
-  if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return 'auto'
-  if (type === 'image') return 'auto'
-  // embeds, thoughts, social — square works well
-  return 'square'
-}
-
-function getGridClass(size: number, aspect: string) {
-  if (aspect === 'wide' || aspect === 'landscape') {
-    if (size >= 3) return 'col-span-2 row-span-1 md:col-span-4 md:row-span-2'
-    if (size >= 2) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-1'
-    return 'col-span-2 row-span-1'
-  }
-  if (aspect === 'tall' || aspect === 'portrait') {
-    if (size >= 3) return 'col-span-2 row-span-3 md:col-span-2 md:row-span-4'
-    if (size >= 2) return 'col-span-1 row-span-3 md:col-span-2 md:row-span-3'
-    return 'col-span-1 row-span-2'
-  }
-  // square or auto — same spanning as before
-  if (size >= 3) return 'col-span-2 row-span-2 md:col-span-3 md:row-span-3'
-  if (size >= 2) return 'col-span-2 row-span-2'
-  return ''
-}
-
-function getAspectClass(aspect: string) {
-  if (aspect === 'wide' || aspect === 'landscape') return 'aspect-video'
-  if (aspect === 'tall') return 'aspect-[9/16]'
-  if (aspect === 'portrait') return 'aspect-[3/4]'
-  if (aspect === 'auto') return ''
-  return 'aspect-square'
-}
-
-function getObjectFit(_aspect: string) {
-  // Contain — scale proportionally, never crop content
-  return 'object-contain'
-}
+// Aspect / grid helpers — imported from @/lib/media/aspect
+const resolveAspect = resolveAspectShared
+const getGridClass = getGridClassShared
+const getAspectClass = getAspectClassShared
+const getObjectFit = getObjectFitShared
 
 function SortableTile({
   id, content, deleting, size, aspect, isArranging, isViewing, isMobile, selected, anyDragging, onTap,
@@ -1286,164 +1264,13 @@ export default function EditPage() {
     trackOp(op)
   }
 
-  // ── File upload ──
-
-  const VIDEO_MIME = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v', 'video/mov']
-
-  function uploadWithProgress(
-    file: File,
-    path: string,
-    onProgress: (pct: number) => void
-  ): Promise<string> {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest()
-      xhr.timeout = 5 * 60 * 1000 // 5 minutes for large videos
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100))
-      }
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          const url = `${supabaseUrl}/storage/v1/object/public/content/${path}`
-          resolve(url)
-        } else {
-          console.error('UPLOAD_XHR_FAIL', { status: xhr.status, response: xhr.responseText, path })
-          reject(new Error(`Upload failed (${xhr.status}): ${xhr.responseText}`))
-        }
-      }
-      xhr.onerror = () => {
-        console.error('UPLOAD_XHR_ONERROR', { status: xhr.status, response: xhr.responseText, path })
-        reject(new Error('Network error during upload'))
-      }
-      xhr.ontimeout = () => {
-        console.error('UPLOAD_XHR_TIMEOUT', { path, timeout: xhr.timeout })
-        reject(new Error('Upload timed out — video may be too large for your connection'))
-      }
-      xhr.onabort = () => {
-        console.error('UPLOAD_XHR_ABORT', { path })
-        reject(new Error('Upload was cancelled'))
-      }
-
-      xhr.open('POST', `${supabaseUrl}/storage/v1/object/content/${path}`)
-      xhr.setRequestHeader('Authorization', `Bearer ${supabaseKey}`)
-      xhr.setRequestHeader('apikey', supabaseKey)
-      const mimeType = file.type === 'video/quicktime' ? 'video/mp4' : (file.type || 'application/octet-stream')
-      xhr.setRequestHeader('Content-Type', mimeType)
-      xhr.setRequestHeader('x-upsert', 'true')
-      xhr.send(file)
-    })
-  }
-
-  function getVideoThumbnail(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const video = document.createElement('video')
-      video.muted = true
-      video.playsInline = true
-      video.preload = 'auto'
-      const blobUrl = URL.createObjectURL(file)
-      video.src = blobUrl
-      let cleaned = false
-      const cleanup = () => { if (!cleaned) { cleaned = true; URL.revokeObjectURL(blobUrl) } }
-      video.onloadeddata = () => {
-        video.currentTime = Math.min(0.5, video.duration || 0)
-      }
-      video.onseeked = () => {
-        try {
-          const w = video.videoWidth || 320
-          const h = video.videoHeight || 240
-          const canvas = document.createElement('canvas')
-          canvas.width = w
-          canvas.height = h
-          canvas.getContext('2d')!.drawImage(video, 0, 0, w, h)
-          cleanup()
-          resolve(canvas.toDataURL('image/jpeg', 0.6))
-        } catch (e) {
-          cleanup()
-          reject(e)
-        }
-      }
-      video.onerror = () => { cleanup(); reject(new Error('Could not load video')) }
-      setTimeout(() => { cleanup(); reject(new Error('Thumbnail timeout')) }, 4000)
-    })
-  }
-
-  async function resizeImage(file: File, maxWidth = 1600): Promise<File> {
-    if (file.size < 300 * 1024) return file
-
-    return new Promise((resolve, reject) => {
-      const img = document.createElement('img')
-      const timeout = setTimeout(() => {
-        URL.revokeObjectURL(img.src)
-        reject(new Error('Resize timeout'))
-      }, 10000)
-
-      img.onload = () => {
-        try {
-          clearTimeout(timeout)
-          if (img.width <= maxWidth) {
-            URL.revokeObjectURL(img.src)
-            resolve(file)
-            return
-          }
-          const scale = maxWidth / img.width
-          const canvas = document.createElement('canvas')
-          canvas.width = Math.round(img.width * scale)
-          canvas.height = Math.round(img.height * scale)
-          canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
-          URL.revokeObjectURL(img.src)
-          canvas.toBlob(blob => {
-            resolve(new File([blob!],
-              file.name.replace(/\.[^.]+$/, '.jpg'),
-              { type: 'image/jpeg' }))
-          }, 'image/jpeg', 0.82)
-        } catch (e) {
-          clearTimeout(timeout)
-          URL.revokeObjectURL(img.src)
-          reject(e)
-        }
-      }
-
-      img.onerror = () => {
-        clearTimeout(timeout)
-        URL.revokeObjectURL(img.src)
-        reject(new Error('Image load failed'))
-      }
-
-      img.src = URL.createObjectURL(file)
-    })
-  }
-
-  // Detect image dimensions from a File → snap to aspect preset
-  function detectImageAspect(file: File): Promise<string> {
-    return new Promise((resolve) => {
-      if (!file.type.startsWith('image/')) { resolve('square'); return }
-      const img = document.createElement('img')
-      img.onload = () => {
-        const preset = snapToPreset(img.naturalWidth, img.naturalHeight)
-        URL.revokeObjectURL(img.src)
-        resolve(preset)
-      }
-      img.onerror = () => { resolve('square') }
-      img.src = URL.createObjectURL(file)
-    })
-  }
-
-  // Detect video dimensions from a File → snap to aspect preset
-  function detectVideoAspect(file: File): Promise<string> {
-    return new Promise((resolve) => {
-      const video = document.createElement('video')
-      video.preload = 'metadata'
-      video.onloadedmetadata = () => {
-        const preset = snapToPreset(video.videoWidth, video.videoHeight)
-        URL.revokeObjectURL(video.src)
-        resolve(preset)
-      }
-      video.onerror = () => { resolve('square') }
-      video.src = URL.createObjectURL(file)
-    })
-  }
+  // ── File upload — utilities imported from @/lib/upload ──
+  const VIDEO_MIME = VIDEO_MIME_SHARED
+  const uploadWithProgress = uploadWithProgressShared
+  const getVideoThumbnail = getVideoThumbnailShared
+  const resizeImage = resizeImageShared
+  const detectImageAspect = detectImageAspectShared
+  const detectVideoAspect = detectVideoAspectShared
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || [])
