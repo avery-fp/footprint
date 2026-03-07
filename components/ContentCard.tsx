@@ -7,6 +7,9 @@ import { audioManager } from '@/lib/audio-manager'
 import { parseEmbed, getYouTubeThumbnail, extractYouTubeId } from '@/lib/parseEmbed'
 import type { EmbedResult } from '@/lib/parseEmbed'
 
+// LAUNCH CUT — Photos + YouTube only. All other embeds → link card.
+const LAUNCH_DISABLED = new Set(['spotify', 'soundcloud', 'vimeo', 'bandcamp', 'google-maps', 'codepen', 'arena', 'figma'])
+
 function extractSpotifyInfo(url: string): { type: string; id: string } | null {
   const match = url.match(/open\.spotify\.com\/(track|album|playlist|artist|episode|show)\/([a-zA-Z0-9]+)/)
   return match ? { type: match[1], id: match[2] } : null
@@ -283,7 +286,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   // SPOTIFY — album art facade on mobile, iframe on desktop
   // ════════════════════════════════════════
-  if (content.type === 'spotify') {
+  if (content.type === 'spotify' && !LAUNCH_DISABLED.has(content.type)) {
     const spotifyInfo = extractSpotifyInfo(content.url)
     if (spotifyInfo) {
       // Compact glass player for small tiles (any device)
@@ -355,7 +358,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   // SOUNDCLOUD — facade first, click loads embed
   // ════════════════════════════════════════
-  if (content.type === 'soundcloud' && !iframeFailed) {
+  if (content.type === 'soundcloud' && !iframeFailed && !LAUNCH_DISABLED.has(content.type)) {
     const embed = parseEmbed(content.url)
     if (!isActivated) {
       return (
@@ -408,7 +411,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   // VIMEO — lazy loaded embed via GlassEmbedFrame
   // ════════════════════════════════════════
-  if (content.type === 'vimeo' && !iframeFailed) {
+  if (content.type === 'vimeo' && !iframeFailed && !LAUNCH_DISABLED.has(content.type)) {
     const embed = parseEmbed(content.url)
     if (embed) {
       const vimeoSrc = enforceEmbedDarkMode(embed.embedUrl, 'vimeo')
@@ -590,7 +593,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // Try iframe with 3s timeout → fallback to link card
   // ════════════════════════════════════════
   const embed = parseEmbed(content.url)
-  if (embed && !iframeFailed) {
+  if (embed && !iframeFailed && !LAUNCH_DISABLED.has(embed.platform)) {
     return (
       <Tier2EmbedTile
         embed={embed}

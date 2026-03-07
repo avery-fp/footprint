@@ -320,13 +320,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               background: 'rgba(255,255,255,0.06)',
             }}
             onClick={() => {
-              // Playable media handles its own inline interaction — don't hijack with lightbox
-              if (['youtube', 'vimeo', 'soundcloud', 'video'].includes(item.type)) return
-              // Generic links: open directly, no modal intermediary
-              if (!['image', 'thought', 'spotify'].includes(item.type) && item.url) {
-                window.open(item.url, '_blank', 'noopener,noreferrer')
-                return
-              }
+              // LAUNCH CUT: lightbox only for photos + thoughts. YouTube plays inline. Everything else → link card.
+              if (!['image', 'thought'].includes(item.type)) return
               setFocusedItem(item)
             }}
           >
