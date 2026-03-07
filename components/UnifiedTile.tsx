@@ -58,7 +58,7 @@ export default function UnifiedTile({
     const letterSpacing = len <= 6 ? '-0.03em' : len <= 20 ? '-0.02em' : '-0.01em'
     return (
       <div
-        className="w-full h-full flex items-center justify-center p-4"
+        className="w-full min-h-[120px] flex items-center justify-center p-4"
         style={{ background: 'rgba(255,255,255,0.04)' }}
         data-tile-id={item.id}
         data-tile-type="thought"
@@ -77,7 +77,7 @@ export default function UnifiedTile({
   if (item.type === 'video') {
     if (mode === 'public') {
       return (
-        <div className="w-full h-full" data-tile-id={item.id} data-tile-type="video">
+        <div className="w-full" data-tile-id={item.id} data-tile-type="video">
           <VideoTile src={item.url} onWidescreen={noop} />
         </div>
       )
@@ -101,7 +101,7 @@ export default function UnifiedTile({
   if (item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) {
     if (mode === 'public') {
       return (
-        <div className="w-full h-full" data-tile-id={item.id} data-tile-type="video">
+        <div className="w-full" data-tile-id={item.id} data-tile-type="video">
           <VideoTile src={item.url} onWidescreen={noop} />
         </div>
       )
@@ -122,6 +122,23 @@ export default function UnifiedTile({
 
   // ── Image ──
   if (item.type === 'image') {
+    if (mode === 'public') {
+      // Masonry: natural image height, no cropping
+      return (
+        <div className="w-full overflow-hidden" data-tile-id={item.id} data-tile-type="image">
+          <TileImage
+            src={item.url}
+            alt={item.title || ''}
+            width={600}
+            height={800}
+            sizes="(max-width: 768px) 50vw, 25vw"
+            index={index}
+            onWidescreen={noop}
+          />
+        </div>
+      )
+    }
+    // Editor / sandbox — fixed dimensions for grid
     const w = size >= 3 ? 880 : size >= 2 ? 440 : 220
     const h = size >= 3 ? 495 : size >= 2 ? 330 : 220
     return (
@@ -140,6 +157,20 @@ export default function UnifiedTile({
   }
 
   // ── Everything else — ContentCard ──
+  if (mode === 'public') {
+    return (
+      <div className="w-full" data-tile-id={item.id} data-tile-type={item.type}>
+        <ContentCard
+          content={item}
+          isMobile={isMobile}
+          tileSize={size}
+          aspect={aspect}
+          isPublicView
+          isExpanded={isExpanded}
+        />
+      </div>
+    )
+  }
   return (
     <div className="w-full h-full" data-tile-id={item.id} data-tile-type={item.type}>
       <ContentCard
@@ -147,7 +178,7 @@ export default function UnifiedTile({
         isMobile={isMobile}
         tileSize={size}
         aspect={aspect}
-        isPublicView={mode === 'public'}
+        isPublicView={false}
         isExpanded={isExpanded}
       />
     </div>

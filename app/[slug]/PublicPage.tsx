@@ -3,24 +3,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import Image from 'next/image'
 import UnifiedTile from '@/components/UnifiedTile'
-import {
-  resolveAspect,
-  isVideoTile,
-  getGridClass,
-  getGridClassHome,
-  getAspectClass,
-} from '@/lib/media/aspect'
 
 import WeatherEffect from '@/components/WeatherEffect'
-import { PlusButton } from '@/components/PlusButton'
 import { RemoveBubble } from '@/components/RemoveBubble'
 import { RolodexDrawer } from '@/components/RolodexDrawer'
 import FloatingCtaBar from '@/components/FloatingCtaBar'
-import {
-  type LayoutMode,
-  shuffleForGrid,
-  getLayoutConfig,
-} from '@/lib/layout-engine'
 
 interface Room {
   id: string
@@ -37,8 +24,6 @@ interface PublicPageProps {
   pageUrl: string
   isDraft?: boolean
 }
-
-const noop = () => {}
 
 // Wallpaper filter per room
 const ROOM_FILTERS = [
@@ -61,14 +46,8 @@ const ROOM_OVERLAYS = [
 ]
 const DEFAULT_OVERLAY = 'rgba(0,0,0,0.35)'
 
-// Grid helpers + aspect resolution imported from @/lib/media/aspect
-
 export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl, isDraft }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
-  const layoutMode: LayoutMode = 'grid'
-  const publicLayout = footprint.grid_mode === 'home' ? 'home' : 'default'
-
-  const serialNumber = footprint.serial_number || 0
 
   // Default to first room
   useEffect(() => {
@@ -86,7 +65,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [showToast, setShowToast] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [roomFade, setRoomFade] = useState<'visible' | 'out' | 'in'>('visible')
-  const [focusedItem, setFocusedItem] = useState<any>(null)
 
   // Content filtering
   const validContent = useMemo(() =>
@@ -110,8 +88,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     ? visibleRooms.find(r => r.id === activeRoomId)?.content || []
     : validContent
 
-  // Deterministic shuffle — same serial → same order every visit
-  const content = useMemo(() => shuffleForGrid(baseContent, serialNumber), [baseContent, serialNumber])
+  // Show tiles in user's arranged order — no shuffle
+  const content = baseContent
 
   // Wallpaper filter
   const activeRoomIndex = activeRoomId ? visibleRooms.findIndex(r => r.id === activeRoomId) : -1
@@ -151,7 +129,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           if (data.user?.id === footprint.user_id) {
             setIsOwner(true)
           }
-          // Fetch their own footprint slug for portal navigation
           fetch('/api/footprint-for-user', { credentials: 'include' })
             .then(async r2 => {
               if (r2.ok) {
@@ -182,70 +159,34 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     return () => clearTimeout(t)
   }, [showToast])
 
-  // Layout config
-  const layoutConfig = useMemo(() => getLayoutConfig(layoutMode), [layoutMode])
-
-  // Tile renderer — delegates to UnifiedTile
-  const renderTileContent = (item: any, index: number, size: number, aspect: string) => (
-    <UnifiedTile
-      item={item}
-      index={index}
-      size={size}
-      aspect={aspect}
-      mode="public"
-      isMobile={isMobile}
-    />
-  )
-
   // ═══════════════════════════════════════════
-  // THE GRID — matches edit page layout with size + aspect support
+  // MASONRY — CSS Columns, natural image heights
   // ═══════════════════════════════════════════
-  const isHomeLayout = publicLayout === 'home'
   const activeGrid = (
     <div
-      className="grid grid-cols-2 md:grid-cols-4"
+      className="columns-2 md:columns-4 gap-1"
       style={{
-        gap: '3px',
-        gridAutoFlow: 'dense',
-        ...(isHomeLayout ? { gridAutoRows: 'auto' } : {}),
         opacity: roomFade === 'out' ? 0 : 1,
         transform: roomFade === 'out' ? 'translateY(6px)' : roomFade === 'in' ? 'translateY(-6px)' : 'translateY(0)',
         transition: 'opacity 250ms ease-out, transform 350ms ease-out',
       }}
     >
-      {content.map((item: any, idx: number) => {
-        const size = item.size || 1
-        const isVid = isVideoTile(item.type, item.url)
-        const aspect = isHomeLayout
-          ? resolveAspect(item.aspect, item.type, item.url)
-          : (item.aspect || 'square')
-        const gridClassStr = isHomeLayout
-          ? `${getGridClassHome(size, aspect, isVid)} ${getAspectClass(isVid ? 'wide' : aspect)}`.trim()
-          : getGridClass(size, aspect, isVid)
-
-        return (
-          <div
-            key={item.id}
-            className={`overflow-hidden cursor-pointer hover:opacity-90 transition-opacity ${gridClassStr}`}
-            style={{
-              borderRadius: `${layoutConfig.tileRadius}px`,
-              boxShadow: layoutConfig.tileShadow,
-              background: 'rgba(255,255,255,0.06)',
-            }}
-            onClick={() => {
-              // Lightbox for images and thoughts only
-              if (
-                (item.type === 'image' && !item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) ||
-                item.type === 'thought'
-              ) {
-                setFocusedItem(item)
-              }
-            }}
-          >
-            {renderTileContent(item, idx, size, aspect)}
-          </div>
-        )
-      })}
+      {content.map((item: any, idx: number) => (
+        <div
+          key={item.id}
+          className="break-inside-avoid mb-1 overflow-hidden rounded-xl"
+          style={{ background: 'rgba(255,255,255,0.06)' }}
+        >
+          <UnifiedTile
+            item={item}
+            index={idx}
+            size={1}
+            aspect="auto"
+            mode="public"
+            isMobile={isMobile}
+          />
+        </div>
+      ))}
     </div>
   )
 
@@ -364,9 +305,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </div>
         )}
 
-        {/* The Grid */}
+        {/* Masonry Grid */}
         <div
-          className="fp-grid-container mx-auto w-full"
+          className="fp-grid-container mx-auto w-full px-1"
           style={{ maxWidth: '880px' }}
         >
           <div className="fp-grid-arrive">
@@ -439,49 +380,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           copied.
         </div>
       )}
-
-      {/* Lightbox — images and thoughts only */}
-      {focusedItem && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(0, 0, 0, 0.85)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}
-          onClick={() => setFocusedItem(null)}
-        >
-          <button
-            className="absolute top-5 right-5 w-9 h-9 flex items-center justify-center rounded-full text-white/50 hover:text-white/80 transition-colors z-50"
-            style={{ background: 'rgba(255,255,255,0.08)' }}
-            onClick={() => setFocusedItem(null)}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-          </button>
-          <div className="max-w-3xl max-h-[90vh] w-full" onClick={e => e.stopPropagation()}>
-            {focusedItem.type === 'image' ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
-                src={focusedItem.url}
-                alt={focusedItem.title || ''}
-                className="w-full max-h-[85vh] object-contain rounded-2xl"
-              />
-            ) : focusedItem.type === 'thought' ? (
-              <div
-                className="rounded-2xl p-8 text-center max-w-lg mx-auto"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.06)',
-                  backdropFilter: 'blur(22px) saturate(140%)',
-                  WebkitBackdropFilter: 'blur(22px) saturate(140%)',
-                  boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.10)',
-                }}
-              >
-                <p className="text-white text-lg font-light leading-relaxed" style={{ letterSpacing: '-0.01em' }}>
-                  {focusedItem.title || ''}
-                </p>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      )}
-
     </div>
   )
 }
-
