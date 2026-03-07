@@ -262,22 +262,17 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         </div>
       )
     }
-    // Activated — swap facade for glass iframe
-    const ytSrc = enforceEmbedDarkMode(
-      `https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0`,
-      'youtube'
-    )
+    // YouTube activated state — canonical fix
+    const ytSrc = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0&color=white`
     return (
-      <div
-        ref={containerRef}
-        className="w-full h-full fp-tile overflow-hidden relative"
-      >
-        <GlassEmbedFrame
+      <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative bg-black">
+        <iframe
           src={ytSrc}
-          allow="autoplay; encrypted-media"
+          className="w-full h-full"
+          style={{ border: 'none' }}
+          allow="autoplay; encrypted-media; fullscreen"
           allowFullScreen
-          sandbox="allow-scripts allow-same-origin allow-popups allow-presentation allow-forms"
-          onError={() => setIframeFailed(true)}
+          referrerPolicy="origin"
         />
       </div>
     )
