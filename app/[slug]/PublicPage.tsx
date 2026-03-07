@@ -323,8 +323,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               background: 'rgba(255,255,255,0.06)',
             }}
             onClick={() => {
-              // YouTube plays inline, Spotify opens outbound, links navigate via <a> — no modal
-              if (item.type === 'youtube' || item.type === 'spotify' || item.type === 'link') return
+              // LAUNCH CUT: lightbox only for photos, video, thoughts — all else is a link card
+              if (!['image', 'video', 'thought'].includes(item.type)) return
               setFocusedItem(item)
             }}
           >
