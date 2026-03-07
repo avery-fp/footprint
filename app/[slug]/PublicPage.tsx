@@ -545,43 +545,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 alt={focusedItem.title || ''}
                 className="w-full max-h-[85vh] object-contain rounded-2xl"
               />
-            ) : focusedItem.type === 'spotify' ? (
-              <div
-                className="w-full overflow-hidden"
-                style={{
-                  borderRadius: '16px',
-                  background: 'rgba(255, 255, 255, 0.06)',
-                  backdropFilter: 'blur(22px) saturate(140%)',
-                  WebkitBackdropFilter: 'blur(22px) saturate(140%)',
-                  boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.12)',
-                }}
-              >
-                <iframe
-                  src={(() => {
-                    const m = focusedItem.url?.match(/open\.spotify\.com\/(track|album|playlist|artist|episode|show)\/([a-zA-Z0-9]+)/)
-                    return m ? `https://open.spotify.com/embed/${m[1]}/${m[2]}?theme=0` : focusedItem.url
-                  })()}
-                  className="w-full h-[380px]"
-                  style={{ border: 'none', borderRadius: '16px' }}
-                  allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                />
-              </div>
-            ) : focusedItem.type === 'youtube' ? (
-              (() => {
-                const ytMatch = focusedItem.url?.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
-                const ytId = ytMatch?.[1]
-                return ytId ? (
-                  <div className="w-full aspect-video overflow-hidden" style={{ borderRadius: '16px' }}>
-                    <iframe
-                      src={`https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0&color=white`}
-                      className="w-full h-full"
-                      style={{ border: 'none', borderRadius: '16px' }}
-                      allow="autoplay; encrypted-media; fullscreen"
-                      allowFullScreen
-                    />
-                  </div>
-                ) : null
-              })()
             ) : focusedItem.type === 'thought' ? (
               <div
                 className="rounded-2xl p-8 text-center max-w-lg mx-auto"
