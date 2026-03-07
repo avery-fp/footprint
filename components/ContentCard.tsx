@@ -286,43 +286,41 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   if (content.type === 'spotify') {
     const spotifyInfo = extractSpotifyInfo(content.url)
     if (spotifyInfo) {
-      // Clean outbound music object — album art + play badge + link to Spotify
+      // Inline Spotify embed — plays directly in the grid, no navigation, no lightbox
+      const embedSrc = `https://open.spotify.com/embed/${spotifyInfo.type}/${spotifyInfo.id}?theme=0&utm_source=generator`
       return (
-        <a
-          ref={containerRef as any}
-          href={content.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`block w-full h-full ${aspectClass || 'aspect-square'} fp-tile overflow-hidden relative cursor-pointer group`}
+        <div
+          ref={containerRef}
+          className={`w-full h-full ${aspectClass || 'aspect-square'} fp-tile overflow-hidden relative`}
           style={{
             ...GLASS_STYLE,
             borderRadius: 'inherit',
           }}
+          onClick={(e) => e.stopPropagation()}
         >
-          {content.thumbnail_url && isInView && (
-            <Image
-              src={content.thumbnail_url}
-              alt=""
-              fill
-              sizes="(max-width: 768px) 50vw, 25vw"
-              className={fitClass}
+          {isInView ? (
+            <iframe
+              src={embedSrc}
+              width="100%"
+              height="100%"
+              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
               loading="lazy"
-              quality={75}
-              onLoad={() => setIsLoaded(true)}
+              style={{
+                border: 'none',
+                borderRadius: 'inherit',
+                background: 'transparent',
+              }}
             />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-          <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-[#1DB954] flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform shadow-lg">
-              <svg className="w-3.5 h-3.5 text-black ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z"/>
-              </svg>
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full bg-[#1DB954] flex items-center justify-center">
+                <svg className="w-3.5 h-3.5 text-black ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+              </div>
             </div>
-            <p className="text-white text-xs font-medium leading-tight line-clamp-2 min-w-0">
-              {content.title || 'Spotify'}
-            </p>
-          </div>
-        </a>
+          )}
+        </div>
       )
     }
   }

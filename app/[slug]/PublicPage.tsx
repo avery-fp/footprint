@@ -233,10 +233,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // Layout config
   const layoutConfig = useMemo(() => getLayoutConfig(layoutMode), [layoutMode])
 
-  // Tile renderer
+  // Tile renderer — relies on canonical type only, no re-derivation
   const renderTileContent = (item: any, index: number, size: number, aspect: string) => {
-    const isVideo = item.type === 'video' || (item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i))
-
     if (item.type === 'thought') {
       const text = item.title || ''
       const len = text.length
@@ -261,9 +259,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       )
     }
 
-    if (isVideo) {
+    if (item.type === 'video') {
       return (
-        <div className="w-full h-full" data-tile-id={item.id} data-tile-type={item.type}>
+        <div className="w-full h-full" data-tile-id={item.id} data-tile-type="video">
           <VideoTile src={item.url} onWidescreen={noop} />
         </div>
       )
@@ -323,9 +321,18 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               background: 'rgba(255,255,255,0.06)',
             }}
             onClick={() => {
-              // YouTube plays inline, Spotify opens outbound, links navigate via <a> — no modal
-              if (item.type === 'youtube' || item.type === 'spotify' || item.type === 'link') return
-              setFocusedItem(item)
+              // Strict type-aware click map — only image + thought open lightbox
+              if (item.type === 'youtube') return  // inline play via facade
+              if (item.type === 'video') return    // inline play
+              if (item.type === 'spotify') return  // inline embed
+              if (item.type === 'link') return     // <a> handles navigation
+              if (item.type === 'soundcloud') return // inline embed
+              if (item.type === 'vimeo') return    // inline embed
+              if (item.type === 'image' || item.type === 'thought') {
+                setFocusedItem(item)
+                return
+              }
+              // All other types (twitter, instagram, tiktok, etc.) — open in new tab via <a>
             }}
           >
             {renderTileContent(item, idx, size, aspect)}
@@ -534,7 +541,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
           <div className="max-w-3xl max-h-[90vh] w-full" onClick={e => e.stopPropagation()}>
-            {focusedItem.type === 'video' || (focusedItem.type === 'image' && focusedItem.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) ? (
+            {focusedItem.type === 'video' ? (
               <video
                 src={focusedItem.url}
                 controls

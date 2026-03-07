@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
       tile: {
         id: tile.id,
         url: tile.image_url,
-        type: 'image',
+        type: /\.(mp4|mov|webm|m4v)($|\?)/i.test(tile.image_url || '') ? 'video' : 'image',
         title: null,
         description: null,
         thumbnail_url: null,

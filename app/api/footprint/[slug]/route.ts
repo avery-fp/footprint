@@ -59,7 +59,7 @@ export async function GET(
       const libraryTiles = (libraryResult.data || []).map(item => ({
         id: item.id,
         url: item.image_url,
-        type: 'image',
+        type: /\.(mp4|mov|webm|m4v)($|\?)/i.test(item.image_url || '') ? 'video' : 'image',
         title: item.title || null,
         description: null,
         thumbnail_url: null,

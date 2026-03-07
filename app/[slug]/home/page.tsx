@@ -42,7 +42,7 @@ function resolveAspect(explicitAspect: string | undefined | null, type: string, 
   // No explicit choice — use content-type defaults
   if (type === 'youtube' || type === 'vimeo') return 'wide'
   if (type === 'video') return 'auto'
-  if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return 'auto'
+  // Legacy video-in-image fallthrough removed — canonical type handles this
   if (type === 'image') return 'auto'
   // embeds, thoughts, social — square works well
   return 'square'
@@ -126,7 +126,7 @@ function SortableTile({
     opacity: isDragging ? 1 : deleting ? 0.5 : anyDragging ? 0.9 : 1,
   }
 
-  const isVideo = content.type === 'image' && content.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
+  const isVideo = content.type === 'video'
 
   // Video visibility — only play when on-screen, pause when off
   useEffect(() => {
@@ -1444,7 +1444,7 @@ export default function EditPage() {
 
     // 8 uploaded-video cap (YouTube/Vimeo/embed tiles are free — only count direct uploads)
     const isUploadedVideo = (c: DraftContent) =>
-      c.type === 'image' && c.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
+      c.type === 'video'
     const existingVideos = draft.content.filter(isUploadedVideo).length
     const incomingVideos = files.filter(f =>
       VIDEO_MIME.includes(f.type) || /\.(mp4|mov|webm|m4v)$/i.test(f.name)
@@ -1464,7 +1464,7 @@ export default function EditPage() {
       return {
         id: tempIds[i],
         url: URL.createObjectURL(file) + (isVideo ? '#.mp4' : ''),
-        type: 'image' as const,
+        type: (isVideo ? 'video' : 'image') as any,
         title: null,
         description: null,
         thumbnail_url: null,
@@ -1613,7 +1613,7 @@ export default function EditPage() {
   // ── Derived values ──
 
   const selectedTile = selectedTileId ? draft?.content.find(c => c.id === selectedTileId) : null
-  const selectedIsImage = selectedTile?.type === 'image' && !selectedTile?.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
+  const selectedIsImage = selectedTile?.type === 'image'
   const selectedHasThumbnail = selectedTile?.thumbnail_url
 
   // ── Render ──
@@ -1638,16 +1638,24 @@ export default function EditPage() {
   return (
     <ErrorBoundary context="editor">
     <div className="min-h-screen pb-32 relative overflow-x-hidden max-w-[100vw]" style={{ background: theme.colors.background, color: theme.colors.text }}>
-      {/* Wallpaper layer */}
+      {/* Wallpaper layer — preloaded with Next Image to match public page */}
       {wallpaperUrl && (
-        <div
-          className="fixed inset-0 z-0 bg-cover bg-center"
-          style={{
-            backgroundImage: `url(${wallpaperUrl})`,
-            filter: backgroundBlur ? 'blur(12px) brightness(0.7)' : 'none',
-            transform: backgroundBlur ? 'scale(1.05)' : 'none',
-          }}
-        />
+        <div className="fixed inset-0 z-0">
+          <Image
+            src={wallpaperUrl}
+            alt=""
+            fill
+            priority
+            quality={60}
+            sizes="100vw"
+            className="object-cover"
+            style={{
+              filter: backgroundBlur ? 'blur(12px) brightness(0.7)' : 'none',
+              transform: backgroundBlur ? 'scale(1.05)' : 'none',
+              transition: 'filter 0.5s ease',
+            }}
+          />
+        </div>
       )}
 
       {/* ═══ HEADER ═══ */}
@@ -1954,7 +1962,7 @@ export default function EditPage() {
               {/* Tile preview */}
               <div className="flex items-center gap-3 pb-3 mb-1">
                 <div className="w-10 h-10 rounded-lg overflow-hidden bg-white/[0.06] flex-shrink-0">
-                  {selectedTile.type === 'image' && selectedTile.url && !selectedTile.url.match(/\.(mp4|mov|webm|m4v)($|\?)/i) ? (
+                  {selectedTile.type === 'image' && selectedTile.url ? (
                     <img src={selectedTile.url} alt="" className="w-full h-full object-cover" />
                   ) : selectedTile.thumbnail_url ? (
                     <img src={selectedTile.thumbnail_url} alt="" className="w-full h-full object-cover" />
