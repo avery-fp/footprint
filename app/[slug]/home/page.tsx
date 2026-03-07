@@ -1827,6 +1827,30 @@ export default function EditPage() {
         </div>
       </div>
 
+      {/* Layout toggle — fixed position, always visible */}
+      <div className="fixed top-20 right-6 z-30 flex items-center gap-2 bg-black/40 backdrop-blur-sm rounded-full border border-white/10 px-3 py-1.5">
+        <button
+          onClick={() => handleLayoutToggle('default')}
+          className={`text-[11px] font-mono px-3 py-1.5 rounded-full transition-all ${
+            publicLayout === 'default'
+              ? 'text-white/80 bg-white/10'
+              : 'text-white/40 hover:text-white/60'
+          }`}
+        >
+          default
+        </button>
+        <button
+          onClick={() => handleLayoutToggle('home')}
+          className={`text-[11px] font-mono px-3 py-1.5 rounded-full transition-all ${
+            publicLayout === 'home'
+              ? 'text-white/80 bg-white/10'
+              : 'text-white/40 hover:text-white/60'
+          }`}
+        >
+          home
+        </button>
+      </div>
+
       {/* ═══ TILE GRID ═══ */}
       <div className="max-w-7xl mx-auto px-3 md:px-6 pt-28 md:pt-24 pb-32 relative z-10"
         onClick={(e) => {
@@ -1849,10 +1873,15 @@ export default function EditPage() {
               items={filteredContent.map(item => item.id)}
               strategy={rectSortingStrategy}
             >
-              <div className="grid grid-cols-2 md:grid-cols-4" style={{
+              <motion.div
+                key={publicLayout}
+                layout
+                transition={{ duration: 0.35, ease: 'easeInOut' }}
+                className="grid grid-cols-2 md:grid-cols-4"
+                style={{
                 gap: `${getLayoutConfig(layoutMode).gap}px`,
                 '--fp-tile-radius': `${getLayoutConfig(layoutMode).tileRadius}px`,
-                gridAutoRows: 'auto',
+                gridAutoRows: publicLayout === 'home' ? 'auto' : undefined,
                 gridAutoFlow: 'dense',
                 opacity: gridFade === 'out' ? 0 : 1,
                 transition: 'opacity 150ms ease-out, gap 350ms ease-out',
@@ -1883,7 +1912,7 @@ export default function EditPage() {
                     onPinchResize={(direction) => handlePinchResize(item.id, direction)}
                   />
                 ))}
-              </div>
+              </motion.div>
             </SortableContext>
           </DndContext>
           </LayoutGroup>
@@ -2162,38 +2191,22 @@ export default function EditPage() {
         {/* Default pill: upload | link | thought + wallpaper/layout controls */}
         {pillMode === 'idle' && (
           <div className="flex flex-col items-center gap-2">
-            <div className="flex items-center gap-1.5">
-              {wallpaperUrl && (
-                <div className="flex items-center gap-0 bg-black/40 backdrop-blur-sm rounded-full border border-white/10 overflow-hidden px-1">
-                  <button
-                    onClick={handleToggleBlur}
-                    className={`text-[10px] font-mono px-3 py-1.5 rounded-full transition-all ${backgroundBlur ? 'text-white/80 bg-white/10' : 'text-white/40 hover:text-white/60'}`}
-                  >
-                    blur
-                  </button>
-                  <button
-                    onClick={handleClearWallpaper}
-                    className="text-[10px] font-mono text-white/40 hover:text-red-400/80 px-3 py-1.5 rounded-full transition-all"
-                  >
-                    clear bg
-                  </button>
-                </div>
-              )}
+            {wallpaperUrl && (
               <div className="flex items-center gap-0 bg-black/40 backdrop-blur-sm rounded-full border border-white/10 overflow-hidden px-1">
                 <button
-                  onClick={() => handleLayoutToggle('default')}
-                  className={`text-[10px] font-mono px-3 py-1.5 rounded-full transition-all ${publicLayout === 'default' ? 'text-white/80 bg-white/10' : 'text-white/40 hover:text-white/60'}`}
+                  onClick={handleToggleBlur}
+                  className={`text-[10px] font-mono px-3 py-1.5 rounded-full transition-all ${backgroundBlur ? 'text-white/80 bg-white/10' : 'text-white/40 hover:text-white/60'}`}
                 >
-                  default
+                  blur
                 </button>
                 <button
-                  onClick={() => handleLayoutToggle('home')}
-                  className={`text-[10px] font-mono px-3 py-1.5 rounded-full transition-all ${publicLayout === 'home' ? 'text-white/80 bg-white/10' : 'text-white/40 hover:text-white/60'}`}
+                  onClick={handleClearWallpaper}
+                  className="text-[10px] font-mono text-white/40 hover:text-red-400/80 px-3 py-1.5 rounded-full transition-all"
                 >
-                  home
+                  clear bg
                 </button>
               </div>
-            </div>
+            )}
             <div className="flex items-center gap-0 bg-black/50 backdrop-blur-sm rounded-full border border-white/20 overflow-hidden">
               <button
                 onClick={() => fileInputRef.current?.click()}

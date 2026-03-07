@@ -410,25 +410,16 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
       )}
 
-      {/* Top-right action */}
+      {/* Top-right action — always home icon */}
       <div className="fixed top-5 right-4 md:right-6 z-30 flex items-center gap-2">
-        {isOwner ? (
-          <a
-            href={`/${footprint.username}/home`}
-            className="h-9 px-4 flex items-center justify-center rounded-full bg-white/[0.06] hover:bg-white/[0.12] transition touch-manipulation text-[13px] font-mono text-white/50 hover:text-white/80"
-          >
-            edit
-          </a>
-        ) : isLoggedIn ? (
-          <a
-            href="/build"
-            className="h-9 px-4 flex items-center justify-center rounded-full bg-white/[0.06] hover:bg-white/[0.12] transition touch-manipulation text-[13px] font-mono text-white/50 hover:text-white/80"
-          >
-            home
-          </a>
-        ) : (
-          <PlusButton slug={footprint.slug} />
-        )}
+        <a
+          href={`/${footprint.username}/home`}
+          className="h-9 w-9 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition text-white/70 hover:text-white"
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+          </svg>
+        </a>
       </div>
 
       <div className="relative z-10 flex-1 flex flex-col">
