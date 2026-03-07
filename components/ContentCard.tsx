@@ -216,9 +216,12 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       // Click bubbles to grid wrapper → opens lightbox with proper Spotify embed
       if (tileSize <= 1 && !isExpanded) {
         return (
-          <div
-            ref={containerRef}
-            className={`w-full h-full ${aspectClass || 'aspect-square'} fp-tile overflow-hidden relative cursor-pointer group`}
+          <a
+            href={content.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            ref={containerRef as any}
+            className={`block w-full h-full ${aspectClass || 'aspect-square'} fp-tile overflow-hidden relative cursor-pointer group`}
             style={{
               ...GLASS_STYLE,
               borderRadius: 'inherit',
@@ -247,7 +250,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 {content.title || 'Spotify'}
               </p>
             </div>
-          </div>
+          </a>
         )
       }
       const embed = parseEmbed(content.url)

@@ -1,10 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo, memo } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import Image from 'next/image'
-import ContentCardBase from '@/components/ContentCard'
-import VideoTileBase from '@/components/VideoTile'
-import TileImageExtracted from '@/components/TileImage'
 import UnifiedTile from '@/components/UnifiedTile'
 import {
   resolveAspect,
@@ -12,11 +9,8 @@ import {
   getGridClass,
   getGridClassHome,
   getAspectClass,
-  getImageSizes,
 } from '@/lib/media/aspect'
 
-const ContentCard = memo(ContentCardBase)
-const VideoTile = memo(VideoTileBase)
 import WeatherEffect from '@/components/WeatherEffect'
 import { PlusButton } from '@/components/PlusButton'
 import { RemoveBubble } from '@/components/RemoveBubble'
@@ -68,9 +62,6 @@ const ROOM_OVERLAYS = [
 const DEFAULT_OVERLAY = 'rgba(0,0,0,0.35)'
 
 // Grid helpers + aspect resolution imported from @/lib/media/aspect
-
-// TileImage imported from @/components/TileImage
-const TileImage = TileImageExtracted
 
 export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl, isDraft }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
@@ -242,8 +233,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               background: 'rgba(255,255,255,0.06)',
             }}
             onClick={() => {
-              // Lightbox for all media types
-              setFocusedItem(item)
+              // Lightbox for images and thoughts only
+              if (
+                (item.type === 'image' && !item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) ||
+                item.type === 'thought'
+              ) {
+                setFocusedItem(item)
+              }
             }}
           >
             {renderTileContent(item, idx, size, aspect)}
@@ -444,7 +440,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
       )}
 
-      {/* Lightbox overlay */}
+      {/* Lightbox — images and thoughts only */}
       {focusedItem && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -459,15 +455,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
           <div className="max-w-3xl max-h-[90vh] w-full" onClick={e => e.stopPropagation()}>
-            {focusedItem.type === 'video' || (focusedItem.type === 'image' && focusedItem.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) ? (
-              <video
-                src={focusedItem.url}
-                controls
-                autoPlay
-                playsInline
-                className="w-full max-h-[85vh] object-contain rounded-2xl"
-              />
-            ) : focusedItem.type === 'image' ? (
+            {focusedItem.type === 'image' ? (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 src={focusedItem.url}
@@ -488,37 +476,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                   {focusedItem.title || ''}
                 </p>
               </div>
-            ) : ['youtube', 'spotify', 'soundcloud', 'vimeo'].includes(focusedItem.type) ? (
-              <div className="w-full rounded-2xl overflow-hidden" style={{ aspectRatio: focusedItem.type === 'youtube' || focusedItem.type === 'vimeo' ? '16/9' : undefined }}>
-                <ContentCard
-                  content={focusedItem}
-                  isMobile={isMobile}
-                  tileSize={3}
-                  aspect={focusedItem.type === 'youtube' || focusedItem.type === 'vimeo' ? 'wide' : 'square'}
-                  isPublicView
-                  isExpanded
-                />
-              </div>
-            ) : focusedItem.url ? (
-              <a
-                href={focusedItem.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block rounded-2xl p-8 text-center max-w-lg mx-auto cursor-pointer hover:scale-[1.01] transition-transform"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.06)',
-                  backdropFilter: 'blur(22px) saturate(140%)',
-                  WebkitBackdropFilter: 'blur(22px) saturate(140%)',
-                  boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.10)',
-                }}
-              >
-                <p className="text-white text-lg font-light leading-relaxed mb-2" style={{ letterSpacing: '-0.01em' }}>
-                  {focusedItem.title || (() => { try { return new URL(focusedItem.url).hostname.replace('www.', '') } catch { return 'Link' } })()}
-                </p>
-                <span className="text-white/30 text-xs font-mono tracking-wider">
-                  {(() => { try { return new URL(focusedItem.url).hostname.replace('www.', '') } catch { return '' } })()}
-                </span>
-              </a>
             ) : null}
           </div>
         </div>
