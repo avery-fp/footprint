@@ -15,6 +15,7 @@ import ErrorBoundary from '@/components/ErrorBoundary'
 import { type LayoutMode, getLayoutConfig } from '@/lib/layout-engine'
 import {
   resolveAspect as resolveAspectShared,
+  isVideoTile as isVideoTileShared,
   getGridClass as getGridClassShared,
   getAspectClass as getAspectClassShared,
   getObjectFit as getObjectFitShared,
@@ -52,6 +53,7 @@ type PageMode =
 
 // Aspect / grid helpers — imported from @/lib/media/aspect
 const resolveAspect = resolveAspectShared
+const isVideoTileFn = isVideoTileShared
 const getGridClass = getGridClassShared
 const getAspectClass = getAspectClassShared
 const getObjectFit = getObjectFitShared
@@ -156,8 +158,9 @@ function SortableTile({
   }
 
   // Grid class based on size × aspect — determines col/row spanning and aspect ratio
-  const gridClass = getGridClass(size, aspect)
-  const aspectClass = getAspectClass(aspect)
+  // Video dominance: videos always get col-span-2 row-span-2
+  const gridClass = getGridClass(size, aspect, isVideo)
+  const aspectClass = getAspectClass(isVideo ? 'wide' : aspect)
   const sizeClass = `${gridClass} ${aspectClass}`.trim()
 
   // Polaroid reveal — tile develops from frosted to crystal clear

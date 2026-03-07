@@ -8,6 +8,7 @@ import TileImageExtracted from '@/components/TileImage'
 import UnifiedTile from '@/components/UnifiedTile'
 import {
   resolveAspect,
+  isVideoTile,
   getGridClass,
   getGridClassHome,
   getAspectClass,
@@ -223,12 +224,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     >
       {content.map((item: any, idx: number) => {
         const size = item.size || 1
+        const isVid = isVideoTile(item.type, item.url)
         const aspect = isHomeLayout
           ? resolveAspect(item.aspect, item.type, item.url)
           : (item.aspect || 'square')
         const gridClassStr = isHomeLayout
-          ? `${getGridClassHome(size, aspect)} ${getAspectClass(aspect)}`.trim()
-          : getGridClass(size, aspect)
+          ? `${getGridClassHome(size, aspect, isVid)} ${getAspectClass(isVid ? 'wide' : aspect)}`.trim()
+          : getGridClass(size, aspect, isVid)
 
         return (
           <div

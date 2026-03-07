@@ -12,6 +12,7 @@ export type { ResolvedMedia, MediaType } from './resolveMedia'
 // Aspect + grid helpers
 export {
   resolveAspect,
+  isVideoTile,
   getGridClass,
   getGridClassHome,
   getAspectClass,

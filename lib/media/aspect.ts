@@ -10,6 +10,9 @@
 /**
  * Resolve the effective aspect ratio for a tile.
  * Priority: stored value > content-type default > 'square'
+ *
+ * Video tiles get 'wide' by default — they dominate the grid at col-span-2.
+ * The detected file aspect is used for object-fit only, not container sizing.
  */
 export function resolveAspect(
   stored: string | null | undefined,
@@ -19,10 +22,19 @@ export function resolveAspect(
   if (stored && stored !== 'square') return stored
   if (stored === 'square') return 'square'
   if (type === 'youtube' || type === 'vimeo') return 'wide'
-  if (type === 'video') return 'auto'
-  if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return 'auto'
+  // Video dominance — all videos default to wide (col-span-2 row-span-1)
+  if (type === 'video') return 'wide'
+  if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return 'wide'
   if (type === 'image') return 'auto'
   return 'square'
+}
+
+/**
+ * Check if a tile is effectively a video (type=video or image with video extension).
+ * Used for video tile dominance logic.
+ */
+export function isVideoTile(type: string, url?: string): boolean {
+  return type === 'video' || (type === 'image' && !!url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i))
 }
 
 // ── Grid class helpers ──────────────────────────────────────
@@ -30,8 +42,14 @@ export function resolveAspect(
 /**
  * Default public grid — aspect ratio bundled into the class string.
  * Used by PublicPage default layout.
+ *
+ * Pass isVideo=true for video tile dominance: videos always get col-span-2 row-span-2.
  */
-export function getGridClass(size: number, aspect: string | null | undefined): string {
+export function getGridClass(size: number, aspect: string | null | undefined, isVideo = false): string {
+  // Video dominance — force col-span-2 row-span-2 on all surfaces
+  if (isVideo) {
+    return 'col-span-2 row-span-2 aspect-video'
+  }
   if (aspect === 'wide' || aspect === 'landscape') {
     if (size >= 3) return 'col-span-2 row-span-1 md:col-span-4 md:row-span-2 aspect-video'
     if (size >= 2) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-1 aspect-video'
@@ -51,8 +69,14 @@ export function getGridClass(size: number, aspect: string | null | undefined): s
 /**
  * Home-style grid — spanning only, no aspect class bundled.
  * Aspect is handled separately via getAspectClass().
+ *
+ * Pass isVideo=true for video tile dominance.
  */
-export function getGridClassHome(size: number, aspect: string): string {
+export function getGridClassHome(size: number, aspect: string, isVideo = false): string {
+  // Video dominance — force col-span-2 row-span-2
+  if (isVideo) {
+    return 'col-span-2 row-span-2'
+  }
   if (aspect === 'wide' || aspect === 'landscape') {
     if (size >= 3) return 'col-span-2 row-span-1 md:col-span-4 md:row-span-2'
     if (size >= 2) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-1'
