@@ -177,8 +177,8 @@ interface ContentCardProps {
  * Everything fails gracefully. No broken states.
  */
 export default function ContentCard({ content, onWidescreen, isMobile = false, tileSize = 1, aspect = 'square', isPublicView = false }: ContentCardProps) {
-  const aspectClass = aspect === 'wide' ? 'aspect-video' : aspect === 'tall' ? 'aspect-[9/16]' : aspect === 'auto' ? '' : 'aspect-square'
-  const fitClass = 'object-cover'
+  const aspectClass = aspect === 'auto' ? '' : aspect === 'wide' ? 'aspect-video' : aspect === 'tall' ? 'aspect-[9/16]' : 'aspect-square'
+  const fitClass = aspect === 'auto' ? '' : 'object-cover'
   const [isActivated, setIsActivated] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
   const [isInView, setIsInView] = useState(false)
@@ -292,7 +292,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         return (
           <div
             ref={containerRef}
-            className={`w-full h-full ${aspectClass || 'aspect-square'} fp-tile overflow-hidden relative cursor-pointer group`}
+            className={`w-full ${aspectClass ? `h-full ${aspectClass}` : 'aspect-square'} fp-tile overflow-hidden relative cursor-pointer group`}
             style={{
               ...GLASS_STYLE,
               borderRadius: 'inherit',
@@ -304,7 +304,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 alt=""
                 fill
                 sizes="(max-width: 768px) 50vw, 25vw"
-                className={fitClass}
+                className={fitClass || 'object-cover'}
                 loading="lazy"
                 quality={75}
                 onLoad={() => setIsLoaded(true)}
@@ -474,25 +474,23 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   if (content.type === 'image') {
     return (
       <div ref={containerRef} className="fp-tile overflow-hidden relative">
-        <a href={content.url} target="_blank" rel="noopener noreferrer">
-          <Image
-            src={content.url}
-            alt={content.title || ''}
-            width={600}
-            height={800}
-            sizes="(max-width: 768px) 50vw, 25vw"
-            className="w-full h-full object-cover"
-            loading="lazy"
-            quality={75}
-            onLoad={(e) => {
-              setIsLoaded(true)
-              const img = e.currentTarget as HTMLImageElement
-              if (img.naturalWidth > img.naturalHeight * 1.3) {
-                onWidescreen?.()
-              }
-            }}
-          />
-        </a>
+        <Image
+          src={content.url}
+          alt={content.title || ''}
+          width={880}
+          height={880}
+          sizes="(max-width: 768px) 50vw, 25vw"
+          className={fitClass ? `w-full h-full ${fitClass}` : 'w-full h-auto'}
+          loading="lazy"
+          quality={75}
+          onLoad={(e) => {
+            setIsLoaded(true)
+            const img = e.currentTarget as HTMLImageElement
+            if (img.naturalWidth > img.naturalHeight * 1.3) {
+              onWidescreen?.()
+            }
+          }}
+        />
       </div>
     )
   }

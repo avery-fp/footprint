@@ -12,11 +12,6 @@ import { PlusButton } from '@/components/PlusButton'
 import { RemoveBubble } from '@/components/RemoveBubble'
 import { RolodexDrawer } from '@/components/RolodexDrawer'
 import FloatingCtaBar from '@/components/FloatingCtaBar'
-import {
-  type LayoutMode,
-  shuffleForGrid,
-  getLayoutConfig,
-} from '@/lib/layout-engine'
 
 interface Room {
   id: string
@@ -57,35 +52,12 @@ const ROOM_OVERLAYS = [
 ]
 const DEFAULT_OVERLAY = 'rgba(0,0,0,0.35)'
 
-function getGridClass(size: number, aspect: string | null | undefined): string {
-  if (aspect === 'wide' || aspect === 'landscape') {
-    if (size >= 3) return 'col-span-2 row-span-1 md:col-span-4 md:row-span-2 aspect-video'
-    if (size >= 2) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-1 aspect-video'
-    return 'col-span-2 row-span-1 aspect-video'
-  }
-  if (aspect === 'tall' || aspect === 'portrait') {
-    if (size >= 3) return 'col-span-2 row-span-3 md:col-span-2 md:row-span-4 aspect-[3/4]'
-    if (size >= 2) return 'col-span-1 row-span-3 md:col-span-2 md:row-span-3 aspect-[3/4]'
-    return 'col-span-1 row-span-2 aspect-[3/4]'
-  }
-  // square or auto — default 1×1 tile
-  if (size >= 3) return 'col-span-2 row-span-2 md:col-span-3 md:row-span-3 aspect-square'
-  if (size >= 2) return 'col-span-2 row-span-2 aspect-square'
-  return 'aspect-square'
-}
-
-function getImageSizes(size: number): string {
-  if (size >= 3) return '(max-width: 768px) 100vw, 880px'
-  if (size >= 2) return '(max-width: 768px) 50vw, 50vw'
-  return '(max-width: 768px) 33vw, 25vw'
-}
-
 /**
  * TileImage — bulletproof image tile with error recovery.
- * Always visible immediately. onError falls back to raw <img>.
+ * Natural height — no object-cover, no fixed aspect ratios.
  */
-function TileImage({ src, alt, width, height, sizes, index, onWidescreen }: {
-  src: string; alt: string; width: number; height: number; sizes: string; index: number; onWidescreen?: () => void
+function TileImage({ src, alt, index }: {
+  src: string; alt: string; index: number
 }) {
   const [failed, setFailed] = useState(false)
 
@@ -95,7 +67,7 @@ function TileImage({ src, alt, width, height, sizes, index, onWidescreen }: {
       <img
         src={src}
         alt={alt}
-        className="w-full h-full object-cover"
+        className="w-full h-auto"
         loading={index < 4 ? 'eager' : 'lazy'}
         decoding="async"
       />
@@ -106,18 +78,14 @@ function TileImage({ src, alt, width, height, sizes, index, onWidescreen }: {
     <Image
       src={src}
       alt={alt}
-      width={width}
-      height={height}
-      sizes={sizes}
-      className="w-full h-full object-cover"
+      width={880}
+      height={880}
+      sizes="(max-width: 768px) 50vw, 25vw"
+      className="w-full h-auto"
       loading={index < 4 ? 'eager' : 'lazy'}
       priority={index < 2}
       quality={75}
       fetchPriority={index === 0 ? 'high' : undefined}
-      onLoad={(e) => {
-        const img = e.currentTarget as HTMLImageElement
-        if (img.naturalWidth > img.naturalHeight * 1.3) onWidescreen?.()
-      }}
       onError={() => setFailed(true)}
     />
   )
@@ -125,9 +93,6 @@ function TileImage({ src, alt, width, height, sizes, index, onWidescreen }: {
 
 export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl, isDraft }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
-  const layoutMode: LayoutMode = 'grid'
-
-  const serialNumber = footprint.serial_number || 0
 
   // Default to first room
   useEffect(() => {
@@ -144,7 +109,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [showToast, setShowToast] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [roomFade, setRoomFade] = useState<'visible' | 'out' | 'in'>('visible')
-  const [focusedItem, setFocusedItem] = useState<any>(null)
 
   // Content filtering
   const validContent = useMemo(() =>
@@ -168,8 +132,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     ? visibleRooms.find(r => r.id === activeRoomId)?.content || []
     : validContent
 
-  // Deterministic shuffle — same serial → same order every visit
-  const content = useMemo(() => shuffleForGrid(baseContent, serialNumber), [baseContent, serialNumber])
+  // No shuffle — show tiles in user-arranged order
+  const content = baseContent
 
   // Wallpaper filter
   const activeRoomIndex = activeRoomId ? visibleRooms.findIndex(r => r.id === activeRoomId) : -1
@@ -229,11 +193,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     return () => clearTimeout(t)
   }, [showToast])
 
-  // Layout config
-  const layoutConfig = useMemo(() => getLayoutConfig(layoutMode), [layoutMode])
-
-  // Tile renderer
-  const renderTileContent = (item: any, index: number, size: number, aspect: string) => {
+  // Tile renderer — inline media, no lightbox
+  const renderTileContent = (item: any, index: number) => {
     if (item.type === 'thought') {
       const text = item.title || ''
       const len = text.length
@@ -241,9 +202,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       const letterSpacing = len <= 6 ? '-0.03em' : len <= 20 ? '-0.02em' : '-0.01em'
       return (
         <div
-          className="w-full h-full flex items-center justify-center p-4"
+          className="w-full flex items-center justify-center p-4"
           style={{
             background: 'rgba(255,255,255,0.04)',
+            minHeight: '120px',
           }}
           data-tile-id={item.id}
           data-tile-type="thought"
@@ -260,77 +222,61 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
     if (item.type === 'video') {
       return (
-        <div className="w-full h-full" data-tile-id={item.id} data-tile-type="video">
+        <div className="w-full" data-tile-id={item.id} data-tile-type="video">
           <VideoTile src={item.url} onWidescreen={noop} />
         </div>
       )
     }
 
     if (item.type === 'image') {
-      const w = size >= 3 ? 880 : size >= 2 ? 440 : 220
-      const h = size >= 3 ? 495 : size >= 2 ? 330 : 220
       return (
-        <div className="w-full h-full overflow-hidden" data-tile-id={item.id} data-tile-type={item.type}>
+        <div className="w-full overflow-hidden" data-tile-id={item.id} data-tile-type={item.type}>
           <TileImage
             src={item.url}
             alt={item.title || ''}
-            width={w}
-            height={h}
-            sizes={getImageSizes(size)}
             index={index}
-            onWidescreen={noop}
           />
         </div>
       )
     }
 
+    // YouTube, Spotify, SoundCloud, Vimeo, links — all handled by ContentCard inline
     return (
-      <div className="w-full h-full" data-tile-id={item.id} data-tile-type={item.type}>
-        <ContentCard content={item} isMobile={isMobile} tileSize={size} aspect={aspect} isPublicView />
+      <div className="w-full" data-tile-id={item.id} data-tile-type={item.type}>
+        <ContentCard content={item} isMobile={isMobile} tileSize={1} aspect="auto" isPublicView />
       </div>
     )
-    }
+  }
 
   // ═══════════════════════════════════════════
-  // THE GRID — matches edit page layout with size + aspect support
+  // MASONRY LAYOUT — CSS Columns, natural heights
   // ═══════════════════════════════════════════
   const activeGrid = (
     <div
-      className="grid grid-cols-2 md:grid-cols-4"
+      className="columns-2 md:columns-4 gap-1"
       style={{
-        gap: '3px',
-        gridAutoFlow: 'dense',
         opacity: roomFade === 'out' ? 0 : 1,
         transform: roomFade === 'out' ? 'translateY(6px)' : roomFade === 'in' ? 'translateY(-6px)' : 'translateY(0)',
         transition: 'opacity 250ms ease-out, transform 350ms ease-out',
       }}
     >
       {content.map((item: any, idx: number) => {
-        const size = item.size || 1
-        const aspect = item.aspect || 'square'
-        const gridClassStr = getGridClass(size, aspect)
+        // Click behavior: links open in new tab, everything else is inline
+        const handleClick = () => {
+          if (['image', 'thought', 'video', 'youtube', 'vimeo', 'soundcloud', 'spotify'].includes(item.type)) return
+          if (item.url) window.open(item.url, '_blank', 'noopener,noreferrer')
+        }
 
         return (
           <div
             key={item.id}
-            className={`overflow-hidden cursor-pointer hover:opacity-90 transition-opacity ${gridClassStr}`}
+            className="break-inside-avoid mb-1 overflow-hidden rounded-xl"
             style={{
-              borderRadius: `${layoutConfig.tileRadius}px`,
-              boxShadow: layoutConfig.tileShadow,
               background: 'rgba(255,255,255,0.06)',
             }}
-            onClick={() => {
-              // Playable media handles its own inline interaction — don't hijack with lightbox
-              if (['youtube', 'vimeo', 'soundcloud', 'video'].includes(item.type)) return
-              // Generic links: open directly, no modal intermediary
-              if (!['image', 'thought', 'spotify'].includes(item.type) && item.url) {
-                window.open(item.url, '_blank', 'noopener,noreferrer')
-                return
-              }
-              setFocusedItem(item)
-            }}
+            onClick={handleClick}
           >
-            {renderTileContent(item, idx, size, aspect)}
+            {renderTileContent(item, idx)}
           </div>
         )
       })}
@@ -521,112 +467,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
       )}
 
-      {/* Lightbox overlay */}
-      {focusedItem && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(0, 0, 0, 0.85)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}
-          onClick={() => setFocusedItem(null)}
-        >
-          <button
-            className="absolute top-5 right-5 w-9 h-9 flex items-center justify-center rounded-full text-white/50 hover:text-white/80 transition-colors z-50"
-            style={{ background: 'rgba(255,255,255,0.08)' }}
-            onClick={() => setFocusedItem(null)}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-          </button>
-          <div className="max-w-3xl max-h-[90vh] w-full" onClick={e => e.stopPropagation()}>
-            {focusedItem.type === 'video' ? (
-              <video
-                src={focusedItem.url}
-                controls
-                autoPlay
-                playsInline
-                className="w-full max-h-[85vh] object-contain rounded-2xl"
-              />
-            ) : focusedItem.type === 'image' ? (
-              <img
-                src={focusedItem.url}
-                alt={focusedItem.title || ''}
-                className="w-full max-h-[85vh] object-contain rounded-2xl"
-              />
-            ) : focusedItem.type === 'spotify' ? (
-              <div
-                className="w-full overflow-hidden"
-                style={{
-                  borderRadius: '16px',
-                  background: 'rgba(255, 255, 255, 0.06)',
-                  backdropFilter: 'blur(22px) saturate(140%)',
-                  WebkitBackdropFilter: 'blur(22px) saturate(140%)',
-                  boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.12)',
-                }}
-              >
-                <iframe
-                  src={(() => {
-                    const m = focusedItem.url?.match(/open\.spotify\.com\/(track|album|playlist|artist|episode|show)\/([a-zA-Z0-9]+)/)
-                    return m ? `https://open.spotify.com/embed/${m[1]}/${m[2]}?theme=0` : focusedItem.url
-                  })()}
-                  className="w-full h-[380px]"
-                  style={{ border: 'none', borderRadius: '16px' }}
-                  allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                />
-              </div>
-            ) : focusedItem.type === 'youtube' ? (
-              (() => {
-                const ytMatch = focusedItem.url?.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
-                const ytId = ytMatch?.[1]
-                return ytId ? (
-                  <div className="w-full aspect-video overflow-hidden" style={{ borderRadius: '16px' }}>
-                    <iframe
-                      src={`https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0&color=white`}
-                      className="w-full h-full"
-                      style={{ border: 'none', borderRadius: '16px' }}
-                      allow="autoplay; encrypted-media; fullscreen"
-                      allowFullScreen
-                    />
-                  </div>
-                ) : null
-              })()
-            ) : focusedItem.type === 'thought' ? (
-              <div
-                className="rounded-2xl p-8 text-center max-w-lg mx-auto"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.06)',
-                  backdropFilter: 'blur(22px) saturate(140%)',
-                  WebkitBackdropFilter: 'blur(22px) saturate(140%)',
-                  boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.10)',
-                }}
-              >
-                <p className="text-white text-lg font-light leading-relaxed" style={{ letterSpacing: '-0.01em' }}>
-                  {focusedItem.title || ''}
-                </p>
-              </div>
-            ) : focusedItem.url ? (
-              <a
-                href={focusedItem.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block rounded-2xl p-8 text-center max-w-lg mx-auto cursor-pointer hover:scale-[1.01] transition-transform"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.06)',
-                  backdropFilter: 'blur(22px) saturate(140%)',
-                  WebkitBackdropFilter: 'blur(22px) saturate(140%)',
-                  boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.10)',
-                }}
-              >
-                <p className="text-white text-lg font-light leading-relaxed mb-2" style={{ letterSpacing: '-0.01em' }}>
-                  {focusedItem.title || new URL(focusedItem.url).hostname.replace('www.', '')}
-                </p>
-                <span className="text-white/30 text-xs font-mono tracking-wider">
-                  {(() => { try { return new URL(focusedItem.url).hostname.replace('www.', '') } catch { return '' } })()}
-                </span>
-              </a>
-            ) : null}
-          </div>
-        </div>
-      )}
-
     </div>
   )
 }
-
