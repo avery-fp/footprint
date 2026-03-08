@@ -252,7 +252,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           }}
           className="font-mono text-[10px] tracking-[2px] lowercase text-white/30 hover:text-white/70 transition-colors duration-300 touch-manipulation"
         >
-          {!isLoggedIn ? 'sign in' : isOwner ? 'edit' : 'home'}
+          sign in
         </button>
       </div>
 
