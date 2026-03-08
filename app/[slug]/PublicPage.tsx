@@ -224,23 +224,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
       )}
 
-      {/* Top-left — sign in / edit */}
+      {/* Top-left — log in */}
       <div className="fixed top-5 left-4 md:left-6 z-30">
         <button
-          onClick={() => {
-            if (!isLoggedIn) {
-              window.location.href = '/login'
-            } else if (isOwner) {
-              window.location.href = `/${footprint.username}/home`
-            } else if (authUserSlug) {
-              window.location.href = `/${authUserSlug}/home`
-            } else {
-              window.location.href = '/login'
-            }
-          }}
+          onClick={() => { window.location.href = '/login' }}
           className="font-mono text-[10px] tracking-[2px] lowercase text-white/30 hover:text-white/70 transition-colors duration-300 touch-manipulation"
         >
-          {!isLoggedIn ? 'sign in' : isOwner ? 'edit' : 'home'}
+          log in
         </button>
       </div>
 
