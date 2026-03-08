@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { slug, url, room_id, aspect } = await request.json()
+    const { slug, url, room_id, aspect, content_type } = await request.json()
 
     if (!slug || !url) {
       return NextResponse.json({ error: 'slug and url required' }, { status: 400 })
@@ -66,13 +66,16 @@ export async function POST(request: NextRequest) {
 
     revalidatePath(`/${slug}`)
 
-    const isVideo = /\.(mp4|mov|webm|m4v)($|\?)/i.test(url || '')
+    // MIME-type contract: content_type from client takes priority, then URL extension
+    const isVideoByMime = typeof content_type === 'string' && content_type.startsWith('video/')
+    const isVideoByExt = /\.(mp4|mov|webm|m4v)($|\?)/i.test(url || '')
+    const canonicalType = (isVideoByMime || isVideoByExt) ? 'video' : 'image'
 
     return NextResponse.json({
       tile: {
         id: tile.id,
         url: tile.image_url,
-        type: isVideo ? 'video' : 'image',
+        type: canonicalType,
         title: null,
         description: null,
         thumbnail_url: null,

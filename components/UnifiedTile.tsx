@@ -14,7 +14,25 @@ const VideoTile = memo(VideoTileBase)
  *
  * brutalist: square crop, fill + object-cover
  * flow/void: natural proportions, native img
+ *
+ * MIME-type contract:
+ *   video/* → type='video'   |   image/* → type='image'
+ *   Unknown/failed → Recovery Tile (gray glass, never invisible)
  */
+
+// Canonical type resolution — URL extension overrides stored type
+const VIDEO_EXT = /\.(mp4|mov|webm|m4v)($|\?)/i
+const IMAGE_EXT = /\.(jpg|jpeg|png|gif|webp|heic|avif|svg)($|\?)/i
+
+function resolveCanonicalType(type: string, url: string): 'video' | 'image' | 'thought' | 'content' {
+  if (type === 'thought') return 'thought'
+  if (VIDEO_EXT.test(url)) return 'video'
+  if (type === 'video') return 'video'
+  if (IMAGE_EXT.test(url)) return 'image'
+  if (type === 'image') return 'image'
+  // Known content card types — YouTube, Spotify, etc.
+  return 'content'
+}
 
 export type TileMode = 'public' | 'editor' | 'sandbox'
 
@@ -37,6 +55,26 @@ interface UnifiedTileProps {
   isExpanded?: boolean
 }
 
+// ── Recovery Tile — renders when type is unknown or media fails ──
+function RecoveryTile({ id, isFill }: { id: string; isFill: boolean }) {
+  return (
+    <div
+      className={isFill ? 'w-full h-full flex items-center justify-center' : 'w-full flex items-center justify-center'}
+      style={{
+        background: 'rgba(255,255,255,0.04)',
+        backdropFilter: 'blur(8px)',
+        minHeight: isFill ? undefined : '120px',
+      }}
+      data-tile-id={id}
+      data-tile-type="recovery"
+    >
+      <svg className="w-6 h-6 text-white/20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" />
+      </svg>
+    </div>
+  )
+}
+
 export default function UnifiedTile({
   item,
   index,
@@ -48,9 +86,10 @@ export default function UnifiedTile({
   isExpanded = false,
 }: UnifiedTileProps) {
   const isFill = !layout || layout === 'brutalist'
+  const canonicalType = resolveCanonicalType(item.type, item.url || '')
 
   // ── Thought ──
-  if (item.type === 'thought') {
+  if (canonicalType === 'thought') {
     const text = item.title || ''
     const len = text.length
     const fontSize = len <= 6 ? '24px' : len <= 20 ? '17px' : len <= 60 ? '14px' : '13px'
@@ -72,8 +111,8 @@ export default function UnifiedTile({
     )
   }
 
-  // ── Video (native or mistyped image) ──
-  if (item.type === 'video' || (item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i))) {
+  // ── Video ──
+  if (canonicalType === 'video') {
     if (mode === 'public') {
       return (
         <div className={isFill ? 'w-full h-full' : 'w-full'} data-tile-id={item.id} data-tile-type="video">
@@ -96,7 +135,7 @@ export default function UnifiedTile({
   }
 
   // ── Image ──
-  if (item.type === 'image') {
+  if (canonicalType === 'image') {
     if (mode === 'public') {
       return (
         <div className={isFill ? 'w-full h-full' : 'w-full'} data-tile-id={item.id} data-tile-type="image">
@@ -123,17 +162,23 @@ export default function UnifiedTile({
     )
   }
 
-  // ── Everything else — ContentCard ──
-  return (
-    <div className={isFill ? 'w-full h-full' : 'w-full'} data-tile-id={item.id} data-tile-type={item.type}>
-      <ContentCard
-        content={item}
-        isMobile={isMobile}
-        tileSize={size}
-        aspect={aspect}
-        isPublicView={mode === 'public'}
-        isExpanded={isExpanded}
-      />
-    </div>
-  )
+  // ── Content card (YouTube, Spotify, links, etc.) ──
+  // If it has a URL or known content-card fields, render ContentCard
+  if (item.url || item.thumbnail_url || item.embed_html) {
+    return (
+      <div className={isFill ? 'w-full h-full' : 'w-full'} data-tile-id={item.id} data-tile-type={item.type}>
+        <ContentCard
+          content={item}
+          isMobile={isMobile}
+          tileSize={size}
+          aspect={aspect}
+          isPublicView={mode === 'public'}
+          isExpanded={isExpanded}
+        />
+      </div>
+    )
+  }
+
+  // ── Recovery Tile — unknown type, no URL, or broken data ──
+  return <RecoveryTile id={item.id} isFill={isFill} />
 }

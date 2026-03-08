@@ -19,16 +19,16 @@ interface LayoutConfig {
 
 const LAYOUTS: Record<RoomLayout, LayoutConfig> = {
   brutalist: {
-    containerClass: 'grid grid-cols-2 md:grid-cols-4 gap-[3px]',
+    containerClass: 'grid grid-cols-2 md:grid-cols-4 gap-[12px]',
     tileClass: 'aspect-square relative overflow-hidden rounded-xl',
     useFillMode: true,
-    gap: '3px',
+    gap: '12px',
   },
   flow: {
-    containerClass: 'columns-2 md:columns-3 gap-[3px]',
-    tileClass: 'break-inside-avoid mb-[3px] rounded-xl overflow-hidden',
+    containerClass: 'columns-2 md:columns-3 gap-[12px]',
+    tileClass: 'break-inside-avoid mb-[12px] rounded-xl overflow-hidden',
     useFillMode: false,
-    gap: '3px',
+    gap: '12px',
   },
   void: {
     containerClass: 'flex flex-col items-center gap-3',
