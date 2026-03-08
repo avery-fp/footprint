@@ -403,7 +403,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
       {/* Floating CTA bar */}
       {!isDraft && (
-        <FloatingCtaBar />
+        <FloatingCtaBar isOwner={isOwner} />
       )}
 
       {/* Copied toast */}

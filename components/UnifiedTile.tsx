@@ -126,12 +126,13 @@ export default function UnifiedTile({
   if (item.type === 'image') {
     if (mode === 'public') {
       return (
-        <div className="relative w-full h-full overflow-hidden" data-tile-id={item.id} data-tile-type="image">
+        <div className={`relative w-full overflow-hidden${aspect !== 'auto' ? ' h-full' : ''}`} data-tile-id={item.id} data-tile-type="image">
           <TileImage
             src={item.url}
             alt={item.title || ''}
             sizes="(max-width: 768px) 50vw, 25vw"
             index={index}
+            aspect={aspect}
             onWidescreen={onWidescreen || noop}
           />
         </div>

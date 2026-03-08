@@ -2,23 +2,15 @@
 
 import { useState, useEffect } from 'react'
 
-export default function FloatingCtaBar() {
+export default function FloatingCtaBar({ isOwner = false }: { isOwner?: boolean }) {
   const [visible, setVisible] = useState(false)
-  const [hide, setHide] = useState(false)
 
   useEffect(() => {
     const timer = setTimeout(() => setVisible(true), 800)
     return () => clearTimeout(timer)
   }, [])
 
-  // Hide for any logged-in user
-  useEffect(() => {
-    fetch('/api/user', { credentials: 'include' })
-      .then(r => { if (r.ok) setHide(true) })
-      .catch(() => {})
-  }, [])
-
-  if (hide) return null
+  if (isOwner) return null
 
   return (
     <a

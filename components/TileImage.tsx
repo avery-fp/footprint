@@ -7,7 +7,8 @@ import Image from 'next/image'
  * TILE IMAGE
  *
  * Bulletproof image tile with error recovery.
- * Starts with Next.js <Image>, falls back to raw <img> on error.
+ * aspect='auto': natural sizing (w-full h-auto) — matches edit page
+ * aspect!='auto': fill mode (absolute inset-0) — crops to fit container
  */
 
 interface TileImageProps {
@@ -15,6 +16,7 @@ interface TileImageProps {
   alt: string
   sizes: string
   index: number
+  aspect?: string
   onWidescreen?: () => void
 }
 
@@ -23,9 +25,12 @@ export default function TileImage({
   alt,
   sizes,
   index,
+  aspect = 'auto',
   onWidescreen,
 }: TileImageProps) {
   const [failed, setFailed] = useState(false)
+
+  const isAuto = aspect === 'auto'
 
   if (failed) {
     return (
@@ -33,9 +38,31 @@ export default function TileImage({
       <img
         src={src}
         alt={alt}
-        className="w-full h-full object-cover inset-0"
+        className={isAuto ? 'w-full h-auto object-contain' : 'absolute inset-0 w-full h-full object-contain'}
         loading={index < 4 ? 'eager' : 'lazy'}
         decoding="async"
+      />
+    )
+  }
+
+  if (isAuto) {
+    return (
+      <Image
+        src={src}
+        alt={alt}
+        width={400}
+        height={400}
+        sizes={sizes}
+        className="w-full h-auto object-contain"
+        loading={index < 4 ? 'eager' : 'lazy'}
+        priority={index < 2}
+        quality={75}
+        fetchPriority={index === 0 ? 'high' : undefined}
+        onLoad={(e) => {
+          const img = e.currentTarget as HTMLImageElement
+          if (img.naturalWidth > img.naturalHeight * 1.3) onWidescreen?.()
+        }}
+        onError={() => setFailed(true)}
       />
     )
   }
@@ -46,7 +73,7 @@ export default function TileImage({
       alt={alt}
       fill
       sizes={sizes}
-      className="object-cover inset-0"
+      className="object-contain inset-0"
       loading={index < 4 ? 'eager' : 'lazy'}
       priority={index < 2}
       quality={75}
