@@ -183,17 +183,19 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         const aspectClass = getAspectClass(isVideo ? 'wide' : aspect)
         const sizeClass = `${gridClass} ${aspectClass}`.trim()
         return (
-          <div key={item.id} className={sizeClass}>
-            <div className="relative fp-tile overflow-hidden w-full h-full rounded-xl">
-              <UnifiedTile
-                item={item}
-                index={idx}
-                size={size}
-                aspect={aspect}
-                mode="public"
-                isMobile={isMobile}
-              />
-            </div>
+          <div
+            key={item.id}
+            className={`${sizeClass} relative overflow-hidden rounded-xl`}
+            style={{ background: 'rgba(255,255,255,0.06)' }}
+          >
+            <UnifiedTile
+              item={item}
+              index={idx}
+              size={size}
+              aspect={aspect}
+              mode="public"
+              isMobile={isMobile}
+            />
           </div>
         )
       })}

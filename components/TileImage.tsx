@@ -6,11 +6,9 @@ import Image from 'next/image'
 /**
  * TILE IMAGE
  *
- * Bulletproof image tile with error recovery.
- * Matches edit page SortableTile rendering exactly:
- * - Always uses width={400} height={400} (never `fill`)
- * - aspect='auto': w-full h-auto object-contain
- * - aspect!='auto': absolute inset-0 w-full h-full object-contain
+ * Uses Next.js Image `fill` for native absolute positioning.
+ * Parent MUST have position:relative and explicit dimensions.
+ * object-contain = full image visible, no cropping.
  */
 
 interface TileImageProps {
@@ -27,13 +25,9 @@ export default function TileImage({
   alt,
   sizes,
   index,
-  aspect = 'auto',
   onWidescreen,
 }: TileImageProps) {
   const [failed, setFailed] = useState(false)
-
-  // Always absolute — prevents images from overriding grid item aspect-ratio
-  const className = 'absolute inset-0 w-full h-full object-contain'
 
   if (failed) {
     return (
@@ -41,7 +35,7 @@ export default function TileImage({
       <img
         src={src}
         alt={alt}
-        className={className}
+        className="absolute inset-0 w-full h-full object-contain"
         loading={index < 4 ? 'eager' : 'lazy'}
         decoding="async"
       />
@@ -52,10 +46,9 @@ export default function TileImage({
     <Image
       src={src}
       alt={alt}
-      width={400}
-      height={400}
+      fill
       sizes={sizes}
-      className={className}
+      className="object-contain"
       loading={index < 4 ? 'eager' : 'lazy'}
       priority={index < 2}
       quality={75}
