@@ -58,12 +58,6 @@ const ROOM_OVERLAYS = [
 ]
 const DEFAULT_OVERLAY = 'rgba(0,0,0,0.35)'
 
-function getGridClass(_size: number, aspect: string | null | undefined): string {
-  if (aspect === 'wide' || aspect === 'landscape') return 'aspect-video'
-  if (aspect === 'tall' || aspect === 'portrait') return 'aspect-[3/4]'
-  return 'aspect-square'
-}
-
 function getImageSizes(size: number): string {
   if (size >= 3) return '(max-width: 768px) 100vw, 880px'
   if (size >= 2) return '(max-width: 768px) 50vw, 50vw'
@@ -85,7 +79,7 @@ function TileImage({ src, alt, width, height, sizes, index, onWidescreen }: {
       <img
         src={src}
         alt={alt}
-        className="w-full object-cover"
+        className="w-full h-full object-cover"
         loading={index < 4 ? 'eager' : 'lazy'}
         decoding="async"
       />
@@ -99,7 +93,7 @@ function TileImage({ src, alt, width, height, sizes, index, onWidescreen }: {
       width={width}
       height={height}
       sizes={sizes}
-      className="w-full object-cover"
+      className="w-full h-full object-cover"
       loading={index < 4 ? 'eager' : 'lazy'}
       priority={index < 2}
       quality={75}
@@ -260,7 +254,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       const w = size >= 3 ? 880 : size >= 2 ? 440 : 220
       const h = size >= 3 ? 495 : size >= 2 ? 330 : 220
       return (
-        <div className="w-full overflow-hidden" data-tile-id={item.id} data-tile-type={item.type}>
+        <div className="w-full h-full overflow-hidden" data-tile-id={item.id} data-tile-type={item.type}>
           <TileImage
             src={item.url}
             alt={item.title || ''}
@@ -290,6 +284,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       style={{
         gap: '3px',
         gridAutoFlow: 'dense',
+        gridAutoRows: 'auto',
         opacity: roomFade === 'out' ? 0 : 1,
         transform: roomFade === 'out' ? 'translateY(6px)' : roomFade === 'in' ? 'translateY(-6px)' : 'translateY(0)',
         transition: 'opacity 250ms ease-out, transform 350ms ease-out',
@@ -298,15 +293,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       {content.map((item: any, idx: number) => {
         const size = item.size || 1
         const aspect = item.aspect || 'square'
-        const gridClassStr = getGridClass(size, aspect)
 
         return (
           <div
             key={item.id}
-            className={`overflow-hidden cursor-pointer hover:opacity-90 transition-opacity ${gridClassStr}`}
+            className="overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
             style={{
-              borderRadius: `${layoutConfig.tileRadius}px`,
-              boxShadow: layoutConfig.tileShadow,
+              borderRadius: '12px',
+              boxShadow: 'none',
               background: 'rgba(255,255,255,0.06)',
             }}
             onClick={() => {
