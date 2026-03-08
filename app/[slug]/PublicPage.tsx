@@ -226,6 +226,26 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
       )}
 
+      {/* Top-left — sign in / edit */}
+      <div className="fixed top-5 left-4 md:left-6 z-30">
+        <button
+          onClick={() => {
+            if (!isLoggedIn) {
+              window.location.href = '/build'
+            } else if (isOwner) {
+              window.location.href = `/${footprint.username}/home`
+            } else if (authUserSlug) {
+              window.location.href = `/${authUserSlug}/home`
+            } else {
+              window.location.href = '/build'
+            }
+          }}
+          className="font-mono text-[10px] tracking-[2px] lowercase text-white/30 hover:text-white/70 transition-colors duration-300 touch-manipulation"
+        >
+          {!isLoggedIn ? 'sign in' : isOwner ? 'edit' : 'home'}
+        </button>
+      </div>
+
       {/* Top-right action — globe icon, context-aware navigation */}
       <div className="fixed top-5 right-4 md:right-6 z-30 flex items-center gap-2">
         <button
