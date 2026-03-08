@@ -6,6 +6,8 @@ import type { ContentType } from '@/lib/parser'
 import { audioManager } from '@/lib/audio-manager'
 import { parseEmbed, getYouTubeThumbnail, extractYouTubeId } from '@/lib/parseEmbed'
 import type { EmbedResult } from '@/lib/parseEmbed'
+import GlassEmbedFrameExtracted, { GLASS_STYLE as GLASS_STYLE_IMPORTED, GlassPlaceholder as GlassPlaceholderExtracted } from '@/components/GlassEmbedFrame'
+import { transformImageUrl } from '@/lib/image'
 
 function extractSpotifyInfo(url: string): { type: string; id: string } | null {
   const match = url.match(/open\.spotify\.com\/(track|album|playlist|artist|episode|show)\/([a-zA-Z0-9]+)/)
@@ -13,92 +15,12 @@ function extractSpotifyInfo(url: string): { type: string; id: string } | null {
 }
 
 // ════════════════════════════════════════
-// AE Glass Embed Frame — universal frosted glass wrapper for all embeds
+// Glass Embed Frame — imported from extracted component
 // ════════════════════════════════════════
 
-const GLASS_STYLE: React.CSSProperties = {
-  borderRadius: '16px',
-  background: 'rgba(255, 255, 255, 0.06)',
-  backdropFilter: 'blur(22px) saturate(140%)',
-  WebkitBackdropFilter: 'blur(22px) saturate(140%)',
-  boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.12)',
-}
-
-function GlassEmbedFrame({
-  src,
-  height,
-  allow,
-  sandbox,
-  allowFullScreen,
-  onError,
-  onLoad: onLoadCallback,
-  children,
-}: {
-  src: string
-  height?: number
-  allow?: string
-  sandbox?: string
-  allowFullScreen?: boolean
-  onError?: () => void
-  onLoad?: () => void
-  children?: React.ReactNode
-}) {
-  const [loaded, setLoaded] = useState(false)
-  const [failed, setFailed] = useState(false)
-
-  const handleLoad = () => {
-    setLoaded(true)
-    onLoadCallback?.()
-  }
-
-  const handleError = () => {
-    setFailed(true)
-    onError?.()
-  }
-
-  if (failed) {
-    return (
-      <div
-        className="glass-embed-frame relative w-full h-full overflow-hidden flex items-center justify-center"
-        style={{ ...GLASS_STYLE, ...(height ? { height: `${height}px` } : {}) }}
-      >
-        <span className="text-xs text-white/40 font-mono" style={{ opacity: 0.7 }}>embed unavailable</span>
-      </div>
-    )
-  }
-
-  return (
-    <div
-      className="glass-embed-frame relative w-full h-full overflow-hidden"
-      style={{ ...GLASS_STYLE, ...(height ? { height: `${height}px` } : {}) }}
-    >
-      <iframe
-        src={src}
-        width="100%"
-        height="100%"
-        allow={allow}
-        sandbox={sandbox}
-        allowFullScreen={allowFullScreen}
-        referrerPolicy="no-referrer"
-        loading="lazy"
-        onLoad={handleLoad}
-        onError={handleError}
-        style={{
-          border: 'none',
-          width: '100%',
-          height: '100%',
-          background: 'transparent',
-          overflow: 'hidden',
-          padding: 0,
-          margin: 0,
-          opacity: loaded ? 1 : 0,
-          transition: 'opacity 250ms ease-out',
-        }}
-      />
-      {children}
-    </div>
-  )
-}
+const GLASS_STYLE = GLASS_STYLE_IMPORTED
+const GlassEmbedFrame = GlassEmbedFrameExtracted
+const GlassPlaceholder = GlassPlaceholderExtracted
 
 // ════════════════════════════════════════
 // AE Embed Heights — stable per-provider defaults
@@ -141,16 +63,6 @@ function enforceEmbedDarkMode(url: string, provider: string): string {
   }
 }
 
-// Glass placeholder for offscreen embeds
-function GlassPlaceholder({ height, aspectClass }: { height?: number; aspectClass?: string }) {
-  return (
-    <div
-      className={`w-full h-full ${aspectClass || ''}`}
-      style={{ ...GLASS_STYLE, ...(height ? { height: `${height}px` } : {}) }}
-    />
-  )
-}
-
 interface ContentCardProps {
   content: {
     id: string
@@ -166,6 +78,8 @@ interface ContentCardProps {
   tileSize?: number
   aspect?: string
   isPublicView?: boolean
+  /** When true, show full embed immediately (no facade). Used in lightbox. */
+  isExpanded?: boolean
 }
 
 /**
@@ -176,7 +90,7 @@ interface ContentCardProps {
  * null → link card (OG metadata via /api/og-preview)
  * Everything fails gracefully. No broken states.
  */
-export default function ContentCard({ content, onWidescreen, isMobile = false, tileSize = 1, aspect = 'square', isPublicView = false }: ContentCardProps) {
+export default function ContentCard({ content, onWidescreen, isMobile = false, tileSize = 1, aspect = 'square', isPublicView = false, isExpanded = false }: ContentCardProps) {
   const aspectClass = aspect === 'wide' ? 'aspect-video' : aspect === 'tall' ? 'aspect-[9/16]' : aspect === 'auto' ? '' : 'aspect-square'
   const fitClass = 'object-cover'
   const [isActivated, setIsActivated] = useState(false)
@@ -225,6 +139,22 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   const youtubeId = content.type === 'youtube' ? extractYouTubeId(content.url) : null
   if (content.type === 'youtube' && youtubeId && !iframeFailed) {
+    // isExpanded: skip facade, render iframe immediately (used in lightbox)
+    if (isExpanded) {
+      const ytSrc = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0&color=white`
+      return (
+        <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative bg-black">
+          <iframe
+            src={ytSrc}
+            className="w-full h-full"
+            style={{ border: 'none' }}
+            allow="autoplay; encrypted-media; fullscreen"
+            allowFullScreen
+            referrerPolicy="strict-origin-when-cross-origin"
+          />
+        </div>
+      )
+    }
     // Facade — always shows a thumbnail, never collapses
     if (!isActivated) {
       const thumbSrc = content.thumbnail_url || `https://i.ytimg.com/vi/${youtubeId}/maxresdefault.jpg`
@@ -259,22 +189,17 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         </div>
       )
     }
-    // Activated — swap facade for glass iframe
-    const ytSrc = enforceEmbedDarkMode(
-      `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&rel=0`,
-      'youtube'
-    )
+    // YouTube activated state — canonical fix
+    const ytSrc = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0&color=white`
     return (
-      <div
-        ref={containerRef}
-        className="w-full h-full fp-tile overflow-hidden relative"
-      >
-        <GlassEmbedFrame
+      <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative bg-black">
+        <iframe
           src={ytSrc}
-          allow="autoplay; encrypted-media"
+          className="w-full h-full"
+          style={{ border: 'none' }}
+          allow="autoplay; encrypted-media; fullscreen"
           allowFullScreen
-          sandbox="allow-scripts allow-same-origin allow-popups allow-presentation allow-forms"
-          onError={() => setIframeFailed(true)}
+          referrerPolicy="strict-origin-when-cross-origin"
         />
       </div>
     )
@@ -286,42 +211,74 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   if (content.type === 'spotify') {
     const spotifyInfo = extractSpotifyInfo(content.url)
     if (spotifyInfo) {
-      // Inline Spotify embed — plays directly in the grid, no navigation, no lightbox
-      const embedSrc = `https://open.spotify.com/embed/${spotifyInfo.type}/${spotifyInfo.id}?theme=0&utm_source=generator`
-      return (
-        <div
-          ref={containerRef}
-          className={`w-full h-full ${aspectClass || 'aspect-square'} fp-tile overflow-hidden relative`}
-          style={{
-            ...GLASS_STYLE,
-            borderRadius: 'inherit',
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {isInView ? (
-            <iframe
-              src={embedSrc}
-              width="100%"
-              height="100%"
-              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-              loading="lazy"
-              style={{
-                border: 'none',
-                borderRadius: 'inherit',
-                background: 'transparent',
-              }}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <div className="w-8 h-8 rounded-full bg-[#1DB954] flex items-center justify-center">
+      // isExpanded: skip compact facade, render full embed (used in lightbox)
+      // Compact glass player for small tiles (any device)
+      // Click bubbles to grid wrapper → opens lightbox with proper Spotify embed
+      if (tileSize <= 1 && !isExpanded) {
+        return (
+          <a
+            href={content.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            ref={containerRef as any}
+            className={`block w-full h-full ${aspectClass || 'aspect-square'} fp-tile overflow-hidden relative cursor-pointer group`}
+            style={{
+              ...GLASS_STYLE,
+              borderRadius: 'inherit',
+            }}
+          >
+            {content.thumbnail_url && isInView && (
+              <Image
+                src={transformImageUrl(content.thumbnail_url)}
+                alt=""
+                fill
+                sizes="(max-width: 768px) 50vw, 25vw"
+                className={fitClass}
+                loading="lazy"
+                quality={75}
+                onLoad={() => setIsLoaded(true)}
+              />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+            <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-[#1DB954] flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform shadow-lg">
                 <svg className="w-3.5 h-3.5 text-black ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M8 5v14l11-7z"/>
                 </svg>
               </div>
+              <p className="text-white text-xs font-medium leading-tight line-clamp-2 min-w-0">
+                {content.title || 'Spotify'}
+              </p>
             </div>
-          )}
-        </div>
-      )
+          </a>
+        )
+      }
+      const embed = parseEmbed(content.url)
+      if (embed) {
+        const spotifySrc = enforceEmbedDarkMode(embed.embedUrl, 'spotify')
+        const spotifyHeight = embed.height || getAEEmbedHeight('spotify')
+
+        return (
+          <div
+            ref={containerRef}
+            className="w-full fp-tile overflow-hidden rounded-[inherit]"
+            style={{ height: `${spotifyHeight}px` }}
+          >
+            {isInView ? (
+              <GlassEmbedFrame
+                src={spotifySrc}
+                height={spotifyHeight}
+                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                referrerPolicy="origin"
+                onError={() => setIframeFailed(true)}
+              />
+            ) : (
+              <GlassPlaceholder height={spotifyHeight} />
+            )}
+          </div>
+        )
+      }
     }
   }
 
@@ -449,7 +406,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       <div ref={containerRef} className="fp-tile overflow-hidden relative">
         <a href={content.url} target="_blank" rel="noopener noreferrer">
           <Image
-            src={content.url}
+            src={transformImageUrl(content.url)}
             alt={content.title || ''}
             width={600}
             height={800}
@@ -527,7 +484,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           className="block fp-tile overflow-hidden relative"
         >
           <Image
-            src={content.thumbnail_url}
+            src={transformImageUrl(content.thumbnail_url)}
             alt=""
             width={400}
             height={400}
@@ -587,7 +544,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         className={`block w-full ${aspectClass} fp-tile overflow-hidden relative`}
       >
         <Image
-          src={content.thumbnail_url}
+          src={transformImageUrl(content.thumbnail_url)}
           alt={content.title || ''}
           fill
           sizes={tileSize >= 2 ? '(max-width: 768px) 100vw, 50vw' : '(max-width: 768px) 50vw, 25vw'}

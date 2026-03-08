@@ -66,11 +66,13 @@ export async function POST(request: NextRequest) {
 
     revalidatePath(`/${slug}`)
 
+    const isVideo = /\.(mp4|mov|webm|m4v)($|\?)/i.test(url || '')
+
     return NextResponse.json({
       tile: {
         id: tile.id,
         url: tile.image_url,
-        type: /\.(mp4|mov|webm|m4v)($|\?)/i.test(tile.image_url || '') ? 'video' : 'image',
+        type: isVideo ? 'video' : 'image',
         title: null,
         description: null,
         thumbnail_url: null,

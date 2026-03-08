@@ -1,23 +1,13 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo, memo } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import Image from 'next/image'
-import ContentCardBase from '@/components/ContentCard'
-import { parseEmbed } from '@/lib/parseEmbed'
-import VideoTileBase from '@/components/VideoTile'
+import UnifiedTile from '@/components/UnifiedTile'
 
-const ContentCard = memo(ContentCardBase)
-const VideoTile = memo(VideoTileBase)
 import WeatherEffect from '@/components/WeatherEffect'
-import { PlusButton } from '@/components/PlusButton'
 import { RemoveBubble } from '@/components/RemoveBubble'
 import { RolodexDrawer } from '@/components/RolodexDrawer'
 import FloatingCtaBar from '@/components/FloatingCtaBar'
-import {
-  type LayoutMode,
-  shuffleForGrid,
-  getLayoutConfig,
-} from '@/lib/layout-engine'
 
 interface Room {
   id: string
@@ -34,8 +24,6 @@ interface PublicPageProps {
   pageUrl: string
   isDraft?: boolean
 }
-
-const noop = () => {}
 
 // Wallpaper filter per room
 const ROOM_FILTERS = [
@@ -58,60 +46,8 @@ const ROOM_OVERLAYS = [
 ]
 const DEFAULT_OVERLAY = 'rgba(0,0,0,0.35)'
 
-function getImageSizes(size: number): string {
-  if (size >= 3) return '(max-width: 768px) 100vw, 880px'
-  if (size >= 2) return '(max-width: 768px) 50vw, 50vw'
-  return '(max-width: 768px) 33vw, 25vw'
-}
-
-/**
- * TileImage — bulletproof image tile with error recovery.
- * Always visible immediately. onError falls back to raw <img>.
- */
-function TileImage({ src, alt, width, height, sizes, index, onWidescreen }: {
-  src: string; alt: string; width: number; height: number; sizes: string; index: number; onWidescreen?: () => void
-}) {
-  const [failed, setFailed] = useState(false)
-
-  if (failed) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={src}
-        alt={alt}
-        className="w-full h-full object-cover"
-        loading={index < 4 ? 'eager' : 'lazy'}
-        decoding="async"
-      />
-    )
-  }
-
-  return (
-    <Image
-      src={src}
-      alt={alt}
-      width={width}
-      height={height}
-      sizes={sizes}
-      className="w-full h-full object-cover"
-      loading={index < 4 ? 'eager' : 'lazy'}
-      priority={index < 2}
-      quality={75}
-      fetchPriority={index === 0 ? 'high' : undefined}
-      onLoad={(e) => {
-        const img = e.currentTarget as HTMLImageElement
-        if (img.naturalWidth > img.naturalHeight * 1.3) onWidescreen?.()
-      }}
-      onError={() => setFailed(true)}
-    />
-  )
-}
-
 export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl, isDraft }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
-  const layoutMode: LayoutMode = 'grid'
-
-  const serialNumber = footprint.serial_number || 0
 
   // Default to first room
   useEffect(() => {
@@ -124,12 +60,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [wallpaperLoaded, setWallpaperLoaded] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [isOwner, setIsOwner] = useState(false)
+  const [authUserSlug, setAuthUserSlug] = useState<string | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [showToast, setShowToast] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [roomFade, setRoomFade] = useState<'visible' | 'out' | 'in'>('visible')
-  const [focusedItem, setFocusedItem] = useState<any>(null)
-
   // Content filtering
   const validContent = useMemo(() =>
     allContent.filter(item =>
@@ -152,8 +87,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     ? visibleRooms.find(r => r.id === activeRoomId)?.content || []
     : validContent
 
-  // Deterministic shuffle — same serial → same order every visit
-  const content = useMemo(() => shuffleForGrid(baseContent, serialNumber), [baseContent, serialNumber])
+  // Show tiles in user's arranged order — no shuffle
+  const content = baseContent
 
   // Wallpaper filter
   const activeRoomIndex = activeRoomId ? visibleRooms.findIndex(r => r.id === activeRoomId) : -1
@@ -165,7 +100,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     : DEFAULT_OVERLAY
 
   const handleShare = () => {
-    navigator.clipboard.writeText(window.location.href)
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://footprint.onl'
+    const fpUrl = `${baseUrl}/${footprint.username}/fp`
+    navigator.clipboard.writeText(fpUrl)
     setShowToast(true)
   }
 
@@ -181,7 +118,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     return () => { window.removeEventListener('resize', check); clearTimeout(timeout) }
   }, [])
 
-  // Check if user is logged in + owner
+  // Check if user is logged in + owner, and fetch their own slug for portal navigation
   useEffect(() => {
     fetch('/api/user', { credentials: 'include' })
       .then(async r => {
@@ -191,6 +128,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           if (data.user?.id === footprint.user_id) {
             setIsOwner(true)
           }
+          fetch('/api/footprint-for-user', { credentials: 'include' })
+            .then(async r2 => {
+              if (r2.ok) {
+                const fpData = await r2.json()
+                if (fpData.slug) setAuthUserSlug(fpData.slug)
+              }
+            })
+            .catch(() => {})
         }
       })
       .catch(() => {})
@@ -213,115 +158,37 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     return () => clearTimeout(t)
   }, [showToast])
 
-  // Layout config
-  const layoutConfig = useMemo(() => getLayoutConfig(layoutMode), [layoutMode])
-
-  // Tile renderer — relies on canonical type only, no re-derivation
-  const renderTileContent = (item: any, index: number, size: number, aspect: string) => {
-    if (item.type === 'thought') {
-      const text = item.title || ''
-      const len = text.length
-      const fontSize = len <= 6 ? '24px' : len <= 20 ? '17px' : len <= 60 ? '14px' : '13px'
-      const letterSpacing = len <= 6 ? '-0.03em' : len <= 20 ? '-0.02em' : '-0.01em'
-      return (
-        <div
-          className="w-full h-full flex items-center justify-center p-4"
-          style={{
-            background: 'rgba(255,255,255,0.04)',
-          }}
-          data-tile-id={item.id}
-          data-tile-type="thought"
-        >
-          <p
-            className="whitespace-pre-wrap text-center text-white"
-            style={{ fontSize, fontWeight: 300, letterSpacing, lineHeight: 1.5 }}
-          >
-            {text}
-          </p>
-        </div>
-      )
-    }
-
-    if (item.type === 'video') {
-      return (
-        <div className="w-full h-full" data-tile-id={item.id} data-tile-type="video">
-          <VideoTile src={item.url} onWidescreen={noop} />
-        </div>
-      )
-    }
-
-    if (item.type === 'image') {
-      const w = size >= 3 ? 880 : size >= 2 ? 440 : 220
-      const h = size >= 3 ? 495 : size >= 2 ? 330 : 220
-      return (
-        <div className="w-full h-full overflow-hidden" data-tile-id={item.id} data-tile-type={item.type}>
-          <TileImage
-            src={item.url}
-            alt={item.title || ''}
-            width={w}
-            height={h}
-            sizes={getImageSizes(size)}
-            index={index}
-            onWidescreen={noop}
-          />
-        </div>
-      )
-    }
-
-    return (
-      <div className="w-full h-full" data-tile-id={item.id} data-tile-type={item.type}>
-        <ContentCard content={item} isMobile={isMobile} tileSize={size} aspect={aspect} isPublicView />
-      </div>
-    )
-    }
-
   // ═══════════════════════════════════════════
-  // THE GRID — matches edit page layout with size + aspect support
+  // CSS GRID — uniform row heights, dense packing
   // ═══════════════════════════════════════════
   const activeGrid = (
     <div
       className="grid grid-cols-2 md:grid-cols-4"
       style={{
-        gap: '3px',
-        gridAutoFlow: 'dense',
+        gap: '4px',
         gridAutoRows: 'auto',
+        gridAutoFlow: 'dense',
         opacity: roomFade === 'out' ? 0 : 1,
         transform: roomFade === 'out' ? 'translateY(6px)' : roomFade === 'in' ? 'translateY(-6px)' : 'translateY(0)',
         transition: 'opacity 250ms ease-out, transform 350ms ease-out',
       }}
     >
-      {content.map((item: any, idx: number) => {
-        const size = item.size || 1
-        const aspect = item.aspect || 'square'
-
-        return (
-          <div
-            key={item.id}
-            className="overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
-            style={{
-              borderRadius: '12px',
-              boxShadow: 'none',
-              background: 'rgba(255,255,255,0.06)',
-            }}
-            onClick={() => {
-              // Strict type-aware click map — only image + thought open lightbox
-              if (item.type === 'youtube') return  // inline play via facade
-              if (item.type === 'video') return    // inline play
-              if (item.type === 'spotify') return  // inline embed
-              if (item.type === 'link') return     // <a> handles navigation
-              if (item.type === 'soundcloud') return // inline embed
-              if (item.type === 'vimeo') return    // inline embed
-              if (item.type === 'image' || item.type === 'thought') {
-                setFocusedItem(item)
-                return
-              }
-              // All other types (twitter, instagram, tiktok, etc.) — open in new tab via <a>
-            }}
-          >
-            {renderTileContent(item, idx, size, aspect)}
-          </div>
-        )
-      })}
+      {content.map((item: any, idx: number) => (
+        <div
+          key={item.id}
+          className={`overflow-hidden rounded-xl ${(item.size || 1) >= 2 ? 'col-span-2' : ''}`}
+          style={{ background: 'rgba(255,255,255,0.06)' }}
+        >
+          <UnifiedTile
+            item={item}
+            index={idx}
+            size={item.size || 1}
+            aspect="auto"
+            mode="public"
+            isMobile={isMobile}
+          />
+        </div>
+      ))}
     </div>
   )
 
@@ -360,20 +227,47 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
       )}
 
-      {/* Top-right action */}
+      {/* Top-left — sign in / edit */}
+      <div className="fixed top-5 left-4 md:left-6 z-30">
+        <button
+          onClick={() => {
+            if (!isLoggedIn) {
+              window.location.href = '/build'
+            } else if (isOwner) {
+              window.location.href = `/${footprint.username}/home`
+            } else if (authUserSlug) {
+              window.location.href = `/${authUserSlug}/home`
+            } else {
+              window.location.href = '/build'
+            }
+          }}
+          className="font-mono text-[10px] tracking-[2px] lowercase text-white/30 hover:text-white/70 transition-colors duration-300 touch-manipulation"
+        >
+          {!isLoggedIn ? 'sign in' : isOwner ? 'edit' : 'home'}
+        </button>
+      </div>
+
+      {/* Top-right action — globe icon, context-aware navigation */}
       <div className="fixed top-5 right-4 md:right-6 z-30 flex items-center gap-2">
-        {isLoggedIn ? (
-          <a
-            href={`/${footprint.username}/home`}
-            className="w-11 h-11 flex items-center justify-center rounded-full bg-white/[0.06] hover:bg-white/[0.12] transition touch-manipulation"
-          >
-            <svg className="w-3.5 h-3.5 text-white/40" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-            </svg>
-          </a>
-        ) : (
-          <PlusButton slug={footprint.slug} />
-        )}
+        <button
+          onClick={() => {
+            if (!isLoggedIn) {
+              window.location.href = '/build'
+            } else if (isOwner) {
+              window.location.href = `/${footprint.username}/home`
+            } else if (authUserSlug) {
+              window.location.href = `/${authUserSlug}/home`
+            } else {
+              window.location.href = '/build'
+            }
+          }}
+          className="h-9 w-9 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition text-white/70 hover:text-white"
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10" />
+            <path strokeLinecap="round" d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10A15.3 15.3 0 0112 2z" />
+          </svg>
+        </button>
       </div>
 
       <div className="relative z-10 flex-1 flex flex-col">
@@ -402,9 +296,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </header>
         </RemoveBubble>
 
-        {/* Room nav */}
+        {/* Room nav — sticky on scroll */}
         {visibleRooms.length > 1 && (
-          <div className="flex items-center justify-center mb-4 md:mb-6 px-4">
+          <div className="sticky top-0 z-20 flex items-center justify-center mb-4 md:mb-6 px-4 py-2">
             <div className="flex items-center gap-0 font-mono overflow-x-auto hide-scrollbar">
               {visibleRooms.map((room, i) => (
                 <span key={room.id} className="flex items-center whitespace-nowrap">
@@ -418,6 +312,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                       textTransform: 'lowercase',
                       fontWeight: activeRoomId === room.id ? 400 : 300,
                       color: activeRoomId === room.id ? 'white' : 'rgba(255,255,255,0.4)',
+                      textShadow: '0 1px 8px rgba(0,0,0,0.5)',
                       background: 'none',
                       border: 'none',
                       padding: '8px 2px',
@@ -433,9 +328,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </div>
         )}
 
-        {/* The Grid */}
+        {/* Grid */}
         <div
-          className="fp-grid-container mx-auto w-full"
+          className="fp-grid-container mx-auto w-full px-1"
           style={{ maxWidth: '880px' }}
         >
           <div className="fp-grid-arrive">
@@ -508,76 +403,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           copied.
         </div>
       )}
-
-      {/* Lightbox overlay */}
-      {focusedItem && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(0, 0, 0, 0.85)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}
-          onClick={() => setFocusedItem(null)}
-        >
-          <button
-            className="absolute top-5 right-5 w-9 h-9 flex items-center justify-center rounded-full text-white/50 hover:text-white/80 transition-colors z-50"
-            style={{ background: 'rgba(255,255,255,0.08)' }}
-            onClick={() => setFocusedItem(null)}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-          </button>
-          <div className="max-w-3xl max-h-[90vh] w-full" onClick={e => e.stopPropagation()}>
-            {focusedItem.type === 'video' ? (
-              <video
-                src={focusedItem.url}
-                controls
-                autoPlay
-                playsInline
-                className="w-full max-h-[85vh] object-contain rounded-2xl"
-              />
-            ) : focusedItem.type === 'image' ? (
-              <img
-                src={focusedItem.url}
-                alt={focusedItem.title || ''}
-                className="w-full max-h-[85vh] object-contain rounded-2xl"
-              />
-            ) : focusedItem.type === 'thought' ? (
-              <div
-                className="rounded-2xl p-8 text-center max-w-lg mx-auto"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.06)',
-                  backdropFilter: 'blur(22px) saturate(140%)',
-                  WebkitBackdropFilter: 'blur(22px) saturate(140%)',
-                  boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.10)',
-                }}
-              >
-                <p className="text-white text-lg font-light leading-relaxed" style={{ letterSpacing: '-0.01em' }}>
-                  {focusedItem.title || ''}
-                </p>
-              </div>
-            ) : focusedItem.url ? (
-              <a
-                href={focusedItem.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block rounded-2xl p-8 text-center max-w-lg mx-auto cursor-pointer hover:scale-[1.01] transition-transform"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.06)',
-                  backdropFilter: 'blur(22px) saturate(140%)',
-                  WebkitBackdropFilter: 'blur(22px) saturate(140%)',
-                  boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.10)',
-                }}
-              >
-                <p className="text-white text-lg font-light leading-relaxed mb-2" style={{ letterSpacing: '-0.01em' }}>
-                  {focusedItem.title || new URL(focusedItem.url).hostname.replace('www.', '')}
-                </p>
-                <span className="text-white/30 text-xs font-mono tracking-wider">
-                  {(() => { try { return new URL(focusedItem.url).hostname.replace('www.', '') } catch { return '' } })()}
-                </span>
-              </a>
-            ) : null}
-          </div>
-        </div>
-      )}
-
     </div>
   )
 }
-

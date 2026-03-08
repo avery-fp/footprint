@@ -194,7 +194,7 @@ export default function PublishPage() {
           </p>
 
           <p className="font-mono text-white/40 text-[13px] mb-8">
-            footprint.onl/{finalSlug}
+            footprint.onl/{finalSlug}/fp
           </p>
 
           <button
@@ -206,7 +206,7 @@ export default function PublishPage() {
 
           <button
             onClick={() => {
-              const url = `https://footprint.onl/${finalSlug}`
+              const url = `https://footprint.onl/${finalSlug}/fp`
               navigator.clipboard.writeText(url)
               toast.success('copied')
             }}
