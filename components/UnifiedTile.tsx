@@ -10,13 +10,11 @@ const ContentCard = memo(ContentCardBase)
 const VideoTile = memo(VideoTileBase)
 
 /**
- * UNIFIED TILE
+ * UNIFIED TILE — PUBLIC SQUARE GRID
  *
- * Single tile rendering entry point with mode-aware routing.
- * Wraps ContentCard / VideoTile / TileImage with consistent logic.
- *
- * Does NOT replace ContentCard — wraps it with routing currently
- * duplicated across PublicPage, home/page, and build/page.
+ * Every tile is a square. No aspect math. No col-span/row-span.
+ * Parent provides aspect-square + relative + overflow-hidden.
+ * All media: w-full h-full object-cover (center-cropped to square).
  */
 
 export type TileMode = 'public' | 'editor' | 'sandbox'
@@ -37,10 +35,7 @@ interface UnifiedTileProps {
   mode: TileMode
   isMobile?: boolean
   isExpanded?: boolean
-  onWidescreen?: () => void
 }
-
-const noop = () => {}
 
 export default function UnifiedTile({
   item,
@@ -50,7 +45,6 @@ export default function UnifiedTile({
   mode,
   isMobile = false,
   isExpanded = false,
-  onWidescreen,
 }: UnifiedTileProps) {
   // ── Thought ──
   if (item.type === 'thought') {
@@ -75,36 +69,12 @@ export default function UnifiedTile({
     )
   }
 
-  // ── Native video ──
-  if (item.type === 'video') {
+  // ── Video (native or mistyped image) ──
+  if (item.type === 'video' || (item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i))) {
     if (mode === 'public') {
       return (
         <div className="w-full h-full" data-tile-id={item.id} data-tile-type="video">
-          <VideoTile src={item.url} onWidescreen={noop} />
-        </div>
-      )
-    }
-    // Editor / sandbox — inline video element
-    return (
-      <div className="w-full h-full" data-tile-id={item.id} data-tile-type="video">
-        <video
-          src={item.url}
-          className="w-full h-full object-cover"
-          muted
-          loop
-          playsInline
-          preload="metadata"
-        />
-      </div>
-    )
-  }
-
-  // ── Image (but actually a video file — handle correctly) ──
-  if (item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) {
-    if (mode === 'public') {
-      return (
-        <div className="w-full h-full" data-tile-id={item.id} data-tile-type="video">
-          <VideoTile src={item.url} onWidescreen={noop} />
+          <VideoTile src={item.url} onWidescreen={() => {}} />
         </div>
       )
     }
@@ -132,13 +102,10 @@ export default function UnifiedTile({
             alt={item.title || ''}
             sizes="(max-width: 768px) 50vw, 25vw"
             index={index}
-            aspect={aspect}
-            onWidescreen={onWidescreen || noop}
           />
         </div>
       )
     }
-    // Editor / sandbox — fixed dimensions for grid
     return (
       <div className="relative w-full h-full overflow-hidden" data-tile-id={item.id} data-tile-type="image">
         <TileImage
@@ -146,27 +113,12 @@ export default function UnifiedTile({
           alt={item.title || ''}
           sizes={getImageSizes(size)}
           index={index}
-          onWidescreen={noop}
         />
       </div>
     )
   }
 
   // ── Everything else — ContentCard ──
-  if (mode === 'public') {
-    return (
-      <div className="w-full h-full" data-tile-id={item.id} data-tile-type={item.type}>
-        <ContentCard
-          content={item}
-          isMobile={isMobile}
-          tileSize={size}
-          aspect={aspect}
-          isPublicView
-          isExpanded={isExpanded}
-        />
-      </div>
-    )
-  }
   return (
     <div className="w-full h-full" data-tile-id={item.id} data-tile-type={item.type}>
       <ContentCard
@@ -174,7 +126,7 @@ export default function UnifiedTile({
         isMobile={isMobile}
         tileSize={size}
         aspect={aspect}
-        isPublicView={false}
+        isPublicView={mode === 'public'}
         isExpanded={isExpanded}
       />
     </div>
