@@ -169,10 +169,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         gap: '3px',
         gridAutoRows: 'auto',
         gridAutoFlow: 'dense',
+        '--fp-tile-radius': '12px',
         opacity: roomFade === 'out' ? 0 : 1,
         transform: roomFade === 'out' ? 'translateY(6px)' : roomFade === 'in' ? 'translateY(-6px)' : 'translateY(0)',
         transition: 'opacity 250ms ease-out, transform 350ms ease-out',
-      }}
+      } as React.CSSProperties}
     >
       {content.map((item: any, idx: number) => {
         const size = item.size || 1
@@ -182,19 +183,17 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         const aspectClass = getAspectClass(isVideo ? 'wide' : aspect)
         const sizeClass = `${gridClass} ${aspectClass}`.trim()
         return (
-          <div
-            key={item.id}
-            className={`${sizeClass} overflow-hidden rounded-xl`}
-            style={{ background: 'rgba(255,255,255,0.06)' }}
-          >
-            <UnifiedTile
-              item={item}
-              index={idx}
-              size={size}
-              aspect={aspect}
-              mode="public"
-              isMobile={isMobile}
-            />
+          <div key={item.id} className={sizeClass}>
+            <div className={`relative fp-tile overflow-hidden w-full rounded-xl${aspect !== 'auto' ? ' h-full' : ''}`}>
+              <UnifiedTile
+                item={item}
+                index={idx}
+                size={size}
+                aspect={aspect}
+                mode="public"
+                isMobile={isMobile}
+              />
+            </div>
           </div>
         )
       })}
