@@ -101,7 +101,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
   const handleShare = () => {
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://footprint.onl'
-    const fpUrl = `${baseUrl}/${footprint.username}/fp`
+    const fpUrl = `${baseUrl}/${footprint.username}`
     navigator.clipboard.writeText(fpUrl)
     setShowToast(true)
   }
@@ -334,16 +334,15 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         {/* Floor */}
         <div style={{ height: '120px' }} />
 
-        {/* Footer */}
+        {/* Footer — æ icon copies page link */}
         <div className="py-10 flex items-center justify-center">
           <button
             onClick={handleShare}
-            className="group p-3 text-white/[0.12] hover:text-white/40 transition-colors duration-500 touch-manipulation"
-            aria-label="Share"
+            className="p-3 text-white/[0.15] hover:text-white/40 transition-colors duration-500 touch-manipulation"
+            aria-label="Copy page link"
+            style={{ fontSize: '22px', fontWeight: 300, lineHeight: 1 }}
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-2.06a4.5 4.5 0 00-1.242-7.244l-4.5-4.5a4.5 4.5 0 00-6.364 6.364L4.25 8.81" />
-            </svg>
+            {'\u00e6'}
           </button>
         </div>
       </div>
