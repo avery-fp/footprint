@@ -65,17 +65,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [showToast, setShowToast] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [roomFade, setRoomFade] = useState<'visible' | 'out' | 'in'>('visible')
-  const [landscapeIds, setLandscapeIds] = useState<Set<string>>(new Set())
-
-  const markLandscape = useCallback((id: string) => {
-    setLandscapeIds(prev => {
-      if (prev.has(id)) return prev
-      const next = new Set(prev)
-      next.add(id)
-      return next
-    })
-  }, [])
-
   // Content filtering
   const validContent = useMemo(() =>
     allContent.filter(item =>
@@ -174,9 +163,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // ═══════════════════════════════════════════
   const activeGrid = (
     <div
-      className="grid grid-cols-2 md:grid-cols-4 gap-1.5"
+      className="grid grid-cols-2 md:grid-cols-4 gap-1"
       style={{
-        gridAutoRows: '280px',
+        gridAutoRows: '240px',
         gridAutoFlow: 'dense',
         opacity: roomFade === 'out' ? 0 : 1,
         transform: roomFade === 'out' ? 'translateY(6px)' : roomFade === 'in' ? 'translateY(-6px)' : 'translateY(0)',
@@ -186,9 +175,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       {content.map((item: any, idx: number) => (
         <div
           key={item.id}
-          className={`overflow-hidden rounded-2xl ${
-            (item.size || 1) >= 2 || landscapeIds.has(item.id) ? 'col-span-2' : ''
-          }`}
+          className={`overflow-hidden rounded-xl ${(item.size || 1) >= 2 ? 'col-span-2' : ''}`}
           style={{ background: 'rgba(255,255,255,0.06)' }}
         >
           <UnifiedTile
@@ -198,7 +185,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             aspect="auto"
             mode="public"
             isMobile={isMobile}
-            onWidescreen={() => markLandscape(item.id)}
           />
         </div>
       ))}
