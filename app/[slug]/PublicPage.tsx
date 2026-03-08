@@ -176,7 +176,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       {content.map((item: any, idx: number) => (
         <div
           key={item.id}
-          className={`overflow-hidden rounded-xl ${(item.size || 1) >= 2 ? 'col-span-2' : ''}`}
+          className="overflow-hidden rounded-xl"
           style={{ background: 'rgba(255,255,255,0.06)' }}
         >
           <UnifiedTile
