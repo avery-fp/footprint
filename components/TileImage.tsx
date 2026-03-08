@@ -7,8 +7,10 @@ import Image from 'next/image'
  * TILE IMAGE
  *
  * Bulletproof image tile with error recovery.
- * aspect='auto': natural sizing (w-full h-auto) — matches edit page
- * aspect!='auto': fill mode (absolute inset-0) — crops to fit container
+ * Matches edit page SortableTile rendering exactly:
+ * - Always uses width={400} height={400} (never `fill`)
+ * - aspect='auto': w-full h-auto object-contain
+ * - aspect!='auto': absolute inset-0 w-full h-full object-contain
  */
 
 interface TileImageProps {
@@ -31,6 +33,9 @@ export default function TileImage({
   const [failed, setFailed] = useState(false)
 
   const isAuto = aspect === 'auto'
+  const className = isAuto
+    ? 'w-full h-auto object-contain'
+    : 'absolute inset-0 w-full h-full object-contain'
 
   if (failed) {
     return (
@@ -38,31 +43,9 @@ export default function TileImage({
       <img
         src={src}
         alt={alt}
-        className={isAuto ? 'w-full h-auto object-contain' : 'absolute inset-0 w-full h-full object-contain'}
+        className={className}
         loading={index < 4 ? 'eager' : 'lazy'}
         decoding="async"
-      />
-    )
-  }
-
-  if (isAuto) {
-    return (
-      <Image
-        src={src}
-        alt={alt}
-        width={400}
-        height={400}
-        sizes={sizes}
-        className="w-full h-auto object-contain"
-        loading={index < 4 ? 'eager' : 'lazy'}
-        priority={index < 2}
-        quality={75}
-        fetchPriority={index === 0 ? 'high' : undefined}
-        onLoad={(e) => {
-          const img = e.currentTarget as HTMLImageElement
-          if (img.naturalWidth > img.naturalHeight * 1.3) onWidescreen?.()
-        }}
-        onError={() => setFailed(true)}
       />
     )
   }
@@ -71,9 +54,10 @@ export default function TileImage({
     <Image
       src={src}
       alt={alt}
-      fill
+      width={400}
+      height={400}
       sizes={sizes}
-      className="object-contain inset-0"
+      className={className}
       loading={index < 4 ? 'eager' : 'lazy'}
       priority={index < 2}
       quality={75}

@@ -241,18 +241,18 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         <button
           onClick={() => {
             if (!isLoggedIn) {
-              window.location.href = '/build'
+              window.location.href = '/login'
             } else if (isOwner) {
               window.location.href = `/${footprint.username}/home`
             } else if (authUserSlug) {
               window.location.href = `/${authUserSlug}/home`
             } else {
-              window.location.href = '/build'
+              window.location.href = '/login'
             }
           }}
           className="font-mono text-[10px] tracking-[2px] lowercase text-white/30 hover:text-white/70 transition-colors duration-300 touch-manipulation"
         >
-          sign in
+          {!isLoggedIn ? 'sign in' : isOwner ? 'edit' : 'home'}
         </button>
       </div>
 
