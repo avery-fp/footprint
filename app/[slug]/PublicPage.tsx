@@ -363,23 +363,26 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </>
       )}
 
-      {/* Serial number — fixed bottom-left, quiet scarcity signal */}
-      {!isDraft && serial && (
-        <div
-          className="fixed bottom-4 left-4 z-20 select-none pointer-events-none"
+      {/* Footprint icon — fixed bottom-left, links to this page */}
+      {!isDraft && (
+        <a
+          href={`/${footprint.username}`}
+          className="fixed bottom-4 left-4 z-20 touch-manipulation"
           style={{
-            color: 'rgba(255,255,255,0.15)',
-            fontSize: '11px',
+            color: 'rgba(255,255,255,0.20)',
+            fontSize: '18px',
             fontWeight: 300,
-            letterSpacing: '1px',
-            fontFamily: 'monospace',
+            textDecoration: 'none',
+            transition: 'color 0.3s ease',
           }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.5)' }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.20)' }}
         >
-          #{String(serial).padStart(4, '0')}
-        </div>
+          {'\u00e6'}
+        </a>
       )}
 
-      {/* Floating CTA bar */}
+      {/* Floating CTA bar — viewers only, hidden for owner */}
       {!isDraft && (
         <FloatingCtaBar isOwner={isOwner} />
       )}
