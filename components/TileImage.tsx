@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
+import { getObjectFit } from '@/lib/media/aspect'
 
 interface TileImageProps {
   src: string
@@ -12,26 +13,43 @@ interface TileImageProps {
   layout?: string
 }
 
-export default function TileImage({ src, alt, sizes, index, layout }: TileImageProps) {
+export default function TileImage({ src, alt, sizes, index, aspect, layout }: TileImageProps) {
   const [failed, setFailed] = useState(false)
 
-  // flow / void → native img with natural proportions
-  const useNative = layout === 'flow' || layout === 'void'
+  const isEditorial = layout === 'editorial'
+  const isAuto = aspect === 'auto'
 
-  if (failed || useNative) {
+  if (failed) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={src}
         alt={alt}
-        className={useNative ? 'w-full h-auto' : 'w-full h-full object-cover'}
+        className="w-full h-full object-cover"
         loading={index < 4 ? 'eager' : 'lazy'}
         decoding="async"
       />
     )
   }
 
-  // brutalist (default) → Next.js Image fill + object-cover (square crop)
+  // editorial mode → match edit page: width/height Image with absolute positioning
+  if (isEditorial) {
+    return (
+      <Image
+        src={src}
+        alt={alt}
+        width={400}
+        height={400}
+        sizes={sizes}
+        className={`${isAuto ? 'w-full h-auto' : 'absolute inset-0 w-full h-full'} ${getObjectFit(aspect || 'square')}`}
+        loading={index < 4 ? 'eager' : 'lazy'}
+        quality={75}
+        onError={() => setFailed(true)}
+      />
+    )
+  }
+
+  // grid (default) → Next.js Image fill + object-cover (square crop)
   return (
     <Image
       src={src}

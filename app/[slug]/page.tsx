@@ -106,7 +106,7 @@ export default async function FootprintPage({ params }: Props) {
   const rooms = (roomsData || []).map((room: any) => ({
     id: room.id,
     name: room.name,
-    layout: room.layout || 'brutalist',
+    layout: room.layout === 'editorial' ? 'editorial' : 'grid',
     content: content.filter(item => item.room_id === room.id),
   }))
 

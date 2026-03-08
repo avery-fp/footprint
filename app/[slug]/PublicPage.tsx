@@ -9,6 +9,7 @@ import { RemoveBubble } from '@/components/RemoveBubble'
 import { RolodexDrawer } from '@/components/RolodexDrawer'
 import FloatingCtaBar from '@/components/FloatingCtaBar'
 import { getGridLayout } from '@/lib/grid-layouts'
+import { getGridClass, getAspectClass, resolveAspect, isVideoTile, getObjectFit } from '@/lib/media/aspect'
 
 interface Room {
   id: string
@@ -161,38 +162,52 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   }, [showToast])
 
   // ═══════════════════════════════════════════
-  // LAYOUT-AWARE GRID — brutalist / flow / void
+  // LAYOUT-AWARE GRID — grid (squares) / editorial (edit-page match)
   // ═══════════════════════════════════════════
   const activeRoom = activeRoomId ? visibleRooms.find(r => r.id === activeRoomId) : null
-  const roomLayout = activeRoom?.layout || 'brutalist'
+  const roomLayout = activeRoom?.layout || 'grid'
   const layoutConfig = getGridLayout(roomLayout)
+  const isEditorial = roomLayout === 'editorial'
 
   const activeGrid = (
     <div
       className={layoutConfig.containerClass}
       style={{
+        gridAutoFlow: isEditorial ? 'dense' : undefined,
         opacity: roomFade === 'out' ? 0 : 1,
         transform: roomFade === 'out' ? 'translateY(6px)' : roomFade === 'in' ? 'translateY(-6px)' : 'translateY(0)',
         transition: 'opacity 250ms ease-out, transform 350ms ease-out',
       }}
     >
-      {content.map((item: any, idx: number) => (
-        <div
-          key={item.id}
-          className={layoutConfig.tileClass}
-          style={{ background: roomLayout === 'brutalist' ? 'rgba(255,255,255,0.06)' : 'transparent' }}
-        >
-          <UnifiedTile
-            item={item}
-            index={idx}
-            size={1}
-            aspect={roomLayout === 'brutalist' ? 'square' : 'auto'}
-            mode="public"
-            layout={roomLayout}
-            isMobile={isMobile}
-          />
-        </div>
-      ))}
+      {content.map((item: any, idx: number) => {
+        // Editorial: compute per-tile grid class (col-span, row-span, aspect) like the edit page
+        const tileSize = item.size || 1
+        const isVideo = isVideoTile(item.type, item.url)
+        const tileAspect = isEditorial
+          ? resolveAspect(item.aspect, item.type, item.url)
+          : 'square'
+        const tileClass = isEditorial
+          ? `${getGridClass(tileSize, tileAspect, isVideo)} relative overflow-hidden rounded-xl`
+          : layoutConfig.tileClass
+
+        return (
+          <div
+            key={item.id}
+            className={tileClass}
+            style={{ background: 'rgba(255,255,255,0.06)' }}
+          >
+            <UnifiedTile
+              item={item}
+              index={idx}
+              size={tileSize}
+              aspect={tileAspect}
+              mode="public"
+              layout={roomLayout}
+              isMobile={isMobile}
+            />
+          </div>
+        )
+      })}
     </div>
   )
 

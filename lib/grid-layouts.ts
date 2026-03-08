@@ -1,57 +1,51 @@
 /**
  * Room-level layout configuration
  *
- * Three modes:
- *  - brutalist: uniform square grid (default)
- *  - flow: CSS columns masonry, natural image heights
- *  - void: single-column editorial scroll
+ * Two modes:
+ *  - grid: uniform square tiles (default)
+ *  - editorial: edit-page-style grid with size/aspect spanning
  */
 
-export type RoomLayout = 'brutalist' | 'flow' | 'void'
+export type RoomLayout = 'grid' | 'editorial'
 
 interface LayoutConfig {
   containerClass: string
+  /** Static tile class — for grid mode only (editorial computes per-tile) */
   tileClass: string
   /** true = Next.js Image fill + object-cover (square crop) */
   useFillMode: boolean
+  /** true = tiles use getGridClass/getAspectClass for per-tile sizing */
+  perTileSizing: boolean
   gap: string
 }
 
 const LAYOUTS: Record<RoomLayout, LayoutConfig> = {
-  brutalist: {
-    containerClass: 'grid grid-cols-2 md:grid-cols-4 gap-[12px]',
+  grid: {
+    containerClass: 'grid grid-cols-2 md:grid-cols-4 gap-[3px]',
     tileClass: 'aspect-square relative overflow-hidden rounded-xl',
     useFillMode: true,
-    gap: '12px',
+    perTileSizing: false,
+    gap: '3px',
   },
-  flow: {
-    containerClass: 'columns-2 md:columns-3 gap-[12px]',
-    tileClass: 'break-inside-avoid mb-[12px] rounded-xl overflow-hidden',
+  editorial: {
+    containerClass: 'grid grid-cols-2 md:grid-cols-4 gap-[3px]',
+    tileClass: 'relative overflow-hidden rounded-xl',
     useFillMode: false,
-    gap: '12px',
-  },
-  void: {
-    containerClass: 'flex flex-col items-center gap-3',
-    tileClass: 'w-full max-w-2xl rounded-xl overflow-hidden',
-    useFillMode: false,
-    gap: '12px',
+    perTileSizing: true,
+    gap: '3px',
   },
 }
 
 export function getGridLayout(layout?: string): LayoutConfig {
   if (layout && layout in LAYOUTS) return LAYOUTS[layout as RoomLayout]
-  return LAYOUTS.brutalist
+  return LAYOUTS.grid
 }
 
-const CYCLE: RoomLayout[] = ['brutalist', 'flow', 'void']
-
 export function nextLayout(current?: string): RoomLayout {
-  const idx = CYCLE.indexOf(current as RoomLayout)
-  return CYCLE[(idx + 1) % CYCLE.length]
+  return current === 'grid' ? 'editorial' : 'grid'
 }
 
 export const LAYOUT_LABELS: Record<RoomLayout, string> = {
-  brutalist: 'grid',
-  flow: 'flow',
-  void: 'void',
+  grid: 'grid',
+  editorial: 'editorial',
 }

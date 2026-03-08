@@ -1528,7 +1528,7 @@ export default function EditPage() {
               {activeRoomId && (
                 <>
                   <LayoutToggle
-                    current={(rooms.find(r => r.id === activeRoomId)?.layout || 'brutalist') as RoomLayout}
+                    current={(rooms.find(r => r.id === activeRoomId)?.layout === 'editorial' ? 'editorial' : 'grid') as RoomLayout}
                     onToggle={(next) => handleToggleLayout(activeRoomId, next)}
                   />
                   <button

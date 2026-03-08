@@ -54,7 +54,7 @@ export const roomsPatchSchema = z.object({
   slug: z.string().optional(),
   hidden: z.boolean().optional(),
   name: z.string().optional(),
-  layout: z.enum(['brutalist', 'flow', 'void']).optional(),
+  layout: z.enum(['grid', 'editorial']).optional(),
 })
 
 export const roomsPostSchema = z.object({

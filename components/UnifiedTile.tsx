@@ -12,8 +12,8 @@ const VideoTile = memo(VideoTileBase)
 /**
  * UNIFIED TILE — layout-aware rendering
  *
- * brutalist: square crop, fill + object-cover
- * flow/void: natural proportions, native img
+ * grid: square crop, fill + object-cover
+ * editorial: edit-page-style, width/height Image with aspect-aware positioning
  *
  * MIME-type contract:
  *   video/* → type='video'   |   image/* → type='image'
@@ -30,7 +30,6 @@ function resolveCanonicalType(type: string, url: string): 'video' | 'image' | 't
   if (type === 'video') return 'video'
   if (IMAGE_EXT.test(url)) return 'image'
   if (type === 'image') return 'image'
-  // Known content card types — YouTube, Spotify, etc.
   return 'content'
 }
 
@@ -56,14 +55,13 @@ interface UnifiedTileProps {
 }
 
 // ── Recovery Tile — renders when type is unknown or media fails ──
-function RecoveryTile({ id, isFill }: { id: string; isFill: boolean }) {
+function RecoveryTile({ id }: { id: string }) {
   return (
     <div
-      className={isFill ? 'w-full h-full flex items-center justify-center' : 'w-full flex items-center justify-center'}
+      className="w-full h-full flex items-center justify-center"
       style={{
         background: 'rgba(255,255,255,0.04)',
         backdropFilter: 'blur(8px)',
-        minHeight: isFill ? undefined : '120px',
       }}
       data-tile-id={id}
       data-tile-type="recovery"
@@ -85,8 +83,8 @@ export default function UnifiedTile({
   isMobile = false,
   isExpanded = false,
 }: UnifiedTileProps) {
-  const isFill = !layout || layout === 'brutalist'
   const canonicalType = resolveCanonicalType(item.type, item.url || '')
+  const isAuto = aspect === 'auto'
 
   // ── Thought ──
   if (canonicalType === 'thought') {
@@ -96,8 +94,8 @@ export default function UnifiedTile({
     const letterSpacing = len <= 6 ? '-0.03em' : len <= 20 ? '-0.02em' : '-0.01em'
     return (
       <div
-        className={isFill ? 'w-full h-full flex items-center justify-center p-4' : 'w-full flex items-center justify-center p-6'}
-        style={{ background: 'rgba(255,255,255,0.04)', minHeight: isFill ? undefined : '120px' }}
+        className="w-full h-full flex items-center justify-center p-4"
+        style={{ background: 'rgba(255,255,255,0.04)' }}
         data-tile-id={item.id}
         data-tile-type="thought"
       >
@@ -115,7 +113,7 @@ export default function UnifiedTile({
   if (canonicalType === 'video') {
     if (mode === 'public') {
       return (
-        <div className={isFill ? 'w-full h-full' : 'w-full'} data-tile-id={item.id} data-tile-type="video">
+        <div className="w-full h-full" data-tile-id={item.id} data-tile-type="video">
           <VideoTile src={item.url} onWidescreen={() => {}} />
         </div>
       )
@@ -138,7 +136,11 @@ export default function UnifiedTile({
   if (canonicalType === 'image') {
     if (mode === 'public') {
       return (
-        <div className={isFill ? 'w-full h-full' : 'w-full'} data-tile-id={item.id} data-tile-type="image">
+        <div
+          className={isAuto && layout === 'editorial' ? 'w-full' : 'w-full h-full'}
+          data-tile-id={item.id}
+          data-tile-type="image"
+        >
           <TileImage
             src={item.url}
             alt={item.title || ''}
@@ -163,10 +165,9 @@ export default function UnifiedTile({
   }
 
   // ── Content card (YouTube, Spotify, links, etc.) ──
-  // If it has a URL or known content-card fields, render ContentCard
   if (item.url || item.thumbnail_url || item.embed_html) {
     return (
-      <div className={isFill ? 'w-full h-full' : 'w-full'} data-tile-id={item.id} data-tile-type={item.type}>
+      <div className="w-full h-full" data-tile-id={item.id} data-tile-type={item.type}>
         <ContentCard
           content={item}
           isMobile={isMobile}
@@ -180,5 +181,5 @@ export default function UnifiedTile({
   }
 
   // ── Recovery Tile — unknown type, no URL, or broken data ──
-  return <RecoveryTile id={item.id} isFill={isFill} />
+  return <RecoveryTile id={item.id} />
 }
