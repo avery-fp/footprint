@@ -126,7 +126,7 @@ export default function UnifiedTile({
   if (item.type === 'image') {
     if (mode === 'public') {
       return (
-        <div className="w-full h-full overflow-hidden" data-tile-id={item.id} data-tile-type="image">
+        <div className="relative w-full h-full overflow-hidden" data-tile-id={item.id} data-tile-type="image">
           <TileImage
             src={item.url}
             alt={item.title || ''}

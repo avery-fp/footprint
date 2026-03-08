@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import Image from 'next/image'
 import UnifiedTile from '@/components/UnifiedTile'
+import { getGridClass, resolveAspect, getAspectClass } from '@/lib/media/aspect'
 
 import WeatherEffect from '@/components/WeatherEffect'
 import { RemoveBubble } from '@/components/RemoveBubble'
@@ -159,14 +160,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   }, [showToast])
 
   // ═══════════════════════════════════════════
-  // CSS GRID — uniform row heights, dense packing
+  // CSS GRID — mirrors edit page layout exactly
   // ═══════════════════════════════════════════
   const activeGrid = (
     <div
       className="grid grid-cols-2 md:grid-cols-4"
       style={{
-        gap: '4px',
-        gridAutoRows: '240px',
+        gap: '3px',
+        gridAutoRows: 'auto',
         gridAutoFlow: 'dense',
         opacity: roomFade === 'out' ? 0 : 1,
         transform: roomFade === 'out' ? 'translateY(6px)' : roomFade === 'in' ? 'translateY(-6px)' : 'translateY(0)',
@@ -174,22 +175,27 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       }}
     >
       {content.map((item: any, idx: number) => {
-        const isWide = item.type === 'image' && (item.aspect === 'wide' || item.aspect === 'landscape')
+        const size = item.size || 1
+        const aspect = resolveAspect(item.aspect, item.type, item.url)
+        const isVideo = item.type === 'video' || (item.type === 'image' && /\.(mp4|mov|webm|m4v)($|\?)/i.test(item.url || ''))
+        const gridClass = getGridClass(size, aspect, isVideo)
+        const aspectClass = getAspectClass(isVideo ? 'wide' : aspect)
+        const sizeClass = `${gridClass} ${aspectClass}`.trim()
         return (
-        <div
-          key={item.id}
-          className={`overflow-hidden rounded-xl${isWide ? ' col-span-2' : ''}`}
-          style={{ background: 'rgba(255,255,255,0.06)' }}
-        >
-          <UnifiedTile
-            item={item}
-            index={idx}
-            size={item.size || 1}
-            aspect="auto"
-            mode="public"
-            isMobile={isMobile}
-          />
-        </div>
+          <div
+            key={item.id}
+            className={`${sizeClass} overflow-hidden rounded-xl`}
+            style={{ background: 'rgba(255,255,255,0.06)' }}
+          >
+            <UnifiedTile
+              item={item}
+              index={idx}
+              size={size}
+              aspect={aspect}
+              mode="public"
+              isMobile={isMobile}
+            />
+          </div>
         )
       })}
     </div>

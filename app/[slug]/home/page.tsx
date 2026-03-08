@@ -382,7 +382,7 @@ export default function EditPage() {
   const [gridFade, setGridFade] = useState<'visible' | 'out' | 'in'>('visible')
   const [wallpaperUrl, setWallpaperUrl] = useState('')
   const [backgroundBlur, setBackgroundBlur] = useState(true)
-  const [publicLayout, setPublicLayout] = useState<'default' | 'home'>('default')
+  const publicLayout = 'home' as const
   const [serialNumber, setSerialNumber] = useState<number | null>(null)
   const [isPublished, setIsPublished] = useState(false)
   const layoutMode: LayoutMode = 'grid'
@@ -704,7 +704,6 @@ export default function EditPage() {
           setIsOwner(true)
           setWallpaperUrl(data.footprint.background_url || '')
           setBackgroundBlur(data.footprint.background_blur ?? true)
-          setPublicLayout(data.footprint.grid_mode === 'home' ? 'home' : 'default')
           setIsPublished(data.footprint.published !== false)
           const sources: Record<string, 'library' | 'links'> = {}
           const content = (data.tiles || []).map((tile: any) => {
@@ -1080,18 +1079,6 @@ export default function EditPage() {
     }
   }
 
-  async function handleLayoutToggle(mode: 'default' | 'home') {
-    setPublicLayout(mode)
-    try {
-      await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ grid_mode: mode === 'home' ? 'home' : 'grid' }),
-      })
-    } catch (e) {
-      console.error('Failed to toggle layout:', e)
-    }
-  }
 
   // ── Room creation ──
 
@@ -1657,29 +1644,7 @@ export default function EditPage() {
         </div>
       </div>
 
-      {/* Layout toggle — fixed position, always visible */}
-      <div className="fixed top-20 right-6 z-30 flex items-center gap-2 bg-black/40 backdrop-blur-sm rounded-full border border-white/10 px-3 py-1.5">
-        <button
-          onClick={() => handleLayoutToggle('default')}
-          className={`text-[11px] font-mono px-3 py-1.5 rounded-full transition-all ${
-            publicLayout === 'default'
-              ? 'text-white/80 bg-white/10'
-              : 'text-white/40 hover:text-white/60'
-          }`}
-        >
-          default
-        </button>
-        <button
-          onClick={() => handleLayoutToggle('home')}
-          className={`text-[11px] font-mono px-3 py-1.5 rounded-full transition-all ${
-            publicLayout === 'home'
-              ? 'text-white/80 bg-white/10'
-              : 'text-white/40 hover:text-white/60'
-          }`}
-        >
-          home
-        </button>
-      </div>
+
 
       {/* ═══ TILE GRID ═══ */}
       <div className="max-w-7xl mx-auto px-3 md:px-6 pt-28 md:pt-24 pb-32 relative z-10"
