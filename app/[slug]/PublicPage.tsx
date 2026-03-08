@@ -240,8 +240,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
       )}
 
-      {/* Top-left action — context-aware text link */}
-      <div className="fixed top-5 left-4 md:left-6 z-30">
+      {/* Top-right action — globe icon, context-aware navigation */}
+      <div className="fixed top-5 right-4 md:right-6 z-30 flex items-center gap-2">
         <button
           onClick={() => {
             if (!isLoggedIn) {
@@ -254,9 +254,12 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               window.location.href = '/build'
             }
           }}
-          className="font-mono text-[10px] tracking-[2px] lowercase text-white/30 hover:text-white/70 transition-colors duration-300 touch-manipulation"
+          className="h-9 w-9 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition text-white/70 hover:text-white"
         >
-          {!isLoggedIn ? 'sign in' : isOwner ? 'edit' : 'home'}
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10" />
+            <path strokeLinecap="round" d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10A15.3 15.3 0 0112 2z" />
+          </svg>
         </button>
       </div>
 
