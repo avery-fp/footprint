@@ -102,6 +102,7 @@ export default function UnifiedTile({
             alt={item.title || ''}
             sizes="(max-width: 768px) 50vw, 25vw"
             index={index}
+            aspect={aspect}
           />
         </div>
       )

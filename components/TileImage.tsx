@@ -1,42 +1,36 @@
 'use client'
 
-import { useState } from 'react'
-import Image from 'next/image'
+/**
+ * TILE IMAGE — native <img>, no Next.js Image
+ *
+ * Matches edit page SortableTile rendering exactly:
+ * - auto aspect: w-full h-auto (natural sizing)
+ * - non-auto: absolute inset-0 w-full h-full (fills container)
+ * - object-cover everywhere
+ */
 
 interface TileImageProps {
   src: string
   alt: string
   sizes: string
   index: number
+  aspect?: string
 }
 
-export default function TileImage({ src, alt, sizes, index }: TileImageProps) {
-  const [failed, setFailed] = useState(false)
-
-  if (failed) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={src}
-        alt={alt}
-        className="w-full h-full object-cover"
-        loading={index < 4 ? 'eager' : 'lazy'}
-        decoding="async"
-      />
-    )
-  }
+export default function TileImage({ src, alt, sizes, index, aspect = 'auto' }: TileImageProps) {
+  const isAuto = aspect === 'auto'
 
   return (
-    <Image
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
       src={src}
       alt={alt}
-      fill
-      sizes={sizes}
-      className="object-cover"
+      className={isAuto
+        ? 'w-full h-auto object-cover'
+        : 'absolute inset-0 w-full h-full object-cover'
+      }
       loading={index < 4 ? 'eager' : 'lazy'}
-      priority={index < 2}
-      quality={75}
-      onError={() => setFailed(true)}
+      decoding="async"
     />
   )
 }
