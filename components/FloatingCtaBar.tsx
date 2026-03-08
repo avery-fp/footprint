@@ -55,8 +55,6 @@ export default function FloatingCtaBar() {
     >
       <span>footprint</span>
       <span style={{ opacity: 0.4 }}>{'\u00B7'}</span>
-      <span>$10</span>
-      <span style={{ opacity: 0.4 }}>{'\u00B7'}</span>
       <span>make yours</span>
       <span style={{ opacity: 0.5 }}>{'\u2192'}</span>
     </a>

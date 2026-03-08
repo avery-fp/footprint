@@ -240,8 +240,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
       )}
 
-      {/* Top-right action — context-aware text link */}
-      <div className="fixed top-5 right-4 md:right-6 z-30">
+      {/* Top-left action — context-aware text link */}
+      <div className="fixed top-5 left-4 md:left-6 z-30">
         <button
           onClick={() => {
             if (!isLoggedIn) {
@@ -289,7 +289,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         {/* Room nav — sticky on scroll */}
         {visibleRooms.length > 1 && (
           <div className="sticky top-0 z-20 flex items-center justify-center mb-4 md:mb-6 px-4 py-2">
-            <div className="flex items-center gap-0 font-mono overflow-x-auto hide-scrollbar rounded-full px-5 py-1.5 backdrop-blur-md border border-white/[0.06]" style={{ background: 'rgba(255,255,255,0.04)' }}>
+            <div className="flex items-center gap-0 font-mono overflow-x-auto hide-scrollbar">
               {visibleRooms.map((room, i) => (
                 <span key={room.id} className="flex items-center whitespace-nowrap">
                   {i > 0 && <span className="mx-2.5" style={{ color: 'rgba(255,255,255,0.2)', fontSize: '8px' }}>·</span>}
@@ -302,6 +302,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                       textTransform: 'lowercase',
                       fontWeight: activeRoomId === room.id ? 400 : 300,
                       color: activeRoomId === room.id ? 'white' : 'rgba(255,255,255,0.4)',
+                      textShadow: '0 1px 8px rgba(0,0,0,0.5)',
                       background: 'none',
                       border: 'none',
                       padding: '8px 2px',
