@@ -231,14 +231,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
       )}
 
-      {/* Top-left — log in */}
-      <div className="fixed top-5 left-4 md:left-6 z-30">
-        <button
-          onClick={() => { window.location.href = '/login' }}
-          className="font-mono text-[10px] tracking-[2px] lowercase text-white/30 hover:text-white/70 transition-colors duration-300 touch-manipulation"
-        >
-          log in
-        </button>
+      {/* Top-center — footprint wordmark */}
+      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-30">
+        <span className="text-xs tracking-[0.2em] lowercase text-white/[0.30] select-none" style={{ fontWeight: 300 }}>
+          footprint
+        </span>
       </div>
 
       {/* Top-right action — globe icon, context-aware navigation */}
@@ -341,15 +338,20 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         {/* Floor */}
         <div style={{ height: '120px' }} />
 
-        {/* Footer — æ icon copies page link */}
+        {/* Footer — footprint icon copies page link */}
         <div className="py-10 flex items-center justify-center">
           <button
             onClick={handleShare}
             className="p-3 text-white/[0.15] hover:text-white/40 transition-colors duration-500 touch-manipulation"
             aria-label="Copy page link"
-            style={{ fontSize: '22px', fontWeight: 300, lineHeight: 1 }}
           >
-            {'\u00e6'}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+              <ellipse cx="10" cy="4.5" rx="2.2" ry="2.8" transform="rotate(-10 10 4.5)" />
+              <ellipse cx="15.5" cy="4" rx="1.6" ry="2.2" transform="rotate(5 15.5 4)" />
+              <ellipse cx="19" cy="6.5" rx="1.3" ry="1.8" transform="rotate(15 19 6.5)" />
+              <ellipse cx="6" cy="7" rx="1.6" ry="2.2" transform="rotate(-20 6 7)" />
+              <ellipse cx="12" cy="14" rx="4.5" ry="7" transform="rotate(-5 12 14)" />
+            </svg>
           </button>
         </div>
       </div>
@@ -369,23 +371,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </>
       )}
 
-      {/* Footprint icon — fixed bottom-left, links to this page */}
+      {/* Room number — fixed bottom-left */}
       {!isDraft && (
-        <a
-          href={`/${footprint.username}`}
-          className="fixed bottom-4 left-4 z-20 touch-manipulation"
-          style={{
-            color: 'rgba(255,255,255,0.20)',
-            fontSize: '18px',
-            fontWeight: 300,
-            textDecoration: 'none',
-            transition: 'color 0.3s ease',
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.5)' }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.20)' }}
+        <span
+          className="fixed bottom-4 left-4 z-20 font-mono text-xs text-white/[0.40] select-none"
+          style={{ fontWeight: 300, letterSpacing: '0.5px' }}
         >
-          {'\u00e6'}
-        </a>
+          #{activeRoomIndex >= 0 ? activeRoomIndex + 1 : 1}
+        </span>
       )}
 
       {/* Floating CTA bar — viewers only, hidden for owner */}
