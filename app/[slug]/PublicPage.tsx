@@ -164,9 +164,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // ═══════════════════════════════════════════
   const activeGrid = (
     <div
-      className="grid grid-cols-2 md:grid-cols-4 gap-1"
+      className="grid grid-cols-2 md:grid-cols-4 gap-1.5"
       style={{
-        gridAutoRows: '240px',
+        gridAutoRows: '280px',
         gridAutoFlow: 'dense',
         opacity: roomFade === 'out' ? 0 : 1,
         transform: roomFade === 'out' ? 'translateY(6px)' : roomFade === 'in' ? 'translateY(-6px)' : 'translateY(0)',
@@ -176,7 +176,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       {content.map((item: any, idx: number) => (
         <div
           key={item.id}
-          className={`overflow-hidden rounded-xl ${(item.size || 1) >= 2 ? 'col-span-2' : ''}`}
+          className={`overflow-hidden rounded-2xl ${(item.size || 1) >= 2 ? 'col-span-2' : ''}`}
           style={{ background: 'rgba(255,255,255,0.06)' }}
         >
           <UnifiedTile
@@ -278,7 +278,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
         {/* Room nav — sticky on scroll */}
         {visibleRooms.length > 1 && (
-          <div className="sticky top-0 z-20 flex items-center justify-center mb-4 md:mb-6 px-4 py-2 backdrop-blur-md" style={{ background: 'rgba(0,0,0,0.3)' }}>
+          <div className="sticky top-0 z-20 flex items-center justify-center mb-4 md:mb-6 px-4 py-2 backdrop-blur-xl border-b border-white/[0.04]" style={{ background: 'rgba(255,255,255,0.03)' }}>
             <div className="flex items-center gap-0 font-mono overflow-x-auto hide-scrollbar">
               {visibleRooms.map((room, i) => (
                 <span key={room.id} className="flex items-center whitespace-nowrap">
