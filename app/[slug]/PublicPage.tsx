@@ -267,15 +267,15 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         const tileAspect = isEditorial
           ? resolveAspect(item.aspect, item.type, item.url)
           : 'square'
-        const gridClass = isEditorial
+
+        // OUTER div: grid sizing classes only (col-span, row-span, aspect). NO overflow-hidden.
+        // INNER div: relative w-full h-full overflow-hidden rounded-xl + background
+        const outerClass = isEditorial
           ? getGridClass(tileSize, tileAspect, isVideo)
-          : ''
+          : 'aspect-square'
 
         const tileElement = (
-          <div
-            key={item.id}
-            className={isEditorial ? gridClass : layoutConfig.tileClass}
-          >
+          <div key={item.id} className={outerClass}>
             <div
               className="relative w-full h-full overflow-hidden rounded-xl"
               style={{ background: 'rgba(255,255,255,0.06)' }}
@@ -378,9 +378,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           <header className="pb-4 md:pb-5 flex flex-col items-center px-4">
             <h1
               className={`${
-                (footprint.display_name || '\u00e6').length <= 6
+                (footprint.display_name || 'footprint').length <= 6
                   ? 'text-4xl md:text-6xl tracking-[0.22em] font-normal'
-                  : (footprint.display_name || '\u00e6').length <= 12
+                  : (footprint.display_name || 'footprint').length <= 12
                   ? 'text-3xl md:text-5xl tracking-[0.14em] font-normal'
                   : 'text-2xl md:text-4xl tracking-[0.06em] font-light'
               }`}
