@@ -65,6 +65,16 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [showToast, setShowToast] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [roomFade, setRoomFade] = useState<'visible' | 'out' | 'in'>('visible')
+  const [landscapeIds, setLandscapeIds] = useState<Set<string>>(new Set())
+
+  const markLandscape = useCallback((id: string) => {
+    setLandscapeIds(prev => {
+      if (prev.has(id)) return prev
+      const next = new Set(prev)
+      next.add(id)
+      return next
+    })
+  }, [])
 
   // Content filtering
   const validContent = useMemo(() =>
@@ -176,7 +186,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       {content.map((item: any, idx: number) => (
         <div
           key={item.id}
-          className={`overflow-hidden rounded-2xl ${(item.size || 1) >= 2 ? 'col-span-2' : ''}`}
+          className={`overflow-hidden rounded-2xl ${
+            (item.size || 1) >= 2 || landscapeIds.has(item.id) ? 'col-span-2' : ''
+          }`}
           style={{ background: 'rgba(255,255,255,0.06)' }}
         >
           <UnifiedTile
@@ -186,6 +198,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             aspect="auto"
             mode="public"
             isMobile={isMobile}
+            onWidescreen={() => markLandscape(item.id)}
           />
         </div>
       ))}
@@ -227,8 +240,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
       )}
 
-      {/* Top-right action — always globe icon, context-aware navigation */}
-      <div className="fixed top-5 right-4 md:right-6 z-30 flex items-center gap-2">
+      {/* Top-right action — context-aware text link */}
+      <div className="fixed top-5 right-4 md:right-6 z-30">
         <button
           onClick={() => {
             if (!isLoggedIn) {
@@ -241,12 +254,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               window.location.href = '/build'
             }
           }}
-          className="h-9 w-9 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition text-white/70 hover:text-white"
+          className="font-mono text-[10px] tracking-[2px] lowercase text-white/30 hover:text-white/70 transition-colors duration-300 touch-manipulation"
         >
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="10" />
-            <path strokeLinecap="round" d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10A15.3 15.3 0 0112 2z" />
-          </svg>
+          {!isLoggedIn ? 'sign in' : isOwner ? 'edit' : 'home'}
         </button>
       </div>
 
@@ -278,8 +288,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
         {/* Room nav — sticky on scroll */}
         {visibleRooms.length > 1 && (
-          <div className="sticky top-0 z-20 flex items-center justify-center mb-4 md:mb-6 px-4 py-2 backdrop-blur-xl border-b border-white/[0.04]" style={{ background: 'rgba(255,255,255,0.03)' }}>
-            <div className="flex items-center gap-0 font-mono overflow-x-auto hide-scrollbar">
+          <div className="sticky top-0 z-20 flex items-center justify-center mb-4 md:mb-6 px-4 py-2">
+            <div className="flex items-center gap-0 font-mono overflow-x-auto hide-scrollbar rounded-full px-5 py-1.5 backdrop-blur-md border border-white/[0.06]" style={{ background: 'rgba(255,255,255,0.04)' }}>
               {visibleRooms.map((room, i) => (
                 <span key={room.id} className="flex items-center whitespace-nowrap">
                   {i > 0 && <span className="mx-2.5" style={{ color: 'rgba(255,255,255,0.2)', fontSize: '8px' }}>·</span>}

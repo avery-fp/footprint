@@ -37,6 +37,7 @@ interface UnifiedTileProps {
   mode: TileMode
   isMobile?: boolean
   isExpanded?: boolean
+  onWidescreen?: () => void
 }
 
 const noop = () => {}
@@ -49,6 +50,7 @@ export default function UnifiedTile({
   mode,
   isMobile = false,
   isExpanded = false,
+  onWidescreen,
 }: UnifiedTileProps) {
   // ── Thought ──
   if (item.type === 'thought') {
@@ -123,7 +125,6 @@ export default function UnifiedTile({
   // ── Image ──
   if (item.type === 'image') {
     if (mode === 'public') {
-      // Masonry: natural image height, no cropping
       return (
         <div className="w-full h-full overflow-hidden" data-tile-id={item.id} data-tile-type="image">
           <TileImage
@@ -133,7 +134,7 @@ export default function UnifiedTile({
             height={800}
             sizes="(max-width: 768px) 50vw, 25vw"
             index={index}
-            onWidescreen={noop}
+            onWidescreen={onWidescreen || noop}
           />
         </div>
       )
