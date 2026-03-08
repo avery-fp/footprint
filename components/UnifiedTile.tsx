@@ -158,8 +158,9 @@ export default function UnifiedTile({
 
   // ── Everything else — ContentCard ──
   if (mode === 'public') {
+    const needsAspect = ['youtube', 'vimeo'].includes(item.type) ? 'aspect-video' : ''
     return (
-      <div className="w-full" data-tile-id={item.id} data-tile-type={item.type}>
+      <div className={`w-full ${needsAspect}`} data-tile-id={item.id} data-tile-type={item.type}>
         <ContentCard
           content={item}
           isMobile={isMobile}
