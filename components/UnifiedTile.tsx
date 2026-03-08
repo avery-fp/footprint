@@ -10,11 +10,10 @@ const ContentCard = memo(ContentCardBase)
 const VideoTile = memo(VideoTileBase)
 
 /**
- * UNIFIED TILE — PUBLIC SQUARE GRID
+ * UNIFIED TILE — layout-aware rendering
  *
- * Every tile is a square. No aspect math. No col-span/row-span.
- * Parent provides aspect-square + relative + overflow-hidden.
- * All media: w-full h-full object-cover (center-cropped to square).
+ * brutalist: square crop, fill + object-cover
+ * flow/void: natural proportions, native img
  */
 
 export type TileMode = 'public' | 'editor' | 'sandbox'
@@ -33,6 +32,7 @@ interface UnifiedTileProps {
   size: number
   aspect: string
   mode: TileMode
+  layout?: string
   isMobile?: boolean
   isExpanded?: boolean
 }
@@ -43,9 +43,12 @@ export default function UnifiedTile({
   size,
   aspect,
   mode,
+  layout,
   isMobile = false,
   isExpanded = false,
 }: UnifiedTileProps) {
+  const isFill = !layout || layout === 'brutalist'
+
   // ── Thought ──
   if (item.type === 'thought') {
     const text = item.title || ''
@@ -54,8 +57,8 @@ export default function UnifiedTile({
     const letterSpacing = len <= 6 ? '-0.03em' : len <= 20 ? '-0.02em' : '-0.01em'
     return (
       <div
-        className="w-full h-full flex items-center justify-center p-4"
-        style={{ background: 'rgba(255,255,255,0.04)' }}
+        className={isFill ? 'w-full h-full flex items-center justify-center p-4' : 'w-full flex items-center justify-center p-6'}
+        style={{ background: 'rgba(255,255,255,0.04)', minHeight: isFill ? undefined : '120px' }}
         data-tile-id={item.id}
         data-tile-type="thought"
       >
@@ -73,7 +76,7 @@ export default function UnifiedTile({
   if (item.type === 'video' || (item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i))) {
     if (mode === 'public') {
       return (
-        <div className="w-full h-full" data-tile-id={item.id} data-tile-type="video">
+        <div className={isFill ? 'w-full h-full' : 'w-full'} data-tile-id={item.id} data-tile-type="video">
           <VideoTile src={item.url} onWidescreen={() => {}} />
         </div>
       )
@@ -96,13 +99,14 @@ export default function UnifiedTile({
   if (item.type === 'image') {
     if (mode === 'public') {
       return (
-        <div className="w-full h-full" data-tile-id={item.id} data-tile-type="image">
+        <div className={isFill ? 'w-full h-full' : 'w-full'} data-tile-id={item.id} data-tile-type="image">
           <TileImage
             src={item.url}
             alt={item.title || ''}
             sizes="(max-width: 768px) 50vw, 25vw"
             index={index}
             aspect={aspect}
+            layout={layout}
           />
         </div>
       )
@@ -121,7 +125,7 @@ export default function UnifiedTile({
 
   // ── Everything else — ContentCard ──
   return (
-    <div className="w-full h-full" data-tile-id={item.id} data-tile-type={item.type}>
+    <div className={isFill ? 'w-full h-full' : 'w-full'} data-tile-id={item.id} data-tile-type={item.type}>
       <ContentCard
         content={item}
         isMobile={isMobile}

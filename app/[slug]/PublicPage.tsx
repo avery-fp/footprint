@@ -8,10 +8,12 @@ import WeatherEffect from '@/components/WeatherEffect'
 import { RemoveBubble } from '@/components/RemoveBubble'
 import { RolodexDrawer } from '@/components/RolodexDrawer'
 import FloatingCtaBar from '@/components/FloatingCtaBar'
+import { getGridLayout } from '@/lib/grid-layouts'
 
 interface Room {
   id: string
   name: string
+  layout?: string
   content: any[]
 }
 
@@ -159,11 +161,15 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   }, [showToast])
 
   // ═══════════════════════════════════════════
-  // SQUARE GRID — uniform tiles, stable layout
+  // LAYOUT-AWARE GRID — brutalist / flow / void
   // ═══════════════════════════════════════════
+  const activeRoom = activeRoomId ? visibleRooms.find(r => r.id === activeRoomId) : null
+  const roomLayout = activeRoom?.layout || 'brutalist'
+  const layoutConfig = getGridLayout(roomLayout)
+
   const activeGrid = (
     <div
-      className="grid grid-cols-2 md:grid-cols-4 gap-[3px]"
+      className={layoutConfig.containerClass}
       style={{
         opacity: roomFade === 'out' ? 0 : 1,
         transform: roomFade === 'out' ? 'translateY(6px)' : roomFade === 'in' ? 'translateY(-6px)' : 'translateY(0)',
@@ -173,15 +179,16 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       {content.map((item: any, idx: number) => (
         <div
           key={item.id}
-          className="aspect-square relative overflow-hidden rounded-xl"
-          style={{ background: 'rgba(255,255,255,0.06)' }}
+          className={layoutConfig.tileClass}
+          style={{ background: roomLayout === 'brutalist' ? 'rgba(255,255,255,0.06)' : 'transparent' }}
         >
           <UnifiedTile
             item={item}
             index={idx}
             size={1}
-            aspect="square"
+            aspect={roomLayout === 'brutalist' ? 'square' : 'auto'}
             mode="public"
+            layout={roomLayout}
             isMobile={isMobile}
           />
         </div>

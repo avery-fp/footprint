@@ -12,6 +12,8 @@ import { getTheme } from '@/lib/themes'
 import { snapToPreset } from '@/lib/aspect-ratios'
 import Image from 'next/image'
 import ErrorBoundary from '@/components/ErrorBoundary'
+import LayoutToggle from '@/components/LayoutToggle'
+import { type RoomLayout } from '@/lib/grid-layouts'
 import { type LayoutMode, getLayoutConfig } from '@/lib/layout-engine'
 import {
   resolveAspect as resolveAspectShared,
@@ -1167,6 +1169,20 @@ export default function EditPage() {
     }
   }
 
+  async function handleToggleLayout(roomId: string, newLayout: RoomLayout) {
+    // Optimistic update
+    setRooms(prev => prev.map(r => r.id === roomId ? { ...r, layout: newLayout } : r))
+    try {
+      await fetch('/api/rooms', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: roomId, layout: newLayout, slug }),
+      })
+    } catch (e) {
+      console.error('Failed to toggle layout:', e)
+    }
+  }
+
   // ── Tile size ──
 
   async function setTileSize(id: string, newSize: number) {
@@ -1511,6 +1527,10 @@ export default function EditPage() {
             <div className="flex items-center gap-2">
               {activeRoomId && (
                 <>
+                  <LayoutToggle
+                    current={(rooms.find(r => r.id === activeRoomId)?.layout || 'brutalist') as RoomLayout}
+                    onToggle={(next) => handleToggleLayout(activeRoomId, next)}
+                  />
                   <button
                     onClick={() => handleRenameRoom(activeRoomId)}
                     className="text-xs text-white/60 hover:text-white/90 transition font-mono px-3 rounded-full bg-white/[0.06] hover:bg-white/[0.12]"

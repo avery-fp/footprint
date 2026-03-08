@@ -126,7 +126,7 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json()
     const v = validateBody(roomsPatchSchema, body)
     if (!v.success) return v.response
-    const { id, slug, hidden, name } = v.data
+    const { id, slug, hidden, name, layout } = v.data
 
     const supabase = createServerSupabaseClient()
 
@@ -137,6 +137,7 @@ export async function PATCH(request: NextRequest) {
     const updates: Record<string, any> = {}
     if (typeof hidden === 'boolean') updates.hidden = hidden
     if (typeof name === 'string' && name.trim()) updates.name = name.trim()
+    if (typeof layout === 'string') updates.layout = layout
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
