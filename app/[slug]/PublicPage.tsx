@@ -160,12 +160,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   }, [showToast])
 
   // ═══════════════════════════════════════════
-  // MASONRY — CSS Columns, natural image heights
+  // CSS GRID — uniform row heights, dense packing
   // ═══════════════════════════════════════════
   const activeGrid = (
     <div
-      className="columns-2 md:columns-4 gap-1"
+      className="grid grid-cols-2 md:grid-cols-4 gap-1"
       style={{
+        gridAutoRows: '240px',
+        gridAutoFlow: 'dense',
         opacity: roomFade === 'out' ? 0 : 1,
         transform: roomFade === 'out' ? 'translateY(6px)' : roomFade === 'in' ? 'translateY(-6px)' : 'translateY(0)',
         transition: 'opacity 250ms ease-out, transform 350ms ease-out',
@@ -174,13 +176,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       {content.map((item: any, idx: number) => (
         <div
           key={item.id}
-          className="break-inside-avoid mb-1 overflow-hidden rounded-xl"
+          className={`overflow-hidden rounded-xl ${(item.size || 1) >= 2 ? 'col-span-2' : ''}`}
           style={{ background: 'rgba(255,255,255,0.06)' }}
         >
           <UnifiedTile
             item={item}
             index={idx}
-            size={1}
+            size={item.size || 1}
             aspect="auto"
             mode="public"
             isMobile={isMobile}
@@ -274,9 +276,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </header>
         </RemoveBubble>
 
-        {/* Room nav */}
+        {/* Room nav — sticky on scroll */}
         {visibleRooms.length > 1 && (
-          <div className="flex items-center justify-center mb-4 md:mb-6 px-4">
+          <div className="sticky top-0 z-20 flex items-center justify-center mb-4 md:mb-6 px-4 py-2 backdrop-blur-md" style={{ background: 'rgba(0,0,0,0.3)' }}>
             <div className="flex items-center gap-0 font-mono overflow-x-auto hide-scrollbar">
               {visibleRooms.map((room, i) => (
                 <span key={room.id} className="flex items-center whitespace-nowrap">
@@ -305,7 +307,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </div>
         )}
 
-        {/* Masonry Grid */}
+        {/* Grid */}
         <div
           className="fp-grid-container mx-auto w-full px-1"
           style={{ maxWidth: '880px' }}
