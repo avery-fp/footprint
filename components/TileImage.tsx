@@ -33,7 +33,7 @@ export default function TileImage({
       <img
         src={src}
         alt={alt}
-        className="w-full h-auto block"
+        className="w-full h-full object-cover"
         loading={index < 4 ? 'eager' : 'lazy'}
         decoding="async"
       />
@@ -44,10 +44,9 @@ export default function TileImage({
     <Image
       src={src}
       alt={alt}
-      width={800}
-      height={800}
+      fill
       sizes={sizes}
-      className="w-full h-auto block"
+      className="object-cover"
       loading={index < 4 ? 'eager' : 'lazy'}
       priority={index < 2}
       quality={75}

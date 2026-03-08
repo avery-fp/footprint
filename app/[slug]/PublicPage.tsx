@@ -166,17 +166,19 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       className="grid grid-cols-2 md:grid-cols-4"
       style={{
         gap: '4px',
-        gridAutoRows: 'auto',
+        gridAutoRows: '240px',
         gridAutoFlow: 'dense',
         opacity: roomFade === 'out' ? 0 : 1,
         transform: roomFade === 'out' ? 'translateY(6px)' : roomFade === 'in' ? 'translateY(-6px)' : 'translateY(0)',
         transition: 'opacity 250ms ease-out, transform 350ms ease-out',
       }}
     >
-      {content.map((item: any, idx: number) => (
+      {content.map((item: any, idx: number) => {
+        const isWide = item.type === 'image' && (item.aspect === 'wide' || item.aspect === 'landscape')
+        return (
         <div
           key={item.id}
-          className="overflow-hidden rounded-xl"
+          className={`overflow-hidden rounded-xl${isWide ? ' col-span-2' : ''}`}
           style={{ background: 'rgba(255,255,255,0.06)' }}
         >
           <UnifiedTile
@@ -188,7 +190,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             isMobile={isMobile}
           />
         </div>
-      ))}
+        )
+      })}
     </div>
   )
 
