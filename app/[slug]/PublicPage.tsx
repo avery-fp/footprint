@@ -159,14 +159,12 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   }, [showToast])
 
   // ═══════════════════════════════════════════
-  // CSS GRID — uniform row heights, dense packing
+  // MASONRY — natural aspect ratios, no cropping
   // ═══════════════════════════════════════════
   const activeGrid = (
     <div
-      className="grid grid-cols-2 md:grid-cols-4 gap-1"
+      className="columns-2 md:columns-4 gap-1"
       style={{
-        gridAutoRows: '240px',
-        gridAutoFlow: 'dense',
         opacity: roomFade === 'out' ? 0 : 1,
         transform: roomFade === 'out' ? 'translateY(6px)' : roomFade === 'in' ? 'translateY(-6px)' : 'translateY(0)',
         transition: 'opacity 250ms ease-out, transform 350ms ease-out',
@@ -175,7 +173,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       {content.map((item: any, idx: number) => (
         <div
           key={item.id}
-          className={`overflow-hidden rounded-xl ${(item.size || 1) >= 2 ? 'col-span-2' : ''}`}
+          className="overflow-hidden rounded-xl mb-1 break-inside-avoid"
           style={{ background: 'rgba(255,255,255,0.06)' }}
         >
           <UnifiedTile
