@@ -489,8 +489,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </>
       )}
 
-      {/* Room number — fixed bottom-left */}
-      {!isDraft && (
+      {/* Serial number — fixed bottom-left */}
+      {!isDraft && serial && (
         <div
           className="fixed bottom-4 left-4 z-20 select-none pointer-events-none font-mono"
           style={{
@@ -500,7 +500,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             opacity: 0.4,
           }}
         >
-          #{activeRoomIndex >= 0 ? activeRoomIndex + 1 : 1}
+          #{String(serial).padStart(4, '0')}
         </div>
       )}
 
