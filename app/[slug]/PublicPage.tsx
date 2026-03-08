@@ -368,21 +368,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
       )}
 
-      {/* Top-center footprint wordmark */}
-      <div
-        className="fixed top-4 left-1/2 -translate-x-1/2 z-20 select-none pointer-events-none"
-        style={{
-          color: 'rgba(255,255,255,1)',
-          fontSize: '10px',
-          fontWeight: 300,
-          letterSpacing: '2px',
-          textTransform: 'lowercase',
-          opacity: 0.3,
-        }}
-      >
-        footprint
-      </div>
-
       <div className="relative z-10 flex-1 flex flex-col">
         {/* Sky */}
         <div style={{ height: '80px' }} />
@@ -392,9 +377,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           <header className="pb-4 md:pb-5 flex flex-col items-center px-4">
             <h1
               className={`${
-                (footprint.display_name || 'footprint').length <= 6
+                (footprint.display_name || '\u00e6').length <= 6
                   ? 'text-4xl md:text-6xl tracking-[0.22em] font-normal'
-                  : (footprint.display_name || 'footprint').length <= 12
+                  : (footprint.display_name || '\u00e6').length <= 12
                   ? 'text-3xl md:text-5xl tracking-[0.14em] font-normal'
                   : 'text-2xl md:text-4xl tracking-[0.06em] font-light'
               }`}

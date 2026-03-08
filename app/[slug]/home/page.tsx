@@ -1383,7 +1383,7 @@ export default function EditPage() {
         const res = await fetch('/api/upload/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ slug, url: publicUrl, room_id: activeRoomId, aspect: detectedAspect }),
+          body: JSON.stringify({ slug, url: publicUrl, room_id: activeRoomId, aspect: detectedAspect, content_type: contentType }),
         })
         if (!res.ok) throw new Error(`Register failed: ${res.status}`)
         const data = await res.json()
