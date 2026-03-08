@@ -32,10 +32,8 @@ export default function TileImage({
 }: TileImageProps) {
   const [failed, setFailed] = useState(false)
 
-  const isAuto = aspect === 'auto'
-  const className = isAuto
-    ? 'w-full h-auto object-contain'
-    : 'absolute inset-0 w-full h-full object-contain'
+  // Always absolute — prevents images from overriding grid item aspect-ratio
+  const className = 'absolute inset-0 w-full h-full object-contain'
 
   if (failed) {
     return (

@@ -184,7 +184,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         const sizeClass = `${gridClass} ${aspectClass}`.trim()
         return (
           <div key={item.id} className={sizeClass}>
-            <div className={`relative fp-tile overflow-hidden w-full rounded-xl${aspect !== 'auto' ? ' h-full' : ''}`}>
+            <div className="relative fp-tile overflow-hidden w-full h-full rounded-xl">
               <UnifiedTile
                 item={item}
                 index={idx}
