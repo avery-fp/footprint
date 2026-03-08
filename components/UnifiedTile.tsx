@@ -60,7 +60,7 @@ export default function UnifiedTile({
     const letterSpacing = len <= 6 ? '-0.03em' : len <= 20 ? '-0.02em' : '-0.01em'
     return (
       <div
-        className="w-full flex items-center justify-center p-4 min-h-[200px]"
+        className="w-full h-full flex items-center justify-center p-4"
         style={{ background: 'rgba(255,255,255,0.04)' }}
         data-tile-id={item.id}
         data-tile-type="thought"
@@ -79,7 +79,7 @@ export default function UnifiedTile({
   if (item.type === 'video') {
     if (mode === 'public') {
       return (
-        <div className="w-full" data-tile-id={item.id} data-tile-type="video">
+        <div className="w-full h-full" data-tile-id={item.id} data-tile-type="video">
           <VideoTile src={item.url} onWidescreen={noop} />
         </div>
       )
@@ -103,7 +103,7 @@ export default function UnifiedTile({
   if (item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) {
     if (mode === 'public') {
       return (
-        <div className="w-full" data-tile-id={item.id} data-tile-type="video">
+        <div className="w-full h-full" data-tile-id={item.id} data-tile-type="video">
           <VideoTile src={item.url} onWidescreen={noop} />
         </div>
       )
@@ -126,12 +126,10 @@ export default function UnifiedTile({
   if (item.type === 'image') {
     if (mode === 'public') {
       return (
-        <div className="w-full overflow-hidden" data-tile-id={item.id} data-tile-type="image">
+        <div className="relative w-full h-full overflow-hidden" data-tile-id={item.id} data-tile-type="image">
           <TileImage
             src={item.url}
             alt={item.title || ''}
-            width={600}
-            height={800}
             sizes="(max-width: 768px) 50vw, 25vw"
             index={index}
             onWidescreen={onWidescreen || noop}
@@ -140,15 +138,11 @@ export default function UnifiedTile({
       )
     }
     // Editor / sandbox — fixed dimensions for grid
-    const w = size >= 3 ? 880 : size >= 2 ? 440 : 220
-    const h = size >= 3 ? 495 : size >= 2 ? 330 : 220
     return (
-      <div className="w-full h-full overflow-hidden" data-tile-id={item.id} data-tile-type="image">
+      <div className="relative w-full h-full overflow-hidden" data-tile-id={item.id} data-tile-type="image">
         <TileImage
           src={item.url}
           alt={item.title || ''}
-          width={w}
-          height={h}
           sizes={getImageSizes(size)}
           index={index}
           onWidescreen={noop}
@@ -160,7 +154,7 @@ export default function UnifiedTile({
   // ── Everything else — ContentCard ──
   if (mode === 'public') {
     return (
-      <div className="w-full" data-tile-id={item.id} data-tile-type={item.type}>
+      <div className="w-full h-full" data-tile-id={item.id} data-tile-type={item.type}>
         <ContentCard
           content={item}
           isMobile={isMobile}

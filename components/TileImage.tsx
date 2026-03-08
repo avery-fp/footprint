@@ -7,14 +7,12 @@ import Image from 'next/image'
  * TILE IMAGE
  *
  * Bulletproof image tile with error recovery.
- * Starts with Next.js <Image>, falls back to raw <img> on error.
+ * Starts with Next.js <Image fill>, falls back to raw <img> on error.
  */
 
 interface TileImageProps {
   src: string
   alt: string
-  width: number
-  height: number
   sizes: string
   index: number
   onWidescreen?: () => void
@@ -23,8 +21,6 @@ interface TileImageProps {
 export default function TileImage({
   src,
   alt,
-  width,
-  height,
   sizes,
   index,
   onWidescreen,
@@ -37,7 +33,7 @@ export default function TileImage({
       <img
         src={src}
         alt={alt}
-        className="w-full"
+        className="absolute inset-0 w-full h-full object-cover"
         loading={index < 4 ? 'eager' : 'lazy'}
         decoding="async"
       />
@@ -48,10 +44,9 @@ export default function TileImage({
     <Image
       src={src}
       alt={alt}
-      width={width}
-      height={height}
+      fill
       sizes={sizes}
-      className="w-full"
+      className="object-cover"
       loading={index < 4 ? 'eager' : 'lazy'}
       priority={index < 2}
       quality={75}
