@@ -7,11 +7,10 @@ import { routeLogger } from '@/lib/logger'
 const log = routeLogger('POST', '/api/upload/content')
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024  // 10MB
-const MAX_VIDEO_SIZE = 50 * 1024 * 1024  // 50MB
 
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic']
-const VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v']
-const ALLOWED_TYPES = [...IMAGE_TYPES, ...VIDEO_TYPES]
+// Video uploads disabled — only image files allowed
+const ALLOWED_TYPES = [...IMAGE_TYPES]
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,15 +29,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (!ALLOWED_TYPES.includes(file.type)) {
-      return NextResponse.json({ error: 'We support JPG, PNG, GIF, MP4, and WebM.' }, { status: 400 })
+      return NextResponse.json({ error: 'We support JPG, PNG, GIF, and WebP.' }, { status: 400 })
     }
 
-    const isVideo = VIDEO_TYPES.includes(file.type)
-    const maxSize = isVideo ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE
-    if (file.size > maxSize) {
-      return NextResponse.json({
-        error: isVideo ? 'That file is too large. Keep videos under 50MB.' : 'That file is too large. Keep images under 10MB.'
-      }, { status: 400 })
+    if (file.size > MAX_IMAGE_SIZE) {
+      return NextResponse.json({ error: 'That file is too large. Keep images under 10MB.' }, { status: 400 })
     }
 
     const supabase = createServerSupabaseClient()
@@ -60,24 +55,8 @@ export async function POST(request: NextRequest) {
 
     const serialNumber = footprint.serial_number
 
-    // 8 uploaded-video cap (only counts library rows with video extensions, not YouTube/Vimeo embeds)
-    if (isVideo) {
-      const { data: libraryRows } = await supabase
-        .from('library')
-        .select('image_url')
-        .eq('serial_number', serialNumber)
-
-      const uploadedVideoCount = (libraryRows || []).filter(row =>
-        /\.(mp4|mov|webm|m4v)($|\?)/i.test(row.image_url)
-      ).length
-
-      if (uploadedVideoCount >= 8) {
-        return NextResponse.json({ error: 'You can upload up to 8 videos.' }, { status: 400 })
-      }
-    }
-
     // Generate unique filename
-    const ext = file.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg')
+    const ext = file.name.split('.').pop() || 'jpg'
     const filename = `${serialNumber}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
 
     // Upload to storage
@@ -128,7 +107,7 @@ export async function POST(request: NextRequest) {
       tile: {
         id: tile.id,
         url: tile.image_url,
-        type: isVideo ? 'video' : 'image',
+        type: 'image',
         title: null,
         description: null,
         thumbnail_url: null,

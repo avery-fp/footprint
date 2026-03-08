@@ -1279,13 +1279,17 @@ export default function EditPage() {
   const detectVideoAspect = detectVideoAspectShared
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files || [])
+    const allFiles = Array.from(e.target.files || [])
+    // Block video file uploads — only allow images
+    const files = allFiles.filter(f =>
+      !VIDEO_MIME.includes(f.type) && !/\.(mp4|mov|webm|m4v)$/i.test(f.name)
+    )
     if (files.length === 0 || !draft || !serialNumber) return
 
-    // 50MB limit
-    const oversized = files.filter(f => f.size > 50 * 1024 * 1024)
+    // 10MB limit for images
+    const oversized = files.filter(f => f.size > 10 * 1024 * 1024)
     if (oversized.length > 0) {
-      alert('under 50mb.')
+      alert('under 10mb.')
       if (fileInputRef.current) fileInputRef.current.value = ''
       return
     }
@@ -1759,7 +1763,7 @@ export default function EditPage() {
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*,video/*"
+        accept="image/*"
         multiple
         className="hidden"
         onChange={handleFileUpload}

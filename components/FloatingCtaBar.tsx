@@ -14,7 +14,7 @@ export default function FloatingCtaBar({ isOwner = false }: { isOwner?: boolean 
 
   return (
     <a
-      href="/signup"
+      href="/login"
       className="touch-manipulation"
       style={{
         position: 'fixed',
@@ -25,15 +25,14 @@ export default function FloatingCtaBar({ isOwner = false }: { isOwner?: boolean 
         zIndex: 40,
         display: 'inline-flex',
         alignItems: 'center',
-        gap: '8px',
-        padding: '10px 14px',
+        padding: '10px 20px',
         background: 'rgba(255, 255, 255, 0.08)',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
         borderRadius: '9999px',
         border: '1px solid rgba(255, 255, 255, 0.12)',
         color: 'rgba(255, 255, 255, 0.75)',
-        fontSize: '12px',
+        fontSize: '13px',
         fontWeight: 400,
         letterSpacing: '0.5px',
         textDecoration: 'none',
@@ -45,10 +44,7 @@ export default function FloatingCtaBar({ isOwner = false }: { isOwner?: boolean 
       onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)' }}
       onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
     >
-      <span>footprint</span>
-      <span style={{ opacity: 0.4 }}>{'\u00B7'}</span>
-      <span>make yours</span>
-      <span style={{ opacity: 0.5 }}>{'\u2192'}</span>
+      tap in
     </a>
   )
 }
