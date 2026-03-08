@@ -85,7 +85,7 @@ function TileImage({ src, alt, width, height, sizes, index, onWidescreen }: {
       <img
         src={src}
         alt={alt}
-        className="w-full h-full object-cover"
+        className="w-full object-cover"
         loading={index < 4 ? 'eager' : 'lazy'}
         decoding="async"
       />
@@ -99,7 +99,7 @@ function TileImage({ src, alt, width, height, sizes, index, onWidescreen }: {
       width={width}
       height={height}
       sizes={sizes}
-      className="w-full h-full object-cover"
+      className="w-full object-cover"
       loading={index < 4 ? 'eager' : 'lazy'}
       priority={index < 2}
       quality={75}
@@ -260,7 +260,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       const w = size >= 3 ? 880 : size >= 2 ? 440 : 220
       const h = size >= 3 ? 495 : size >= 2 ? 330 : 220
       return (
-        <div className="w-full h-full overflow-hidden" data-tile-id={item.id} data-tile-type={item.type}>
+        <div className="w-full overflow-hidden" data-tile-id={item.id} data-tile-type={item.type}>
           <TileImage
             src={item.url}
             alt={item.title || ''}
