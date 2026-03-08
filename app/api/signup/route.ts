@@ -91,18 +91,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Could not create account. Try again.' }, { status: 500 })
     }
 
-    // ── 6. Get next serial number ──
-    const { data: maxRow } = await supabase
-      .from('footprints')
-      .select('serial_number')
-      .order('serial_number', { ascending: false })
-      .limit(1)
-      .single()
-    const nextSerial = (maxRow?.serial_number || 0) + 1
-
-    // ── 7. Create footprint ──
+    // ── 6. Create footprint (serial assigned after Stripe payment in /api/publish) ──
     const { error: fpErr } = await supabase.from('footprints').insert({
-      serial_number: nextSerial,
       user_id: user.id,
       username: cleanUsername,
       display_name: cleanUsername,
