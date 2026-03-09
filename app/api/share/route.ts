@@ -23,24 +23,13 @@ export async function GET(request: NextRequest) {
   const supabase = createServerSupabaseClient()
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://footprint.onl'
 
-  // Find footprint
-  let footprint = null
-  const { data: bySlug } = await supabase
+  // Find footprint by username
+  const { data: footprint } = await supabase
     .from('footprints')
-    .select('id, slug, user_id, display_name')
-    .eq('slug', slug)
+    .select('id, username, user_id, display_name, serial_number')
+    .eq('username', slug)
+    .eq('published', true)
     .single()
-
-  if (bySlug) {
-    footprint = bySlug
-  } else {
-    const { data: byUsername } = await supabase
-      .from('footprints')
-      .select('id, slug, user_id, display_name, serial_number')
-      .eq('username', slug)
-      .single()
-    footprint = byUsername
-  }
 
   if (!footprint) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -72,6 +61,6 @@ export async function GET(request: NextRequest) {
     referral_code: referralCode,
     referral_count: referralCount || 0,
     display_name: footprint.display_name,
-    slug: footprint.slug || slug,
+    slug: footprint.username || slug,
   })
 }

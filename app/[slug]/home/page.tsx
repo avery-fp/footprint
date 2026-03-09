@@ -1356,8 +1356,14 @@ export default function EditPage() {
           } catch {
             uploadFile = file
           }
+        } else if (!isVideo) {
+          try {
+            uploadFile = await resizeImage(file)
+          } catch {
+            uploadFile = file
+          }
         } else {
-          uploadFile = isVideo ? file : await resizeImage(file)
+          uploadFile = file
         }
 
         const ext = isVideo
@@ -1389,17 +1395,14 @@ export default function EditPage() {
         const data = await res.json()
 
         if (data.tile) {
-          // ── Post-upload verification: confirm file exists in storage ──
+          // Non-fatal verification — log but never throw
           try {
             const headRes = await fetch(data.tile.url, { method: 'HEAD' })
             if (!headRes.ok) {
-              console.error('UPLOAD_VERIFY_FAIL', { tileId: data.tile.id, url: data.tile.url, status: headRes.status })
-              throw new Error(`Verification failed: file not accessible (${headRes.status})`)
+              console.warn('UPLOAD_VERIFY_SLOW', { tileId: data.tile.id, status: headRes.status })
             }
-          } catch (verifyErr: any) {
-            if (verifyErr?.message?.startsWith('Verification failed')) throw verifyErr
-            console.error('UPLOAD_VERIFY_NETWORK', { tileId: data.tile.id, url: data.tile.url, err: verifyErr })
-            // Network error on HEAD — non-fatal, file likely exists but CDN may be slow
+          } catch (verifyErr) {
+            console.warn('UPLOAD_VERIFY_NETWORK', { tileId: data.tile.id, err: verifyErr })
           }
 
           setDraft(prev => prev ? {

@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
       .from('footprints')
       .select('*, users (serial_number)')
       .eq('username', slug)
+      .eq('published', true)
       .single()
 
     if (!footprint) {

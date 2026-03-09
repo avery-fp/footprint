@@ -39,14 +39,33 @@ export function isHEIC(file: File): boolean {
 // ── XHR Upload with Progress ────────────────────────────────
 
 /**
+ * Get a presigned upload URL from the server.
+ * Server uses service role key — bypasses storage RLS policies.
+ */
+async function getPresignedUrl(path: string): Promise<{ signedUrl: string; token: string } | null> {
+  try {
+    const res = await fetch('/api/upload/presign', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path }),
+    })
+    if (!res.ok) return null
+    return res.json()
+  } catch {
+    return null
+  }
+}
+
+/**
  * Upload a file to Supabase Storage via XHR with progress tracking.
+ * Uses presigned URL (service role) first, falls back to anon key.
  * Returns the public URL of the uploaded file.
  *
  * @param file       The file to upload
  * @param path       Storage path (e.g. "12345/timestamp-hash.jpg")
  * @param onProgress Callback with upload percentage (0-100)
  */
-export function uploadWithProgress(
+export async function uploadWithProgress(
   file: File,
   path: string,
   onProgress: (pct: number) => void
@@ -54,9 +73,12 @@ export function uploadWithProgress(
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
+  // Try presigned URL first (bypasses storage policies)
+  const presigned = await getPresignedUrl(path)
+
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
-    xhr.timeout = 5 * 60 * 1000 // 5 minutes for large videos
+    xhr.timeout = 5 * 60 * 1000 // 5 minutes for large files
 
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100))
@@ -67,7 +89,7 @@ export function uploadWithProgress(
         const url = `${supabaseUrl}/storage/v1/object/public/content/${path}`
         resolve(url)
       } else {
-        console.error('UPLOAD_XHR_FAIL', { status: xhr.status, response: xhr.responseText, path })
+        console.error('UPLOAD_XHR_FAIL', { status: xhr.status, response: xhr.responseText, path, presigned: !!presigned })
         reject(new Error(`Upload failed (${xhr.status}): ${xhr.responseText}`))
       }
     }
@@ -79,7 +101,7 @@ export function uploadWithProgress(
 
     xhr.ontimeout = () => {
       console.error('UPLOAD_XHR_TIMEOUT', { path, timeout: xhr.timeout })
-      reject(new Error('Upload timed out — video may be too large for your connection'))
+      reject(new Error('Upload timed out'))
     }
 
     xhr.onabort = () => {
@@ -87,15 +109,22 @@ export function uploadWithProgress(
       reject(new Error('Upload was cancelled'))
     }
 
-    xhr.open('POST', `${supabaseUrl}/storage/v1/object/content/${path}`)
-    xhr.setRequestHeader('Authorization', `Bearer ${supabaseKey}`)
-    xhr.setRequestHeader('apikey', supabaseKey)
-
     const mimeType = file.type === 'video/quicktime'
       ? 'video/mp4'
       : (file.type || 'application/octet-stream')
-    xhr.setRequestHeader('Content-Type', mimeType)
-    xhr.setRequestHeader('x-upsert', 'true')
+
+    if (presigned) {
+      // Presigned URL — PUT with token, no auth headers needed
+      xhr.open('PUT', presigned.signedUrl)
+      xhr.setRequestHeader('Content-Type', mimeType)
+    } else {
+      // Fallback — direct upload with anon key
+      xhr.open('POST', `${supabaseUrl}/storage/v1/object/content/${path}`)
+      xhr.setRequestHeader('Authorization', `Bearer ${supabaseKey}`)
+      xhr.setRequestHeader('apikey', supabaseKey)
+      xhr.setRequestHeader('Content-Type', mimeType)
+      xhr.setRequestHeader('x-upsert', 'true')
+    }
 
     xhr.send(file)
   })
