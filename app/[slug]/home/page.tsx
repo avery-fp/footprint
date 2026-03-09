@@ -1855,48 +1855,29 @@ export default function EditPage() {
                 </div>
               </div>
 
-              {/* Aspect ratio — segmented control */}
+              {/* Reset room to defaults */}
               {(() => {
-                const resolvedAspect = resolveAspect(selectedTile.aspect, selectedTile.type, selectedTile.url)
+                const roomTiles = activeRoomId
+                  ? draft.content.filter(c => c.room_id === activeRoomId)
+                  : draft.content
+                const allDefault = roomTiles.every(t => {
+                  const sz = t.size || 1
+                  const asp = resolveAspect(t.aspect, t.type, t.url)
+                  return sz === 1 && (asp === 'auto' || (!t.aspect && t.type === 'image'))
+                })
                 return (
                   <div className="flex items-center justify-between py-3 border-t border-white/[0.06]">
-                    <span className="text-sm text-white/50 font-mono">ratio</span>
-                    <div className="flex gap-1 bg-white/[0.04] rounded-lg p-0.5">
-                      {([
-                        { value: 'square', label: '1:1' },
-                        { value: 'wide', label: '16:9' },
-                        { value: 'tall', label: '9:16' },
-                        { value: 'auto', label: 'auto' },
-                      ] as const).map(opt => (
-                        <button
-                          key={opt.value}
-                          onClick={() => setTileAspect(mode.tileId, opt.value)}
-                          className={`px-2.5 py-1.5 rounded-md text-xs font-mono transition-all ${
-                            resolvedAspect === opt.value
-                              ? 'bg-white/20 text-white shadow-sm'
-                              : 'text-white/40 hover:text-white/60'
-                          }`}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })()}
-
-              {/* Reset to defaults */}
-              {(() => {
-                const resolvedAsp = resolveAspect(selectedTile.aspect, selectedTile.type, selectedTile.url)
-                const isDefault = (selectedTile.size || 1) === 1 && (resolvedAsp === 'auto' || (!selectedTile.aspect && selectedTile.type === 'image'))
-                return (
-                  <div className="flex items-center justify-between py-3 border-t border-white/[0.06]">
-                    <span className="text-sm text-white/50 font-mono">reset</span>
+                    <span className="text-sm text-white/50 font-mono">reset room</span>
                     <button
-                      onClick={() => { setTileSize(mode.tileId, 1); setTileAspect(mode.tileId, 'auto') }}
-                      disabled={isDefault}
+                      onClick={() => {
+                        for (const t of roomTiles) {
+                          setTileSize(t.id, 1)
+                          setTileAspect(t.id, 'auto')
+                        }
+                      }}
+                      disabled={allDefault}
                       className={`px-4 py-1.5 rounded-md text-xs font-mono transition-all ${
-                        isDefault
+                        allDefault
                           ? 'bg-white/[0.03] text-white/20 cursor-default'
                           : 'bg-white/[0.06] text-white/40 hover:bg-white/[0.12] hover:text-white/60'
                       }`}
