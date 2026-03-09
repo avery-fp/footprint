@@ -5,7 +5,7 @@ export function transformImageUrl(url: string | null | undefined): string | unde
 export function transformImageUrl(url: string | null | undefined): string | undefined {
   if (!url) return undefined
   if (SUPABASE_PATTERN.test(url)) {
-    return url.replace('/object/public/', '/render/image/public/') + '?width=600&quality=75'
+    return url.replace('/object/public/', '/render/image/public/') + '?width=1200&quality=85'
   }
   return url
 }

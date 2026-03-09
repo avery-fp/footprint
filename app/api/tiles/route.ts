@@ -275,7 +275,7 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json()
     const v = validateBody(tilesPatchSchema, body)
     if (!v.success) return v.response
-    const { id, source, slug, size, caption, room_id, aspect } = v.data
+    const { id, source, slug, size, caption, title, room_id, aspect } = v.data
 
     const supabase = createServerSupabaseClient()
     const serialNumber = await getSerialNumber(request, supabase, slug)
@@ -287,6 +287,7 @@ export async function PATCH(request: NextRequest) {
     if (size !== undefined) updates.size = size
     if (aspect !== undefined) updates.aspect = aspect
     if (caption !== undefined) updates.caption = caption || null
+    if (title !== undefined) updates.title = title
     if (room_id !== undefined) updates.room_id = room_id || null
 
     if (Object.keys(updates).length === 0) {

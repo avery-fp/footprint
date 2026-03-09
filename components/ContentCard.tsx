@@ -235,7 +235,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 sizes="(max-width: 768px) 50vw, 25vw"
                 className={fitClass}
                 loading="lazy"
-                quality={75}
+                quality={90}
                 onLoad={() => setIsLoaded(true)}
               />
             )}
@@ -413,7 +413,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             sizes="(max-width: 768px) 50vw, 25vw"
             className="w-full h-full object-cover"
             loading="lazy"
-            quality={75}
+            quality={90}
             onLoad={(e) => {
               setIsLoaded(true)
               const img = e.currentTarget as HTMLImageElement
@@ -491,7 +491,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             sizes="(max-width: 768px) 50vw, 25vw"
             className={`w-full ${aspectClass} ${fitClass}`}
             loading="lazy"
-            quality={75}
+            quality={90}
             onLoad={() => setIsLoaded(true)}
           />
           <span className="absolute bottom-2 left-2.5 text-[9px] font-mono tracking-wider text-white/40">
@@ -550,7 +550,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           sizes={tileSize >= 2 ? '(max-width: 768px) 100vw, 50vw' : '(max-width: 768px) 50vw, 25vw'}
           className="object-cover"
           loading="lazy"
-          quality={75}
+          quality={90}
           onLoad={() => setIsLoaded(true)}
           onError={() => setIsLoaded(true)}
         />

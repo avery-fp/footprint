@@ -146,7 +146,7 @@ export default function UnifiedTile({
             <TileImage
               src={item.url}
               alt={item.title || ''}
-              sizes="(max-width: 768px) 50vw, 25vw"
+              sizes="(max-width: 768px) 50vw, 440px"
               index={index}
               aspect={aspect}
               layout={layout}

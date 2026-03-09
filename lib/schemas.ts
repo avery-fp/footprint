@@ -149,5 +149,6 @@ export const tilesPatchSchema = z.object({
   size: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
   aspect: z.enum(['square', 'wide', 'tall', 'auto']).optional(),
   caption: z.string().optional(),
+  title: z.string().optional(),
   room_id: z.string().nullable().optional(),
 })
