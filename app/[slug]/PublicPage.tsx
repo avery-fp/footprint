@@ -225,7 +225,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   }
 
   // Sortable tile wrapper for owner drag
-  function SortableTileWrapper({ item, idx, children }: { item: any; idx: number; children: React.ReactNode }) {
+  function SortableTileWrapper({ item, idx, children, className }: { item: any; idx: number; children: React.ReactNode; className?: string }) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
     const style = {
       transform: CSS.Transform.toString(transform),
@@ -233,7 +233,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       opacity: isDragging ? 0.4 : 1,
     }
     return (
-      <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <div ref={setNodeRef} style={style} className={className} {...attributes} {...listeners}>
         {children}
       </div>
     )
@@ -268,13 +268,17 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           ? resolveAspect(item.aspect, item.type, item.url)
           : 'square'
 
-        // OUTER div: grid sizing classes only (col-span, row-span, aspect). NO overflow-hidden.
-        // INNER div: relative w-full h-full overflow-hidden rounded-2xl + background
-        const isVid = isVideoTile(item.type, item.url) || item.type === 'youtube' || item.type === 'vimeo'
-        const gridClass = getGridClass(tileSize, tileAspect, isVid)
+        const isVid = item.type === 'youtube' ||
+              item.type === 'video' ||
+              item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i) ||
+              item.url?.includes('youtube') ||
+              item.url?.includes('youtu.be')
 
-        const tileElement = (
-          <div key={item.id} className={gridClass}>
+        console.log('[tile]', item.id, 'type=', item.type, 'url=', item.url?.slice(0, 80), 'isVid=', !!isVid)
+
+        const gridClass = isVid ? 'col-span-2' : getGridClass(tileSize, tileAspect, false)
+
+        const tileInner = (
             <div
               className="relative w-full h-full overflow-hidden rounded-2xl"
               style={{ background: 'rgba(255,255,255,0.06)' }}
@@ -289,18 +293,17 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 isMobile={isMobile}
               />
             </div>
-          </div>
         )
 
         if (isOwner) {
           return (
-            <SortableTileWrapper key={item.id} item={item} idx={idx}>
-              {tileElement}
+            <SortableTileWrapper key={item.id} item={item} idx={idx} className={gridClass}>
+              {tileInner}
             </SortableTileWrapper>
           )
         }
 
-        return tileElement
+        return <div key={item.id} className={gridClass}>{tileInner}</div>
       })}
     </div>
   )
