@@ -271,12 +271,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         // OUTER div: grid sizing classes only (col-span, row-span, aspect). NO overflow-hidden.
         // INNER div: relative w-full h-full overflow-hidden rounded-xl + background
         const isVid = item.type === 'youtube' || item.type === 'video'
-        const outerClass = isVid ? 'col-span-2' : isEditorial
-          ? getGridClass(tileSize, tileAspect, isVideo)
-          : 'aspect-square'
+        const gridClass = isVid ? 'col-span-2' : getGridClass(tileSize, tileAspect, false)
 
         const tileElement = (
-          <div key={item.id} className={outerClass}>
+          <div key={item.id} className={gridClass}>
             <div
               className="relative w-full h-full overflow-hidden rounded-xl"
               style={{ background: 'rgba(255,255,255,0.06)' }}
