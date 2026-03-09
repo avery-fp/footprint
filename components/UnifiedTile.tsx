@@ -4,6 +4,7 @@ import { memo } from 'react'
 import ContentCardBase from '@/components/ContentCard'
 import VideoTileBase from '@/components/VideoTile'
 import TileImage from '@/components/TileImage'
+import ZoomableImage from '@/components/ZoomableImage'
 import { getImageSizes } from '@/lib/media/aspect'
 
 const ContentCard = memo(ContentCardBase)
@@ -141,14 +142,16 @@ export default function UnifiedTile({
           data-tile-id={item.id}
           data-tile-type="image"
         >
-          <TileImage
-            src={item.url}
-            alt={item.title || ''}
-            sizes="(max-width: 768px) 50vw, 25vw"
-            index={index}
-            aspect={aspect}
-            layout={layout}
-          />
+          <ZoomableImage>
+            <TileImage
+              src={item.url}
+              alt={item.title || ''}
+              sizes="(max-width: 768px) 50vw, 25vw"
+              index={index}
+              aspect={aspect}
+              layout={layout}
+            />
+          </ZoomableImage>
         </div>
       )
     }

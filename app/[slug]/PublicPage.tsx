@@ -269,14 +269,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           : 'square'
 
         // OUTER div: grid sizing classes only (col-span, row-span, aspect). NO overflow-hidden.
-        // INNER div: relative w-full h-full overflow-hidden rounded-xl + background
-        const isVid = item.type === 'youtube' || item.type === 'video'
-        const gridClass = isVid ? 'col-span-2' : getGridClass(tileSize, tileAspect, false)
+        // INNER div: relative w-full h-full overflow-hidden rounded-2xl + background
+        const isVid = isVideoTile(item.type, item.url) || item.type === 'youtube' || item.type === 'vimeo'
+        const gridClass = getGridClass(tileSize, tileAspect, isVid)
 
         const tileElement = (
           <div key={item.id} className={gridClass}>
             <div
-              className="relative w-full h-full overflow-hidden rounded-xl"
+              className="relative w-full h-full overflow-hidden rounded-2xl"
               style={{ background: 'rgba(255,255,255,0.06)' }}
             >
               <UnifiedTile
@@ -369,7 +369,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
       <div className="relative z-10 flex-1 flex flex-col">
         {/* Sky */}
-        <div style={{ height: '80px' }} />
+        <div style={{ height: '100px' }} />
 
         {/* Masthead */}
         <RemoveBubble slug={footprint.slug}>
@@ -427,7 +427,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
         {/* Grid */}
         <div
-          className="fp-grid-container mx-auto w-full px-1"
+          className="fp-grid-container mx-auto w-full px-3 md:px-4"
           style={{ maxWidth: '880px' }}
         >
           <div className="fp-grid-arrive">
@@ -442,7 +442,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         )}
 
         {/* Floor */}
-        <div style={{ height: '120px' }} />
+        <div style={{ height: '160px' }} />
 
         {/* Footer — copy link with footprint icon */}
         <div className="py-10 flex items-center justify-center">
@@ -451,9 +451,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             className="group p-3 text-white/[0.12] hover:text-white/40 transition-colors duration-500 touch-manipulation"
             aria-label="Copy link"
           >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C10.5 2 9.5 3.5 9.5 5c0 1 .3 2 .8 2.8L9 9.5C8 10 7.2 11 7 12.2c-.3 1.5.2 3 1.2 4l.5.5c-.3.8-.5 1.8-.5 2.8 0 1.5.5 3 1.5 3.5.5.3 1 .3 1.5 0 1-.5 1.5-2 1.5-3.5 0-1-.2-2-.5-2.8l.5-.5c1-1 1.5-2.5 1.2-4C13.8 11 13 10 12 9.5l-1.3-1.7c.5-.8.8-1.8.8-2.8 0-1.5-1-3-2.5-3h3z"/>
-            </svg>
+            <span className="relative inline-flex items-end gap-0.5">
+              <svg className="w-3.5 h-3.5 -rotate-6" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C10.5 2 9.5 3.5 9.5 5c0 1 .3 2 .8 2.8L9 9.5C8 10 7.2 11 7 12.2c-.3 1.5.2 3 1.2 4l.5.5c-.3.8-.5 1.8-.5 2.8 0 1.5.5 3 1.5 3.5.5.3 1 .3 1.5 0 1-.5 1.5-2 1.5-3.5 0-1-.2-2-.5-2.8l.5-.5c1-1 1.5-2.5 1.2-4C13.8 11 13 10 12 9.5l-1.3-1.7c.5-.8.8-1.8.8-2.8 0-1.5-1-3-2.5-3h3z"/>
+              </svg>
+              <svg className="w-3.5 h-3.5 rotate-6 -translate-y-1" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C10.5 2 9.5 3.5 9.5 5c0 1 .3 2 .8 2.8L9 9.5C8 10 7.2 11 7 12.2c-.3 1.5.2 3 1.2 4l.5.5c-.3.8-.5 1.8-.5 2.8 0 1.5.5 3 1.5 3.5.5.3 1 .3 1.5 0 1-.5 1.5-2 1.5-3.5 0-1-.2-2-.5-2.8l.5-.5c1-1 1.5-2.5 1.2-4C13.8 11 13 10 12 9.5l-1.3-1.7c.5-.8.8-1.8.8-2.8 0-1.5-1-3-2.5-3h3z"/>
+              </svg>
+            </span>
           </button>
         </div>
       </div>

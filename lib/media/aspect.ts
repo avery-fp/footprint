@@ -34,7 +34,8 @@ export function resolveAspect(
  * Used for video tile dominance logic.
  */
 export function isVideoTile(type: string, url?: string): boolean {
-  return type === 'video' || (type === 'image' && !!url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i))
+  return type === 'video' || type === 'youtube' || type === 'vimeo'
+    || (type === 'image' && !!url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i))
 }
 
 // ── Grid class helpers ──────────────────────────────────────
@@ -46,9 +47,12 @@ export function isVideoTile(type: string, url?: string): boolean {
  * Pass isVideo=true for video tile dominance: videos always get col-span-2 row-span-2.
  */
 export function getGridClass(size: number, aspect: string | null | undefined, isVideo = false): string {
-  // Video dominance — force col-span-2 row-span-2 on all surfaces
+  // Video dominance — always prominent
   if (isVideo) {
-    return 'col-span-2 row-span-2 aspect-video'
+    if (aspect === 'tall' || aspect === 'portrait') {
+      return 'col-span-1 row-span-2 aspect-[9/16]'
+    }
+    return 'col-span-2 row-span-1 aspect-video'
   }
   if (aspect === 'wide' || aspect === 'landscape') {
     if (size >= 3) return 'col-span-2 row-span-1 md:col-span-4 md:row-span-2 aspect-video'
@@ -73,9 +77,12 @@ export function getGridClass(size: number, aspect: string | null | undefined, is
  * Pass isVideo=true for video tile dominance.
  */
 export function getGridClassHome(size: number, aspect: string, isVideo = false): string {
-  // Video dominance — force col-span-2 row-span-2
+  // Video dominance — always prominent
   if (isVideo) {
-    return 'col-span-2 row-span-2'
+    if (aspect === 'tall' || aspect === 'portrait') {
+      return 'col-span-1 row-span-2'
+    }
+    return 'col-span-2 row-span-1'
   }
   if (aspect === 'wide' || aspect === 'landscape') {
     if (size >= 3) return 'col-span-2 row-span-1 md:col-span-4 md:row-span-2'
