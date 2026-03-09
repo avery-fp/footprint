@@ -270,7 +270,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
         // OUTER div: grid sizing classes only (col-span, row-span, aspect). NO overflow-hidden.
         // INNER div: relative w-full h-full overflow-hidden rounded-xl + background
-        const outerClass = isEditorial
+        const isVid = item.type === 'youtube' || item.type === 'video'
+        const outerClass = isVid ? 'col-span-2' : isEditorial
           ? getGridClass(tileSize, tileAspect, isVideo)
           : 'aspect-square'
 

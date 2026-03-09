@@ -21,18 +21,18 @@ interface LayoutConfig {
 
 const LAYOUTS: Record<RoomLayout, LayoutConfig> = {
   grid: {
-    containerClass: 'grid grid-cols-2 md:grid-cols-4 gap-[3px]',
+    containerClass: 'grid grid-cols-2 md:grid-cols-4 gap-[6px]',
     tileClass: 'aspect-square relative overflow-hidden rounded-xl',
     useFillMode: true,
     perTileSizing: false,
-    gap: '3px',
+    gap: '6px',
   },
   editorial: {
-    containerClass: 'grid grid-cols-2 md:grid-cols-4 gap-[3px]',
+    containerClass: 'grid grid-cols-2 md:grid-cols-4 gap-[6px]',
     tileClass: 'relative overflow-hidden rounded-xl',
     useFillMode: false,
     perTileSizing: true,
-    gap: '3px',
+    gap: '6px',
   },
 }
 
