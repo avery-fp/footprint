@@ -1885,6 +1885,28 @@ export default function EditPage() {
                 )
               })()}
 
+              {/* Reset to defaults */}
+              {(() => {
+                const resolvedAsp = resolveAspect(selectedTile.aspect, selectedTile.type, selectedTile.url)
+                const isDefault = (selectedTile.size || 1) === 1 && (resolvedAsp === 'auto' || (!selectedTile.aspect && selectedTile.type === 'image'))
+                return (
+                  <div className="flex items-center justify-between py-3 border-t border-white/[0.06]">
+                    <span className="text-sm text-white/50 font-mono">reset</span>
+                    <button
+                      onClick={() => { setTileSize(mode.tileId, 1); setTileAspect(mode.tileId, 'auto') }}
+                      disabled={isDefault}
+                      className={`px-4 py-1.5 rounded-md text-xs font-mono transition-all ${
+                        isDefault
+                          ? 'bg-white/[0.03] text-white/20 cursor-default'
+                          : 'bg-white/[0.06] text-white/40 hover:bg-white/[0.12] hover:text-white/60'
+                      }`}
+                    >
+                      defaults
+                    </button>
+                  </div>
+                )
+              })()}
+
               {/* Room assign */}
               {rooms.length > 0 && (
                 <div className="flex items-center justify-between py-3 border-t border-white/[0.06]">
