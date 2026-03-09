@@ -38,12 +38,12 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout }: Ti
       <Image
         src={src}
         alt={alt}
-        width={400}
-        height={400}
+        width={800}
+        height={800}
         sizes={sizes}
         className={`${isAuto ? 'w-full h-auto' : 'absolute inset-0 w-full h-full'} ${getObjectFit(aspect || 'square')}`}
         loading={index < 4 ? 'eager' : 'lazy'}
-        quality={75}
+        quality={90}
         onError={() => setFailed(true)}
       />
     )
@@ -59,7 +59,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout }: Ti
       className="object-cover"
       loading={index < 4 ? 'eager' : 'lazy'}
       priority={index < 2}
-      quality={75}
+      quality={90}
       onError={() => setFailed(true)}
     />
   )

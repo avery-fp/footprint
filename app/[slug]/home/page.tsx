@@ -376,6 +376,8 @@ export default function EditPage() {
   const [isAdding, setIsAdding] = useState(false)
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
   const [draggingTileId, setDraggingTileId] = useState<string | null>(null)
+  const [editingThought, setEditingThought] = useState<string | null>(null)
+  const [editingThoughtText, setEditingThoughtText] = useState('')
   const [swapSourceId, setSwapSourceId] = useState<string | null>(null)
   const [isOwner, setIsOwner] = useState(false)
   const [tileSources, setTileSources] = useState<Record<string, 'library' | 'links'>>({})
@@ -551,7 +553,7 @@ export default function EditPage() {
   const openTileMenu = (tileId: string) => {
     setMode({ type: 'tile_menu', tileId })
   }
-  const closeTileMenu = () => setMode({ type: 'arranging' })
+  const closeTileMenu = () => { setEditingThought(null); setMode({ type: 'arranging' }) }
   const startAdding = (method: 'url' | 'thought') => setMode({ type: 'adding', method })
   const stopAdding = () => setMode({ type: 'arranging' })
 
@@ -1270,6 +1272,31 @@ export default function EditPage() {
     trackOp(op)
   }
 
+  // ── Edit thought text ──
+
+  async function updateThoughtText(tileId: string, newText: string) {
+    if (!draft) return
+    const source = tileSources[tileId]
+    if (!source) return
+
+    setDraft(prev => prev ? {
+      ...prev,
+      content: prev.content.map(c =>
+        c.id === tileId ? { ...c, title: newText } : c
+      ),
+      updated_at: Date.now(),
+    } : null)
+
+    const op = fetch('/api/tiles', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: tileId, source, slug, title: newText }),
+    }).then(res => {
+      if (!res.ok) res.text().then(body => console.error('Thought PATCH failed:', res.status, body)).catch(() => {})
+    }).catch(e => console.error('Thought PATCH network error:', e))
+    trackOp(op)
+  }
+
   // ── File upload — utilities imported from @/lib/upload ──
   const VIDEO_MIME = VIDEO_MIME_SHARED
   const uploadWithProgress = uploadWithProgressShared
@@ -1834,6 +1861,65 @@ export default function EditPage() {
                   {selectedTile.title || selectedTile.type || 'tile'}
                 </p>
               </div>
+
+              {/* Edit thought text */}
+              {selectedTile.type === 'thought' && (
+                editingThought === mode.tileId ? (
+                  <div className="py-3 border-b border-white/[0.06]">
+                    <textarea
+                      autoFocus
+                      value={editingThoughtText}
+                      onChange={(e) => setEditingThoughtText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                          const text = editingThoughtText.trim()
+                          if (text) {
+                            updateThoughtText(mode.tileId, text)
+                          }
+                          setEditingThought(null)
+                        }
+                      }}
+                      className="w-full bg-white/[0.06] text-white text-sm rounded-lg px-3 py-2.5 border border-white/10 outline-none resize-none font-mono placeholder:text-white/20"
+                      rows={3}
+                      maxLength={280}
+                      placeholder="edit your thought..."
+                    />
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-[10px] text-white/20 font-mono">{editingThoughtText.length}/280</span>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setEditingThought(null)}
+                          className="px-3 py-1 rounded-md text-xs font-mono text-white/40 hover:text-white/60 transition"
+                        >
+                          cancel
+                        </button>
+                        <button
+                          onClick={() => {
+                            const text = editingThoughtText.trim()
+                            if (text) {
+                              updateThoughtText(mode.tileId, text)
+                            }
+                            setEditingThought(null)
+                          }}
+                          className="px-3 py-1 rounded-md text-xs font-mono bg-white/[0.12] text-white/70 hover:bg-white/20 hover:text-white transition"
+                        >
+                          save
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setEditingThought(mode.tileId)
+                      setEditingThoughtText(selectedTile.title || '')
+                    }}
+                    className="w-full text-left text-sm text-white/50 hover:text-white/80 transition font-mono py-3 border-b border-white/[0.06] flex items-center gap-2"
+                  >
+                    <span className="text-white/30 text-xs">Aa</span> edit text
+                  </button>
+                )
+              )}
 
               {/* Resize — segmented control */}
               <div className="flex items-center justify-between py-3">

@@ -194,7 +194,7 @@ export function getVideoThumbnail(file: File): Promise<string> {
  * Skips files under 300KB. Converts to JPEG.
  * Returns the original file if no resize is needed.
  */
-export async function resizeImage(file: File, maxWidth = 1600): Promise<File> {
+export async function resizeImage(file: File, maxWidth = 2400): Promise<File> {
   if (file.size < 300 * 1024) return file
 
   return new Promise((resolve, reject) => {
@@ -229,7 +229,7 @@ export async function resizeImage(file: File, maxWidth = 1600): Promise<File> {
             )
           },
           'image/jpeg',
-          0.82
+          0.92
         )
       } catch (e) {
         clearTimeout(timeout)
