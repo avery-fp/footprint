@@ -1,12 +1,13 @@
 /**
  * POSTPACK AGENT — generates contextual comments for each platform.
  *
- * NOT generic copy. Each comment is tailored to the specific thread
- * and platform. Uses Claude Haiku for speed + cost efficiency.
+ * Fetches top comments from the target thread to match the thread's
+ * actual energy, then generates comments that blend in naturally.
  *
- * The room footprint.onl/ae has 130+ tiles spanning basketball, music,
- * anime, fashion, film, architecture, and more — so a single room
- * is relevant across dozens of communities.
+ * Distribution:
+ *   40% — include footprint.onl/ae as casual aside
+ *   10% — mystery drop ("footprint.onl" or "footprint.onl iykyk")
+ *   50% — pure value, zero link, builds account credibility
  */
 
 import type { ScanTarget, Platform } from './scanner.js'
@@ -28,13 +29,11 @@ export interface PostpackOutput {
     room_url: string
     generated_at: string
     model: string
+    comment_type: 'value' | 'casual_link' | 'mystery_drop'
   }
 }
 
 // ─── Room content library ───────────────────────────────
-//
-// The ae room has specific tiles that connect to different communities.
-// Postpack uses this to reference actual content, not generic claims.
 
 const ae_CONTENT: Record<string, string[]> = {
   sports: [
@@ -82,17 +81,69 @@ const ae_CONTENT: Record<string, string[]> = {
   ],
 }
 
-// ─── Platform tone guide ────────────────────────────────
+// ─── Fetch top comments from thread ─────────────────────
 
-const PLATFORM_TONE: Record<Platform, string> = {
-  reddit: 'casual, conversational, like talking to friends. lowercase ok. use "tbh", "ngl", "lowkey" naturally. never sound corporate.',
-  twitter: 'punchy, concise, max 280 chars. can be fragmented. period for emphasis. lowercase.',
-  youtube: 'slightly more enthusiastic but still genuine. can be 2-3 sentences. express real appreciation for the video topic.',
+interface ThreadComment {
+  body: string
+  score: number
+  author: string
+}
+
+async function fetchTopComments(target: ScanTarget): Promise<ThreadComment[]> {
+  if (target.platform !== 'reddit') return []
+
+  // Extract subreddit and thread id from URL
+  // Format: https://www.reddit.com/r/{sub}/comments/{id}/...
+  const match = target.thread_url.match(/\/r\/([^/]+)\/comments\/([^/]+)/)
+  if (!match) return []
+
+  const [, sub, id] = match
+  const url = `https://www.reddit.com/r/${sub}/comments/${id}.json?sort=top&limit=5`
+
+  try {
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'footprint-postpack/1.0' },
+    })
+
+    if (!response.ok) return []
+
+    const data = await response.json()
+    // Reddit returns [post, comments] — comments are in data[1]
+    const commentListing = data?.[1]?.data?.children || []
+
+    return commentListing
+      .filter((c: any) => c.kind === 't1' && c.data?.body)
+      .slice(0, 3)
+      .map((c: any) => ({
+        body: c.data.body.slice(0, 300),
+        score: c.data.score || 0,
+        author: c.data.author || '',
+      }))
+  } catch {
+    return []
+  }
+}
+
+// ─── Pick comment type by distribution ──────────────────
+
+type CommentType = 'value' | 'casual_link' | 'mystery_drop'
+
+function pickCommentType(): CommentType {
+  const roll = Math.random()
+  if (roll < 0.50) return 'value'
+  if (roll < 0.90) return 'casual_link'
+  return 'mystery_drop'
 }
 
 // ─── Comment generation via Claude Haiku ────────────────
 
-function buildPrompt(input: PostpackInput): string {
+const BANNED_WORDS = [
+  'ngl', 'fire', 'insane', 'absolutely', 'incredible', 'amazing',
+  'mind-blowing', 'game-changer', 'next level', 'bussin', 'sheesh',
+  'goated', 'slaps', 'hits different', 'no cap',
+]
+
+function buildPrompt(input: PostpackInput, topComments: ThreadComment[], commentType: CommentType): string {
   const { target } = input
 
   // Find which content categories match this thread
@@ -100,7 +151,7 @@ function buildPrompt(input: PostpackInput): string {
   const relevantContent: string[] = []
 
   for (const [category, tiles] of Object.entries(ae_CONTENT)) {
-    const keywords = {
+    const keywords: Record<string, string[]> = {
       sports: ['jordan', 'mj', 'basketball', 'nba', 'dunk', 'bulls', 'goat'],
       music: ['mac miller', 'frank ocean', 'album', 'playlist', 'spotify', 'song', 'track', 'hip hop', 'rap'],
       anime: ['akira', 'anime', 'manga', 'ghibli', 'otomo', 'spirited away', 'miyazaki'],
@@ -109,58 +160,103 @@ function buildPrompt(input: PostpackInput): string {
       design: ['minimal', 'brutalist', 'web design', 'portfolio', 'architecture', 'design'],
       identity: ['linktree', 'personal page', 'bio link', 'link in bio', 'about me', 'digital identity'],
       culture: ['aesthetic', 'curated', 'internet', 'cool', 'taste', 'vibe'],
-    }[category] || []
+    }
 
-    if (keywords.some(kw => threadText.includes(kw))) {
+    const categoryKeywords = keywords[category] || []
+    if (categoryKeywords.some(kw => threadText.includes(kw))) {
       relevantContent.push(...tiles)
     }
   }
 
-  // If no specific match, use generic content references
   if (relevantContent.length === 0) {
-    relevantContent.push(
-      ...ae_CONTENT.culture,
-      ...ae_CONTENT.identity
-    )
+    relevantContent.push(...ae_CONTENT.culture, ...ae_CONTENT.identity)
   }
 
-  const tone = PLATFORM_TONE[target.platform] || PLATFORM_TONE.reddit
+  // Build tone reference from top comments
+  const toneSection = topComments.length > 0
+    ? `\nHere are the top-voted comments in this thread. Match their energy, length, and style EXACTLY:\n${topComments.map((c, i) => `${i + 1}. (${c.score} upvotes) "${c.body}"`).join('\n')}\n`
+    : ''
 
-  return `You are a person who has a beautiful internet page at ${input.room_url}.
-Your page has 130+ tiles: MJ dunking, Akira, Mac Miller, David Lynch,
-Comme des Garçons, anime, fashion, brutalist architecture, and more.
-It's a curated visual diary with a Spotify embed on a dark canvas.
+  // Build type-specific instruction
+  let typeInstruction: string
+  switch (commentType) {
+    case 'mystery_drop':
+      return `You are posting a single mysterious comment in a reddit thread.
 
-You're commenting on this thread:
+Thread: r/${target.context} — "${target.thread_title}"
+${toneSection}
+
+Output EXACTLY one of these two options (pick randomly):
+- footprint.onl
+- footprint.onl iykyk
+
+Output ONLY the chosen text. Nothing else.`
+
+    case 'casual_link':
+      typeInstruction = `Include "footprint.onl/ae" somewhere in the comment as a casual aside —
+like mentioning your own page in passing. It should feel like you're sharing
+something personal, not promoting. The link should NOT be the focus of the comment.`
+      break
+
+    case 'value':
+      typeInstruction = `Do NOT include any links, URLs, or mentions of footprint.
+This comment is pure contribution to the discussion. Build credibility by
+being genuinely helpful, funny, or insightful about the topic.`
+      break
+  }
+
+  return `You're a real person commenting on a reddit thread.
+You have a page at footprint.onl/ae with 130+ tiles spanning basketball,
+music, anime, fashion, film, and architecture.
+
+Thread:
 Platform: ${target.platform}
-Thread title: ${target.thread_title}
-Thread content: ${target.thread_snippet || '(no body text)'}
-Subreddit/context: ${target.context}
-
-Relevant tiles on your page that connect to this thread:
+Title: ${target.thread_title}
+Body: ${target.thread_snippet || '(no body text)'}
+Context: ${target.context}
+${toneSection}
+Relevant tiles on your page:
 ${relevantContent.map(c => `- ${c}`).join('\n')}
 
-Tone: ${tone}
-
-Write a short, natural comment that:
-- Is genuinely relevant to what's being discussed
-- Mentions your footprint page naturally (not as an ad)
-- References a specific tile that connects to the thread topic
-- Sounds like a real person, not a brand
-- Is 1-3 sentences max
-- Includes "${input.room_url}" naturally
-
-Examples of GOOD comments:
-- "mj was different. i have that exact dunk photo on my page ${input.room_url}"
-- "the akira influence on everything is crazy. had to put otomo on my footprint"
-- "mac miller mirror is so underrated. plays on my page while you scroll through everything ${input.room_url}"
-
-Examples of BAD comments (never do this):
-- "Check out my cool new website!"
-- "Buy a footprint for only $10!"
-- "Hey everyone, I made this product..."
+RULES — follow every single one:
+1. Mirror the EXACT energy and style of the top comments above
+2. ${typeInstruction}
+3. Write in lowercase. no capital letters unless it's a proper noun
+4. Never use quotes around your own words
+5. Never use these words: ${BANNED_WORDS.join(', ')}
+6. Never mention "footprint" as a product or brand name — if linking,
+   just drop the url naturally like you'd drop any link
+7. 1-2 sentences max. be concise
+8. Sound like you belong in this thread. if the thread is shitposty, shitpost.
+   if it's serious discussion, be thoughtful
+9. Never start with "yo", "bro check this", or any attention-grabbing opener
 
 Output ONLY the comment text. Nothing else.`
+}
+
+function sanitizeComment(text: string): string {
+  let clean = text.trim()
+
+  // Strip surrounding quotes
+  if ((clean.startsWith('"') && clean.endsWith('"')) ||
+      (clean.startsWith("'") && clean.endsWith("'"))) {
+    clean = clean.slice(1, -1)
+  }
+
+  // Enforce lowercase (preserve URLs)
+  clean = clean.replace(/[^(footprint\.onl\S*)]+/g, (match) => {
+    // Don't lowercase URLs
+    if (match.includes('http') || match.includes('footprint.onl')) return match
+    return match.toLowerCase()
+  })
+
+  // Remove banned hype words
+  for (const word of BANNED_WORDS) {
+    const regex = new RegExp(`\\b${word}\\b`, 'gi')
+    clean = clean.replace(regex, '').replace(/\s{2,}/g, ' ')
+  }
+
+  return clean.trim()
 }
 
 export async function generateComment(input: PostpackInput): Promise<PostpackOutput> {
@@ -168,6 +264,14 @@ export async function generateComment(input: PostpackInput): Promise<PostpackOut
   if (!anthropicKey) {
     throw new Error('ANTHROPIC_API_KEY required for postpack')
   }
+
+  // Fetch top comments for tone reference
+  const topComments = await fetchTopComments(input.target)
+
+  // Pick comment type by distribution
+  const commentType = pickCommentType()
+
+  const prompt = buildPrompt(input, topComments, commentType)
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -179,7 +283,7 @@ export async function generateComment(input: PostpackInput): Promise<PostpackOut
     body: JSON.stringify({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 256,
-      messages: [{ role: 'user', content: buildPrompt(input) }],
+      messages: [{ role: 'user', content: prompt }],
     }),
   })
 
@@ -189,10 +293,15 @@ export async function generateComment(input: PostpackInput): Promise<PostpackOut
   }
 
   const data = await response.json()
-  const commentText = data.content?.[0]?.text?.trim()
+  let commentText = data.content?.[0]?.text?.trim()
 
   if (!commentText) {
     throw new Error('Empty response from Haiku')
+  }
+
+  // Sanitize unless it's a mystery drop (those are exact strings)
+  if (commentType !== 'mystery_drop') {
+    commentText = sanitizeComment(commentText)
   }
 
   return {
@@ -205,6 +314,7 @@ export async function generateComment(input: PostpackInput): Promise<PostpackOut
       room_url: input.room_url,
       generated_at: new Date().toISOString(),
       model: 'claude-haiku-4-5-20251001',
+      comment_type: commentType,
     },
   }
 }
@@ -220,14 +330,17 @@ export async function generateComments(
   for (const target of targets) {
     try {
       const output = await generateComment({ room_url: roomUrl, target })
+      const typeTag = output.metadata.comment_type === 'value' ? 'val'
+        : output.metadata.comment_type === 'casual_link' ? 'link'
+        : 'drop'
+      console.log(`  [postpack] ${target.platform} | ${target.context} | [${typeTag}] "${output.comment_text.slice(0, 60)}..."`)
       results.push(output)
-      console.log(`  [postpack] ${target.platform} | ${target.context} | "${output.comment_text.slice(0, 60)}..."`)
     } catch (err: any) {
       console.error(`  [postpack] failed for ${target.thread_url}: ${err.message}`)
     }
 
-    // Small delay between Haiku calls to avoid rate limiting
-    await new Promise(r => setTimeout(r, 200))
+    // Small delay between calls
+    await new Promise(r => setTimeout(r, 300))
   }
 
   return results
