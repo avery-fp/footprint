@@ -4,5 +4,11 @@
   "framework": "nextjs",
   "env": {
     "NEXT_PUBLIC_APP_URL": "https://footprint.onl"
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/aro/reactor/cycle",
+      "schedule": "*/30 * * * *"
+    }
+  ]
 }
