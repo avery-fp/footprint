@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { scanReddit } from '../scanner';
+import { scanReddit } from '@/src/fp/scanner';
 import crypto from 'crypto';
 
 const supabase = createClient(
@@ -12,48 +12,48 @@ export async function runEngine(force = false) {
     const result: any = { status: 'started', errors: [] };
 
     try {
-        const { data: job } = await supabase.from('aro_jobs').insert({ status: 'running' }).select().single();
-        result.jobId = job?.id;
+        // State check
+        const { data: state } = await supabase.from('aro_reactor_state').select('is_active').eq('id', 'primary').single();
+        if (!force && (!state || !state.is_active)) {
+            return { status: 'skipped', reason: 'reactor paused' };
+        }
+
+        const { data: job, error: jobErr } = await supabase.from('aro_jobs').insert({ status: 'running' }).select().single();
+        if (jobErr) throw new Error(`aro_jobs insert failed: ${jobErr.message}`);
+        result.jobId = job.id;
 
         // 1. SCAN THE HEAT
         const threads = await scanReddit();
         result.targetsFound = threads.length;
 
-        // 2. GENERATE VISUAL SEEDS (Bypass AI Refusal)
+        // 2. GENERATE UNIQUE PAYLOADS (Bypass Dedupe Wall)
         let seedsQueued = 0;
         for (const thread of threads) {
-            // We use the SID + Timestamp to ensure every payload is unique
             const sid = crypto.randomUUID();
-            const timestamp = new Date().toISOString();
-            
-            // The "Mystery Drop" logic - Visual Receipt
             const payloads = [
-                `the standard. footprint.onl/ae?sid=${sid}`,
-                `found the source. footprint.onl/ae?sid=${sid}`,
-                `the grid. footprint.onl/ae?sid=${sid}`,
+                `the standard. footprint.onl?sid=${sid}`,
+                `found the source. footprint.onl?sid=${sid}`,
+                `the grid. footprint.onl?sid=${sid}`,
                 `footprint.onl?sid=${sid} iykyk`
             ];
-            
             const comment_text = payloads[Math.floor(Math.random() * payloads.length)];
 
-            // 3. INJECT INTO DB
             await supabase.from('aro_seeds').insert({
                 id: sid,
                 surface_url: thread.url,
                 comment_text: comment_text,
-                status: 'pending',
-                metadata: { timestamp, target: thread.subreddit }
+                status: 'pending'
             });
             seedsQueued++;
         }
 
         result.seedsQueued = seedsQueued;
-        await supabase.from('aro_jobs').update({ 
-            status: 'completed', 
-            threads_found: result.targetsFound, 
+        await supabase.from('aro_jobs').update({
+            status: 'completed',
+            threads_found: result.targetsFound,
             seeds_generated: seedsQueued,
-            completed_at: new Date().toISOString() 
-        }).eq('id', result.jobId);
+            completed_at: new Date().toISOString()
+        }).eq('id', job.id);
 
         result.status = 'completed';
     } catch (e: any) {
