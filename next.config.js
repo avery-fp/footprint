@@ -4,8 +4,10 @@ const nextConfig = {
     unoptimized: true,
   },
   turbopack: {},
-  outputFileTracingExcludes: {
-    '*': ['./src/fp/agents/**'],
+  experimental: {
+    outputFileTracingExcludes: {
+      '*': ['./src/fp/agents/**/*', './profiles/**/*'],
+    },
   },
 }
 
