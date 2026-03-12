@@ -24,6 +24,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
     }
 
+    console.log('[STRIPE] RECEIVED_EVENT:', event.type)
+    console.log('[STRIPE] METADATA:', event.data.object.metadata)
+
     switch (event.type) {
       case 'checkout.session.completed':
         await handleCheckoutComplete(event.data.object)
@@ -32,10 +35,12 @@ export async function POST(request: NextRequest) {
         log.info(`Unhandled event type: ${event.type}`)
     }
 
+    // Always return 200 to prevent Stripe retry loops
     return NextResponse.json({ received: true })
   } catch (error) {
     log.error({ err: error }, 'Webhook failed')
-    return NextResponse.json({ error: 'Webhook failed' }, { status: 500 })
+    // Return 200 even on failure to prevent Stripe retry loops
+    return NextResponse.json({ received: true })
   }
 }
 
@@ -51,6 +56,45 @@ async function handleCheckoutComplete(session: any) {
     session.metadata?.sid ||
     session.client_reference_id ||
     null
+
+  // ── ARO seed attribution: find and mark the seed as purchased ──
+  if (sid) {
+    try {
+      const { data: aroSeed, error: aroSeedError } = await supabase
+        .from('aro_seeds')
+        .select('id')
+        .eq('id', sid)
+        .single()
+
+      if (aroSeed) {
+        await supabase
+          .from('aro_seeds')
+          .update({ status: 'purchased' })
+          .eq('id', aroSeed.id)
+
+        await supabase.from('aro_events').insert({
+          target_id: null,
+          event_type: 'purchase',
+          metadata: {
+            sid,
+            aro_seed_id: aroSeed.id,
+            stripe_session_id: session.id,
+            amount: session.amount_total,
+            currency: session.currency,
+            customer_email: rawEmail || null,
+          },
+        })
+
+        log.info(`[STRIPE] ARO seed ${sid} marked as purchased`)
+      } else {
+        console.log(`[ERROR] STRIPE_ORPHAN_PURCHASE: No matching SID ${sid}`)
+        log.error({ sid, err: aroSeedError }, 'STRIPE_ORPHAN_PURCHASE: No matching SID')
+      }
+    } catch (err) {
+      // Non-critical — don't block the webhook
+      log.error({ err, sid }, 'ARO seed lookup failed')
+    }
+  }
 
   // Idempotency: check if this session was already processed
   const { data: existingPayment } = await supabase
