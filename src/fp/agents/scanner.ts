@@ -64,49 +64,136 @@ const SUBREDDITS: SubredditConfig[] = [
   { name: 'basketball', categories: ['sports'] },
   { name: 'chicagobulls', categories: ['sports'] },
   { name: 'nbadiscussion', categories: ['sports'] },
+  { name: 'nfl', categories: ['sports'] },
+  { name: 'sports', categories: ['sports'] },
   // Music
   { name: 'hiphopheads', categories: ['music'] },
   { name: 'MacMiller', categories: ['music'] },
   { name: 'FrankOcean', categories: ['music'] },
   { name: 'spotify', categories: ['music'] },
   { name: 'musicproduction', categories: ['music'] },
+  { name: 'music', categories: ['music'] },
+  { name: 'listentothis', categories: ['music'] },
+  { name: 'rnb', categories: ['music'] },
+  { name: 'indieheads', categories: ['music'] },
   // Fashion
   { name: 'streetwear', categories: ['fashion'] },
   { name: 'malefashion', categories: ['fashion'] },
   { name: 'sneakers', categories: ['fashion'] },
   { name: 'fashionreps', categories: ['fashion'] },
+  { name: 'rawdenim', categories: ['fashion'] },
+  { name: 'womensstreetwear', categories: ['fashion'] },
   // Anime
   { name: 'anime', categories: ['anime'] },
   { name: 'manga', categories: ['anime'] },
   { name: 'animeart', categories: ['anime'] },
+  { name: 'OnePiece', categories: ['anime'] },
+  { name: 'JuJutsuKaisen', categories: ['anime'] },
   // Film
   { name: 'movies', categories: ['film'] },
   { name: 'criterion', categories: ['film'] },
   { name: 'TrueFilm', categories: ['film'] },
   { name: 'davidlynch', categories: ['film'] },
   { name: 'A24', categories: ['film'] },
-  // Design
+  { name: 'filmmakers', categories: ['film', 'design'] },
+  { name: 'Letterboxd', categories: ['film'] },
+  { name: 'CineShots', categories: ['film', 'culture'] },
+  // Design & Tech
   { name: 'web_design', categories: ['design', 'identity'] },
   { name: 'design', categories: ['design'] },
   { name: 'InternetIsBeautiful', categories: ['design', 'identity'] },
   { name: 'minimalism', categories: ['design'] },
   { name: 'architecture', categories: ['design'] },
+  { name: 'battlestations', categories: ['design', 'culture'] },
+  { name: 'mechanicalkeyboards', categories: ['design', 'culture'] },
+  { name: 'graphic_design', categories: ['design'] },
+  { name: 'UI_Design', categories: ['design', 'identity'] },
+  // Photography & Visual
+  { name: 'photography', categories: ['culture', 'design'] },
+  { name: 'analog', categories: ['culture', 'design'] },
+  { name: 'itookapicture', categories: ['culture'] },
+  { name: 'PixelArt', categories: ['culture', 'anime'] },
   // Culture
   { name: 'internetculture', categories: ['culture'] },
   { name: 'aesthetics', categories: ['culture'] },
   { name: 'vaporwave', categories: ['culture'] },
   { name: 'Art', categories: ['culture'] },
+  { name: 'outrun', categories: ['culture'] },
+  { name: 'RetroFuturism', categories: ['culture'] },
+  { name: 'CozyPlaces', categories: ['culture'] },
   // Tech / Side Projects
   { name: 'SideProject', categories: ['identity', 'design'] },
   { name: 'webdev', categories: ['design', 'identity'] },
   { name: 'IndieHackers', categories: ['identity'] },
   { name: 'startups', categories: ['identity'] },
   { name: 'Entrepreneur', categories: ['identity'] },
+  { name: 'selfhosted', categories: ['identity', 'design'] },
+  { name: 'programming', categories: ['identity'] },
   // General (high traffic)
   { name: 'pics', categories: ['culture'] },
   { name: 'interestingasfuck', categories: ['culture'] },
   { name: 'nextfuckinglevel', categories: ['culture'] },
   { name: 'coolguides', categories: ['culture'] },
+  { name: 'oddlysatisfying', categories: ['culture'] },
+  { name: 'mildlyinteresting', categories: ['culture'] },
+]
+
+// ─── Stable Surfaces ──────────────────────────────────
+//
+// If the hot scan returns 0 targets, fall back to these
+// evergreen high-traffic threads so the engine always has work.
+
+const STABLE_SURFACES: ScanTarget[] = [
+  {
+    platform: 'reddit',
+    thread_id: 'stable-sideproject',
+    thread_url: 'https://www.reddit.com/r/SideProject/comments/top/',
+    thread_title: 'Share your side projects',
+    thread_snippet: 'Weekly thread for sharing side projects and getting feedback.',
+    context: 'r/SideProject',
+    score: 40,
+    engagement: { upvotes: 50, comments: 100 },
+  },
+  {
+    platform: 'reddit',
+    thread_id: 'stable-webdev',
+    thread_url: 'https://www.reddit.com/r/webdev/comments/top/',
+    thread_title: 'Showoff Saturday',
+    thread_snippet: 'Share what you built this week.',
+    context: 'r/webdev',
+    score: 40,
+    engagement: { upvotes: 30, comments: 80 },
+  },
+  {
+    platform: 'reddit',
+    thread_id: 'stable-internetisbeautiful',
+    thread_url: 'https://www.reddit.com/r/InternetIsBeautiful/comments/top/',
+    thread_title: 'Cool sites and web projects',
+    thread_snippet: 'Discover interesting and beautiful websites.',
+    context: 'r/InternetIsBeautiful',
+    score: 45,
+    engagement: { upvotes: 100, comments: 50 },
+  },
+  {
+    platform: 'reddit',
+    thread_id: 'stable-design',
+    thread_url: 'https://www.reddit.com/r/design/comments/top/',
+    thread_title: 'Design inspiration and critique',
+    thread_snippet: 'Share and discuss design work.',
+    context: 'r/design',
+    score: 35,
+    engagement: { upvotes: 40, comments: 60 },
+  },
+  {
+    platform: 'reddit',
+    thread_id: 'stable-indiehackers',
+    thread_url: 'https://www.reddit.com/r/IndieHackers/comments/top/',
+    thread_title: 'What are you working on?',
+    thread_snippet: 'Monthly thread for indie projects and launches.',
+    context: 'r/IndieHackers',
+    score: 40,
+    engagement: { upvotes: 25, comments: 70 },
+  },
 ]
 
 // ─── Reddit scanner (no auth required for reading) ──────
@@ -186,11 +273,15 @@ async function scanSubreddit(
     const data = await response.json()
     const posts: RedditPost[] = data?.data?.children || []
 
+    const twentyFourHoursAgo = (Date.now() / 1000) - (24 * 60 * 60)
+
     return posts
       .filter(p => {
         const d = p.data
         // Skip NSFW, stickied, and low-engagement threads
         if (d.over_18 || d.stickied) return false
+        // Only threads from the last 24 hours
+        if (d.created_utc < twentyFourHoursAgo) return false
         // Want active threads (>10 upvotes) but not mega-threads (>500 comments = buried)
         if (d.score < 10 || d.num_comments > 500) return false
         return true
@@ -258,9 +349,17 @@ export async function scanReddit(limit: number = 50): Promise<ScanTarget[]> {
     return true
   })
 
-  return deduped
+  const sorted = deduped
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
+
+  // Always-on fallback: if hot scan found nothing, use stable surfaces
+  if (sorted.length === 0) {
+    console.log(`  [scanner] 0 hot targets — falling back to ${STABLE_SURFACES.length} stable surfaces`)
+    return STABLE_SURFACES
+  }
+
+  return sorted
 }
 
 // ─── Twitter scanner (requires bearer token) ────────────
