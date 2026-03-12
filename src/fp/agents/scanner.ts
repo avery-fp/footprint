@@ -217,7 +217,7 @@ async function scanSubreddit(
   }
 }
 
-async function scanReddit(limit: number = 50): Promise<ScanTarget[]> {
+export async function scanReddit(limit: number = 50): Promise<ScanTarget[]> {
   console.log(`  [scanner] scanning ${SUBREDDITS.length} subreddits...`)
 
   // Scan subreddits in batches of 5 to avoid hammering Reddit
