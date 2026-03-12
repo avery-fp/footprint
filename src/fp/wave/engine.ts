@@ -60,14 +60,36 @@ export async function runEngine(force = false) {
             }
         }
 
-        const { data: job } = await supabase.from('aro_jobs').insert({ status: 'running' }).select().single();
+        const { data: job, error: jobErr } = await supabase.from('aro_jobs').insert({ status: 'running' }).select().single();
+        if (!job || jobErr) {
+            throw new Error(`aro_jobs insert failed: ${jobErr?.message ?? 'null data (RLS?)'}`);
+        }
         result.jobId = job.id;
 
         const threads = await scanReddit();
         result.targetsFound = threads.length;
 
         const roomUrl = process.env.FP_ROOM_URL || 'footprint.onl/ae';
-        const comments = await generateComments(threads, roomUrl);
+
+        // Static AE-Standard fallback when ANTHROPIC_API_KEY is missing
+        let comments: Awaited<ReturnType<typeof generateComments>>;
+        if (!process.env.ANTHROPIC_API_KEY) {
+            comments = threads.map(t => ({
+                comment_text: `this is incredible — been looking for something exactly like this. ${roomUrl}`,
+                platform: t.platform,
+                target_url: t.thread_url,
+                thread_title: t.thread_title,
+                context: t.context,
+                metadata: {
+                    room_url: roomUrl,
+                    generated_at: new Date().toISOString(),
+                    model: 'ae-static-v1',
+                    comment_type: 'casual_link' as const,
+                },
+            }));
+        } else {
+            comments = await generateComments(threads, roomUrl);
+        }
         result.commentsGenerated = comments.length;
 
         let seedsQueued = 0;
