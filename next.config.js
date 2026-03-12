@@ -3,7 +3,6 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  turbopack: {},
   experimental: {
     outputFileTracingExcludes: {
       '*': ['./src/fp/agents/**/*', './profiles/**/*'],
