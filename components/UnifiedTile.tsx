@@ -4,35 +4,20 @@ import { memo } from 'react'
 import ContentCardBase from '@/components/ContentCard'
 import VideoTileBase from '@/components/VideoTile'
 import TileImage from '@/components/TileImage'
-import ZoomableImage from '@/components/ZoomableImage'
 import { getImageSizes } from '@/lib/media/aspect'
 
 const ContentCard = memo(ContentCardBase)
 const VideoTile = memo(VideoTileBase)
 
 /**
- * UNIFIED TILE — layout-aware rendering
+ * UNIFIED TILE
  *
- * grid: square crop, fill + object-cover
- * editorial: edit-page-style, width/height Image with aspect-aware positioning
+ * Single tile rendering entry point with mode-aware routing.
+ * Wraps ContentCard / VideoTile / TileImage with consistent logic.
  *
- * MIME-type contract:
- *   video/* → type='video'   |   image/* → type='image'
- *   Unknown/failed → Recovery Tile (gray glass, never invisible)
+ * Does NOT replace ContentCard — wraps it with routing currently
+ * duplicated across PublicPage, home/page, and build/page.
  */
-
-// Canonical type resolution — URL extension overrides stored type
-const VIDEO_EXT = /\.(mp4|mov|webm|m4v)($|\?)/i
-const IMAGE_EXT = /\.(jpg|jpeg|png|gif|webp|heic|avif|svg)($|\?)/i
-
-function resolveCanonicalType(type: string, url: string): 'video' | 'image' | 'thought' | 'content' {
-  if (type === 'thought') return 'thought'
-  if (VIDEO_EXT.test(url)) return 'video'
-  if (type === 'video') return 'video'
-  if (IMAGE_EXT.test(url)) return 'image'
-  if (type === 'image') return 'image'
-  return 'content'
-}
 
 export type TileMode = 'public' | 'editor' | 'sandbox'
 
@@ -55,24 +40,7 @@ interface UnifiedTileProps {
   isExpanded?: boolean
 }
 
-// ── Recovery Tile — renders when type is unknown or media fails ──
-function RecoveryTile({ id }: { id: string }) {
-  return (
-    <div
-      className="w-full h-full flex items-center justify-center"
-      style={{
-        background: 'rgba(255,255,255,0.04)',
-        backdropFilter: 'blur(8px)',
-      }}
-      data-tile-id={id}
-      data-tile-type="recovery"
-    >
-      <svg className="w-6 h-6 text-white/20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" />
-      </svg>
-    </div>
-  )
-}
+const noop = () => {}
 
 export default function UnifiedTile({
   item,
@@ -80,15 +48,11 @@ export default function UnifiedTile({
   size,
   aspect,
   mode,
-  layout,
   isMobile = false,
   isExpanded = false,
 }: UnifiedTileProps) {
-  const canonicalType = resolveCanonicalType(item.type, item.url || '')
-  const isAuto = aspect === 'auto'
-
   // ── Thought ──
-  if (canonicalType === 'thought') {
+  if (item.type === 'thought') {
     const text = item.title || ''
     const len = text.length
     const fontSize = len <= 6 ? '24px' : len <= 20 ? '17px' : len <= 60 ? '14px' : '13px'
@@ -110,12 +74,36 @@ export default function UnifiedTile({
     )
   }
 
-  // ── Video ──
-  if (canonicalType === 'video') {
+  // ── Native video ──
+  if (item.type === 'video') {
     if (mode === 'public') {
       return (
         <div className="w-full h-full" data-tile-id={item.id} data-tile-type="video">
-          <VideoTile src={item.url} onWidescreen={() => {}} />
+          <VideoTile src={item.url} onWidescreen={noop} />
+        </div>
+      )
+    }
+    // Editor / sandbox — inline video element
+    return (
+      <div className="w-full h-full" data-tile-id={item.id} data-tile-type="video">
+        <video
+          src={item.url}
+          className="w-full h-full object-cover"
+          muted
+          loop
+          playsInline
+          preload="metadata"
+        />
+      </div>
+    )
+  }
+
+  // ── Image (but actually a video file — handle correctly) ──
+  if (item.type === 'image' && item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) {
+    if (mode === 'public') {
+      return (
+        <div className="w-full h-full" data-tile-id={item.id} data-tile-type="video">
+          <VideoTile src={item.url} onWidescreen={noop} />
         </div>
       )
     }
@@ -134,27 +122,20 @@ export default function UnifiedTile({
   }
 
   // ── Image ──
-  if (canonicalType === 'image') {
+  if (item.type === 'image') {
     if (mode === 'public') {
       return (
-        <div
-          className={isAuto && layout === 'editorial' ? 'w-full' : 'w-full h-full'}
-          data-tile-id={item.id}
-          data-tile-type="image"
-        >
-          <ZoomableImage>
-            <TileImage
-              src={item.url}
-              alt={item.title || ''}
-              sizes="(max-width: 768px) 50vw, 440px"
-              index={index}
-              aspect={aspect}
-              layout={layout}
-            />
-          </ZoomableImage>
+        <div className="relative w-full h-full overflow-hidden" data-tile-id={item.id} data-tile-type="image">
+          <TileImage
+            src={item.url}
+            alt={item.title || ''}
+            sizes="(max-width: 768px) 50vw, 25vw"
+            index={index}
+          />
         </div>
       )
     }
+    // Editor / sandbox — fixed dimensions for grid
     return (
       <div className="relative w-full h-full overflow-hidden" data-tile-id={item.id} data-tile-type="image">
         <TileImage
@@ -167,8 +148,8 @@ export default function UnifiedTile({
     )
   }
 
-  // ── Content card (YouTube, Spotify, links, etc.) ──
-  if (item.url || item.thumbnail_url || item.embed_html) {
+  // ── Everything else — ContentCard ──
+  if (mode === 'public') {
     return (
       <div className="w-full h-full" data-tile-id={item.id} data-tile-type={item.type}>
         <ContentCard
@@ -176,13 +157,22 @@ export default function UnifiedTile({
           isMobile={isMobile}
           tileSize={size}
           aspect={aspect}
-          isPublicView={mode === 'public'}
+          isPublicView
           isExpanded={isExpanded}
         />
       </div>
     )
   }
-
-  // ── Recovery Tile — unknown type, no URL, or broken data ──
-  return <RecoveryTile id={item.id} />
+  return (
+    <div className="w-full h-full" data-tile-id={item.id} data-tile-type={item.type}>
+      <ContentCard
+        content={item}
+        isMobile={isMobile}
+        tileSize={size}
+        aspect={aspect}
+        isPublicView={false}
+        isExpanded={isExpanded}
+      />
+    </div>
+  )
 }

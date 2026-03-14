@@ -24,9 +24,12 @@ interface ReactorState {
 }
 
 export default function ReactorPage() {
+  const [mounted, setMounted] = useState(false)
   const [authenticated, setAuthenticated] = useState<boolean | null>(null)
   const [state, setState] = useState<ReactorState | null>(null)
   const [toggling, setToggling] = useState(false)
+
+  useEffect(() => setMounted(true), [])
 
   const fetchState = useCallback(async () => {
     try {
@@ -76,6 +79,11 @@ export default function ReactorPage() {
     }
 
     setToggling(false)
+  }
+
+  // ─── SSR guard — render nothing until client mounts ─
+  if (!mounted) {
+    return null
   }
 
   // ─── Loading ────────────────────────────────────────

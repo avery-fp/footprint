@@ -22,5 +22,5 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "e2e", "playwright.config.ts", "src/fp/agents/aro-runner.ts", "src/fp/agents/browser-poster.ts"]
+  "exclude": ["node_modules", "e2e", "playwright.config.ts", "src/fp/agents"]
 }
