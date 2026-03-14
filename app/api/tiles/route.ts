@@ -119,6 +119,7 @@ export async function POST(request: NextRequest) {
           thumbnail: parsed.thumbnail_url,
           position: nextPosition,
           room_id: room_id || null,
+          size: ['youtube', 'vimeo'].includes(parsed.type) ? 2 : 1,
         })
         .select()
         .single()
