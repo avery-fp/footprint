@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { RESERVED_SLUGS } from './constants'
 
 // ── Reusable primitives ──
 
@@ -17,6 +18,7 @@ export const usernameSchema = z
       .min(3, 'Names must be 3-20 characters.')
       .max(20, 'Names must be 3-20 characters.')
       .regex(/^[a-z0-9-]+$/, 'Lowercase letters, numbers, and hyphens only.')
+      .refine(v => !(RESERVED_SLUGS as readonly string[]).includes(v), 'That name is reserved.')
   )
 
 export const passwordSchema = z
@@ -112,7 +114,7 @@ export const checkoutActivateSchema = z.object({
 
 export const checkoutFreeSchema = z.object({
   email: z.string().min(1, 'Email required'),
-  promo: z.string().optional(),
+  promo: z.string().min(1, 'Promo code required'),
   ref: z.string().optional(),
 })
 

@@ -142,9 +142,12 @@ describe('checkoutActivateSchema', () => {
 })
 
 describe('checkoutFreeSchema', () => {
-  it('accepts email with optional promo', () => {
-    expect(checkoutFreeSchema.safeParse({ email: 'a@b.com' }).success).toBe(true)
+  it('accepts email with promo', () => {
     expect(checkoutFreeSchema.safeParse({ email: 'a@b.com', promo: 'please' }).success).toBe(true)
+  })
+
+  it('rejects missing promo', () => {
+    expect(checkoutFreeSchema.safeParse({ email: 'a@b.com' }).success).toBe(false)
   })
 
   it('rejects missing email', () => {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createSessionToken, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from '@/lib/auth'
+import { RESERVED_SLUGS } from '@/lib/constants'
 import * as bcrypt from 'bcryptjs'
 
 /**
@@ -27,6 +28,9 @@ export async function POST(request: NextRequest) {
     }
     if (!/^[a-z0-9-]+$/.test(cleanUsername)) {
       return NextResponse.json({ error: 'Username: lowercase letters, numbers, hyphens only.' }, { status: 400 })
+    }
+    if ((RESERVED_SLUGS as readonly string[]).includes(cleanUsername)) {
+      return NextResponse.json({ error: 'That name is reserved. Try another.' }, { status: 400 })
     }
     if (String(password).length < 6) {
       return NextResponse.json({ error: 'Password must be at least 6 characters.' }, { status: 400 })

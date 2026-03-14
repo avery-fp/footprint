@@ -1,10 +1,10 @@
 const KEY = 'aro-fp-2026';
-const URL = 'https://www.footprint.onl/api/aro/reactor/cycle?token=' + KEY;
+const HEARTBEAT_URL = 'https://www.footprint.onl/api/aro/reactor/cycle?token=' + KEY;
 
 async function pulse() {
   console.log('[HEARTBEAT] TRIGGERING_CLOUD_BRAIN...');
   try {
-    const resp = await fetch(URL);
+    const resp = await fetch(HEARTBEAT_URL);
     const data = await resp.json();
     console.log('[BRAIN_RESPONSE]', JSON.stringify(data.result));
   } catch (e) {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getUserIdFromRequest } from '@/lib/auth'
 import { stripe, FOOTPRINT_PRICE, FOOTPRINT_CURRENCY } from '@/lib/stripe'
+import { RESERVED_SLUGS } from '@/lib/constants'
 import { publishSchema } from '@/lib/schemas'
 import { validateBody } from '@/lib/validate'
 import { routeLogger } from '@/lib/logger'
@@ -56,8 +57,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Reserved slugs
-        const reserved = ['admin', 'api', 'auth', 'build', 'checkout', 'signup', 'publish', 'success', 'docs', 'welcome', 'settings', 'home', 'about', 'help', 'support', 'aro', 'example', 'deed', 'remix']
-        if (reserved.includes(clean)) {
+        if ((RESERVED_SLUGS as readonly string[]).includes(clean)) {
           return NextResponse.json({ available: false, reason: 'reserved' })
         }
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { createSessionToken } from '@/lib/auth'
+import { createSessionToken, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from '@/lib/auth'
 import { stripe } from '@/lib/stripe'
 import { checkoutActivateSchema } from '@/lib/schemas'
 import { validateBody } from '@/lib/validate'
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       const { data } = await supabase
         .from('users')
         .select('id, email, serial_number')
-        .ilike('email', email)
+        .eq('email', email)
         .single()
 
       if (data) {
@@ -75,19 +75,7 @@ export async function POST(request: NextRequest) {
       slug: footprint?.username || null,
     })
 
-    const hostname = new URL(request.url).hostname
-    const cookieDomain = hostname.endsWith('.footprint.onl') || hostname === 'footprint.onl'
-      ? '.footprint.onl'
-      : undefined
-
-    response.cookies.set('fp_session', sessionToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30,
-      path: '/',
-      ...(cookieDomain && { domain: cookieDomain }),
-    })
+    response.cookies.set(SESSION_COOKIE_NAME, sessionToken, SESSION_COOKIE_OPTIONS)
 
     return response
   } catch (error: any) {
