@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { createSessionToken } from '@/lib/auth'
+import { createSessionToken, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from '@/lib/auth'
+import { RESERVED_SLUGS } from '@/lib/constants'
 import type { DraftFootprint } from '@/lib/draft-store'
 
 /**
@@ -27,10 +28,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Validate slug format: 1-40 chars, alphanumeric + hyphens + underscores only
-    const RESERVED_SLUGS = ['admin', 'api', 'auth', 'dashboard', 'checkout', 'success', 'welcome', 'docs', 'settings', 'home', 'app', 'www', 'mail', 'help', 'support']
+    // Validate slug format
     const slugClean = slug.toLowerCase().trim()
-    if (!/^[a-zA-Z0-9_-]{1,40}$/.test(slugClean) || RESERVED_SLUGS.includes(slugClean)) {
+    if (!/^[a-z0-9-]{1,40}$/.test(slugClean) || (RESERVED_SLUGS as readonly string[]).includes(slugClean)) {
       return NextResponse.json({ error: 'Invalid username' }, { status: 400 })
     }
 
@@ -108,10 +108,24 @@ export async function POST(request: NextRequest) {
           .single()
 
         if (userError || !newUser) {
-          console.error('Failed to create user:', userError)
-          return NextResponse.json({ error: 'Failed to create user' }, { status: 500 })
+          // Race condition: webhook may have created the user between our check and insert.
+          // Retry lookup before giving up.
+          const { data: raceUser } = await supabase
+            .from('users')
+            .select('serial_number, id')
+            .eq('email', email.toLowerCase())
+            .single()
+
+          if (raceUser && raceUser.serial_number) {
+            serialNumber = raceUser.serial_number
+            userId = raceUser.id
+          } else {
+            console.error('Failed to create user:', userError)
+            return NextResponse.json({ error: 'Failed to create user' }, { status: 500 })
+          }
+        } else {
+          userId = newUser.id
         }
-        userId = newUser.id
 
         // Record payment (ignore conflict if webhook already inserted it)
         await supabase.from('payments').upsert({
@@ -136,11 +150,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Slug already taken' }, { status: 409 })
     }
 
-    // 4. Idempotent: clear existing tiles before re-inserting
-    await Promise.all([
-      supabase.from('library').delete().eq('serial_number', serialNumber),
-      supabase.from('links').delete().eq('serial_number', serialNumber),
+    // 4. Only import tiles if the user hasn't already added content manually.
+    //    Prevents wiping content on duplicate calls or if user edited between checkout and success page.
+    const [{ count: libCount }, { count: linkCount }] = await Promise.all([
+      supabase.from('library').select('id', { count: 'exact', head: true }).eq('serial_number', serialNumber),
+      supabase.from('links').select('id', { count: 'exact', head: true }).eq('serial_number', serialNumber),
     ])
+    const hasExistingContent = (libCount ?? 0) > 0 || (linkCount ?? 0) > 0
 
     // 5. Upsert footprint — update if webhook already created it
     const { error: fpError } = await supabase
@@ -162,40 +178,41 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create footprint' }, { status: 500 })
     }
 
-    // 6. Insert tiles into library (images)
-    const imageItems = draft.content.filter(item => item.type === 'image')
-    if (imageItems.length > 0) {
-      const libraryRows = imageItems.map((item, index) => ({
-        serial_number: serialNumber,
-        image_url: item.url,
-        position: index,
-      }))
-      const { error: libError } = await supabase.from('library').insert(libraryRows)
-      if (libError) {
-        console.error('Failed to insert library tiles:', libError)
-        return NextResponse.json({ error: 'Failed to save images' }, { status: 500 })
+    // 6. Import draft tiles only if the user has no existing content
+    if (!hasExistingContent && draft.content && draft.content.length > 0) {
+      const imageItems = draft.content.filter(item => item.type === 'image')
+      if (imageItems.length > 0) {
+        const libraryRows = imageItems.map((item, index) => ({
+          serial_number: serialNumber,
+          image_url: item.url,
+          position: index,
+        }))
+        const { error: libError } = await supabase.from('library').insert(libraryRows)
+        if (libError) {
+          console.error('Failed to insert library tiles:', libError)
+          return NextResponse.json({ error: 'Failed to save images' }, { status: 500 })
+        }
       }
-    }
 
-    // 7. Insert tiles into links (embeds/urls)
-    const linkItems = draft.content.filter(item => item.type !== 'image')
-    if (linkItems.length > 0) {
-      const linkRows = linkItems.map((item, index) => ({
-        serial_number: serialNumber,
-        platform: item.type,
-        url: item.url,
-        title: item.title,
-        position: index,
-        thumbnail: item.thumbnail_url,
-        metadata: {
-          description: item.description,
-          embed_html: item.embed_html,
-        },
-      }))
-      const { error: linkError } = await supabase.from('links').insert(linkRows)
-      if (linkError) {
-        console.error('Failed to insert link tiles:', linkError)
-        return NextResponse.json({ error: 'Failed to save links' }, { status: 500 })
+      const linkItems = draft.content.filter(item => item.type !== 'image')
+      if (linkItems.length > 0) {
+        const linkRows = linkItems.map((item, index) => ({
+          serial_number: serialNumber,
+          platform: item.type,
+          url: item.url,
+          title: item.title,
+          position: index,
+          thumbnail: item.thumbnail_url,
+          metadata: {
+            description: item.description,
+            embed_html: item.embed_html,
+          },
+        }))
+        const { error: linkError } = await supabase.from('links').insert(linkRows)
+        if (linkError) {
+          console.error('Failed to insert link tiles:', linkError)
+          return NextResponse.json({ error: 'Failed to save links' }, { status: 500 })
+        }
       }
     }
 
@@ -208,19 +225,7 @@ export async function POST(request: NextRequest) {
       slug: slug,
     })
 
-    const hostname = new URL(request.url).hostname
-    const cookieDomain = hostname.endsWith('.footprint.onl') || hostname === 'footprint.onl'
-      ? '.footprint.onl'
-      : undefined
-
-    response.cookies.set('fp_session', sessionToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30, // 30 days
-      path: '/',
-      ...(cookieDomain && { domain: cookieDomain }),
-    })
+    response.cookies.set(SESSION_COOKIE_NAME, sessionToken, SESSION_COOKIE_OPTIONS)
 
     return response
   } catch (error) {
