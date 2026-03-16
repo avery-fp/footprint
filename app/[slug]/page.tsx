@@ -99,6 +99,10 @@ export default async function FootprintPage({ params }: Props) {
       room_id: link.room_id,
       size: link.size || 1,
       aspect: link.aspect || null,
+      render_mode: link.render_mode || 'embed',
+      artist: link.artist || null,
+      thumbnail_url_hq: link.thumbnail_url_hq || null,
+      media_id: link.media_id || null,
     })),
   ].sort((a, b) => a.position - b.position)
 

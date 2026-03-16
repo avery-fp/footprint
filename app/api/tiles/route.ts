@@ -104,6 +104,36 @@ export async function POST(request: NextRequest) {
       tile = result.data
       error = result.error
     } else {
+      // Determine if this should be a ghost tile (YouTube, Spotify)
+      const isGhostDefault = ['youtube', 'spotify'].includes(parsed.type)
+
+      // Fetch oEmbed metadata for ghost tiles at creation time
+      let ghostArtist: string | null = null
+      let ghostThumbnailHq: string | null = null
+      let ghostMediaId: string | null = parsed.external_id
+
+      if (isGhostDefault) {
+        try {
+          const oembedRes = await fetch(
+            new URL('/api/oembed', request.nextUrl.origin).toString(),
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url: parsed.url }),
+              signal: AbortSignal.timeout(4000),
+            }
+          )
+          if (oembedRes.ok) {
+            const oembedData = await oembedRes.json()
+            ghostArtist = oembedData.artist || null
+            ghostThumbnailHq = oembedData.thumbnail_url || null
+            if (oembedData.media_id) ghostMediaId = oembedData.media_id
+          }
+        } catch {
+          // oEmbed fetch failed — proceed without metadata, not a blocker
+        }
+      }
+
       // Insert into links table for everything else
       const result = await supabase
         .from('links')
@@ -120,6 +150,12 @@ export async function POST(request: NextRequest) {
           position: nextPosition,
           room_id: room_id || null,
           size: ['youtube', 'vimeo'].includes(parsed.type) ? 2 : 1,
+          ...(isGhostDefault ? {
+            render_mode: 'ghost',
+            artist: ghostArtist,
+            thumbnail_url_hq: ghostThumbnailHq,
+            media_id: ghostMediaId,
+          } : {}),
         })
         .select()
         .single()
@@ -155,6 +191,10 @@ export async function POST(request: NextRequest) {
       position: tile.position,
       source: tableName,
       room_id: tile.room_id || null,
+      render_mode: tile.render_mode || 'embed',
+      artist: tile.artist || null,
+      thumbnail_url_hq: tile.thumbnail_url_hq || null,
+      media_id: tile.media_id || null,
     }
 
     revalidatePath(`/${slug}`)
