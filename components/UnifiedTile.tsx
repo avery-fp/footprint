@@ -3,12 +3,14 @@
 import { memo } from 'react'
 import ContentCardBase from '@/components/ContentCard'
 import VideoTileBase from '@/components/VideoTile'
+import GhostTileBase from '@/components/GhostTile'
 import TileImage from '@/components/TileImage'
 import ZoomableImage from '@/components/ZoomableImage'
 import { getImageSizes } from '@/lib/media/aspect'
 
 const ContentCard = memo(ContentCardBase)
 const VideoTile = memo(VideoTileBase)
+const GhostTile = memo(GhostTileBase)
 
 /**
  * UNIFIED TILE — layout-aware rendering
@@ -45,6 +47,10 @@ interface UnifiedTileProps {
     description: string | null
     thumbnail_url: string | null
     embed_html: string | null
+    render_mode?: string
+    artist?: string | null
+    thumbnail_url_hq?: string | null
+    media_id?: string | null
   }
   index: number
   size: number
@@ -162,6 +168,23 @@ export default function UnifiedTile({
           alt={item.title || ''}
           sizes={getImageSizes(size)}
           index={index}
+        />
+      </div>
+    )
+  }
+
+  // ── Ghost tile — de-branded media render ──
+  if (item.render_mode === 'ghost' && item.media_id) {
+    return (
+      <div className="w-full h-full" data-tile-id={item.id} data-tile-type={`ghost-${item.type}`}>
+        <GhostTile
+          url={item.url}
+          platform={item.type}
+          media_id={item.media_id}
+          title={item.title || undefined}
+          artist={item.artist || undefined}
+          thumbnail_url={item.thumbnail_url_hq || item.thumbnail_url || undefined}
+          size={size}
         />
       </div>
     )

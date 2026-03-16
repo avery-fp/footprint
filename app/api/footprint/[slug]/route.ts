@@ -85,6 +85,10 @@ export async function GET(
         room_id: item.room_id || null,
         size: item.size || 1,
         aspect: item.aspect || null,
+        render_mode: item.render_mode || 'embed',
+        artist: item.artist || null,
+        thumbnail_url_hq: item.thumbnail_url_hq || null,
+        media_id: item.media_id || null,
       }))
 
       allTiles = [...libraryTiles, ...linkTiles].sort((a, b) =>

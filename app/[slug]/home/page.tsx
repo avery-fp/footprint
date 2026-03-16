@@ -725,6 +725,10 @@ export default function EditPage() {
               size: tile.size || 1,
               aspect: tile.aspect || null,
               caption: tile.caption || null,
+              render_mode: tile.render_mode || 'embed',
+              artist: tile.artist || null,
+              thumbnail_url_hq: tile.thumbnail_url_hq || null,
+              media_id: tile.media_id || null,
             }
           })
           setTileSources(sources)
@@ -857,6 +861,10 @@ export default function EditPage() {
             room_id: data.tile.room_id || null,
             size: data.tile.size || 1,
             aspect: data.tile.aspect || null,
+            render_mode: data.tile.render_mode || 'embed',
+            artist: data.tile.artist || null,
+            thumbnail_url_hq: data.tile.thumbnail_url_hq || null,
+            media_id: data.tile.media_id || null,
           }],
           updated_at: Date.now(),
         } : null)
@@ -896,6 +904,10 @@ export default function EditPage() {
             room_id: data.tile.room_id || null,
             size: data.tile.size || 1,
             aspect: data.tile.aspect || null,
+            render_mode: data.tile.render_mode || 'embed',
+            artist: data.tile.artist || null,
+            thumbnail_url_hq: data.tile.thumbnail_url_hq || null,
+            media_id: data.tile.media_id || null,
           }],
           updated_at: Date.now(),
         } : null)
@@ -1455,6 +1467,10 @@ export default function EditPage() {
               size: (c as any).size || 1,
               aspect: data.tile.aspect || detectedAspect || (c as any).aspect || null,
               caption: (c as any).caption || null,
+              render_mode: data.tile.render_mode || 'embed',
+              artist: data.tile.artist || null,
+              thumbnail_url_hq: data.tile.thumbnail_url_hq || null,
+              media_id: data.tile.media_id || null,
             } : c),
             updated_at: Date.now(),
           } : null)
