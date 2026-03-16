@@ -1318,17 +1318,20 @@ export default function EditPage() {
   const detectVideoAspect = detectVideoAspectShared
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const allFiles = Array.from(e.target.files || [])
-    // Block video file uploads — only allow images
-    const files = allFiles.filter(f =>
-      !VIDEO_MIME.includes(f.type) && !/\.(mp4|mov|webm|m4v)$/i.test(f.name)
-    )
+    const files = Array.from(e.target.files || [])
     if (files.length === 0 || !draft || !serialNumber) return
 
-    // 10MB limit for images
-    const oversized = files.filter(f => f.size > 10 * 1024 * 1024)
-    if (oversized.length > 0) {
-      alert('under 10mb.')
+    // Size limits: 10MB images, 50MB videos
+    const isVid = (f: File) => VIDEO_MIME.includes(f.type) || /\.(mp4|mov|webm|m4v)$/i.test(f.name)
+    const oversizedImages = files.filter(f => !isVid(f) && f.size > 10 * 1024 * 1024)
+    const oversizedVideos = files.filter(f => isVid(f) && f.size > 50 * 1024 * 1024)
+    if (oversizedImages.length > 0) {
+      alert('Images under 10mb.')
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+    if (oversizedVideos.length > 0) {
+      alert('Videos under 50mb.')
       if (fileInputRef.current) fileInputRef.current.value = ''
       return
     }
@@ -1769,7 +1772,7 @@ export default function EditPage() {
                       }
                     }}
                     deleting={deletingIds.has(item.id)}
-                    size={item.size || 1}
+                    size={item.size || (['youtube', 'vimeo'].includes(item.type) ? 2 : 1)}
                     aspect={resolveAspect(item.aspect, item.type, item.url)}
                     onLongPressStart={(e: React.TouchEvent) => handleTouchStart(e, item.id)}
                     onLongPressMove={handleTouchMove}
@@ -1809,7 +1812,7 @@ export default function EditPage() {
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/*,video/*"
         multiple
         className="hidden"
         onChange={handleFileUpload}

@@ -80,8 +80,12 @@ export async function uploadWithProgress(
     const xhr = new XMLHttpRequest()
     xhr.timeout = 5 * 60 * 1000 // 5 minutes for large files
 
+    let lastPct = -1
     xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100))
+      if (e.lengthComputable) {
+        const pct = Math.round((e.loaded / e.total) * 100)
+        if (pct !== lastPct) { lastPct = pct; onProgress(pct) }
+      }
     }
 
     xhr.onload = () => {
