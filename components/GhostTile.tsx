@@ -88,9 +88,11 @@ export default function GhostTile({
   if (archetype === 'audio') {
     // Build hidden iframe src per platform
     let iframeSrc: string | undefined
+    const isSpotify = platform === 'spotify'
+
     if (platform === 'youtube') {
       iframeSrc = `https://www.youtube-nocookie.com/embed/${media_id}?enablejsapi=1&controls=0&modestbranding=1&playsinline=1&rel=0&autoplay=${isPlaying ? 1 : 0}`
-    } else if (platform === 'spotify') {
+    } else if (isSpotify) {
       // Hidden Spotify embed — autoplay audio, zero chrome
       const spotifyMatch = url.match(/open\.spotify\.com\/(track|album|playlist|artist|episode|show)\/([a-zA-Z0-9]+)/)
       const spotifyType = spotifyMatch?.[1] || 'track'
@@ -100,20 +102,38 @@ export default function GhostTile({
 
     return (
       <div className="w-full h-full relative overflow-hidden fp-tile" style={{ borderRadius: 'inherit' }}>
-        {/* Blurred thumbnail bg */}
-        <ThumbnailBg src={thumbUrl} />
+        {/* Spotify: full-bleed album art — the art IS the tile. No blur. Like holding a record.
+            YouTube/SoundCloud: blurred thumbnail bg */}
+        {isSpotify && thumbUrl ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={thumbUrl}
+              alt=""
+              className="absolute inset-0 w-full h-full object-cover"
+              loading="lazy"
+              decoding="async"
+            />
+            {/* Subtle dark vignette so text reads over bright covers */}
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(transparent 40%, rgba(0,0,0,0.4) 100%)' }} />
+          </>
+        ) : (
+          <ThumbnailBg src={thumbUrl} />
+        )}
 
-        {/* Glass overlay */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background: isPlaying ? 'rgba(200, 160, 100, 0.05)' : 'rgba(255, 255, 255, 0.03)',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
-            border: '1px solid rgba(255, 255, 255, 0.06)',
-            transition: 'background 0.25s ease',
-          }}
-        />
+        {/* Glass overlay — YouTube: full blur. Spotify: transparent (art shows through) */}
+        {!isSpotify && (
+          <div
+            className="absolute inset-0"
+            style={{
+              background: isPlaying ? 'rgba(200, 160, 100, 0.05)' : 'rgba(255, 255, 255, 0.03)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255, 255, 255, 0.06)',
+              transition: 'background 0.25s ease',
+            }}
+          />
+        )}
 
         {/* Hidden audio iframe */}
         {isPlaying && iframeSrc && (
@@ -129,9 +149,10 @@ export default function GhostTile({
           />
         )}
 
-        {/* Play UI */}
+        {/* Play UI — Spotify: frosted glass button over full-bleed art. YouTube: standard. */}
         <div
           className="absolute inset-0 flex flex-col items-center justify-center gap-3 cursor-pointer"
+          style={{ zIndex: 2 }}
           onClick={handleToggle}
         >
           {isPlaying ? <WaveformBars /> : <PlayIcon />}
