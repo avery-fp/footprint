@@ -14,7 +14,7 @@ const GHOST_PAUSE_EVENT = 'ghost-tile-pause'
 type Archetype = 'audio' | 'embed' | 'visual'
 
 function getArchetype(platform: string, _url: string): Archetype {
-  if (platform === 'spotify') return 'embed'
+  if (platform === 'spotify') return 'audio'   // audio pipe — hidden iframe, ghost UI is the player
   if (platform === 'soundcloud') return 'audio'
   if (platform === 'vimeo') return 'visual'
   // YouTube default: visual
@@ -86,9 +86,17 @@ export default function GhostTile({
   // (YouTube music, SoundCloud)
   // ════════════════════════════════════════
   if (archetype === 'audio') {
-    const iframeSrc = platform === 'youtube'
-      ? `https://www.youtube-nocookie.com/embed/${media_id}?enablejsapi=1&controls=0&modestbranding=1&playsinline=1&rel=0&autoplay=${isPlaying ? 1 : 0}`
-      : undefined // SoundCloud ghost not wired yet
+    // Build hidden iframe src per platform
+    let iframeSrc: string | undefined
+    if (platform === 'youtube') {
+      iframeSrc = `https://www.youtube-nocookie.com/embed/${media_id}?enablejsapi=1&controls=0&modestbranding=1&playsinline=1&rel=0&autoplay=${isPlaying ? 1 : 0}`
+    } else if (platform === 'spotify') {
+      // Hidden Spotify embed — autoplay audio, zero chrome
+      const spotifyMatch = url.match(/open\.spotify\.com\/(track|album|playlist|artist|episode|show)\/([a-zA-Z0-9]+)/)
+      const spotifyType = spotifyMatch?.[1] || 'track'
+      const spotifyId = spotifyMatch?.[2] || media_id
+      iframeSrc = `https://open.spotify.com/embed/${spotifyType}/${spotifyId}?theme=0&autoplay=1`
+    }
 
     return (
       <div className="w-full h-full relative overflow-hidden fp-tile" style={{ borderRadius: 'inherit' }}>
@@ -114,8 +122,8 @@ export default function GhostTile({
             src={iframeSrc}
             className="absolute"
             style={{ width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
-            allow="autoplay; encrypted-media"
-            sandbox="allow-scripts allow-same-origin allow-popups"
+            allow="autoplay; encrypted-media; picture-in-picture"
+            sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-presentation"
             referrerPolicy="no-referrer"
             loading="lazy"
           />
@@ -133,67 +141,7 @@ export default function GhostTile({
     )
   }
 
-  // ════════════════════════════════════════
-  // EMBED PIPE — Spotify overlay pattern
-  // Ghost state: blurred art + title + play icon
-  // Active state: iframe fades in
-  // ════════════════════════════════════════
-  if (archetype === 'embed') {
-    const spotifyMatch = url.match(/open\.spotify\.com\/(track|album|playlist|artist|episode|show)\/([a-zA-Z0-9]+)/)
-    const spotifyType = spotifyMatch?.[1] || 'track'
-    const spotifyId = spotifyMatch?.[2] || media_id
-    const isCollection = ['playlist', 'album', 'artist', 'show'].includes(spotifyType)
-    const iframeSrc = `https://open.spotify.com/embed/${spotifyType}/${spotifyId}?theme=0`
-
-    return (
-      <div className="w-full h-full relative overflow-hidden fp-tile" style={{ borderRadius: 'inherit' }}>
-        {/* Blurred thumbnail bg */}
-        <ThumbnailBg src={thumbUrl} />
-
-        {/* Glass overlay — visible in ghost state, fades on active */}
-        <div
-          className="absolute inset-0 flex flex-col items-center justify-center gap-3 cursor-pointer"
-          style={{
-            background: isPlaying ? 'rgba(200, 160, 100, 0.05)' : 'rgba(255, 255, 255, 0.03)',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
-            border: '1px solid rgba(255, 255, 255, 0.06)',
-            opacity: isPlaying ? 0 : 1,
-            pointerEvents: isPlaying ? 'none' : 'auto',
-            transition: 'opacity 0.25s ease',
-            zIndex: 2,
-          }}
-          onClick={handlePlay}
-        >
-          <PlayIcon />
-          <TitleBlock title={title} artist={artist} />
-        </div>
-
-        {/* Spotify iframe — slides in from bottom */}
-        {isPlaying && (
-          <div
-            className="absolute inset-0"
-            style={{
-              opacity: iframeLoaded ? 1 : 0,
-              transition: 'opacity 0.25s ease',
-              zIndex: 1,
-            }}
-          >
-            <iframe
-              src={iframeSrc}
-              className="w-full h-full"
-              style={{ border: 'none' }}
-              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-              sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-              referrerPolicy="no-referrer"
-              loading="lazy"
-              onLoad={() => setIframeLoaded(true)}
-            />
-          </div>
-        )}
-      </div>
-    )
-  }
+  // (embed pipe removed — Spotify now uses audio pipe above)
 
   // ════════════════════════════════════════
   // VISUAL PIPE — YouTube video, Vimeo
@@ -245,8 +193,8 @@ export default function GhostTile({
             src={iframeSrc}
             className="w-full h-full"
             style={{ border: 'none' }}
-            allow="autoplay; encrypted-media; fullscreen"
-            sandbox="allow-scripts allow-same-origin allow-popups"
+            allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+            sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-presentation"
             referrerPolicy="no-referrer"
             loading="lazy"
             onLoad={() => setIframeLoaded(true)}

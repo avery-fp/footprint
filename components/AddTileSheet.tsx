@@ -242,7 +242,6 @@ export default function AddTileSheet({
           ref={fileInputRef}
           type="file"
           accept="image/*,video/*"
-          capture="environment"
           multiple
           className="hidden"
           onChange={handleFileSelect}

@@ -108,7 +108,7 @@ function SortableTile({
     opacity: isDragging ? 1 : deleting ? 0.5 : anyDragging ? 0.9 : 1,
   }
 
-  const isVideo = content.type === 'video' || (content.type === 'image' && /\.(mp4|mov|webm|m4v)($|\?)/i.test(content.url || ''))
+  const isVideo = content.type === 'video' || (content.type === 'image' && /\.(mp4|mov|webm|m4v|3gp|3gpp|mkv)($|\?)/i.test(content.url || ''))
 
   // Video visibility — only play when on-screen, pause when off
   useEffect(() => {
@@ -1322,7 +1322,7 @@ export default function EditPage() {
     if (files.length === 0 || !draft || !serialNumber) return
 
     // Size limits: 10MB images, 50MB videos
-    const isVid = (f: File) => VIDEO_MIME.includes(f.type) || /\.(mp4|mov|webm|m4v)$/i.test(f.name)
+    const isVid = (f: File) => VIDEO_MIME.includes(f.type) || /\.(mp4|mov|webm|m4v|3gp|3gpp|mkv)$/i.test(f.name)
     const oversizedImages = files.filter(f => !isVid(f) && f.size > 10 * 1024 * 1024)
     const oversizedVideos = files.filter(f => isVid(f) && f.size > 50 * 1024 * 1024)
     if (oversizedImages.length > 0) {
@@ -1338,10 +1338,10 @@ export default function EditPage() {
 
     // 8 uploaded-video cap (YouTube/Vimeo/embed tiles are free — only count direct uploads)
     const isUploadedVideo = (c: DraftContent) =>
-      c.type === 'image' && c.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
+      c.type === 'image' && c.url?.match(/\.(mp4|mov|webm|m4v|3gp|3gpp|mkv)($|\?)/i)
     const existingVideos = draft.content.filter(isUploadedVideo).length
     const incomingVideos = files.filter(f =>
-      VIDEO_MIME.includes(f.type) || /\.(mp4|mov|webm|m4v)$/i.test(f.name)
+      VIDEO_MIME.includes(f.type) || /\.(mp4|mov|webm|m4v|3gp|3gpp|mkv)$/i.test(f.name)
     ).length
     if (existingVideos + incomingVideos > 8) {
       alert('8 max.')
@@ -1354,7 +1354,7 @@ export default function EditPage() {
     const tempIds = files.map((_, i) => `temp-${Date.now()}-${i}`)
 
     const tempTiles = files.map((file, i) => {
-      const isVideo = VIDEO_MIME.includes(file.type) || /\.(mp4|mov|webm|m4v)$/i.test(file.name)
+      const isVideo = VIDEO_MIME.includes(file.type) || /\.(mp4|mov|webm|m4v|3gp|3gpp|mkv)$/i.test(file.name)
       return {
         id: tempIds[i],
         url: URL.createObjectURL(file) + (isVideo ? '#.mp4' : ''),
@@ -1379,7 +1379,7 @@ export default function EditPage() {
 
 
     const uploadOne = async (file: File, idx: number) => {
-      const isVideo = VIDEO_MIME.includes(file.type) || /\.(mp4|mov|webm|m4v)$/i.test(file.name)
+      const isVideo = VIDEO_MIME.includes(file.type) || /\.(mp4|mov|webm|m4v|3gp|3gpp|mkv)$/i.test(file.name)
       const tempId = tempIds[idx]
 
       try {
@@ -1514,7 +1514,7 @@ export default function EditPage() {
   // ── Derived values ──
 
   const selectedTile = selectedTileId ? draft?.content.find(c => c.id === selectedTileId) : null
-  const selectedIsImage = selectedTile?.type === 'image' && !selectedTile?.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)
+  const selectedIsImage = selectedTile?.type === 'image' && !selectedTile?.url?.match(/\.(mp4|mov|webm|m4v|3gp|3gpp|mkv)($|\?)/i)
   const selectedHasThumbnail = selectedTile?.thumbnail_url
 
   // ── Render ──
@@ -1866,7 +1866,7 @@ export default function EditPage() {
               {/* Tile preview */}
               <div className="flex items-center gap-3 pb-3 mb-1">
                 <div className="w-10 h-10 rounded-lg overflow-hidden bg-white/[0.06] flex-shrink-0">
-                  {selectedTile.type === 'image' && selectedTile.url && !selectedTile.url.match(/\.(mp4|mov|webm|m4v)($|\?)/i) ? (
+                  {selectedTile.type === 'image' && selectedTile.url && !selectedTile.url.match(/\.(mp4|mov|webm|m4v|3gp|3gpp|mkv)($|\?)/i) ? (
                     <img src={selectedTile.url} alt="" className="w-full h-full object-cover" />
                   ) : selectedTile.thumbnail_url ? (
                     <img src={selectedTile.thumbnail_url} alt="" className="w-full h-full object-cover" />

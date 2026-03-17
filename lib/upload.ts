@@ -15,6 +15,9 @@ export const VIDEO_MIME = [
   'video/webm',
   'video/x-m4v',
   'video/mov',
+  'video/3gpp',       // Android phones
+  'video/3gpp2',      // Android phones
+  'video/x-matroska', // Some Android recorders (.mkv)
 ]
 
 // ── Type guards ─────────────────────────────────────────────
@@ -23,7 +26,7 @@ export const VIDEO_MIME = [
 export function isVideoFile(file: File): boolean {
   return (
     VIDEO_MIME.includes(file.type) ||
-    /\.(mp4|mov|webm|m4v)$/i.test(file.name)
+    /\.(mp4|mov|webm|m4v|3gp|3gpp|mkv)$/i.test(file.name)
   )
 }
 
@@ -113,9 +116,14 @@ export async function uploadWithProgress(
       reject(new Error('Upload was cancelled'))
     }
 
-    const mimeType = file.type === 'video/quicktime'
-      ? 'video/mp4'
-      : (file.type || 'application/octet-stream')
+    // Map mobile video formats to browser-compatible MIME types
+    const mimeMap: Record<string, string> = {
+      'video/quicktime': 'video/mp4',
+      'video/3gpp': 'video/mp4',
+      'video/3gpp2': 'video/mp4',
+      'video/x-matroska': 'video/webm',
+    }
+    const mimeType = mimeMap[file.type] || file.type || 'application/octet-stream'
 
     if (presigned) {
       // Presigned URL — PUT with token, no auth headers needed
