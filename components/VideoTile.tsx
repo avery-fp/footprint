@@ -102,6 +102,7 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
             ref={videoRef}
             src={src}
             className="w-full h-full object-cover cursor-pointer"
+            autoPlay
             muted
             loop
             playsInline

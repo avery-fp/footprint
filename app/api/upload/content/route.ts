@@ -10,7 +10,7 @@ const MAX_IMAGE_SIZE = 10 * 1024 * 1024  // 10MB
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024  // 50MB
 
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic']
-const VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v', 'video/mov']
+const VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v', 'video/mov', 'video/3gpp', 'video/3gpp2', 'video/x-matroska']
 const ALLOWED_TYPES = [...IMAGE_TYPES, ...VIDEO_TYPES]
 
 export async function POST(request: NextRequest) {

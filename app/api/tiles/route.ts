@@ -114,23 +114,24 @@ export async function POST(request: NextRequest) {
 
       if (isGhostDefault) {
         try {
-          const oembedRes = await fetch(
-            new URL('/api/oembed', request.nextUrl.origin).toString(),
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ url: parsed.url }),
-              signal: AbortSignal.timeout(4000),
-            }
-          )
-          if (oembedRes.ok) {
-            const oembedData = await oembedRes.json()
-            ghostArtist = oembedData.artist || null
-            ghostThumbnailHq = oembedData.thumbnail_url || null
-            if (oembedData.media_id) ghostMediaId = oembedData.media_id
+          const oembedEndpoints: Record<string, string> = {
+            youtube: `https://www.youtube.com/oembed?url=${encodeURIComponent(parsed.url)}&format=json`,
+            spotify: `https://open.spotify.com/oembed?url=${encodeURIComponent(parsed.url)}`,
+          }
+          const endpoint = oembedEndpoints[parsed.type]
+          if (endpoint) {
+            try {
+              const res = await fetch(endpoint, { signal: AbortSignal.timeout(3000) })
+              if (res.ok) {
+                const data = await res.json()
+                ghostArtist = data.author_name || null
+                ghostThumbnailHq = data.thumbnail_url || null
+                if (!ghostMediaId) ghostMediaId = parsed.external_id || null
+              }
+            } catch { /* silent fallback — tile still creates without metadata */ }
           }
         } catch {
-          // oEmbed fetch failed — proceed without metadata, not a blocker
+          // oEmbed metadata fetch failed — proceed without metadata, not a blocker
         }
       }
 

@@ -24,7 +24,7 @@ const GhostTile = memo(GhostTileBase)
  */
 
 // Canonical type resolution — URL extension overrides stored type
-const VIDEO_EXT = /\.(mp4|mov|webm|m4v)($|\?)/i
+const VIDEO_EXT = /\.(mp4|mov|webm|m4v|3gp|3gpp|mkv)($|\?)/i
 const IMAGE_EXT = /\.(jpg|jpeg|png|gif|webp|heic|avif|svg)($|\?)/i
 
 function resolveCanonicalType(type: string, url: string): 'video' | 'image' | 'thought' | 'content' {

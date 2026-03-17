@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
 
     // MIME-type contract: content_type from client takes priority, then URL extension
     const isVideoByMime = typeof content_type === 'string' && content_type.startsWith('video/')
-    const isVideoByExt = /\.(mp4|mov|webm|m4v)($|\?)/i.test(url || '')
+    const isVideoByExt = /\.(mp4|mov|webm|m4v|3gp|3gpp|mkv)($|\?)/i.test(url || '')
     const canonicalType = (isVideoByMime || isVideoByExt) ? 'video' : 'image'
 
     return NextResponse.json({

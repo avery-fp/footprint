@@ -70,7 +70,7 @@ export default async function FootprintPage({ params }: Props) {
   ])
 
   // Canonical type from URL — library has no type column, so derive once here
-  const VIDEO_EXT = /\.(mp4|mov|webm|m4v)($|\?)/i
+  const VIDEO_EXT = /\.(mp4|mov|webm|m4v|3gp|3gpp|mkv)($|\?)/i
 
   // Merge and sort by position
   const content = [
