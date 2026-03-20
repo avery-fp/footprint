@@ -39,7 +39,7 @@ export default function LoginPage() {
       const data = await res.json()
 
       if (data.success) {
-        const dest = redirectTo || (data.slug ? `/${data.slug}/home` : '/build')
+        const dest = redirectTo || '/dashboard'
         window.location.href = dest
       } else {
         setError(data.error || 'invalid email or password')

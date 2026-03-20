@@ -124,6 +124,7 @@ async function handleCheckoutComplete(session: any) {
       serial_number: serialNumber,
       stripe_customer_id: session.customer,
       referred_by: session.metadata?.ref || null,
+      gifts_remaining: 2,
     })
     .select()
     .single()

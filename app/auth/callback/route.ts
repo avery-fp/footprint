@@ -54,15 +54,8 @@ export async function GET(request: NextRequest) {
       // Create custom JWT session token — bridges supabase auth to our system
       const sessionToken = await createSessionToken(user.id, user.email)
 
-      // Find user's primary footprint slug for direct redirect to editor
-      const { data: primaryFp } = await supabase
-        .from('footprints')
-        .select('username')
-        .eq('user_id', user.id)
-        .eq('is_primary', true)
-        .single()
-
-      const destination = customRedirect || (primaryFp ? `/${primaryFp.username}/home` : '/build')
+      // Redirect to /dashboard which handles routing to the user's primary footprint
+      const destination = customRedirect || '/dashboard'
 
       const response = NextResponse.redirect(new URL(destination, origin))
       const hostname = new URL(request.url).hostname

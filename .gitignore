@@ -48,3 +48,8 @@ output/lift.json
 output/snapshots/
 supabase/.temp/
 .claude/
+
+# Send engine
+ses-configs.json
+sent-log.csv
+lists/

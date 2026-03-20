@@ -25,6 +25,7 @@ const publicRoutes = [
   '/checkout',
   '/success',
   '/deed',
+  '/gift',
   '/api/',
   '/public',
 ]

@@ -18,6 +18,9 @@
     "aro:ingest": "npx tsx cli/aro.ts ingest-targets",
     "aro:events": "npx tsx cli/aro.ts ingest-events",
     "aro:export": "npx tsx cli/aro.ts export",
+    "aro:list": "node scripts/list-engine.js",
+    "aro:send": "node scripts/send-engine.js",
+    "aro:send:dry": "node scripts/send-engine.js --dry-run",
     "test": "vitest run",
     "test:e2e": "playwright test"
   },

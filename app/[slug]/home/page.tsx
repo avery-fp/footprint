@@ -12,6 +12,7 @@ import { getTheme } from '@/lib/themes'
 import { snapToPreset } from '@/lib/aspect-ratios'
 import Image from 'next/image'
 import ErrorBoundary from '@/components/ErrorBoundary'
+import GiftModal from '@/components/GiftModal'
 import LayoutToggle from '@/components/LayoutToggle'
 import { type RoomLayout } from '@/lib/grid-layouts'
 import { type LayoutMode, getLayoutConfig } from '@/lib/layout-engine'
@@ -401,6 +402,9 @@ export default function EditPage() {
   const [birthMoment, setBirthMoment] = useState<{ serial: number; slug: string } | null>(null)
   const [birthCountUp, setBirthCountUp] = useState(0)
   const [birthPhase, setBirthPhase] = useState<'counting' | 'reveal' | 'done'>('counting')
+  // Gift state
+  const [showGiftModal, setShowGiftModal] = useState(false)
+  const [giftsRemaining, setGiftsRemaining] = useState(0)
 
   // Finalize after Stripe payment redirect
   const finalizeCalledRef = useRef(false)
@@ -709,6 +713,10 @@ export default function EditPage() {
           setWallpaperUrl(data.footprint.background_url || '')
           setBackgroundBlur(data.footprint.background_blur ?? true)
           setIsPublished(data.footprint.published !== false)
+          // Fetch gift count
+          fetch('/api/gifts/remaining').then(r => r.json()).then(d => {
+            setGiftsRemaining(d.remaining || 0)
+          }).catch(() => {})
           const sources: Record<string, 'library' | 'links'> = {}
           const content = (data.tiles || []).map((tile: any) => {
             sources[tile.id] = tile.source
@@ -1624,6 +1632,20 @@ export default function EditPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                   </button>
+                  {/* Gift button — subtle, only when gifts available */}
+                  {giftsRemaining > 0 && (
+                    <button
+                      onClick={() => setShowGiftModal(true)}
+                      className="flex items-center justify-center gap-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] transition text-white/40 hover:text-white/60 px-3"
+                      style={{ minHeight: '44px' }}
+                      title={`Gift a footprint (${giftsRemaining} left)`}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 12v10H4V12" /><path d="M2 7h20v5H2z" /><path d="M12 22V7" /><path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z" /><path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z" />
+                      </svg>
+                      <span className="text-[10px] font-mono">{giftsRemaining}</span>
+                    </button>
+                  )}
                 </>
               ) : (
                 /* "go live ↗" button — only for unpublished rooms */
@@ -2309,6 +2331,15 @@ export default function EditPage() {
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[80] px-5 py-2 bg-black/70 backdrop-blur-sm rounded-full border border-white/10 materialize">
           <span className="text-xs text-white/70 font-mono">{statusToast}</span>
         </div>
+      )}
+
+      {/* Gift modal */}
+      {showGiftModal && (
+        <GiftModal
+          onClose={() => setShowGiftModal(false)}
+          giftsRemaining={giftsRemaining}
+          onGiftSent={(remaining) => setGiftsRemaining(remaining)}
+        />
       )}
     </div>
     </ErrorBoundary>
