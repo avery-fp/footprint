@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * send-engine.js — SES bulk email sender
+ * send-engine.js — Multi-provider bulk email sender
  *
- * Reads CSV batches + HTML template, sends via AWS SES.
- * Supports multiple SES configs for parallel sending across accounts.
- * Round-robins respecting rate limits, dedupes against sent-log.csv,
- * stoppable/resumable, retry logic.
+ * Reads CSV batches + HTML template, sends via Resend (primary),
+ * SendGrid, or Mailgun. Round-robins across providers respecting
+ * rate limits, dedupes against sent-log.csv, stoppable/resumable,
+ * retry logic with provider failover.
  *
  * Usage:
  *   node scripts/send-engine.js --template templates/outreach.html --lists lists/music.csv,lists/design.csv
@@ -14,17 +14,33 @@
  *   node scripts/send-engine.js --dry-run --template templates/outreach.html --lists lists/music.csv
  *
  * Required files:
- *   ses-configs.json — array of SES account configs
+ *   provider-configs.json — array of email provider configs
  *   templates/<name>.html — email template with {{first_name}}, {{vertical}}, etc.
  *
- * ses-configs.json format:
+ * provider-configs.json format:
  * [
  *   {
- *     "name": "account-1",
- *     "region": "us-east-1",
- *     "accessKeyId": "AKIA...",
- *     "secretAccessKey": "...",
- *     "fromEmail": "hello@yourdomain.com",
+ *     "name": "resend-primary",
+ *     "provider": "resend",
+ *     "apiKey": "re_...",
+ *     "fromEmail": "hello@footprint.onl",
+ *     "fromName": "Footprint",
+ *     "ratePerSecond": 10
+ *   },
+ *   {
+ *     "name": "sendgrid-1",
+ *     "provider": "sendgrid",
+ *     "apiKey": "SG...",
+ *     "fromEmail": "hi@footprint.onl",
+ *     "fromName": "Footprint",
+ *     "ratePerSecond": 14
+ *   },
+ *   {
+ *     "name": "mailgun-1",
+ *     "provider": "mailgun",
+ *     "apiKey": "key-...",
+ *     "domain": "footprint.onl",
+ *     "fromEmail": "hello@footprint.onl",
  *     "fromName": "Footprint",
  *     "ratePerSecond": 10
  *   }
@@ -34,22 +50,12 @@
 const fs = require('fs')
 const path = require('path')
 
-// Lazy-load SES SDK — not needed for --dry-run
-let SESClient, SendEmailCommand
-function requireSES() {
-  if (!SESClient) {
-    const ses = require('@aws-sdk/client-ses')
-    SESClient = ses.SESClient
-    SendEmailCommand = ses.SendEmailCommand
-  }
-}
-
 // ═══════════════════════════════════════════
 // Configuration
 // ═══════════════════════════════════════════
 
 const SENT_LOG = path.resolve(process.cwd(), 'sent-log.csv')
-const SES_CONFIGS_PATH = path.resolve(process.cwd(), 'ses-configs.json')
+const CONFIGS_PATH = path.resolve(process.cwd(), 'provider-configs.json')
 const MAX_RETRIES = 3
 const RETRY_DELAY_MS = 5000
 
@@ -152,7 +158,7 @@ function loadSentLog() {
 function appendSentLog(email, vertical, account, messageId) {
   const exists = fs.existsSync(SENT_LOG)
   if (!exists) {
-    fs.writeFileSync(SENT_LOG, 'email,vertical,account,message_id,sent_at\n', 'utf-8')
+    fs.writeFileSync(SENT_LOG, 'email,vertical,provider,message_id,sent_at\n', 'utf-8')
   }
   const line = `${email},${vertical},${account},${messageId},${new Date().toISOString()}\n`
   fs.appendFileSync(SENT_LOG, line, 'utf-8')
@@ -168,27 +174,101 @@ function pickSubject(vertical) {
 }
 
 // ═══════════════════════════════════════════
-// SES Account Pool (round-robin with rate limiting)
+// Provider implementations
 // ═══════════════════════════════════════════
 
-class SESPool {
-  constructor(configs, dryRun = false) {
-    if (!dryRun) requireSES()
-    this.accounts = configs.map(cfg => ({
-      name: cfg.name || cfg.fromEmail,
-      client: dryRun ? null : new SESClient({
-        region: cfg.region || 'us-east-1',
-        credentials: {
-          accessKeyId: cfg.accessKeyId,
-          secretAccessKey: cfg.secretAccessKey,
-        },
-      }),
-      fromEmail: cfg.fromEmail,
-      fromName: cfg.fromName || 'Footprint',
-      ratePerSecond: cfg.ratePerSecond || 10,
-      lastSendTime: 0,
-      sentCount: 0,
-    }))
+async function sendViaResend(cfg, to, from, subject, html) {
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${cfg.apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ from, to, subject, html }),
+  })
+  if (!res.ok) {
+    const body = await res.text()
+    const err = new Error(`Resend ${res.status}: ${body}`)
+    err.statusCode = res.status
+    throw err
+  }
+  const data = await res.json()
+  return { MessageId: data.id }
+}
+
+async function sendViaSendGrid(cfg, to, from, subject, html) {
+  const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${cfg.apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      personalizations: [{ to: [{ email: to }] }],
+      from: { email: cfg.fromEmail, name: cfg.fromName || 'Footprint' },
+      subject,
+      content: [{ type: 'text/html', value: html }],
+    }),
+  })
+  if (!res.ok) {
+    const body = await res.text()
+    const err = new Error(`SendGrid ${res.status}: ${body}`)
+    err.statusCode = res.status
+    throw err
+  }
+  const msgId = res.headers.get('x-message-id') || `sg-${Date.now()}`
+  return { MessageId: msgId }
+}
+
+async function sendViaMailgun(cfg, to, from, subject, html) {
+  const domain = cfg.domain
+  const auth = Buffer.from(`api:${cfg.apiKey}`).toString('base64')
+  const formData = new URLSearchParams()
+  formData.append('from', from)
+  formData.append('to', to)
+  formData.append('subject', subject)
+  formData.append('html', html)
+
+  const res = await fetch(`https://api.mailgun.net/v3/${domain}/messages`, {
+    method: 'POST',
+    headers: { 'Authorization': `Basic ${auth}` },
+    body: formData,
+  })
+  if (!res.ok) {
+    const body = await res.text()
+    const err = new Error(`Mailgun ${res.status}: ${body}`)
+    err.statusCode = res.status
+    throw err
+  }
+  const data = await res.json()
+  return { MessageId: data.id || `mg-${Date.now()}` }
+}
+
+const PROVIDERS = { resend: sendViaResend, sendgrid: sendViaSendGrid, mailgun: sendViaMailgun }
+
+// ═══════════════════════════════════════════
+// Provider Pool (round-robin with rate limiting)
+// ═══════════════════════════════════════════
+
+class ProviderPool {
+  constructor(configs) {
+    this.accounts = configs.map(cfg => {
+      const provider = (cfg.provider || 'resend').toLowerCase()
+      if (!PROVIDERS[provider]) {
+        throw new Error(`Unknown provider "${provider}". Supported: ${Object.keys(PROVIDERS).join(', ')}`)
+      }
+      return {
+        name: cfg.name || `${provider}-${cfg.fromEmail}`,
+        provider,
+        sendFn: PROVIDERS[provider],
+        config: cfg,
+        fromEmail: cfg.fromEmail,
+        fromName: cfg.fromName || 'Footprint',
+        ratePerSecond: cfg.ratePerSecond || 10,
+        lastSendTime: 0,
+        sentCount: 0,
+      }
+    })
     this.index = 0
   }
 
@@ -207,7 +287,7 @@ class SESPool {
   }
 
   stats() {
-    return this.accounts.map(a => `${a.name}: ${a.sentCount} sent`)
+    return this.accounts.map(a => `${a.name} (${a.provider}): ${a.sentCount} sent`)
   }
 }
 
@@ -217,7 +297,7 @@ class SESPool {
 
 async function sendEmail(account, to, subject, htmlBody, dryRun = false) {
   if (dryRun) {
-    console.log(`  [DRY] → ${to} via ${account.name} | "${subject}"`)
+    console.log(`  [DRY] → ${to} via ${account.name} (${account.provider}) | "${subject}"`)
     return { MessageId: 'dry-run-' + Date.now() }
   }
 
@@ -225,16 +305,7 @@ async function sendEmail(account, to, subject, htmlBody, dryRun = false) {
     ? `${account.fromName} <${account.fromEmail}>`
     : account.fromEmail
 
-  const command = new SendEmailCommand({
-    Source: from,
-    Destination: { ToAddresses: [to] },
-    Message: {
-      Subject: { Data: subject, Charset: 'UTF-8' },
-      Body: { Html: { Data: htmlBody, Charset: 'UTF-8' } },
-    },
-  })
-
-  const result = await account.client.send(command)
+  const result = await account.sendFn(account.config, to, from, subject, htmlBody)
   account.lastSendTime = Date.now()
   account.sentCount++
   return result
@@ -245,8 +316,9 @@ async function sendWithRetry(account, to, subject, htmlBody, dryRun, retries = M
     try {
       return await sendEmail(account, to, subject, htmlBody, dryRun)
     } catch (err) {
-      const isThrottled = err.name === 'Throttling' || err.$metadata?.httpStatusCode === 429
-      const isTransient = err.$metadata?.httpStatusCode >= 500
+      const status = err.statusCode || 0
+      const isThrottled = status === 429
+      const isTransient = status >= 500
 
       if ((isThrottled || isTransient) && attempt < retries) {
         const delay = RETRY_DELAY_MS * attempt
@@ -301,18 +373,19 @@ async function main() {
     }
   }
 
-  // Load SES configs
-  if (!fs.existsSync(SES_CONFIGS_PATH)) {
-    console.error(`FATAL: ${SES_CONFIGS_PATH} not found. See script header for format.`)
+  // Load provider configs
+  if (!fs.existsSync(CONFIGS_PATH)) {
+    console.error(`FATAL: ${CONFIGS_PATH} not found. See script header for format.`)
     process.exit(1)
   }
-  const sesConfigs = JSON.parse(fs.readFileSync(SES_CONFIGS_PATH, 'utf-8'))
-  if (!Array.isArray(sesConfigs) || sesConfigs.length === 0) {
-    console.error('FATAL: ses-configs.json must be a non-empty array')
+  const providerConfigs = JSON.parse(fs.readFileSync(CONFIGS_PATH, 'utf-8'))
+  if (!Array.isArray(providerConfigs) || providerConfigs.length === 0) {
+    console.error('FATAL: provider-configs.json must be a non-empty array')
     process.exit(1)
   }
-  const pool = new SESPool(sesConfigs, dryRun)
-  console.log(`SES pool: ${sesConfigs.length} account(s)`)
+  const pool = new ProviderPool(providerConfigs)
+  const providers = [...new Set(providerConfigs.map(c => c.provider || 'resend'))]
+  console.log(`Provider pool: ${providerConfigs.length} account(s) [${providers.join(', ')}]`)
 
   // Load template
   if (!templatePath) {
@@ -405,7 +478,7 @@ async function main() {
   console.log(`  Sent: ${sent}`)
   console.log(`  Failed: ${failed}`)
   console.log(`  Stopped: ${stopping ? 'yes (resumable)' : 'no'}`)
-  console.log(`  Per account:`)
+  console.log(`  Per provider:`)
   for (const stat of pool.stats()) {
     console.log(`    ${stat}`)
   }

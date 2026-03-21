@@ -1,0 +1,27 @@
+[
+  {
+    "name": "resend-primary",
+    "provider": "resend",
+    "apiKey": "re_YOUR_KEY_HERE",
+    "fromEmail": "hello@footprint.onl",
+    "fromName": "Footprint",
+    "ratePerSecond": 10
+  },
+  {
+    "name": "sendgrid-1",
+    "provider": "sendgrid",
+    "apiKey": "SG_YOUR_KEY_HERE",
+    "fromEmail": "hi@footprint.onl",
+    "fromName": "Footprint",
+    "ratePerSecond": 14
+  },
+  {
+    "name": "mailgun-1",
+    "provider": "mailgun",
+    "apiKey": "key-YOUR_KEY_HERE",
+    "domain": "footprint.onl",
+    "fromEmail": "hello@footprint.onl",
+    "fromName": "Footprint",
+    "ratePerSecond": 10
+  }
+]

@@ -50,6 +50,7 @@ supabase/.temp/
 .claude/
 
 # Send engine
+provider-configs.json
 ses-configs.json
 sent-log.csv
 lists/
