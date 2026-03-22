@@ -21,6 +21,10 @@
     "aro:list": "node scripts/list-engine.js",
     "aro:send": "node scripts/send-engine.js",
     "aro:send:dry": "node scripts/send-engine.js --dry-run",
+    "launch": "node scripts/launch.js",
+    "launch:dry": "node scripts/launch.js --dry-run",
+    "scrape": "node scrape-engine.js",
+    "send": "node send-engine.js",
     "test": "vitest run",
     "test:e2e": "playwright test"
   },

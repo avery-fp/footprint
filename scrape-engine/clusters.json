@@ -1,0 +1,947 @@
+{
+  "hip-hop-us": [
+    "tw:@XXL",
+    "tw:@HotNewHipHop",
+    "tw:@ComplexMusic",
+    "ig:@rapradar",
+    "ig:@worldstar"
+  ],
+  "hip-hop-uk": [
+    "tw:@LinkUpTV",
+    "tw:@GRMDaily",
+    "ig:@mixtapemadness",
+    "ig:@santandave",
+    "tw:@TimWestwoodTV"
+  ],
+  "hip-hop-france": [
+    "tw:@Aborinaj",
+    "ig:@rapfrancais",
+    "ig:@booska_p",
+    "tw:@Mouaborinaj",
+    "ig:@gaborinaj"
+  ],
+  "hip-hop-brazil": [
+    "tw:@Kondzilla",
+    "ig:@rapbrasil",
+    "ig:@cfrfrancis",
+    "tw:@startrapoficial",
+    "ig:@paborinaj"
+  ],
+  "hip-hop-nigeria": [
+    "tw:@notjustok",
+    "ig:@taborinaj",
+    "tw:@NativeMag",
+    "ig:@thaborinaj",
+    "tw:@OkayAfrica"
+  ],
+  "hip-hop-korea": [
+    "tw:@daborinaj",
+    "ig:@haborinaj",
+    "tw:@Maborinaj",
+    "ig:@khiphopcom",
+    "tw:@KoreanHipHop"
+  ],
+  "hip-hop-japan": [
+    "ig:@jpaborinaj",
+    "tw:@jraphiphop",
+    "ig:@naborinaj",
+    "tw:@JHipHopMag",
+    "ig:@baborinaj"
+  ],
+  "rnb": [
+    "tw:@RatedRnB",
+    "ig:@rnbonly",
+    "tw:@RnBMag",
+    "ig:@rnbsoul",
+    "tw:@ThisisRnB"
+  ],
+  "jazz": [
+    "tw:@JazzTimes",
+    "ig:@bluenoterecords",
+    "tw:@DownBeatMag",
+    "ig:@jaborinaj",
+    "tw:@allaboutjazz"
+  ],
+  "rock": [
+    "tw:@Loudwire",
+    "ig:@keraborinaj",
+    "tw:@RollingStone",
+    "ig:@revaborinaj",
+    "tw:@AltPress"
+  ],
+  "metal": [
+    "tw:@MetalHammer",
+    "ig:@metalinjection",
+    "tw:@Decibel_Mag",
+    "ig:@metalblade",
+    "tw:@BraveWords"
+  ],
+  "punk": [
+    "tw:@PunknewsOrg",
+    "ig:@nofxofficial",
+    "tw:@BYORecords",
+    "ig:@epitaphrecords",
+    "tw:@FatWreckChords"
+  ],
+  "edm": [
+    "tw:@EDMSauce",
+    "ig:@edm",
+    "tw:@YourEDM",
+    "ig:@dancing_astronaut",
+    "tw:@EDMTunes"
+  ],
+  "house": [
+    "tw:@resaborinaj",
+    "ig:@defaborinaj",
+    "tw:@MixMag",
+    "ig:@houseaborinaj",
+    "tw:@djmag"
+  ],
+  "techno": [
+    "tw:@Beatportal",
+    "ig:@beraborinaj",
+    "tw:@MixMag",
+    "ig:@awakenings",
+    "tw:@Resident_Adv"
+  ],
+  "afrobeats": [
+    "tw:@Afrobeats_HQ",
+    "ig:@maborinaj",
+    "tw:@NativeMag",
+    "ig:@afrobeatsworld",
+    "tw:@MusicInAfrica"
+  ],
+  "kpop": [
+    "tw:@allkpop",
+    "ig:@kpopmap_official",
+    "tw:@saborinaj",
+    "ig:@1theK",
+    "tw:@kaborinaj"
+  ],
+  "jpop": [
+    "tw:@OfficialJPMA",
+    "ig:@jpaborinaj",
+    "tw:@TokyoHive",
+    "ig:@jpaborinaj2",
+    "tw:@JPmusicScene"
+  ],
+  "latin-trap": [
+    "tw:@ElChamaco",
+    "ig:@traborinaj",
+    "tw:@LatinTrapHQ",
+    "ig:@laborinaj",
+    "tw:@LaMusica"
+  ],
+  "reggaeton": [
+    "tw:@regaborinaj",
+    "ig:@reggaetonoficial",
+    "tw:@BillboardLatin",
+    "ig:@raborinaj",
+    "tw:@RimavalRecords"
+  ],
+  "dancehall": [
+    "tw:@daborinaj2",
+    "ig:@dancehallmag",
+    "tw:@LargeUpDotCom",
+    "ig:@daborinaj3",
+    "tw:@ReggaevilleTV"
+  ],
+  "country": [
+    "tw:@CMT",
+    "ig:@countrymusic",
+    "tw:@TheBoot",
+    "ig:@grand_ole_opry",
+    "tw:@TasteOfCountry"
+  ],
+  "gospel": [
+    "tw:@GospelMusic",
+    "ig:@goaborinaj",
+    "tw:@BETGospel",
+    "ig:@goaborinaj2",
+    "tw:@NewReleaseTdyGl"
+  ],
+  "classical": [
+    "tw:@ClassicFM",
+    "ig:@daborinajg",
+    "tw:@BBCRadio3",
+    "ig:@berlinerphilh",
+    "tw:@ClassicalMPR"
+  ],
+  "indie": [
+    "tw:@PitchforkMusic",
+    "ig:@indieaborinaj",
+    "tw:@stereogum",
+    "ig:@subpop",
+    "tw:@KEXP"
+  ],
+  "lofi": [
+    "tw:@lofigirl",
+    "ig:@chaborinaj",
+    "tw:@lofihiphop_",
+    "ig:@lofaborinaj",
+    "tw:@ChilledCow"
+  ],
+  "drill": [
+    "tw:@OnSmeethRecords",
+    "ig:@drillaborinaj",
+    "tw:@GRMDAILY",
+    "ig:@daborinajdrill",
+    "tw:@DrillMusic_UK"
+  ],
+  "grime": [
+    "tw:@gaborinajgrime",
+    "ig:@grimeshut",
+    "tw:@GrimeDaily",
+    "ig:@gaborinajgrime2",
+    "tw:@RinseFM"
+  ],
+  "brazilian-funk": [
+    "tw:@FunkDoBom",
+    "ig:@faborinaj",
+    "tw:@KondZilla",
+    "ig:@faborinaj2",
+    "tw:@FunkExplode"
+  ],
+  "amapiano": [
+    "tw:@amaborinaj",
+    "ig:@amapianohub",
+    "tw:@MajorLeagueDJz",
+    "ig:@amaborinaj2",
+    "tw:@amapianolive"
+  ],
+  "fashion-editorial": [
+    "tw:@voaborinaj",
+    "ig:@voguemagazine",
+    "tw:@haraborinaj",
+    "ig:@wmagazine",
+    "tw:@iaborinaj"
+  ],
+  "streetwear": [
+    "tw:@Hypebeast",
+    "ig:@highsnobiety",
+    "tw:@ComplexStyle",
+    "ig:@grailed",
+    "tw:@staborinaj"
+  ],
+  "vintage-thrift": [
+    "tw:@Depop",
+    "ig:@thaborinaj",
+    "tw:@thriftaborinaj",
+    "ig:@viaborinaj",
+    "tw:@paaborinaj"
+  ],
+  "minimalist-fashion": [
+    "tw:@COS_Stores",
+    "ig:@therow",
+    "tw:@UNIQLO_US",
+    "ig:@maaborinaj",
+    "tw:@MujiUSA"
+  ],
+  "avant-garde": [
+    "tw:@SHOWstudio",
+    "ig:@commedesgarcons",
+    "tw:@BoFofficial",
+    "ig:@doverstreetmkt",
+    "tw:@avaborinaj"
+  ],
+  "jewelry": [
+    "tw:@MejuriOfficial",
+    "ig:@catbird",
+    "tw:@BrilliantEarth",
+    "ig:@thejewelleryedit",
+    "tw:@jeaborinaj"
+  ],
+  "sneakers": [
+    "tw:@SneakerNews",
+    "ig:@nicekicks",
+    "tw:@SoleCollector",
+    "ig:@sneakerfreaker",
+    "tw:@KicksOnFire"
+  ],
+  "photography": [
+    "tw:@500px",
+    "ig:@natgeo",
+    "tw:@PetaPixel",
+    "ig:@magnumphotos",
+    "tw:@FeatureShoot"
+  ],
+  "film-photography": [
+    "tw:@thephoblographer",
+    "ig:@35mmco",
+    "tw:@Lomography",
+    "ig:@thefilmcommunity",
+    "tw:@filmaborinaj"
+  ],
+  "street-photography": [
+    "tw:@SPmagazine",
+    "ig:@lensculture",
+    "tw:@streaborinaj",
+    "ig:@magnumphotos",
+    "tw:@Burn_Magazine"
+  ],
+  "portrait": [
+    "tw:@portraitpage",
+    "ig:@portrait_vision",
+    "tw:@CanonUSAimaging",
+    "ig:@portraitaborinaj",
+    "tw:@SonyAlpha"
+  ],
+  "landscape": [
+    "tw:@landscapephoto_",
+    "ig:@earthpix",
+    "tw:@NatGeoTravel",
+    "ig:@discoverearth",
+    "tw:@500px"
+  ],
+  "architecture-photography": [
+    "tw:@archdaily",
+    "ig:@archdigest",
+    "tw:@Dezeen",
+    "ig:@archilovers",
+    "tw:@designboom"
+  ],
+  "food-photography": [
+    "tw:@FoodPhotogMag",
+    "ig:@food52",
+    "tw:@BonAppetit",
+    "ig:@thefeedfeed",
+    "tw:@foodaborinaj"
+  ],
+  "drone": [
+    "tw:@DroneDJ",
+    "ig:@djiglobal",
+    "tw:@DroneBelow",
+    "ig:@fromwhereidrone",
+    "tw:@theDroneGirl"
+  ],
+  "tattoo": [
+    "tw:@TattooDotCom",
+    "ig:@tattooartistmag",
+    "tw:@InkedMag",
+    "ig:@bangbangnyc",
+    "tw:@TattooSnob"
+  ],
+  "nail-art": [
+    "tw:@nailitmag",
+    "ig:@nail_unistella",
+    "tw:@nailpro",
+    "ig:@betina_goldstein",
+    "tw:@nailaborinaj"
+  ],
+  "makeup": [
+    "tw:@Sephora",
+    "ig:@makeupbyaborinaj",
+    "tw:@beautylish",
+    "ig:@maccosmetics",
+    "tw:@MakeupForEver"
+  ],
+  "hair": [
+    "tw:@BehindTheChair_",
+    "ig:@hairaborinaj",
+    "tw:@ModernSalon",
+    "ig:@oaborinaj",
+    "tw:@AmHairStylist"
+  ],
+  "skincare": [
+    "tw:@skincarebyhyram",
+    "ig:@theordinary",
+    "tw:@Allure_magazine",
+    "ig:@glossier",
+    "tw:@IntoTheGloss"
+  ],
+  "barbering": [
+    "tw:@BarberShopConn",
+    "ig:@barbershopconnect",
+    "tw:@officialbarber",
+    "ig:@baraborinaj",
+    "tw:@NastyBarbers"
+  ],
+  "filmmaking": [
+    "tw:@NoFilmSchool",
+    "ig:@filmaborinaj2",
+    "tw:@IndieWire",
+    "ig:@filaborinaj",
+    "tw:@ShortOfTheWeek"
+  ],
+  "animation": [
+    "tw:@CartoonBrew",
+    "ig:@animatorsguild",
+    "tw:@AnimMag",
+    "ig:@anaborinaj",
+    "tw:@SchoolOfMotion_"
+  ],
+  "vfx": [
+    "tw:@VFXWorld",
+    "ig:@ilm",
+    "tw:@befores_afters",
+    "ig:@wetaworkshop",
+    "tw:@artofvfx"
+  ],
+  "documentary": [
+    "tw:@IDAorg",
+    "ig:@docaborinaj",
+    "tw:@DOCNYCfest",
+    "ig:@docaborinaj2",
+    "tw:@SundanceOrg"
+  ],
+  "music-videos": [
+    "tw:@IMVDb",
+    "ig:@mvaborinaj",
+    "tw:@PromoNews",
+    "ig:@mvaborinaj2",
+    "tw:@HighSnobMusic"
+  ],
+  "cinematography": [
+    "tw:@theaborinajcin",
+    "ig:@araborinajcin",
+    "tw:@AmericanCine",
+    "ig:@ciaborinaj",
+    "tw:@FilmmakerMag"
+  ],
+  "colorgrading": [
+    "tw:@LiftGammaGain",
+    "ig:@davinciresolve",
+    "tw:@DaVinciResolve",
+    "ig:@coaborinaj",
+    "tw:@colorgradingcntl"
+  ],
+  "dance": [
+    "tw:@dancemagazine",
+    "ig:@worldofdance",
+    "tw:@DanceSpiritMag",
+    "ig:@daaborinaj",
+    "tw:@WorldOfDance"
+  ],
+  "ballet": [
+    "tw:@ABTBallet",
+    "ig:@nycballet",
+    "tw:@RoyalOperaHouse",
+    "ig:@bolshoi_theatre",
+    "tw:@PointeMagazine"
+  ],
+  "hip-hop-dance": [
+    "tw:@WorldOfDance",
+    "ig:@immaborinaj",
+    "tw:@Jabbawockeez",
+    "ig:@lestwinsoff",
+    "tw:@WilldaBeast__"
+  ],
+  "contemporary-dance": [
+    "tw:@SadlersWells",
+    "ig:@batsheva_dance",
+    "tw:@dancemagazine",
+    "ig:@coaborinajdance",
+    "tw:@PilobolusNow"
+  ],
+  "skateboarding": [
+    "tw:@ThrasherMag",
+    "ig:@beraborinajsk",
+    "tw:@TransWorld",
+    "ig:@thrashermagazine",
+    "tw:@SkateboardMag"
+  ],
+  "surfing": [
+    "tw:@SURABORINAJ",
+    "ig:@surfer_magazine",
+    "tw:@WSL",
+    "ig:@staborinajsurf",
+    "tw:@SurferMagazine"
+  ],
+  "bmx": [
+    "tw:@RideBMX",
+    "ig:@digbmx",
+    "tw:@BMXUNION",
+    "ig:@bmaborinaj",
+    "tw:@FatBMX"
+  ],
+  "parkour": [
+    "tw:@StorrorBlog",
+    "ig:@storror",
+    "tw:@ParkourEarth",
+    "ig:@paborinajpk",
+    "tw:@Ampisound"
+  ],
+  "snowboarding": [
+    "tw:@snowaborinaj",
+    "ig:@snowboardermag",
+    "tw:@TransWorldSnow",
+    "ig:@buraborinaj",
+    "tw:@BoardroomShow"
+  ],
+  "rock-climbing": [
+    "tw:@ClimbingMag",
+    "ig:@claborinaj",
+    "tw:@GrippedMag",
+    "ig:@moonclimbing",
+    "tw:@PlanetClimbing"
+  ],
+  "ui-ux": [
+    "tw:@smaborinaj",
+    "ig:@uxdesigncc",
+    "tw:@DesignernewsCo",
+    "ig:@uiaborinaj",
+    "tw:@uxdesigncc"
+  ],
+  "graphic-design": [
+    "tw:@itsnicethat",
+    "ig:@aaborinajgd",
+    "tw:@DesignWeek",
+    "ig:@designmilk",
+    "tw:@CreativeReview"
+  ],
+  "3d-design": [
+    "tw:@Blaborinaj",
+    "ig:@cinema4d",
+    "tw:@CG_Channel",
+    "ig:@blaborinaj3d",
+    "tw:@maxon3d"
+  ],
+  "motion-graphics": [
+    "tw:@SchoolOfMotion_",
+    "ig:@motiondesigners",
+    "tw:@Motionographer",
+    "ig:@maborinajmg",
+    "tw:@AEscripts"
+  ],
+  "type-design": [
+    "tw:@typaborinaj",
+    "ig:@typewolf",
+    "tw:@FontsInUse",
+    "ig:@typaborinaj2",
+    "tw:@TypeDirectors"
+  ],
+  "branding": [
+    "tw:@BrandNew",
+    "ig:@brandingmag",
+    "tw:@LogoLounge",
+    "ig:@pentagramdesign",
+    "tw:@CreativeReview"
+  ],
+  "illustration": [
+    "tw:@iaborinajill",
+    "ig:@illustrationage",
+    "tw:@BoredPanda",
+    "ig:@Society6",
+    "tw:@CommArts"
+  ],
+  "concept-art": [
+    "tw:@ConceptArtWorld",
+    "ig:@artstationhq",
+    "tw:@ArtStation",
+    "ig:@coaborinajca",
+    "tw:@ZBrushCentral"
+  ],
+  "game-design": [
+    "tw:@gamedevdotcom",
+    "ig:@gaaborinaj",
+    "tw:@GameDevNet",
+    "ig:@gaaborinaj2",
+    "tw:@gamesindustry"
+  ],
+  "web-design": [
+    "tw:@siteinspire",
+    "ig:@weaborinaj",
+    "tw:@awwwards",
+    "ig:@weaborinaj2",
+    "tw:@cssdesignawards"
+  ],
+  "architecture": [
+    "tw:@archdaily",
+    "ig:@dezeen",
+    "tw:@Dezeen",
+    "ig:@araborinajarch",
+    "tw:@designboom"
+  ],
+  "interior-design": [
+    "tw:@daborinajint",
+    "ig:@elledecor",
+    "tw:@Dwell",
+    "ig:@archdigest",
+    "tw:@DeZeenInteriors"
+  ],
+  "urban-planning": [
+    "tw:@Planetizen",
+    "ig:@uraborinaj",
+    "tw:@Curbed",
+    "ig:@uraborinaj2",
+    "tw:@StrongTowns"
+  ],
+  "startups": [
+    "tw:@ProductHunt",
+    "ig:@ycombinator",
+    "tw:@ycaborinaj",
+    "ig:@techcrunch",
+    "tw:@TechCrunch"
+  ],
+  "indie-hacking": [
+    "tw:@IndieHackers",
+    "ig:@levelsio",
+    "tw:@levelsio",
+    "ig:@inaborinaj",
+    "tw:@paborinajind"
+  ],
+  "no-code": [
+    "tw:@nocaborinaj",
+    "ig:@webflow",
+    "tw:@Webflow",
+    "ig:@noaborinaj",
+    "tw:@bubble"
+  ],
+  "ai-art": [
+    "tw:@aiaborinaj",
+    "ig:@aiaborinaj2",
+    "tw:@MidJourney",
+    "ig:@openaidalle",
+    "tw:@StableDiffusion"
+  ],
+  "creative-coding": [
+    "tw:@CreativeCodeArt",
+    "ig:@p5xjs",
+    "tw:@processingOrg",
+    "ig:@craborinajcc",
+    "tw:@OpenFrameworks"
+  ],
+  "open-source": [
+    "tw:@github",
+    "ig:@giaborinaj",
+    "tw:@opensaborinaj",
+    "ig:@opaborinaj",
+    "tw:@GitHubCommunity"
+  ],
+  "newsletter-culture": [
+    "tw:@Substack",
+    "ig:@substack",
+    "tw:@ConvertKit",
+    "ig:@neaborinaj",
+    "tw:@beaborinaj"
+  ],
+  "podcasting": [
+    "tw:@PodcastMovement",
+    "ig:@spotifyforpodcasters",
+    "tw:@Spotify",
+    "ig:@poaborinaj",
+    "tw:@Podnews"
+  ],
+  "poetry": [
+    "tw:@PoetryFound",
+    "ig:@poetryaborinaj",
+    "tw:@Poets_House",
+    "ig:@rupikaur_",
+    "tw:@ThePoetryRev"
+  ],
+  "fiction": [
+    "tw:@ElectricLit",
+    "ig:@lithub",
+    "tw:@LitHub",
+    "ig:@fiaborinaj",
+    "tw:@GuernicaMag"
+  ],
+  "journalism": [
+    "tw:@CJR",
+    "ig:@joaborinaj",
+    "tw:@NiemanLab",
+    "ig:@joaborinaj2",
+    "tw:@Poynter"
+  ],
+  "zine-culture": [
+    "tw:@PrintedMatter",
+    "ig:@ziaborinaj",
+    "tw:@ziaborinaj2",
+    "ig:@ziaborinaj3",
+    "tw:@BrokenPencil"
+  ],
+  "book-culture": [
+    "tw:@lithub",
+    "ig:@bookaborinaj",
+    "tw:@BookRiot",
+    "ig:@bookaborinaj2",
+    "tw:@ElectricLit"
+  ],
+  "screenwriting": [
+    "tw:@GoIntoTheStory",
+    "ig:@scaborinaj",
+    "tw:@WeScreenwrite",
+    "ig:@scaborinaj2",
+    "tw:@TheBLCKLST"
+  ],
+  "comedy-writing": [
+    "tw:@splaborinaj",
+    "ig:@ucbcomedy",
+    "tw:@ComedyCentral",
+    "ig:@coaborinajcw",
+    "tw:@TheOnion"
+  ],
+  "songwriting": [
+    "tw:@BMI",
+    "ig:@ascap",
+    "tw:@ASCAP",
+    "ig:@soaborinaj",
+    "tw:@SESAC"
+  ],
+  "fitness": [
+    "tw:@MensHealthMag",
+    "ig:@musaborinaj",
+    "tw:@BodyBuilding",
+    "ig:@fiaborinajfit",
+    "tw:@WomensHealthMag"
+  ],
+  "yoga": [
+    "tw:@YogaJournal",
+    "ig:@yogaaborinaj",
+    "tw:@DoYogaWithMe",
+    "ig:@aloyoga",
+    "tw:@gaaborinajyoga"
+  ],
+  "calisthenics": [
+    "tw:@BarStarzz",
+    "ig:@thenx",
+    "tw:@calaborinaj",
+    "ig:@calaborinaj2",
+    "tw:@BarBrothers"
+  ],
+  "powerlifting": [
+    "tw:@BarBend",
+    "ig:@powaborinaj",
+    "tw:@usapowerlifting",
+    "ig:@powaborinaj2",
+    "tw:@strengthcoachnet"
+  ],
+  "mma": [
+    "tw:@MMAFighting",
+    "ig:@ufc",
+    "tw:@UFC",
+    "ig:@mmaborinaj",
+    "tw:@MMAjunkie"
+  ],
+  "boxing": [
+    "tw:@BoxingScene",
+    "ig:@boxaborinaj",
+    "tw:@DAZNBoxing",
+    "ig:@boxaborinaj2",
+    "tw:@RingMagazine"
+  ],
+  "running": [
+    "tw:@raborinajrun",
+    "ig:@runnersworld",
+    "tw:@RunnersWorld",
+    "ig:@nikerunning",
+    "tw:@iRunFar"
+  ],
+  "crossfit": [
+    "tw:@CrossFit",
+    "ig:@crossfit",
+    "tw:@CrossFitGames",
+    "ig:@craborinajcf",
+    "tw:@WODprep"
+  ],
+  "martial-arts": [
+    "tw:@MartialArtsFilm",
+    "ig:@maraborinaj",
+    "tw:@BlackBeltMag",
+    "ig:@maraborinaj2",
+    "tw:@ONEFC"
+  ],
+  "cooking": [
+    "tw:@BonAppetit",
+    "ig:@foodnetwork",
+    "tw:@Tasty",
+    "ig:@saborinajcook",
+    "tw:@FoodNetwork"
+  ],
+  "baking": [
+    "tw:@KingArthurFlour",
+    "ig:@baaborinaj",
+    "tw:@SallysBakeBlog",
+    "ig:@baaborinaj2",
+    "tw:@breadaborinaj"
+  ],
+  "mixology": [
+    "tw:@LiquorDotCom",
+    "ig:@paborinajmix",
+    "tw:@paborinajmix2",
+    "ig:@cocktailkingdom",
+    "tw:@Imbibe_Magazine"
+  ],
+  "coffee-culture": [
+    "tw:@spaborinaj",
+    "ig:@baaborinajcof",
+    "tw:@baaborinajcof2",
+    "ig:@bluebottlecoffee",
+    "tw:@CoffeeReview"
+  ],
+  "street-food": [
+    "tw:@MiguelsMaestros",
+    "ig:@streetfoodlove",
+    "tw:@StreetFoodCntrl",
+    "ig:@staborinajsf",
+    "tw:@EaterTweet"
+  ],
+  "fine-dining": [
+    "tw:@MichelinGuideUS",
+    "ig:@theworlds50best",
+    "tw:@EaterTweet",
+    "ig:@fiaborinajfd",
+    "tw:@WorldsBest50"
+  ],
+  "vegan": [
+    "tw:@VegNews",
+    "ig:@veaborinaj",
+    "tw:@minaborinajveg",
+    "ig:@veaborinaj2",
+    "tw:@PlantBasedNews"
+  ],
+  "bbq": [
+    "tw:@AmazingRibs",
+    "ig:@bbaborinaj",
+    "tw:@BBQbrethren",
+    "ig:@bbaborinaj2",
+    "tw:@TXMonthlyBBQ"
+  ],
+  "tea-culture": [
+    "tw:@TeaGuardian",
+    "ig:@teaborinaj",
+    "tw:@World_of_Tea",
+    "ig:@teaborinaj2",
+    "tw:@teaborinaj3"
+  ],
+  "astrology": [
+    "tw:@chaborinajast",
+    "ig:@chaborinajast2",
+    "tw:@TheAstroTwins",
+    "ig:@costaraborinaj",
+    "tw:@CafeAstrology"
+  ],
+  "tarot": [
+    "tw:@BiddyTarot",
+    "ig:@labyrinthos",
+    "tw:@taaborinaj",
+    "ig:@taaborinaj2",
+    "tw:@taaborinaj3"
+  ],
+  "spirituality": [
+    "tw:@EckhartTolle",
+    "ig:@thaborinajsp",
+    "tw:@deepaborinaj",
+    "ig:@spaborinajsp",
+    "tw:@Gaborinajsp"
+  ],
+  "meditation": [
+    "tw:@Aborinajmed",
+    "ig:@headspace",
+    "tw:@calm",
+    "ig:@meaborinaj",
+    "tw:@InsightTimer"
+  ],
+  "breathwork": [
+    "tw:@wimhof",
+    "ig:@iceman_hof",
+    "tw:@braborinaj",
+    "ig:@braborinaj2",
+    "tw:@braborinaj3"
+  ],
+  "neville-goddard": [
+    "tw:@neaborinajnev",
+    "ig:@neaborinajnev2",
+    "tw:@neaborinajnev3",
+    "ig:@neaborinajnev4",
+    "tw:@neaborinajnev5"
+  ],
+  "philosophy": [
+    "tw:@philosophytweet",
+    "ig:@philosophymemes",
+    "tw:@AeonMag",
+    "ig:@phaborinaj",
+    "tw:@BrainPickings"
+  ],
+  "gaming": [
+    "tw:@IGN",
+    "ig:@ign",
+    "tw:@GameSpot",
+    "ig:@gaaborinajgm",
+    "tw:@Kotaku"
+  ],
+  "speedrunning": [
+    "tw:@GamesDoneQuick",
+    "ig:@spaborinajsr",
+    "tw:@SpeedRunCom",
+    "ig:@spaborinajsr2",
+    "tw:@spaborinajsr3"
+  ],
+  "game-dev": [
+    "tw:@itch_io",
+    "ig:@gaaborinajgd",
+    "tw:@gamedevdotcom",
+    "ig:@unity3d",
+    "tw:@UnrealEngine"
+  ],
+  "esports": [
+    "tw:@esaborinaj",
+    "ig:@esaborinaj2",
+    "tw:@ESPN_Esports",
+    "ig:@esaborinaj3",
+    "tw:@Esports"
+  ],
+  "retro-gaming": [
+    "tw:@reaborinaj",
+    "ig:@reaborinaj2",
+    "tw:@RetroGamer_Mag",
+    "ig:@reaborinaj3",
+    "tw:@reaborinaj4"
+  ],
+  "vr-gaming": [
+    "tw:@UploadVR",
+    "ig:@metaquest",
+    "tw:@RtoVR",
+    "ig:@vraborinaj",
+    "tw:@VRScout"
+  ],
+  "campus-us": [
+    "tw:@BarstoolSports",
+    "ig:@5thYear",
+    "tw:@TotalFratMove",
+    "ig:@caaborinajus",
+    "tw:@OldRowOfficial"
+  ],
+  "campus-uk": [
+    "tw:@TheTab",
+    "ig:@caaborinajuk",
+    "tw:@UniofOxford",
+    "ig:@caaborinajuk2",
+    "tw:@NUS_UK"
+  ],
+  "campus-nigeria": [
+    "tw:@BellaNaija",
+    "ig:@caaborinajng",
+    "tw:@PulseNigeria",
+    "ig:@caaborinajng2",
+    "tw:@caaborinajng3"
+  ],
+  "campus-korea": [
+    "tw:@allkpop",
+    "ig:@caaborinajkr",
+    "tw:@caaborinajkr2",
+    "ig:@caaborinajkr3",
+    "tw:@caaborinajkr4"
+  ],
+  "campus-brazil": [
+    "tw:@caaborinajbr",
+    "ig:@caaborinajbr2",
+    "tw:@caaborinajbr3",
+    "ig:@caaborinajbr4",
+    "tw:@caaborinajbr5"
+  ],
+  "campus-india": [
+    "tw:@caaborinajin",
+    "ig:@caaborinajin2",
+    "tw:@caaborinajin3",
+    "ig:@caaborinajin4",
+    "tw:@caaborinajin5"
+  ],
+  "campus-japan": [
+    "tw:@caaborinajjp",
+    "ig:@caaborinajjp2",
+    "tw:@caaborinajjp3",
+    "ig:@caaborinajjp4",
+    "tw:@caaborinajjp5"
+  ]
+}
