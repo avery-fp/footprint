@@ -3,8 +3,19 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
+/* ── Fake grid cells ── */
+const CELLS = [
+  { r: "1/3", c: "1/2", hue: 20 },
+  { r: "1/2", c: "2/3", hue: 260 },
+  { r: "2/3", c: "2/3", hue: 340 },
+  { r: "3/4", c: "1/2", hue: 180 },
+  { r: "3/5", c: "2/3", hue: 40 },
+  { r: "4/5", c: "1/2", hue: 300 },
+  { r: "5/6", c: "1/3", hue: 210 },
+];
+
 export default function LandingPage() {
-  const [visible, setVisible] = useState(false);
+  const [vis, setVis] = useState(false);
 
   useEffect(() => {
     const link = document.createElement("link");
@@ -12,12 +23,8 @@ export default function LandingPage() {
     link.href =
       "https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&display=swap";
     document.head.appendChild(link);
-
-    const t = setTimeout(() => setVisible(true), 600);
-    return () => {
-      clearTimeout(t);
-      document.head.removeChild(link);
-    };
+    const t = setTimeout(() => setVis(true), 400);
+    return () => { clearTimeout(t); document.head.removeChild(link); };
   }, []);
 
   return (
@@ -35,44 +42,92 @@ export default function LandingPage() {
         overflow: "hidden",
       }}
     >
-      {/* Grid hero */}
+      {/* ── Hero: abstract grid ── */}
       <div
         style={{
           position: "relative",
-          width: "min(90vw, 720px)",
+          width: "min(88vw, 680px)",
           aspectRatio: "4 / 3",
           borderRadius: "16px",
           overflow: "hidden",
-          border: "1px solid rgba(210, 190, 160, 0.12)",
-          boxShadow: "0 0 80px rgba(210, 190, 160, 0.06)",
-          opacity: visible ? 1 : 0,
-          transform: visible ? "translateY(0)" : "translateY(12px)",
-          transition: "opacity 0.8s ease, transform 0.8s ease",
+          border: "1px solid rgba(210, 190, 160, 0.10)",
+          boxShadow: "0 0 80px rgba(210, 190, 160, 0.05)",
+          opacity: vis ? 1 : 0,
+          transform: vis ? "translateY(0)" : "translateY(14px)",
+          transition: "opacity 1s ease, transform 1s ease",
         }}
       >
+        {/* Grid mock */}
         <div
           style={{
             position: "absolute",
             inset: 0,
-            zIndex: 2,
+            display: "grid",
+            gridTemplateRows: "repeat(5, 1fr)",
+            gridTemplateColumns: "repeat(2, 1fr)",
+            gap: "6px",
+            padding: "6px",
+          }}
+        >
+          {CELLS.map((c, i) => (
+            <div
+              key={i}
+              style={{
+                gridRow: c.r,
+                gridColumn: c.c,
+                borderRadius: "8px",
+                background: `linear-gradient(135deg, hsl(${c.hue} 30% 14%), hsl(${c.hue} 20% 10%))`,
+                opacity: 0.7,
+              }}
+            />
+          ))}
+        </div>
+
+        {/* ae watermark */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "flex-start",
+            paddingTop: "clamp(20px, 5%, 40px)",
+            pointerEvents: "none",
+          }}
+        >
+          <span style={{ color: "rgba(210, 190, 160, 0.25)", fontSize: "28px", fontWeight: 300 }}>
+            æ
+          </span>
+          <div style={{ display: "flex", gap: "20px", marginTop: "10px" }}>
+            {["void", "world", "fits", "sound", "archive"].map((t) => (
+              <span
+                key={t}
+                style={{
+                  color: "rgba(210, 190, 160, 0.15)",
+                  fontSize: "10px",
+                  letterSpacing: "0.12em",
+                }}
+              >
+                {t}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Edge fades */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
             pointerEvents: "none",
             background:
-              "linear-gradient(to bottom, #0c0c10 0%, transparent 8%, transparent 88%, #0c0c10 100%)",
-          }}
-        />
-        <iframe
-          src="/ae"
-          title="footprint grid"
-          style={{
-            width: "100%",
-            height: "100%",
-            border: "none",
-            pointerEvents: "none",
-            display: "block",
+              "linear-gradient(to bottom, #0c0c10 0%, transparent 12%, transparent 85%, #0c0c10 100%)",
           }}
         />
       </div>
 
+      {/* ── Tagline ── */}
       <p
         style={{
           marginTop: "40px",
@@ -80,14 +135,15 @@ export default function LandingPage() {
           fontSize: "clamp(14px, 2.4vw, 18px)",
           fontWeight: 300,
           letterSpacing: "0.04em",
-          opacity: visible ? 1 : 0,
-          transform: visible ? "translateY(0)" : "translateY(8px)",
-          transition: "opacity 0.8s ease 0.15s, transform 0.8s ease 0.15s",
+          opacity: vis ? 1 : 0,
+          transform: vis ? "translateY(0)" : "translateY(8px)",
+          transition: "opacity 1s ease 0.15s, transform 1s ease 0.15s",
         }}
       >
         all of you. one place. $10.
       </p>
 
+      {/* ── CTA ── */}
       <Link
         href="/login"
         style={{
@@ -104,9 +160,9 @@ export default function LandingPage() {
           textDecoration: "none",
           cursor: "pointer",
           transition:
-            "border-color 0.3s ease, background 0.3s ease, opacity 0.8s ease 0.3s, transform 0.8s ease 0.3s",
-          opacity: visible ? 1 : 0,
-          transform: visible ? "translateY(0)" : "translateY(8px)",
+            "border-color 0.3s, background 0.3s, opacity 1s ease 0.3s, transform 1s ease 0.3s",
+          opacity: vis ? 1 : 0,
+          transform: vis ? "translateY(0)" : "translateY(8px)",
         }}
         onMouseEnter={(e) => {
           e.currentTarget.style.borderColor = "rgba(210, 190, 160, 0.6)";
@@ -122,3 +178,4 @@ export default function LandingPage() {
     </div>
   );
 }
+
