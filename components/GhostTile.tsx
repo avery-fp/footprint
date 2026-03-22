@@ -144,7 +144,7 @@ export default function GhostTile({
             style={{ width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
             allow="autoplay; encrypted-media; picture-in-picture"
             sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-presentation"
-            referrerPolicy="no-referrer"
+            referrerPolicy="strict-origin-when-cross-origin"
             loading="lazy"
           />
         )}
@@ -216,7 +216,7 @@ export default function GhostTile({
             style={{ border: 'none' }}
             allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
             sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-presentation"
-            referrerPolicy="no-referrer"
+            referrerPolicy="strict-origin-when-cross-origin"
             loading="lazy"
             onLoad={() => setIframeLoaded(true)}
           />

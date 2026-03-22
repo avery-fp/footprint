@@ -40,7 +40,8 @@ export default function GlassEmbedFrame({
   allow,
   sandbox,
   allowFullScreen,
-  referrerPolicy = 'no-referrer',
+  // Do NOT use 'no-referrer' — YouTube Error 153 when origin is stripped
+  referrerPolicy = 'strict-origin-when-cross-origin',
   onError,
   onLoad: onLoadCallback,
   children,
