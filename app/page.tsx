@@ -53,7 +53,7 @@ export default function LandingPage() {
                                 0%, 100% { opacity: 0.85; }
                                           50% { opacity: 1; }
                                                   }
-                                                        `}</style>style>
+                                                        `}</style>
         
           {/* Grid hero */}
               <div
@@ -91,7 +91,7 @@ export default function LandingPage() {
                                                               }}
                                                             />
                                             ))}
-                      </div>div>
+                      </div>
               
                 {/* Watermark */}
                       <div
@@ -108,7 +108,7 @@ export default function LandingPage() {
                                   }}
                                 >
                                 ae
-                      </div>div>
+                      </div>
               
                 {/* Edge fade */}
                       <div
@@ -121,7 +121,7 @@ export default function LandingPage() {
                                                                 "linear-gradient(to bottom, #0c0c10 0%, transparent 12%, transparent 85%, #0c0c10 100%)",
                                   }}
                                 />
-              </div>div>
+              </div>
         
           {/* Tagline */}
               <p
@@ -137,7 +137,7 @@ export default function LandingPage() {
                         }}
                       >
                       all of you. one place. $10.
-              </p>p>
+              </p>
         
           {/* CTA */}
               <Link
@@ -170,7 +170,7 @@ export default function LandingPage() {
                         }}
                       >
                       make yours →
-              </Link>Link>
-        </div>div>
+              </Link>
+        </div>
       );
 }</div>
