@@ -274,7 +274,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               item.url?.includes('youtube') ||
               item.url?.includes('youtu.be')
 
-        const gridClass = isVid ? 'col-span-2' : getGridClass(tileSize, tileAspect, false)
+        const gridClass = isVid ? 'col-span-2 aspect-video' : getGridClass(tileSize, tileAspect, false)
 
         const tileInner = (
             <div

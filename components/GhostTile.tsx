@@ -91,7 +91,7 @@ export default function GhostTile({
     const isSpotify = platform === 'spotify'
 
     if (platform === 'youtube') {
-      iframeSrc = `https://www.youtube-nocookie.com/embed/${media_id}?enablejsapi=1&controls=0&modestbranding=1&playsinline=1&rel=0&autoplay=${isPlaying ? 1 : 0}`
+      iframeSrc = `https://www.youtube.com/embed/${media_id}?enablejsapi=1&controls=0&modestbranding=1&playsinline=1&rel=0&showinfo=0&iv_load_policy=3&autoplay=${isPlaying ? 1 : 0}`
     } else if (isSpotify) {
       // Hidden Spotify embed — autoplay audio, zero chrome
       const spotifyMatch = url.match(/open\.spotify\.com\/(track|album|playlist|artist|episode|show)\/([a-zA-Z0-9]+)/)
@@ -170,7 +170,7 @@ export default function GhostTile({
   // On tap: load iframe, fade in
   // ════════════════════════════════════════
   const iframeSrc = platform === 'youtube'
-    ? `https://www.youtube-nocookie.com/embed/${media_id}?autoplay=1&controls=0&modestbranding=1&playsinline=1&rel=0`
+    ? `https://www.youtube.com/embed/${media_id}?autoplay=1&controls=0&modestbranding=1&playsinline=1&rel=0&showinfo=0&iv_load_policy=3&fs=0`
     : platform === 'vimeo'
     ? `https://player.vimeo.com/video/${media_id}?title=0&byline=0&portrait=0&autoplay=1`
     : undefined
