@@ -184,7 +184,9 @@ export default function GhostTile({
   // VISUAL PIPE — Vimeo
   // Blurred thumbnail bg + iframe reveal on play
   // ════════════════════════════════════════
-  const iframeSrc = platform === 'vimeo'
+  const iframeSrc = platform === 'youtube'
+    ? `https://www.youtube.com/embed/${media_id}?autoplay=1&modestbranding=1&playsinline=1&rel=0`
+    : platform === 'vimeo'
     ? `https://player.vimeo.com/video/${media_id}?title=0&byline=0&portrait=0&autoplay=1`
     : undefined
 
