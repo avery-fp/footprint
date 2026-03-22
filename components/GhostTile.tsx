@@ -6,23 +6,18 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 // GHOST TILE — de-branded media renderer
 //
 // Strips platform chrome. Renders under Footprint's aesthetic.
-// Architecture:
-//   Audio pipe  — Spotify, SoundCloud: hidden iframe, custom UI is the player
-//   Visual pipe — Vimeo: blurred bg + iframe reveal on play
-//   YouTube pipe — facade-first: sharp thumbnail always visible,
-//                  iframe mounts on click, facade hides ONLY after
-//                  confirmed playback. Error 153 = graceful fallback.
+// Two archetypes:
+//   Audio pipe  — Spotify, SoundCloud: hidden iframe, custom UI
+//   Visual pipe — YouTube, Vimeo: blurred bg + iframe reveal on play
 // ════════════════════════════════════════
 
 const GHOST_PAUSE_EVENT = 'ghost-tile-pause'
 
-type Archetype = 'audio' | 'youtube' | 'visual'
+type Archetype = 'audio' | 'visual'
 
 function getArchetype(platform: string, _url: string): Archetype {
   if (platform === 'spotify') return 'audio'
   if (platform === 'soundcloud') return 'audio'
-  if (platform === 'youtube') return 'youtube'
-  if (platform === 'vimeo') return 'visual'
   return 'visual'
 }
 
@@ -157,31 +152,7 @@ export default function GhostTile({
   }
 
   // ════════════════════════════════════════
-  // YOUTUBE PIPE — facade-first architecture
-  //
-  // State machine:
-  //   idle     → sharp thumbnail + play icon (facade visible)
-  //   loading  → user clicked, iframe mounted behind facade
-  //   playing  → YouTube confirmed playback, fade facade out
-  //   failed   → timeout/error, keep facade, show "Watch on YouTube →"
-  // ════════════════════════════════════════
-  if (archetype === 'youtube') {
-    return (
-      <YouTubePipe
-        media_id={media_id}
-        title={title}
-        artist={artist}
-        thumbUrl={thumbUrl}
-        tileId={tileId}
-        isPlaying={isPlaying}
-        onPlay={handlePlay}
-        onToggle={handleToggle}
-      />
-    )
-  }
-
-  // ════════════════════════════════════════
-  // VISUAL PIPE — Vimeo
+  // VISUAL PIPE — YouTube, Vimeo
   // Blurred thumbnail bg + iframe reveal on play
   // ════════════════════════════════════════
   const iframeSrc = platform === 'youtube'
@@ -229,217 +200,7 @@ export default function GhostTile({
             allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
-            loading="lazy"
             onLoad={() => setIframeLoaded(true)}
-          />
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ════════════════════════════════════════
-// YOUTUBE PIPE — dedicated component with state machine
-// ════════════════════════════════════════
-
-type YTState = 'idle' | 'loading' | 'playing' | 'failed'
-
-function YouTubePipe({
-  media_id,
-  title,
-  artist,
-  thumbUrl,
-  tileId,
-  isPlaying,
-  onPlay,
-  onToggle,
-}: {
-  media_id: string
-  title?: string
-  artist?: string
-  thumbUrl: string | null
-  tileId: React.MutableRefObject<string>
-  isPlaying: boolean
-  onPlay: () => void
-  onToggle: () => void
-}) {
-  const [ytState, setYtState] = useState<YTState>('idle')
-  const iframeRef = useRef<HTMLIFrameElement>(null)
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const gotAnyMessage = useRef(false)
-
-  // Thumbnail fallback chain: maxresdefault → sddefault → hqdefault
-  const [thumbSrc, setThumbSrc] = useState(
-    thumbUrl || `https://i.ytimg.com/vi/${media_id}/maxresdefault.jpg`
-  )
-
-  const handleThumbError = useCallback(() => {
-    if (thumbSrc.includes('maxresdefault')) {
-      setThumbSrc(`https://i.ytimg.com/vi/${media_id}/sddefault.jpg`)
-    } else if (thumbSrc.includes('sddefault')) {
-      setThumbSrc(`https://i.ytimg.com/vi/${media_id}/hqdefault.jpg`)
-    }
-  }, [thumbSrc, media_id])
-
-  const iframeSrc = `https://www.youtube.com/embed/${media_id}?autoplay=1&enablejsapi=1&modestbranding=1&playsinline=1&rel=0&origin=${typeof window !== 'undefined' ? window.location.origin : ''}`
-
-  // Listen for YouTube postMessage — scoped to this iframe
-  useEffect(() => {
-    if (ytState !== 'loading') return
-
-    const handler = (e: MessageEvent) => {
-      if (e.origin !== 'https://www.youtube.com') return
-      // Scope to our iframe by checking source window
-      if (iframeRef.current && e.source !== iframeRef.current.contentWindow) return
-
-      gotAnyMessage.current = true
-
-      try {
-        const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data
-        // YouTube sends onStateChange with info: 1 = PLAYING
-        if (data?.event === 'onStateChange' && data?.info === 1) {
-          setYtState('playing')
-          if (timeoutRef.current) clearTimeout(timeoutRef.current)
-        }
-        // info: 2 = PAUSED (user paused via YouTube controls)
-        if (data?.event === 'onStateChange' && data?.info === 2) {
-          // Keep in playing state — don't revert facade
-        }
-      } catch {
-        // Not JSON or not YouTube format — ignore
-      }
-    }
-
-    window.addEventListener('message', handler)
-    return () => window.removeEventListener('message', handler)
-  }, [ytState])
-
-  // Timeout: if no PLAYING confirmation, mark failed
-  // Start with 3s. If we got any YouTube message (onReady etc), extend to 5s.
-  useEffect(() => {
-    if (ytState !== 'loading') return
-
-    timeoutRef.current = setTimeout(() => {
-      // If we heard from YouTube at all, give it more time
-      if (gotAnyMessage.current) {
-        timeoutRef.current = setTimeout(() => {
-          setYtState(prev => prev === 'loading' ? 'failed' : prev)
-        }, 2000) // extra 2s (total 5s)
-      } else {
-        // Dead silent iframe — very suspicious
-        setYtState('failed')
-      }
-    }, 3000)
-
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current)
-    }
-  }, [ytState])
-
-  // Reset state when paused by another tile
-  useEffect(() => {
-    if (!isPlaying && ytState !== 'idle') {
-      setYtState('idle')
-      gotAnyMessage.current = false
-    }
-  }, [isPlaying, ytState])
-
-  const handleClick = useCallback(() => {
-    if (ytState === 'idle') {
-      onPlay()
-      setYtState('loading')
-      gotAnyMessage.current = false
-    } else if (ytState === 'playing') {
-      onToggle()
-    } else if (ytState === 'failed') {
-      // On failed state, clicking the tile itself does nothing —
-      // the "Watch on YouTube" link handles navigation
-    }
-  }, [ytState, onPlay, onToggle])
-
-  return (
-    <div className="w-full h-full relative overflow-hidden fp-tile" style={{ borderRadius: 'inherit' }}>
-      {/* Sharp full-bleed thumbnail — always in DOM, the movie poster */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={thumbSrc}
-        alt=""
-        className="absolute inset-0 w-full h-full object-cover"
-        loading="lazy"
-        decoding="async"
-        onError={handleThumbError}
-      />
-
-      {/* Dark gradient for text readability */}
-      <div
-        className="absolute inset-0"
-        style={{ background: 'linear-gradient(transparent 50%, rgba(0,0,0,0.5) 100%)' }}
-      />
-
-      {/* Facade overlay — visible in idle, loading, failed states */}
-      <div
-        className="absolute inset-0 flex flex-col items-center justify-center gap-3 cursor-pointer"
-        style={{
-          opacity: ytState === 'playing' ? 0 : 1,
-          pointerEvents: ytState === 'playing' ? 'none' : 'auto',
-          transition: 'opacity 0.3s ease',
-          zIndex: 3,
-        }}
-        onClick={handleClick}
-      >
-        {ytState === 'idle' && <PlayIcon />}
-        {ytState === 'loading' && <LoadingSpinner />}
-        {ytState === 'failed' && (
-          <a
-            href={`https://www.youtube.com/watch?v=${media_id}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="flex items-center gap-2 px-4 py-2 rounded-full"
-            style={{
-              background: 'rgba(255, 255, 255, 0.1)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              transition: 'background 0.2s ease',
-            }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(255, 255, 255, 0.18)' }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(255, 255, 255, 0.1)' }}
-          >
-            <svg className="w-3.5 h-3.5" fill="rgba(255, 255, 255, 0.7)" viewBox="0 0 24 24">
-              <path d="M8 5v14l11-7z" />
-            </svg>
-            <span
-              style={{
-                fontSize: '11px',
-                color: 'rgba(255, 255, 255, 0.7)',
-                fontFamily: "'JetBrains Mono', monospace",
-                letterSpacing: '0.02em',
-              }}
-            >
-              Watch on YouTube
-            </span>
-          </a>
-        )}
-        {ytState !== 'failed' && <TitleBlock title={title} artist={artist} />}
-      </div>
-
-      {/* YouTube iframe — mounts on click, lives behind facade until confirmed */}
-      {(ytState === 'loading' || ytState === 'playing') && (
-        <div
-          className="absolute inset-0"
-          style={{
-            opacity: ytState === 'playing' ? 1 : 0,
-            transition: 'opacity 0.3s ease',
-            zIndex: 2,
-          }}
-        >
-          <iframe
-            ref={iframeRef}
-            src={iframeSrc}
-            className="w-full h-full"
-            style={{ border: 'none' }}
-            allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-            allowFullScreen
-            referrerPolicy="strict-origin-when-cross-origin"
           />
         </div>
       )}
@@ -485,28 +246,6 @@ function PlayIcon() {
       <svg className="w-5 h-5 ml-0.5" fill="rgba(255, 255, 255, 0.9)" viewBox="0 0 24 24">
         <path d="M8 5v14l11-7z" />
       </svg>
-    </div>
-  )
-}
-
-function LoadingSpinner() {
-  return (
-    <div
-      className="w-12 h-12 rounded-full flex items-center justify-center"
-      style={{
-        background: 'rgba(0, 0, 0, 0.4)',
-        border: '1px solid rgba(255, 255, 255, 0.15)',
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
-      }}
-    >
-      <div
-        className="w-5 h-5 border-2 rounded-full animate-spin"
-        style={{
-          borderColor: 'rgba(255, 255, 255, 0.2)',
-          borderTopColor: 'rgba(255, 255, 255, 0.8)',
-        }}
-      />
     </div>
   )
 }
