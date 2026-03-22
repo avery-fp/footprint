@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
 export default function LandingPage() {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [loaded, setLoaded] = useState(false);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     const link = document.createElement("link");
@@ -13,7 +12,10 @@ export default function LandingPage() {
     link.href =
       "https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&display=swap";
     document.head.appendChild(link);
+
+    const t = setTimeout(() => setVisible(true), 600);
     return () => {
+      clearTimeout(t);
       document.head.removeChild(link);
     };
   }, []);
@@ -33,7 +35,7 @@ export default function LandingPage() {
         overflow: "hidden",
       }}
     >
-      {/* Grid hero — live iframe embed of /ae */}
+      {/* Grid hero */}
       <div
         style={{
           position: "relative",
@@ -43,8 +45,8 @@ export default function LandingPage() {
           overflow: "hidden",
           border: "1px solid rgba(210, 190, 160, 0.12)",
           boxShadow: "0 0 80px rgba(210, 190, 160, 0.06)",
-          opacity: loaded ? 1 : 0,
-          transform: loaded ? "translateY(0)" : "translateY(12px)",
+          opacity: visible ? 1 : 0,
+          transform: visible ? "translateY(0)" : "translateY(12px)",
           transition: "opacity 0.8s ease, transform 0.8s ease",
         }}
       >
@@ -59,10 +61,8 @@ export default function LandingPage() {
           }}
         />
         <iframe
-          ref={iframeRef}
           src="/ae"
           title="footprint grid"
-          onLoad={() => setLoaded(true)}
           style={{
             width: "100%",
             height: "100%",
@@ -73,7 +73,6 @@ export default function LandingPage() {
         />
       </div>
 
-      {/* Tagline */}
       <p
         style={{
           marginTop: "40px",
@@ -81,15 +80,14 @@ export default function LandingPage() {
           fontSize: "clamp(14px, 2.4vw, 18px)",
           fontWeight: 300,
           letterSpacing: "0.04em",
-          opacity: loaded ? 1 : 0,
-          transform: loaded ? "translateY(0)" : "translateY(8px)",
-          transition: "opacity 0.8s ease 0.2s, transform 0.8s ease 0.2s",
+          opacity: visible ? 1 : 0,
+          transform: visible ? "translateY(0)" : "translateY(8px)",
+          transition: "opacity 0.8s ease 0.15s, transform 0.8s ease 0.15s",
         }}
       >
         all of you. one place. $10.
       </p>
 
-      {/* CTA */}
       <Link
         href="/login"
         style={{
@@ -106,9 +104,9 @@ export default function LandingPage() {
           textDecoration: "none",
           cursor: "pointer",
           transition:
-            "border-color 0.3s ease, background 0.3s ease, opacity 0.8s ease 0.35s, transform 0.8s ease 0.35s",
-          opacity: loaded ? 1 : 0,
-          transform: loaded ? "translateY(0)" : "translateY(8px)",
+            "border-color 0.3s ease, background 0.3s ease, opacity 0.8s ease 0.3s, transform 0.8s ease 0.3s",
+          opacity: visible ? 1 : 0,
+          transform: visible ? "translateY(0)" : "translateY(8px)",
         }}
         onMouseEnter={(e) => {
           e.currentTarget.style.borderColor = "rgba(210, 190, 160, 0.6)";
