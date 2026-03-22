@@ -117,10 +117,8 @@ export default function GhostTile({
           <div
             className="absolute inset-0"
             style={{
-              background: isPlaying ? 'rgba(200, 160, 100, 0.05)' : 'rgba(255, 255, 255, 0.03)',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
-              border: '1px solid rgba(255, 255, 255, 0.06)',
+              background: 'linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.6) 100%)',
+              
               transition: 'background 0.25s ease',
             }}
           />
@@ -168,10 +166,7 @@ export default function GhostTile({
       <div
         className="absolute inset-0 flex flex-col items-center justify-center gap-3 cursor-pointer"
         style={{
-          background: 'rgba(255, 255, 255, 0.03)',
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
-          border: '1px solid rgba(255, 255, 255, 0.06)',
+          background: 'linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.5) 100%)',
           opacity: isPlaying ? 0 : 1,
           pointerEvents: isPlaying ? 'none' : 'auto',
           transition: 'opacity 0.25s ease',
@@ -223,7 +218,7 @@ function ThumbnailBg({ src }: { src: string | null }) {
         src={src}
         alt=""
         className="absolute inset-0 w-full h-full object-cover"
-        style={{ filter: 'blur(20px) brightness(0.3)', transform: 'scale(1.1)' }}
+        style={{ filter: 'brightness(0.85)' }}
         loading="lazy"
         decoding="async"
       />
