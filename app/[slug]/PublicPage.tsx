@@ -47,6 +47,15 @@ interface PublicPageProps {
   isDraft?: boolean
 }
 
+// Room subtitles — one-line descriptions for stranger context
+const ROOM_SUBTITLES: Record<string, string> = {
+  void: 'the abstract you',
+  world: 'places & scenes',
+  fits: 'how you dress',
+  sound: 'what you hear',
+  archive: 'things you keep',
+}
+
 // Wallpaper filter per room
 const ROOM_FILTERS = [
   'blur(8px) brightness(0.45) saturate(0.85) hue-rotate(-8deg)',
@@ -278,8 +287,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
         const tileInner = (
             <div
-              className="relative w-full h-full overflow-hidden rounded-2xl"
-              style={{ background: 'rgba(255,255,255,0.06)' }}
+              className="relative w-full h-full overflow-hidden rounded-2xl fp-tile-hover"
+              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)' }}
             >
               <UnifiedTile
                 item={item}
@@ -419,6 +428,21 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                     }}
                   >
                     {room.name}
+                    {activeRoomId === room.id && ROOM_SUBTITLES[room.name.toLowerCase()] && (
+                      <span
+                        className="block transition-opacity duration-300"
+                        style={{
+                          fontSize: '9px',
+                          letterSpacing: '1.5px',
+                          color: 'rgba(255,255,255,0.35)',
+                          fontWeight: 300,
+                          marginTop: '2px',
+                          textShadow: 'none',
+                        }}
+                      >
+                        {ROOM_SUBTITLES[room.name.toLowerCase()]}
+                      </span>
+                    )}
                   </button>
                 </span>
               ))}
@@ -443,7 +467,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         )}
 
         {/* Floor */}
-        <div style={{ height: '160px' }} />
+        <div style={{ height: '40px' }} />
 
         {/* Footer — copy link with footprint icon */}
         <div className="py-10 flex items-center justify-center">
