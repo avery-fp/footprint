@@ -63,7 +63,7 @@ const getObjectFit = getObjectFitShared
 
 function SortableTile({
   id, content, deleting, size, aspect, isArranging, isViewing, isMobile, selected, anyDragging, onTap,
-  onLongPressStart, onLongPressMove, onLongPressEnd, onPinchResize,
+  onLongPressStart, onLongPressMove, onLongPressEnd, onPinchResize, onDelete,
 }: {
   id: string
   content: any
@@ -80,6 +80,7 @@ function SortableTile({
   onLongPressMove: (e: React.TouchEvent) => void
   onLongPressEnd: () => void
   onPinchResize: (direction: 'up' | 'down') => void
+  onDelete?: () => void
 }) {
   const [isMuted, setIsMuted] = useState(true)
   const [isLoaded, setIsLoaded] = useState(false)
@@ -249,6 +250,19 @@ function SortableTile({
         {...touchHandlers}
         onContextMenu={(e) => e.preventDefault()}
       >
+        {/* Delete X — top-right of selected tile in edit mode */}
+        {selected && isArranging && onDelete && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              if (window.confirm('Delete this tile?')) onDelete()
+            }}
+            className="absolute top-1.5 right-1.5 z-30 w-6 h-6 flex items-center justify-center rounded-full bg-black/70 border border-white/20 text-white/80 hover:bg-red-600/90 hover:text-white hover:border-red-500/50 transition-all text-xs leading-none"
+            aria-label="Delete tile"
+          >
+            ✕
+          </button>
+        )}
         {/* Upload progress overlay */}
         {isTemp && !(content as any)._failed && progress < 100 && (
           <div className="absolute inset-x-0 bottom-0 z-20 pointer-events-none">
@@ -1800,6 +1814,7 @@ export default function EditPage() {
                     onLongPressMove={handleTouchMove}
                     onLongPressEnd={handleTouchEnd}
                     onPinchResize={(direction) => handlePinchResize(item.id, direction)}
+                    onDelete={() => { handleDelete(item.id); closeTileMenu() }}
                   />
                 ))}
               </motion.div>
@@ -2042,14 +2057,7 @@ export default function EditPage() {
                 </button>
               )}
 
-              {/* Delete — visually separated */}
-              <button
-                onClick={() => { handleDelete(mode.tileId); closeTileMenu() }}
-                className="w-full text-left text-sm transition font-mono py-3 mt-2 border-t border-white/[0.06] flex items-center"
-                style={{ color: 'rgba(239, 68, 68, 0.7)' }}
-              >
-                delete
-              </button>
+              {/* Delete moved to X icon on tile itself */}
             </div>
           </div>
         </>
