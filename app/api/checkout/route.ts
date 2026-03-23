@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { stripe, FOOTPRINT_PRICE, FOOTPRINT_CURRENCY } from '@/lib/stripe'
+import { stripe } from '@/lib/stripe'
+import { getPriceForCountry } from '@/lib/pricing'
 import { checkoutSchema } from '@/lib/schemas'
 import { validateBody } from '@/lib/validate'
 import { routeLogger } from '@/lib/logger'
@@ -28,7 +29,13 @@ export async function POST(request: NextRequest) {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
     const validSid = rawSid && uuidRegex.test(rawSid) ? rawSid : null
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://footprint.onl'
+    // ── Regional pricing ──
+    const countryCode = request.headers.get('cf-ipcountry')
+      || request.headers.get('x-vercel-ip-country')
+      || 'US'
+    const pricing = getPriceForCountry(countryCode)
+
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.footprint.onl'
 
     const successUrl = slug
       ? `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}&slug=${encodeURIComponent(slug)}`
@@ -45,14 +52,14 @@ export async function POST(request: NextRequest) {
       line_items: [
         {
           price_data: {
-            currency: FOOTPRINT_CURRENCY,
+            currency: pricing.currency,
             product_data: {
               name: 'Footprint',
               description: slug
                 ? `Publish footprint.onl/${slug}`
                 : 'one page. all your things.',
             },
-            unit_amount: FOOTPRINT_PRICE,
+            unit_amount: pricing.amount,
           },
           quantity: 1,
         },

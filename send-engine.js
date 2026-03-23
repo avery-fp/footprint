@@ -212,7 +212,7 @@ function buildEmail(contact) {
 <p style="margin:0 0 16px;font-size:15px;line-height:1.5;">hey ${firstName},</p>
 <p style="margin:0 0 16px;font-size:15px;line-height:1.5;">footprint is a single-page site for everything you are — music, visuals, links, merch, shows — all in one place. $10, once, yours forever.</p>
 <p style="margin:0 0 16px;font-size:15px;line-height:1.5;">no algorithms. no followers. just you.</p>
-<p style="margin:0 0 24px;font-size:15px;line-height:1.5;"><a href="https://footprint.onl" style="color:#1a1a1a;text-decoration:underline;">see what it looks like →</a></p>
+<p style="margin:0 0 24px;font-size:15px;line-height:1.5;"><a href="https://www.footprint.onl/api/track?cluster=${contact.vertical || "unknown"}&source=email" style="color:#1a1a1a;text-decoration:underline;">see what it looks like →</a></p>
 <p style="margin:0;font-size:13px;color:#999;">— footprint</p>
 </div>`;
 }

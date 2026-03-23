@@ -90,4 +90,40 @@ console.log("Providers used:");
 for (const [p, n] of Object.entries(providerCounts)) {
   console.log(`  ${p}: ${n} runs`);
 }
-console.log("=".repeat(60));
+
+// ── Click tracking ──
+const clicksFile = path.join(logDir, "clicks.jsonl");
+const clicksByCluster = {};
+const clicksByCountry = {};
+let totalClicks = 0;
+
+if (fs.existsSync(clicksFile)) {
+  const lines = fs.readFileSync(clicksFile, "utf-8").trim().split("\n").filter(Boolean);
+  for (const line of lines) {
+    try {
+      const click = JSON.parse(line);
+      totalClicks++;
+      const c = click.cluster || "unknown";
+      const cc = click.ip_country || "unknown";
+      clicksByCluster[c] = (clicksByCluster[c] || 0) + 1;
+      clicksByCountry[cc] = (clicksByCountry[cc] || 0) + 1;
+    } catch {}
+  }
+}
+
+console.log("");
+console.log("Click tracking:");
+console.log(`  Total clicks:   ${totalClicks}`);
+if (totalClicks > 0) {
+  console.log("  By cluster:");
+  for (const [c, n] of Object.entries(clicksByCluster).sort((a, b) => b[1] - a[1]).slice(0, 10)) {
+    const sent = clusterCounts[c] || 0;
+    const rate = sent > 0 ? ((n / sent) * 100).toFixed(1) + "%" : "n/a";
+    console.log(`    ${c}: ${n} clicks (${rate} of ${sent} sent)`);
+  }
+  console.log("  By country:");
+  for (const [c, n] of Object.entries(clicksByCountry).sort((a, b) => b[1] - a[1]).slice(0, 10)) {
+    console.log(`    ${c}: ${n}`);
+  }
+}
+console.log("=" .repeat(60));
