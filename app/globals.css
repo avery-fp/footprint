@@ -230,6 +230,24 @@ input:-webkit-autofill:focus {
   background: var(--fp-glass, rgba(255, 255, 255, 0.05));
 }
 
+/* ═══ Public tile hover — subtle zoom + glow ═══ */
+.fp-tile-hover {
+  transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.fp-tile-hover:hover {
+  transform: scale(1.015);
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  z-index: 2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fp-tile-hover:hover {
+    transform: none;
+  }
+}
+
 /* Block arrival — the whole grid slides up subtly */
 @keyframes grid-arrive {
   from {
