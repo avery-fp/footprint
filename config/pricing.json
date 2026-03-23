@@ -1,0 +1,17 @@
+{
+  "_comment": "Regional pricing config. Amounts in cents. Default used when country not found.",
+  "default": { "amount": 1000, "currency": "usd", "display": "$10" },
+  "regions": {
+    "US": { "amount": 1000, "currency": "usd", "display": "$10" },
+    "GB": { "amount": 800, "currency": "gbp", "display": "£8" },
+    "EU": { "amount": 900, "currency": "eur", "display": "€9" },
+    "IN": { "amount": 500, "currency": "usd", "display": "$5" },
+    "BR": { "amount": 500, "currency": "usd", "display": "$5" },
+    "NG": { "amount": 300, "currency": "usd", "display": "$3" },
+    "KR": { "amount": 800, "currency": "usd", "display": "$8" },
+    "JP": { "amount": 800, "currency": "usd", "display": "$8" },
+    "AU": { "amount": 1000, "currency": "aud", "display": "A$10" },
+    "CA": { "amount": 1000, "currency": "cad", "display": "C$10" }
+  },
+  "eu_countries": ["AT","BE","BG","HR","CY","CZ","DK","EE","FI","FR","DE","GR","HU","IE","IT","LV","LT","LU","MT","NL","PL","PT","RO","SK","SI","ES","SE"]
+}

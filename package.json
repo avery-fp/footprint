@@ -25,6 +25,8 @@
     "launch:dry": "node scripts/launch.js --dry-run",
     "scrape": "node scrape-engine.js",
     "send": "node send-engine.js",
+    "typecheck": "tsc --noEmit",
+    "screenshot:grid": "node scripts/screenshot-grid.js",
     "test": "vitest run",
     "test:e2e": "playwright test"
   },

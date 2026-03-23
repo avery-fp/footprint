@@ -49,9 +49,19 @@ function loadAndSort(listsDir) {
 
   console.log(`Loading ${csvFiles.length} CSV files from ${listsDir}`);
 
+  const requiredColumns = ["email", "total_score"];
   const allRows = [];
   for (const file of csvFiles) {
     const rows = parseCSV(file);
+    if (rows.length > 0) {
+      const cols = Object.keys(rows[0]);
+      const missing = requiredColumns.filter((c) => !cols.includes(c));
+      if (missing.length > 0) {
+        console.error(`  ${path.basename(file)}: MISSING COLUMNS: ${missing.join(", ")}`);
+        console.error(`  Found columns: ${cols.join(", ")}`);
+        process.exit(1);
+      }
+    }
     console.log(`  ${path.basename(file)}: ${rows.length} contacts`);
     allRows.push(...rows);
   }
@@ -200,7 +210,7 @@ function buildEmail(contact) {
   const firstName = name.split(" ")[0];
   return `<div style="font-family:-apple-system,system-ui,sans-serif;max-width:480px;margin:0 auto;padding:32px 20px;color:#1a1a1a;">
 <p style="margin:0 0 16px;font-size:15px;line-height:1.5;">hey ${firstName},</p>
-<p style="margin:0 0 16px;font-size:15px;line-height:1.5;">footprint is a single-page site for everything you are — music, visuals, links, merch, shows — all in one place. $10/year.</p>
+<p style="margin:0 0 16px;font-size:15px;line-height:1.5;">footprint is a single-page site for everything you are — music, visuals, links, merch, shows — all in one place. $10, once, yours forever.</p>
 <p style="margin:0 0 16px;font-size:15px;line-height:1.5;">no algorithms. no followers. just you.</p>
 <p style="margin:0 0 24px;font-size:15px;line-height:1.5;"><a href="https://footprint.onl" style="color:#1a1a1a;text-decoration:underline;">see what it looks like →</a></p>
 <p style="margin:0;font-size:13px;color:#999;">— footprint</p>
@@ -253,6 +263,49 @@ async function sendAll(contacts, providers, subjectLines, opts) {
   }
 
   console.log(`\nDone. Sent: ${sent} | Errors: ${errors} | Total: ${total}`);
+
+  // Write launch log for observability
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    mode: dryRun ? "dry-run" : "live",
+    sent,
+    errors,
+    total,
+    providers: providers.map((p) => p.name),
+    topClusters: Object.entries(
+      contacts.slice(0, total).reduce((acc, c) => {
+        const v = c.vertical || "unknown";
+        acc[v] = (acc[v] || 0) + 1;
+        return acc;
+      }, {})
+    )
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10),
+    topSubjects: Object.entries(
+      contacts.slice(0, total).reduce((acc, c) => {
+        const s = resolveSubject(c.vertical, subjectLines);
+        acc[s] = (acc[s] || 0) + 1;
+        return acc;
+      }, {})
+    )
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10),
+    scoreRange: {
+      top: contacts[0]?.total_score || 0,
+      bottom: contacts[Math.min(total - 1, contacts.length - 1)]?.total_score || 0,
+    },
+  };
+
+  const logDir = path.join(path.dirname(require.main?.filename || "."), "output", "logs");
+  try {
+    fs.mkdirSync(logDir, { recursive: true });
+    const logFile = path.join(logDir, `send-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
+    fs.writeFileSync(logFile, JSON.stringify(logEntry, null, 2));
+    console.log(`Log saved: ${logFile}`);
+  } catch (e) {
+    console.warn("Could not write log:", e.message);
+  }
+
   return { sent, errors, total };
 }
 
