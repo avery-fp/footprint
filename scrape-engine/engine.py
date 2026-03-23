@@ -788,6 +788,7 @@ async def run(args):
 # ---------------------------------------------------------------------------
 
 def main():
+    global MIN_FOLLOWERS, MAX_FOLLOWERS
     parser = argparse.ArgumentParser(
         description="Footprint Scrape Engine — Contact sourcing from cultural clusters"
     )
@@ -831,7 +832,6 @@ def main():
     args = parser.parse_args()
 
     # Override globals if custom range provided
-    global MIN_FOLLOWERS, MAX_FOLLOWERS
     MIN_FOLLOWERS = args.min_followers
     MAX_FOLLOWERS = args.max_followers
 
