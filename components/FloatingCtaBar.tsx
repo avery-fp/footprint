@@ -44,7 +44,7 @@ export default function FloatingCtaBar({ isOwner = false }: { isOwner?: boolean 
       onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)' }}
       onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
     >
-      tap in
+      yours
     </a>
   )
 }
