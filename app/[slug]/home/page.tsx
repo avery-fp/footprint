@@ -525,6 +525,8 @@ export default function EditPage() {
   const urlInputRef = useRef<HTMLInputElement>(null)
   const thoughtInputRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const bgFileInputRef = useRef<HTMLInputElement>(null)
+  const [bgPulse, setBgPulse] = useState(true)
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const pendingOpsRef = useRef<Set<Promise<any>>>(new Set())
@@ -706,10 +708,6 @@ export default function EditPage() {
         })
 
         // Auth/ownership failure → redirect to login or show error
-        if (res.status === 401) {
-          router.push(`/signin?redirect=${encodeURIComponent(`/${slug}/home`)}`)
-          return
-        }
         if (res.status === 401) {
           router.push(`/login?redirect=${encodeURIComponent(`/${slug}/home`)}`)
           return
@@ -1100,6 +1098,32 @@ export default function EditPage() {
     } catch (e) {
       console.error('Failed to clear wallpaper:', e)
     }
+  }
+
+  async function handleBgFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !serialNumber) return
+    setBgPulse(false)
+    try {
+      const resized = await resizeImage(file, 2400)
+      const ext = 'jpg'
+      const filename = `${serialNumber}/bg-${Date.now()}.${ext}`
+      const publicUrl = await uploadWithProgress(
+        new File([resized], filename, { type: 'image/jpeg' }),
+        filename,
+        () => {}
+      )
+      const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ background_url: publicUrl }),
+      })
+      if (!res.ok) throw new Error(`Failed: ${res.status}`)
+      setWallpaperUrl(publicUrl)
+    } catch (err) {
+      console.error('Background upload failed:', err)
+    }
+    if (bgFileInputRef.current) bgFileInputRef.current.value = ''
   }
 
   async function handleToggleBlur() {
@@ -1790,6 +1814,36 @@ export default function EditPage() {
                 opacity: gridFade === 'out' ? 0 : 1,
                 transition: 'opacity 150ms ease-out, gap 350ms ease-out',
               } as React.CSSProperties}>
+                {/* Background tile — first tile, opens photo picker */}
+                {isArranging && (
+                  <div
+                    className="aspect-square rounded-xl overflow-hidden cursor-pointer group"
+                    onClick={() => bgFileInputRef.current?.click()}
+                    style={{
+                      background: wallpaperUrl
+                        ? `url(${wallpaperUrl}) center/cover`
+                        : 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      animation: bgPulse && !wallpaperUrl ? 'fp-bg-pulse 2s ease-in-out' : undefined,
+                    }}
+                  >
+                    <div className={`w-full h-full flex items-center justify-center transition-all ${wallpaperUrl ? 'bg-black/30 group-hover:bg-black/50' : 'group-hover:bg-white/[0.04]'}`}>
+                      <svg
+                        className={`w-5 h-5 transition-all ${wallpaperUrl ? 'text-white/50 group-hover:text-white/80' : 'text-white/15 group-hover:text-white/30'}`}
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <rect x="3" y="3" width="18" height="18" rx="2" />
+                        <circle cx="8.5" cy="8.5" r="1.5" />
+                        <path d="M21 15l-5-5L5 21" />
+                      </svg>
+                    </div>
+                  </div>
+                )}
                 {filteredContent.map(item => (
                   <SortableTile
                     key={item.id}
@@ -1845,7 +1899,7 @@ export default function EditPage() {
         )}
       </div>
 
-      {/* Hidden file input */}
+      {/* Hidden file inputs */}
       <input
         ref={fileInputRef}
         type="file"
@@ -1853,6 +1907,13 @@ export default function EditPage() {
         multiple
         className="hidden"
         onChange={handleFileUpload}
+      />
+      <input
+        ref={bgFileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleBgFileUpload}
       />
 
       {/* ═══ TILE ACTION SHEET ═══ */}
@@ -2211,7 +2272,7 @@ export default function EditPage() {
 
             {/* URL */}
             <p className="font-mono text-white/30 text-[13px] tracking-[0.02em] mb-2">
-              footprint.onl/{slug}/fp
+              footprint.onl/{slug}
             </p>
 
             {/* Price — quiet */}
@@ -2307,7 +2368,7 @@ export default function EditPage() {
                 <div className="mt-6">
                   <button
                     onClick={() => {
-                      const url = `https://footprint.onl/${birthMoment.slug}/fp`
+                      const url = `https://footprint.onl/${birthMoment.slug}`
                       navigator.clipboard.writeText(url)
                       const el = document.getElementById('birth-copied')
                       if (el) { el.style.opacity = '1'; setTimeout(() => { el.style.opacity = '0' }, 1200) }

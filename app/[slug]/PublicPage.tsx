@@ -47,14 +47,7 @@ interface PublicPageProps {
   isDraft?: boolean
 }
 
-// Room subtitles — one-line descriptions for stranger context
-const ROOM_SUBTITLES: Record<string, string> = {
-  void: 'the abstract you',
-  world: 'places & scenes',
-  fits: 'how you dress',
-  sound: 'what you hear',
-  archive: 'things you keep',
-}
+// Room subtitles removed — the rooms speak for themselves
 
 // Wallpaper filter per room
 const ROOM_FILTERS = [
@@ -428,21 +421,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                     }}
                   >
                     {room.name}
-                    {activeRoomId === room.id && ROOM_SUBTITLES[room.name.toLowerCase()] && (
-                      <span
-                        className="block transition-opacity duration-300"
-                        style={{
-                          fontSize: '9px',
-                          letterSpacing: '1.5px',
-                          color: 'rgba(255,255,255,0.35)',
-                          fontWeight: 300,
-                          marginTop: '2px',
-                          textShadow: 'none',
-                        }}
-                      >
-                        {ROOM_SUBTITLES[room.name.toLowerCase()]}
-                      </span>
-                    )}
                   </button>
                 </span>
               ))}
@@ -461,9 +439,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
 
         {content.length === 0 && (
-          <p className="text-center py-16 text-sm" style={{ color: theme.colors.textMuted }}>
-            nothing here.
-          </p>
+          <div className="py-16" />
         )}
 
         {/* Floor */}

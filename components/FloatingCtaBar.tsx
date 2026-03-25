@@ -6,7 +6,7 @@ export default function FloatingCtaBar({ isOwner = false }: { isOwner?: boolean 
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
-    const timer = setTimeout(() => setVisible(true), 800)
+    const timer = setTimeout(() => setVisible(true), 400)
     return () => clearTimeout(timer)
   }, [])
 
@@ -14,7 +14,7 @@ export default function FloatingCtaBar({ isOwner = false }: { isOwner?: boolean 
 
   return (
     <a
-      href="/login"
+      href="/build"
       className="touch-manipulation"
       style={{
         position: 'fixed',
@@ -44,7 +44,7 @@ export default function FloatingCtaBar({ isOwner = false }: { isOwner?: boolean 
       onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)' }}
       onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
     >
-      yours
+      yours &rarr;
     </a>
   )
 }
