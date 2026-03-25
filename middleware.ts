@@ -66,7 +66,14 @@ export function middleware(request: NextRequest) {
     return withSecurityHeaders(NextResponse.redirect(canonical, 301))
   }
 
-  // ── 2. Public routes ──
+  // ── 2. Homepage → ae's footprint ──
+  if (pathname === '/') {
+    const rewrite = request.nextUrl.clone()
+    rewrite.pathname = '/ae'
+    return withSecurityHeaders(NextResponse.rewrite(rewrite))
+  }
+
+  // ── 3. Public routes ──
   const isPublicRoute = publicRoutes.some(route => pathname === route || pathname.startsWith(route + '/'))
   const isApiRoute = pathname.startsWith('/api/') || pathname.startsWith('/api')
   const isPublicProfile = /^\/[a-zA-Z0-9_-]+$/.test(pathname)
