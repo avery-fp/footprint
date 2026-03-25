@@ -282,7 +282,7 @@ function SortableTile({
           </div>
         )}
         {/* Tile content — absolute fill, object-fit based on aspect */}
-        {content.type === 'image' ? (
+        {(content.type === 'image' || content.type === 'video') ? (
           isVideo ? (
             <>
               {content.url ? (

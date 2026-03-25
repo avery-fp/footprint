@@ -195,6 +195,7 @@ export default function GhostTile({
             allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
+            loading="lazy"
             onLoad={() => setIframeLoaded(true)}
           />
         </div>
