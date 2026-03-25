@@ -214,71 +214,44 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       // isExpanded: skip compact facade, render full embed (used in lightbox)
       // Compact glass player for small tiles (any device)
       // Click bubbles to grid wrapper → opens lightbox with proper Spotify embed
-      if (tileSize <= 1 && !isExpanded) {
-        return (
-          <a
-            href={content.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            ref={containerRef as any}
-            className={`block w-full h-full ${aspectClass || 'aspect-square'} fp-tile overflow-hidden relative cursor-pointer group`}
-            style={{
-              ...GLASS_STYLE,
-              borderRadius: 'inherit',
-            }}
-          >
-            {content.thumbnail_url && isInView && (
-              <Image
-                src={transformImageUrl(content.thumbnail_url)}
-                alt=""
-                fill
-                sizes="(max-width: 768px) 50vw, 25vw"
-                className={fitClass}
-                loading="lazy"
-                quality={90}
-                onLoad={() => setIsLoaded(true)}
-              />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-            <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-[#1DB954] flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform shadow-lg">
-                <svg className="w-3.5 h-3.5 text-black ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M8 5v14l11-7z"/>
-                </svg>
-              </div>
-              <p className="text-white text-xs font-medium leading-tight line-clamp-2 min-w-0">
-                {content.title || 'Spotify'}
-              </p>
+      // All Spotify tiles → tap opens Spotify directly (browser policy blocks inline autoplay)
+      return (
+        <a
+          href={content.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          ref={containerRef as any}
+          className={`block w-full h-full ${aspectClass || 'aspect-square'} fp-tile overflow-hidden relative cursor-pointer group`}
+          style={{
+            ...GLASS_STYLE,
+            borderRadius: 'inherit',
+          }}
+        >
+          {content.thumbnail_url && isInView && (
+            <Image
+              src={transformImageUrl(content.thumbnail_url)}
+              alt=""
+              fill
+              sizes="(max-width: 768px) 50vw, 25vw"
+              className={fitClass}
+              loading="lazy"
+              quality={90}
+              onLoad={() => setIsLoaded(true)}
+            />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+          <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-[#1DB954] flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform shadow-lg">
+              <svg className="w-3.5 h-3.5 text-black ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
             </div>
-          </a>
-        )
-      }
-      const embed = parseEmbed(content.url)
-      if (embed) {
-        const spotifySrc = enforceEmbedDarkMode(embed.embedUrl, 'spotify')
-        const spotifyHeight = embed.height || getAEEmbedHeight('spotify')
-
-        return (
-          <div
-            ref={containerRef}
-            className="w-full fp-tile overflow-hidden rounded-[inherit]"
-            style={{ height: `${spotifyHeight}px` }}
-          >
-            {isInView ? (
-              <GlassEmbedFrame
-                src={spotifySrc}
-                height={spotifyHeight}
-                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-                referrerPolicy="origin"
-                onError={() => setIframeFailed(true)}
-              />
-            ) : (
-              <GlassPlaceholder height={spotifyHeight} />
-            )}
+            <p className="text-white text-xs font-medium leading-tight line-clamp-2 min-w-0">
+              {content.title || 'Spotify'}
+            </p>
           </div>
-        )
-      }
+        </a>
+      )
     }
   }
 
