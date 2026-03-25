@@ -20,7 +20,7 @@ export default function SuccessPage() {
   const [saving, setSaving] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  const pageUrl = slug ? `https://footprint.onl/${slug}/fp` : ''
+  const pageUrl = slug ? `https://footprint.onl/${slug}` : ''
 
   useEffect(() => {
     async function publishDraft() {
@@ -171,7 +171,7 @@ export default function SuccessPage() {
               rel="noopener noreferrer"
               className="inline-block text-white/40 text-[13px] font-mono tracking-wide hover:text-white/60 transition-colors mb-10"
             >
-              footprint.onl/{slug}/fp
+              footprint.onl/{slug}
             </a>
 
             {/* Primary actions */}
@@ -220,11 +220,8 @@ export default function SuccessPage() {
 
         {step === 'password' && (
           <>
-            <p className="text-[22px] font-light tracking-[-0.01em] text-white/90 mb-3">
+            <p className="text-[22px] font-light tracking-[-0.01em] text-white/90 mb-8">
               set a password
-            </p>
-            <p className="text-white/30 text-[13px] leading-relaxed mb-8">
-              you can sign in with your password anytime.
             </p>
             <form onSubmit={handleSetPassword} className="space-y-3">
               <input

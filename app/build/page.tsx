@@ -117,12 +117,9 @@ function SignInModal({ onClose }: { onClose: () => void }) {
         style={{ background: '#111' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-xl font-light text-white/90 mb-3">
-          sign in to save your Footprint
+        <h2 className="text-xl font-light text-white/90 mb-8">
+          sign in to save
         </h2>
-        <p className="text-white/40 text-[13px] mb-8">
-          your tiles are safe here. sign in to keep them forever.
-        </p>
         <a
           href={`/login?redirect=${encodeURIComponent('/build')}`}
           className="block w-full py-3.5 rounded-xl bg-white text-black text-[14px] font-medium hover:bg-white/90 transition-all mb-3"
@@ -358,12 +355,6 @@ export default function BuildPage() {
           {/* Empty state */}
           {tiles.length === 0 && (
             <div className="flex flex-col items-center justify-center py-24 text-center">
-              <p className="text-white/50 text-[15px] font-light mb-2">
-                start building your footprint
-              </p>
-              <p className="text-white/25 text-[13px] mb-8">
-                upload images, videos, or paste a YouTube link
-              </p>
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="px-8 py-3 rounded-full bg-white text-black text-[13px] font-medium hover:bg-white/90 transition-all"

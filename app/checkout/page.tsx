@@ -10,12 +10,23 @@ export default function CheckoutPage() {
   const [wallpaper, setWallpaper] = useState<string | null>(null)
 
   useEffect(() => {
-    // If payment link is configured, redirect immediately
-    const paymentLink = 'https://buy.stripe.com/9B6cN40Ef0sG2z98b214400'
-    if (paymentLink) {
-      window.location.href = paymentLink
-      return
+    // Create a proper checkout session via the API
+    async function startCheckout() {
+      try {
+        const res = await fetch('/api/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slug: slug || undefined }),
+        })
+        const data = await res.json()
+        if (data.url) {
+          window.location.href = data.url
+        }
+      } catch {
+        // Fallback: load wallpaper while they wait
+      }
     }
+    startCheckout()
 
     // Load wallpaper for visual while they wait
     const supabase = createBrowserSupabaseClient()
@@ -28,12 +39,6 @@ export default function CheckoutPage() {
           .single()
         if (data?.background_url) { setWallpaper(data.background_url); return }
       }
-      const { data } = await supabase
-        .from('footprints')
-        .select('background_url')
-        .eq('serial_number', 1001)
-        .single()
-      if (data?.background_url) setWallpaper(data.background_url)
     }
     load()
   }, [slug])
