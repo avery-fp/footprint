@@ -527,6 +527,7 @@ export default function EditPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const bgFileInputRef = useRef<HTMLInputElement>(null)
   const [bgPulse, setBgPulse] = useState(true)
+  const [tooLarge, setTooLarge] = useState(false)
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const pendingOpsRef = useRef<Set<Promise<any>>>(new Set())
@@ -1371,13 +1372,9 @@ export default function EditPage() {
     const isVid = (f: File) => VIDEO_MIME.includes(f.type) || /\.(mp4|mov|webm|m4v|3gp|3gpp|mkv)$/i.test(f.name)
     const oversizedImages = files.filter(f => !isVid(f) && f.size > 10 * 1024 * 1024)
     const oversizedVideos = files.filter(f => isVid(f) && f.size > 50 * 1024 * 1024)
-    if (oversizedImages.length > 0) {
-      alert('Images under 10mb.')
-      if (fileInputRef.current) fileInputRef.current.value = ''
-      return
-    }
-    if (oversizedVideos.length > 0) {
-      alert('Videos under 50mb.')
+    if (oversizedImages.length > 0 || oversizedVideos.length > 0) {
+      setTooLarge(true)
+      setTimeout(() => setTooLarge(false), 3000)
       if (fileInputRef.current) fileInputRef.current.value = ''
       return
     }
@@ -1390,7 +1387,8 @@ export default function EditPage() {
       VIDEO_MIME.includes(f.type) || /\.(mp4|mov|webm|m4v|3gp|3gpp|mkv)$/i.test(f.name)
     ).length
     if (existingVideos + incomingVideos > 8) {
-      alert('8 max.')
+      setTooLarge(true)
+      setTimeout(() => setTooLarge(false), 3000)
       if (fileInputRef.current) fileInputRef.current.value = ''
       return
     }
@@ -2240,12 +2238,16 @@ export default function EditPage() {
               </div>
             )}
             <div className="flex items-center gap-0 bg-black/50 backdrop-blur-sm rounded-full border border-white/20 overflow-hidden">
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all"
-              >
-                <span className="text-white/60 text-sm font-bold">↑</span>
-              </button>
+              {tooLarge ? (
+                <span className="w-14 h-14 flex items-center justify-center text-white/40 text-[10px] font-mono">too large</span>
+              ) : (
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all"
+                >
+                  <span className="text-white/60 text-sm font-bold">↑</span>
+                </button>
+              )}
               <div className="w-px h-6 bg-white/10" />
               <button
                 onClick={() => startAdding('url')}

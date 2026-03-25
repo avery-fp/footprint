@@ -158,6 +158,7 @@ export default function BuildPage() {
   const [pasteUrl, setPasteUrl] = useState('')
   const [showSignIn, setShowSignIn] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [tooLarge, setTooLarge] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const mouseSensor = useSensor(MouseSensor, { activationConstraint: { distance: 4 } })
@@ -234,7 +235,8 @@ export default function BuildPage() {
       // 50MB per-file limit
       const oversized = files.filter((f) => f.size > 50 * 1024 * 1024)
       if (oversized.length > 0) {
-        alert('under 50mb.')
+        setTooLarge(true)
+        setTimeout(() => setTooLarge(false), 3000)
         if (fileInputRef.current) fileInputRef.current.value = ''
         return
       }
@@ -355,12 +357,16 @@ export default function BuildPage() {
           {/* Empty state */}
           {tiles.length === 0 && (
             <div className="flex flex-col items-center justify-center py-24 text-center">
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="px-8 py-3 rounded-full bg-white text-black text-[13px] font-medium hover:bg-white/90 transition-all"
-              >
-                upload
-              </button>
+              {tooLarge ? (
+                <span className="text-white/40 text-[13px] font-mono">too large</span>
+              ) : (
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-8 py-3 rounded-full bg-white text-black text-[13px] font-medium hover:bg-white/90 transition-all"
+                >
+                  upload
+                </button>
+              )}
             </div>
           )}
 
@@ -420,12 +426,16 @@ export default function BuildPage() {
 
           {/* Action pills */}
           <div className="flex items-center gap-0 bg-black/50 backdrop-blur-sm rounded-full border border-white/20 overflow-hidden">
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all"
-            >
-              <span className="text-white/60 text-sm font-bold">↑</span>
-            </button>
+            {tooLarge ? (
+              <span className="w-14 h-14 flex items-center justify-center text-white/40 text-[10px] font-mono">too large</span>
+            ) : (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all"
+              >
+                <span className="text-white/60 text-sm font-bold">↑</span>
+              </button>
+            )}
             <div className="w-px h-6 bg-white/10" />
             <button
               onClick={() => {
