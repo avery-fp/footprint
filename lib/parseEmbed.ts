@@ -38,7 +38,7 @@ function parseSpotify(url: string): EmbedResult | null {
   const isCollection = ['playlist', 'album', 'artist', 'show'].includes(type)
   return {
     platform: 'spotify',
-    embedUrl: `https://open.spotify.com/embed/${type}/${id}?theme=0`,
+    embedUrl: `https://open.spotify.com/embed/${type}/${id}?utm_source=generator&theme=0&hide_cover=0`,
     height: isCollection ? 352 : 152,
     tier: 1,
   }
@@ -51,7 +51,7 @@ function parseYouTube(url: string): EmbedResult | null {
   if (!m) return null
   return {
     platform: 'youtube',
-    embedUrl: `https://www.youtube.com/embed/${m[1]}`,
+    embedUrl: `https://www.youtube.com/embed/${m[1]}?autoplay=0&modestbranding=1&rel=0`,
     height: 0, // aspect-ratio driven
     aspectRatio: '16/9',
     tier: 1,
