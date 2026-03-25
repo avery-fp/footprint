@@ -2118,7 +2118,18 @@ export default function EditPage() {
                 </button>
               )}
 
-              {/* Delete moved to X icon on tile itself */}
+              {/* Delete tile */}
+              <button
+                onClick={() => {
+                  if (window.confirm('Delete this tile?')) {
+                    handleDelete(mode.tileId)
+                    closeTileMenu()
+                  }
+                }}
+                className="w-full text-left text-sm text-red-400/70 hover:text-red-400 transition font-mono py-3 border-t border-white/[0.06] flex items-center gap-2"
+              >
+                <span className="text-red-400/50 text-xs">✕</span> delete
+              </button>
             </div>
           </div>
         </>
