@@ -174,7 +174,6 @@ export default function GhostTile({
         }}
         onClick={handlePlay}
       >
-        <PlayIcon />
         <TitleBlock title={title} artist={artist} />
       </div>
 
