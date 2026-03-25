@@ -70,17 +70,12 @@ function SandboxTile({
       </button>
 
       {isYouTube ? (
-        <div className="w-full h-full flex items-center justify-center bg-black">
+        <div className="w-full h-full bg-black">
           <img
             src={tile.thumbnail_url || `https://img.youtube.com/vi/${tile.url}/hqdefault.jpg`}
             alt=""
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-12 h-12 rounded-full bg-red-600 flex items-center justify-center">
-              <span className="text-white text-xl ml-0.5">▶</span>
-            </div>
-          </div>
         </div>
       ) : isVideo ? (
         <video
