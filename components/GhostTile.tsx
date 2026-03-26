@@ -142,6 +142,7 @@ export default function GhostTile({
           background: 'transparent',
         }}
         allow="autoplay *; encrypted-media *;"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
       />
     )
   }
