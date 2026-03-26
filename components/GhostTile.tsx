@@ -128,22 +128,31 @@ export default function GhostTile({
     const embedSrc = url.replace('music.apple.com', 'embed.music.apple.com')
 
     return (
-      <iframe
-        src={embedSrc}
+      <div
         className="w-full fp-tile"
-        frameBorder={0}
-        allowFullScreen
         style={{
-          border: 'none',
           borderRadius: 12,
-          height: 150,
-          display: 'block',
           overflow: 'hidden',
-          background: 'transparent',
+          height: 80,
+          position: 'relative',
         }}
-        allow="autoplay *; encrypted-media *;"
-        sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
-      />
+      >
+        <iframe
+          src={embedSrc}
+          frameBorder={0}
+          allowFullScreen
+          style={{
+            border: 'none',
+            width: '100%',
+            height: 175,
+            display: 'block',
+            background: 'transparent',
+            position: 'relative',
+            top: -35,
+          }}
+          allow="autoplay *; encrypted-media *;"
+        />
+      </div>
     )
   }
 
