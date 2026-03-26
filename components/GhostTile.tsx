@@ -107,10 +107,11 @@ export default function GhostTile({
     return (
       <div className="w-full h-full relative overflow-hidden fp-tile" style={{
         borderRadius: 'inherit',
-        background: 'rgba(0, 0, 0, 0.3)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
+        background: 'rgba(0, 0, 0, 0.15)',
+        backdropFilter: 'blur(20px) saturate(1.2)',
+        WebkitBackdropFilter: 'blur(20px) saturate(1.2)',
+        border: '1px solid rgba(255, 255, 255, 0.12)',
+        boxShadow: 'inset 0 0 0 0.5px rgba(255, 255, 255, 0.06)',
       }}>
         <iframe
           src={spotifyEmbedSrc}
@@ -118,7 +119,8 @@ export default function GhostTile({
           style={{
             border: 'none',
             borderRadius: 'inherit',
-            opacity: 0.85,
+            opacity: 0.65,
+            mixBlendMode: 'screen',
           }}
           allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
           loading="lazy"
