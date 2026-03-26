@@ -130,6 +130,8 @@ export default function GhostTile({
       <iframe
         src={embedSrc}
         className="w-full fp-tile"
+        frameBorder={0}
+        allowFullScreen
         style={{
           border: 'none',
           borderRadius: 12,
@@ -140,7 +142,6 @@ export default function GhostTile({
         }}
         allow="autoplay *; encrypted-media *;"
         sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation"
-        loading="lazy"
       />
     )
   }
