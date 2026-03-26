@@ -96,8 +96,7 @@ export default function GhostTile({
   )
 
   // ════════════════════════════════════════
-  // SPOTIFY — album art stays, mini player bar at bottom on tap
-  // 80px Spotify embed = compact control strip, no album art duplication
+  // SPOTIFY — just the embed as a tile. Rounded corners, that's it.
   // ════════════════════════════════════════
   if (platform === 'spotify') {
     const spotifyMatch = url.match(/open\.spotify\.com\/(track|album|playlist|artist|episode|show)\/([a-zA-Z0-9]+)/)
@@ -106,68 +105,14 @@ export default function GhostTile({
     const spotifyEmbedSrc = `https://open.spotify.com/embed/${spotifyType}/${spotifyId}?theme=0`
 
     return (
-      <div className="w-full h-full relative overflow-hidden fp-tile" style={{ borderRadius: 'inherit' }}>
-        {/* Album art — always visible */}
-        {thumbUrl && (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={thumbUrl}
-              alt=""
-              className="absolute inset-0 w-full h-full object-cover"
-              loading="lazy"
-              decoding="async"
-            />
-            <div className="absolute inset-0" style={{ background: 'linear-gradient(transparent 50%, rgba(0,0,0,0.5) 100%)' }} />
-          </>
-        )}
-
-        {/* Title + tap target — visible when NOT playing */}
-        <div
-          className="absolute inset-0 flex flex-col items-center justify-center gap-3 cursor-pointer"
-          style={{
-            zIndex: 2,
-            opacity: isPlaying ? 0 : 1,
-            pointerEvents: isPlaying ? 'none' : 'auto',
-            transition: 'opacity 0.3s ease',
-          }}
-          onClick={handlePlay}
-        >
-          <TitleBlock title={title} artist={artist} />
-        </div>
-
-        {/* Spotify compact bar — 152px strip at bottom, over album art */}
-        {isPlaying && (
-          <div
-            className="absolute bottom-0 left-0 right-0"
-            style={{
-              height: 152,
-              zIndex: 3,
-              opacity: iframeLoaded ? 1 : 0,
-              transition: 'opacity 0.3s ease',
-              overflow: 'hidden',
-            }}
-          >
-            <iframe
-              ref={iframeRef}
-              src={spotifyEmbedSrc}
-              className="w-full"
-              style={{ border: 'none', height: 152, borderRadius: '0 0 12px 12px' }}
-              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-              loading="lazy"
-              onLoad={() => setIframeLoaded(true)}
-            />
-          </div>
-        )}
-
-        {/* Tap to close — when playing, tap album art area above bar to stop */}
-        {isPlaying && (
-          <div
-            className="absolute top-0 left-0 right-0 cursor-pointer"
-            style={{ zIndex: 2, bottom: 152 }}
-            onClick={handleToggle}
-          />
-        )}
+      <div className="w-full h-full relative overflow-hidden fp-tile" style={{ borderRadius: 'inherit', background: '#282828' }}>
+        <iframe
+          src={spotifyEmbedSrc}
+          className="w-full h-full"
+          style={{ border: 'none', borderRadius: 'inherit' }}
+          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+          loading="lazy"
+        />
       </div>
     )
   }
