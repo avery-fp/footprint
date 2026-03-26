@@ -149,6 +149,7 @@ export default function GhostTile({
             background: 'transparent',
             position: 'relative',
             top: -30,
+            pointerEvents: 'none',
           }}
           allow="autoplay *; encrypted-media *;"
         />
