@@ -96,7 +96,7 @@ export default function GhostTile({
   )
 
   // ════════════════════════════════════════
-  // SPOTIFY — floating glass bar. Nothing else.
+  // SPOTIFY — 80px compact bar
   // ════════════════════════════════════════
   if (platform === 'spotify') {
     const spotifyMatch = url.match(/open\.spotify\.com\/(track|album|playlist|artist|episode|show)\/([a-zA-Z0-9]+)/)
@@ -115,6 +115,31 @@ export default function GhostTile({
           display: 'block',
         }}
         allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+        loading="lazy"
+      />
+    )
+  }
+
+  // ════════════════════════════════════════
+  // APPLE MUSIC — 150px compact bar, transparent bg
+  // ════════════════════════════════════════
+  if (platform === 'applemusic') {
+    const embedSrc = url.replace('music.apple.com', 'embed.music.apple.com')
+
+    return (
+      <iframe
+        src={embedSrc}
+        className="w-full fp-tile"
+        style={{
+          border: 'none',
+          borderRadius: 12,
+          height: 150,
+          display: 'block',
+          overflow: 'hidden',
+          background: 'transparent',
+        }}
+        allow="autoplay *; encrypted-media *;"
+        sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation"
         loading="lazy"
       />
     )

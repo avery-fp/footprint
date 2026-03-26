@@ -11,6 +11,7 @@
 export type ContentType =
   | 'youtube'
   | 'spotify'
+  | 'applemusic'
   | 'twitter'
   | 'instagram'
   | 'tiktok'
@@ -42,7 +43,9 @@ const PATTERNS: Record<string, { regex: RegExp; type: ContentType }[]> = {
   spotify: [
     { regex: /open\.spotify\.com\/(track|album|playlist|artist|episode)\/([a-zA-Z0-9]+)/, type: 'spotify' },
   ],
-  // Apple Music — removed, treated as regular link tile
+  applemusic: [
+    { regex: /music\.apple\.com\/([a-z]{2})\/(album|playlist|song|station|music-video)\/([^/?]+)\/([a-z0-9.]+)/i, type: 'applemusic' },
+  ],
   twitter: [
     { regex: /(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]+)\/status\/(\d+)/, type: 'twitter' },
   ],
@@ -111,6 +114,7 @@ async function parseByType(type: ContentType, url: string, match: RegExpMatchArr
   switch (type) {
     case 'youtube': return parseYouTube(url, match)
     case 'spotify': return await parseSpotify(url, match)
+    case 'applemusic': return parseAppleMusic(url, match)
     case 'twitter': return parseTwitter(url, match)
     case 'instagram': return parseInstagram(url, match)
     case 'tiktok': return parseTikTok(url, match)
@@ -171,6 +175,32 @@ async function parseSpotify(url: string, match: RegExpMatchArray): Promise<Parse
     description: null,
     thumbnail_url: thumbnail,
     embed_html: `<iframe src="https://open.spotify.com/embed/${contentType}/${spotifyId}?theme=0" frameborder="0" allowtransparency="true" allow="encrypted-media" loading="lazy" class="w-full rounded-xl"></iframe>`,
+  }
+}
+
+// ============================================
+// APPLE MUSIC
+// ============================================
+function parseAppleMusic(url: string, match: RegExpMatchArray): ParsedContent {
+  const country = match[1] // e.g. 'us'
+  const contentType = match[2] // album, playlist, song, etc.
+  const slug = match[3] // human-readable slug
+  const id = match[4] // numeric or alphanumeric id
+
+  // Build embed URL — same format as Apple's official embed
+  const embedUrl = url.replace('music.apple.com', 'embed.music.apple.com')
+
+  // Clean title from slug
+  const title = slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+
+  return {
+    type: 'applemusic',
+    url,
+    external_id: id,
+    title,
+    description: null,
+    thumbnail_url: null,
+    embed_html: null,
   }
 }
 
@@ -322,6 +352,7 @@ export function getContentIcon(type: ContentType): string {
   const icons: Record<ContentType, string> = {
     youtube: '▶',
     spotify: '♫',
+    applemusic: '♫',
     twitter: '𝕏',
     instagram: '◎',
     tiktok: '♪',
@@ -341,6 +372,7 @@ export function getContentIcon(type: ContentType): string {
 export function getContentBackground(type: ContentType): string | null {
   const backgrounds: Partial<Record<ContentType, string>> = {
     spotify: 'linear-gradient(135deg, #1DB954, #191414)',
+    applemusic: 'linear-gradient(135deg, #FC3C44, #000)',
     soundcloud: 'linear-gradient(135deg, #ff5500, #ff7700)',
   }
   return backgrounds[type] || null
