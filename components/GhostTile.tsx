@@ -177,7 +177,7 @@ export default function GhostTile({
         style={{
           borderRadius: 12,
           overflow: 'hidden',
-          height: 95,
+          height: 75,
           position: 'relative',
           cursor: 'pointer',
         }}
@@ -199,12 +199,11 @@ export default function GhostTile({
           }}
           allow="autoplay *; encrypted-media *;"
         />
-        {/* Waveform overlay when playing */}
         {isPlaying && (
           <div style={{
             position: 'absolute',
-            bottom: 8,
-            right: 12,
+            bottom: 6,
+            right: 10,
             zIndex: 3,
           }}>
             <WaveformBars />
