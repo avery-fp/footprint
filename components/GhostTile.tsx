@@ -121,27 +121,47 @@ export default function GhostTile({
   }
 
   // ════════════════════════════════════════
-  // APPLE MUSIC — 150px compact bar, transparent bg
+  // APPLE MUSIC — ghost tile with album art, tap to play
+  // Hidden iframe handles audio, custom UI on top
   // ════════════════════════════════════════
   if (platform === 'applemusic') {
     const embedSrc = url.replace('music.apple.com', 'embed.music.apple.com')
 
     return (
-      <iframe
-        src={embedSrc}
-        className="w-full fp-tile"
-        frameBorder={0}
-        allowFullScreen
-        style={{
-          border: 'none',
-          borderRadius: 12,
-          height: 150,
-          display: 'block',
-          overflow: 'hidden',
-          background: 'transparent',
-        }}
-        allow="autoplay *; encrypted-media *;"
-      />
+      <div className="w-full h-full relative overflow-hidden fp-tile" style={{ borderRadius: 'inherit' }}>
+        <ThumbnailBg src={thumbUrl} />
+        <div
+          className="absolute inset-0"
+          style={{
+            background: 'linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.6) 100%)',
+          }}
+        />
+        <div
+          className="absolute inset-0 flex flex-col items-center justify-center gap-3 cursor-pointer"
+          style={{ zIndex: 2 }}
+          onClick={handleToggle}
+        >
+          {isPlaying ? <WaveformBars /> : null}
+          <TitleBlock title={title} artist={artist} />
+        </div>
+        {/* Hidden iframe — Apple Music plays audio through it */}
+        {isPlaying && (
+          <iframe
+            src={embedSrc}
+            className="absolute"
+            style={{
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              border: 'none',
+              opacity: 0,
+              pointerEvents: 'none',
+            }}
+            allow="autoplay *; encrypted-media *;"
+          />
+        )}
+      </div>
     )
   }
 

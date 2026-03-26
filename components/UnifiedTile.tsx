@@ -176,7 +176,7 @@ export default function UnifiedTile({
   // ── Ghost tile — de-branded media render ──
   if (item.render_mode === 'ghost' && item.media_id) {
     return (
-      <div className={`w-full ${(item.type === 'spotify' || item.type === 'applemusic') ? '' : 'h-full'}`} data-tile-id={item.id} data-tile-type={`ghost-${item.type}`}>
+      <div className={`w-full ${item.type === 'spotify' ? '' : 'h-full'}`} data-tile-id={item.id} data-tile-type={`ghost-${item.type}`}>
         <GhostTile
           url={item.url}
           platform={item.type}
