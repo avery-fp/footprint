@@ -96,12 +96,8 @@ export default function GhostTile({
   )
 
   // ════════════════════════════════════════
-  // AUDIO PIPE — hidden iframe, custom play UI
-  // (Spotify, SoundCloud)
-  // ════════════════════════════════════════
-  // ════════════════════════════════════════
-  // SPOTIFY — reveal embed on tap (autoplay blocked on hidden iframes)
-  // Album art → tap → Spotify embed fades in → user hits play → audio works
+  // SPOTIFY — album art stays, mini player bar at bottom on tap
+  // 80px Spotify embed = compact control strip, no album art duplication
   // ════════════════════════════════════════
   if (platform === 'spotify') {
     const spotifyMatch = url.match(/open\.spotify\.com\/(track|album|playlist|artist|episode|show)\/([a-zA-Z0-9]+)/)
@@ -111,7 +107,7 @@ export default function GhostTile({
 
     return (
       <div className="w-full h-full relative overflow-hidden fp-tile" style={{ borderRadius: 'inherit' }}>
-        {/* Album art — visible when not playing */}
+        {/* Album art — always visible */}
         {thumbUrl && (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -122,11 +118,11 @@ export default function GhostTile({
               loading="lazy"
               decoding="async"
             />
-            <div className="absolute inset-0" style={{ background: 'linear-gradient(transparent 40%, rgba(0,0,0,0.4) 100%)' }} />
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(transparent 50%, rgba(0,0,0,0.5) 100%)' }} />
           </>
         )}
 
-        {/* Tap target — album art overlay with title */}
+        {/* Title + tap target — visible when NOT playing */}
         <div
           className="absolute inset-0 flex flex-col items-center justify-center gap-3 cursor-pointer"
           style={{
@@ -140,27 +136,38 @@ export default function GhostTile({
           <TitleBlock title={title} artist={artist} />
         </div>
 
-        {/* Spotify embed — loads on tap, visible & interactive so user can hit play */}
+        {/* Spotify mini bar — 80px strip at bottom, over album art */}
         {isPlaying && (
           <div
-            className="absolute inset-0"
+            className="absolute bottom-0 left-0 right-0"
             style={{
+              height: 80,
+              zIndex: 3,
               opacity: iframeLoaded ? 1 : 0,
               transition: 'opacity 0.3s ease',
-              zIndex: 1,
-              background: '#000',
+              borderRadius: '0 0 inherit inherit',
+              overflow: 'hidden',
             }}
           >
             <iframe
               ref={iframeRef}
               src={spotifyEmbedSrc}
-              className="w-full h-full"
-              style={{ border: 'none', borderRadius: 'inherit' }}
+              className="w-full"
+              style={{ border: 'none', height: 80, borderRadius: '0 0 12px 12px' }}
               allow="autoplay; encrypted-media"
               referrerPolicy="strict-origin-when-cross-origin"
               onLoad={() => setIframeLoaded(true)}
             />
           </div>
+        )}
+
+        {/* Tap to close — when playing, tap album art area to stop */}
+        {isPlaying && (
+          <div
+            className="absolute inset-0 cursor-pointer"
+            style={{ zIndex: 2, bottom: 80 }}
+            onClick={handleToggle}
+          />
         )}
       </div>
     )
