@@ -136,16 +136,15 @@ export default function GhostTile({
           <TitleBlock title={title} artist={artist} />
         </div>
 
-        {/* Spotify mini bar — 80px strip at bottom, over album art */}
+        {/* Spotify compact bar — 152px strip at bottom, over album art */}
         {isPlaying && (
           <div
             className="absolute bottom-0 left-0 right-0"
             style={{
-              height: 80,
+              height: 152,
               zIndex: 3,
               opacity: iframeLoaded ? 1 : 0,
               transition: 'opacity 0.3s ease',
-              borderRadius: '0 0 inherit inherit',
               overflow: 'hidden',
             }}
           >
@@ -153,19 +152,19 @@ export default function GhostTile({
               ref={iframeRef}
               src={spotifyEmbedSrc}
               className="w-full"
-              style={{ border: 'none', height: 80, borderRadius: '0 0 12px 12px' }}
-              allow="autoplay; encrypted-media"
-              referrerPolicy="strict-origin-when-cross-origin"
+              style={{ border: 'none', height: 152, borderRadius: '0 0 12px 12px' }}
+              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+              loading="lazy"
               onLoad={() => setIframeLoaded(true)}
             />
           </div>
         )}
 
-        {/* Tap to close — when playing, tap album art area to stop */}
+        {/* Tap to close — when playing, tap album art area above bar to stop */}
         {isPlaying && (
           <div
-            className="absolute inset-0 cursor-pointer"
-            style={{ zIndex: 2, bottom: 80 }}
+            className="absolute top-0 left-0 right-0 cursor-pointer"
+            style={{ zIndex: 2, bottom: 152 }}
             onClick={handleToggle}
           />
         )}
