@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
       error = result.error
     } else {
       // Determine if this should be a ghost tile (YouTube, Spotify)
-      const isGhostDefault = ['youtube', 'spotify', 'applemusic'].includes(parsed.type)
+      const isGhostDefault = ['youtube', 'spotify'].includes(parsed.type)
 
       // Fetch oEmbed metadata for ghost tiles at creation time
       let ghostArtist: string | null = null
