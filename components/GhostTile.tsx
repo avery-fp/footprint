@@ -133,7 +133,7 @@ export default function GhostTile({
         style={{
           borderRadius: 12,
           overflow: 'hidden',
-          height: 100,
+          height: 93,
           position: 'relative',
         }}
       >
@@ -148,7 +148,7 @@ export default function GhostTile({
             display: 'block',
             background: 'transparent',
             position: 'relative',
-            top: -30,
+            top: -37,
           }}
           allow="autoplay *; encrypted-media *;"
         />
