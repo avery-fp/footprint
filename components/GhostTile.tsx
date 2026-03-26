@@ -96,7 +96,7 @@ export default function GhostTile({
   )
 
   // ════════════════════════════════════════
-  // SPOTIFY — just the embed as a tile. Rounded corners, that's it.
+  // SPOTIFY — floating glass bar. Nothing else.
   // ════════════════════════════════════════
   if (platform === 'spotify') {
     const spotifyMatch = url.match(/open\.spotify\.com\/(track|album|playlist|artist|episode|show)\/([a-zA-Z0-9]+)/)
@@ -105,21 +105,23 @@ export default function GhostTile({
     const spotifyEmbedSrc = `https://open.spotify.com/embed/${spotifyType}/${spotifyId}?theme=0`
 
     return (
-      <div className="w-full h-full relative overflow-hidden fp-tile" style={{
-        borderRadius: 'inherit',
-        background: 'rgba(0, 0, 0, 0.15)',
-        backdropFilter: 'blur(20px) saturate(1.2)',
-        WebkitBackdropFilter: 'blur(20px) saturate(1.2)',
-        border: '1px solid rgba(255, 255, 255, 0.12)',
-        boxShadow: 'inset 0 0 0 0.5px rgba(255, 255, 255, 0.06)',
+      <div className="w-full relative overflow-hidden fp-tile" style={{
+        height: 80,
+        borderRadius: 16,
+        background: 'rgba(0, 0, 0, 0.12)',
+        backdropFilter: 'blur(24px) saturate(1.4)',
+        WebkitBackdropFilter: 'blur(24px) saturate(1.4)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2), inset 0 0 0 0.5px rgba(255, 255, 255, 0.05)',
       }}>
         <iframe
           src={spotifyEmbedSrc}
-          className="w-full h-full"
+          className="w-full"
           style={{
             border: 'none',
-            borderRadius: 'inherit',
-            opacity: 0.65,
+            borderRadius: 16,
+            height: 80,
+            opacity: 0.7,
             mixBlendMode: 'screen',
           }}
           allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
