@@ -174,41 +174,56 @@ export default function GhostTile({
     return (
       <div
         className="w-full fp-tile"
+        onClick={handleToggle}
         style={{
           borderRadius: 12,
           overflow: 'hidden',
           height: 75,
           position: 'relative',
           cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          padding: '0 14px 0 0',
+          background: '#fff',
         }}
-        onClick={handleToggle}
       >
-        <iframe
-          src={embedSrc}
-          frameBorder={0}
-          allowFullScreen
-          style={{
-            border: 'none',
-            width: '100%',
-            height: 175,
-            display: 'block',
-            background: 'transparent',
-            position: 'relative',
-            top: -30,
-            pointerEvents: 'none',
-          }}
-          allow="autoplay *; encrypted-media *;"
-        />
-        {isPlaying && (
-          <div style={{
-            position: 'absolute',
-            bottom: 6,
-            right: 10,
-            zIndex: 3,
-          }}>
-            <WaveformBars />
-          </div>
+        {/* Album art */}
+        {thumbnail_url && (
+          <img
+            src={thumbnail_url}
+            alt=""
+            style={{
+              width: 75,
+              height: 75,
+              objectFit: 'cover',
+              flexShrink: 0,
+            }}
+          />
         )}
+        {/* Title + artist */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {title && (
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {title}
+            </div>
+          )}
+          {artist && (
+            <div style={{ fontSize: 12, color: '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {artist}
+            </div>
+          )}
+        </div>
+        {/* Play/pause indicator */}
+        <div style={{ flexShrink: 0 }}>
+          {isPlaying ? (
+            <WaveformBars />
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="#1a1a1a">
+              <path d="M6 3.5l11 6.5-11 6.5V3.5z"/>
+            </svg>
+          )}
+        </div>
       </div>
     )
   }
