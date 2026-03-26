@@ -133,7 +133,7 @@ export default function GhostTile({
         style={{
           borderRadius: 12,
           overflow: 'hidden',
-          height: 80,
+          height: 95,
           position: 'relative',
         }}
       >
