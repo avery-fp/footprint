@@ -135,7 +135,9 @@ export default function GhostTile({
           overflow: 'hidden',
           height: 95,
           position: 'relative',
+          cursor: 'pointer',
         }}
+        onClick={() => window.open(url, '_blank')}
       >
         <iframe
           src={embedSrc}
