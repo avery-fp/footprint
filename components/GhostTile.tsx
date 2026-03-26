@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { audioManager } from '@/lib/audio-manager'
 
 // ════════════════════════════════════════
 // GHOST TILE — de-branded media renderer
@@ -49,12 +50,23 @@ export default function GhostTile({
 
   const archetype = getArchetype(platform, url)
 
+  // Register with global AudioManager so ContentCard tiles also pause
+  useEffect(() => {
+    const id = tileId.current
+    audioManager.register(id, () => {
+      setIsPlaying(false)
+      setIframeLoaded(false)
+    })
+    return () => audioManager.unregister(id)
+  }, [])
+
   // Listen for pause events from other ghost tiles
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail
       if (detail?.except !== tileId.current) {
         setIsPlaying(false)
+        setIframeLoaded(false)
       }
     }
     window.addEventListener(GHOST_PAUSE_EVENT, handler)
@@ -62,7 +74,10 @@ export default function GhostTile({
   }, [])
 
   const handlePlay = useCallback(() => {
+    // Pause other ghost tiles
     window.dispatchEvent(new CustomEvent(GHOST_PAUSE_EVENT, { detail: { except: tileId.current } }))
+    // Pause ContentCard tiles via AudioManager
+    audioManager.play(tileId.current)
     setIsPlaying(true)
     onPlay?.()
   }, [onPlay])
