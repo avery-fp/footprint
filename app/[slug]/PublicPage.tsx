@@ -284,8 +284,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
         const tileInner = (
             <div
-              className="relative w-full h-full overflow-hidden rounded-2xl fp-tile-hover"
-              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)' }}
+              className={`relative w-full overflow-hidden fp-tile-hover ${isSpotifyEmbed ? '' : 'h-full rounded-2xl'}`}
+              style={isSpotifyEmbed ? {} : { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)' }}
             >
               <UnifiedTile
                 item={item}
