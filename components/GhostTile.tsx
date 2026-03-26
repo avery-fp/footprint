@@ -128,8 +128,8 @@ export default function GhostTile({
           <iframe
             ref={iframeRef}
             src={iframeSrc}
-            className="absolute"
-            style={{ width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
+            className="absolute inset-0 w-full h-full"
+            style={{ opacity: 0, pointerEvents: 'none' }}
             allow="autoplay; encrypted-media; picture-in-picture"
             referrerPolicy="strict-origin-when-cross-origin"
           />

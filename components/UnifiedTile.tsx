@@ -173,8 +173,8 @@ export default function UnifiedTile({
     )
   }
 
-  // ── Ghost tile — de-branded media render (skip Spotify — needs inline embed for audio) ──
-  if (item.render_mode === 'ghost' && item.media_id && item.type !== 'spotify') {
+  // ── Ghost tile — de-branded media render ──
+  if (item.render_mode === 'ghost' && item.media_id) {
     return (
       <div className="w-full h-full" data-tile-id={item.id} data-tile-type={`ghost-${item.type}`}>
         <GhostTile
