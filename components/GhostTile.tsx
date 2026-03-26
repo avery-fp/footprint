@@ -126,33 +126,49 @@ export default function GhostTile({
   // ════════════════════════════════════════
   if (platform === 'applemusic') {
     const embedSrc = url.replace('music.apple.com', 'embed.music.apple.com')
-
     const [isPlaying, setIsPlaying] = useState(false)
     const audioRef = useRef<HTMLAudioElement | null>(null)
+    const previewUrlRef = useRef<string | null>(null)
+    const tileId = `applemusic-${media_id}`
+
+    // Register with AudioManager for one-sound-at-a-time
+    useEffect(() => {
+      audioManager.register(tileId, () => {
+        audioRef.current?.pause()
+        setIsPlaying(false)
+      })
+      return () => audioManager.unregister(tileId)
+    }, [tileId])
 
     const handleToggle = async () => {
       if (isPlaying) {
         audioRef.current?.pause()
         setIsPlaying(false)
+        audioManager.mute(tileId)
         return
       }
-      // Use iTunes Search API (free, no auth) to get preview URL
       try {
-        const match = url.match(/(?:\?i=|\/songs?\/)(\d+)/) || url.match(/\/(\d+)(?:\?|$)/)
-        if (!match) { window.open(url, '_blank'); return }
-        const trackId = match[1]
-        const res = await fetch(`https://itunes.apple.com/lookup?id=${trackId}&entity=song`)
-        const data = await res.json()
-        const previewUrl = data.results?.[0]?.previewUrl || data.results?.[1]?.previewUrl
-        if (!previewUrl) { window.open(url, '_blank'); return }
-        if (!audioRef.current) audioRef.current = new Audio()
-        audioRef.current.src = previewUrl
+        // Use cached preview URL or fetch from our proxy (no CORS issues)
+        if (!previewUrlRef.current) {
+          const trackId = media_id || url.match(/[?&]i=(\d+)/)?.[1] || url.match(/\/(\d+)(?:\?|$)/)?.[1]
+          if (!trackId) return
+          const res = await fetch(`/api/apple-preview?id=${trackId}`)
+          const data = await res.json()
+          previewUrlRef.current = data.previewUrl
+        }
+        if (!previewUrlRef.current) return
+        if (!audioRef.current) {
+          audioRef.current = new Audio()
+          audioRef.current.onended = () => {
+            setIsPlaying(false)
+            audioManager.mute(tileId)
+          }
+        }
+        audioRef.current.src = previewUrlRef.current
         audioRef.current.play()
         setIsPlaying(true)
-        audioRef.current.onended = () => setIsPlaying(false)
-      } catch {
-        window.open(url, '_blank')
-      }
+        audioManager.play(tileId)
+      } catch { /* silent — tile stays visual */ }
     }
 
     return (
@@ -183,6 +199,17 @@ export default function GhostTile({
           }}
           allow="autoplay *; encrypted-media *;"
         />
+        {/* Waveform overlay when playing */}
+        {isPlaying && (
+          <div style={{
+            position: 'absolute',
+            bottom: 8,
+            right: 12,
+            zIndex: 3,
+          }}>
+            <WaveformBars />
+          </div>
+        )}
       </div>
     )
   }

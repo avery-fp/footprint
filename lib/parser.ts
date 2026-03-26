@@ -185,7 +185,11 @@ function parseAppleMusic(url: string, match: RegExpMatchArray): ParsedContent {
   const country = match[1] // e.g. 'us'
   const contentType = match[2] // album, playlist, song, etc.
   const slug = match[3] // human-readable slug
-  const id = match[4] // numeric or alphanumeric id
+  const albumId = match[4] // numeric or alphanumeric id
+
+  // Prefer ?i= track ID (specific song) over album ID
+  const trackMatch = url.match(/[?&]i=(\d+)/)
+  const id = trackMatch ? trackMatch[1] : albumId
 
   // Build embed URL — same format as Apple's official embed
   const embedUrl = url.replace('music.apple.com', 'embed.music.apple.com')
