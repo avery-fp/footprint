@@ -84,20 +84,20 @@ export default function GhostTile({
   // AUDIO PIPE — hidden iframe, custom play UI
   // (Spotify, SoundCloud)
   // ════════════════════════════════════════
-  if (archetype === 'audio') {
-    let iframeSrc: string | undefined
-    const isSpotify = platform === 'spotify'
-
-    if (isSpotify) {
-      const spotifyMatch = url.match(/open\.spotify\.com\/(track|album|playlist|artist|episode|show)\/([a-zA-Z0-9]+)/)
-      const spotifyType = spotifyMatch?.[1] || 'track'
-      const spotifyId = spotifyMatch?.[2] || media_id
-      iframeSrc = `https://open.spotify.com/embed/${spotifyType}/${spotifyId}?theme=0&autoplay=1`
-    }
+  // ════════════════════════════════════════
+  // SPOTIFY — reveal embed on tap (autoplay blocked on hidden iframes)
+  // Album art → tap → Spotify embed fades in → user hits play → audio works
+  // ════════════════════════════════════════
+  if (platform === 'spotify') {
+    const spotifyMatch = url.match(/open\.spotify\.com\/(track|album|playlist|artist|episode|show)\/([a-zA-Z0-9]+)/)
+    const spotifyType = spotifyMatch?.[1] || 'track'
+    const spotifyId = spotifyMatch?.[2] || media_id
+    const spotifyEmbedSrc = `https://open.spotify.com/embed/${spotifyType}/${spotifyId}?theme=0`
 
     return (
       <div className="w-full h-full relative overflow-hidden fp-tile" style={{ borderRadius: 'inherit' }}>
-        {isSpotify && thumbUrl ? (
+        {/* Album art — visible when not playing */}
+        {thumbUrl && (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -109,32 +109,62 @@ export default function GhostTile({
             />
             <div className="absolute inset-0" style={{ background: 'linear-gradient(transparent 40%, rgba(0,0,0,0.4) 100%)' }} />
           </>
-        ) : (
-          <ThumbnailBg src={thumbUrl} />
         )}
 
-        {!isSpotify && (
+        {/* Tap target — album art overlay with title */}
+        <div
+          className="absolute inset-0 flex flex-col items-center justify-center gap-3 cursor-pointer"
+          style={{
+            zIndex: 2,
+            opacity: isPlaying ? 0 : 1,
+            pointerEvents: isPlaying ? 'none' : 'auto',
+            transition: 'opacity 0.3s ease',
+          }}
+          onClick={handlePlay}
+        >
+          <TitleBlock title={title} artist={artist} />
+        </div>
+
+        {/* Spotify embed — loads on tap, visible & interactive so user can hit play */}
+        {isPlaying && (
           <div
             className="absolute inset-0"
             style={{
-              background: 'linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.6) 100%)',
-              
-              transition: 'background 0.25s ease',
+              opacity: iframeLoaded ? 1 : 0,
+              transition: 'opacity 0.3s ease',
+              zIndex: 1,
+              background: '#000',
             }}
-          />
+          >
+            <iframe
+              ref={iframeRef}
+              src={spotifyEmbedSrc}
+              className="w-full h-full"
+              style={{ border: 'none', borderRadius: 'inherit' }}
+              allow="autoplay; encrypted-media"
+              referrerPolicy="strict-origin-when-cross-origin"
+              onLoad={() => setIframeLoaded(true)}
+            />
+          </div>
         )}
+      </div>
+    )
+  }
 
-        {isPlaying && iframeSrc && (
-          <iframe
-            ref={iframeRef}
-            src={iframeSrc}
-            className="absolute inset-0 w-full h-full"
-            style={{ opacity: 0, pointerEvents: 'none' }}
-            allow="autoplay; encrypted-media; picture-in-picture"
-            referrerPolicy="strict-origin-when-cross-origin"
-          />
-        )}
-
+  // ════════════════════════════════════════
+  // OTHER AUDIO — SoundCloud etc: hidden iframe approach
+  // ════════════════════════════════════════
+  if (archetype === 'audio') {
+    return (
+      <div className="w-full h-full relative overflow-hidden fp-tile" style={{ borderRadius: 'inherit' }}>
+        <ThumbnailBg src={thumbUrl} />
+        <div
+          className="absolute inset-0"
+          style={{
+            background: 'linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.6) 100%)',
+            transition: 'background 0.25s ease',
+          }}
+        />
         <div
           className="absolute inset-0 flex flex-col items-center justify-center gap-3 cursor-pointer"
           style={{ zIndex: 2 }}
