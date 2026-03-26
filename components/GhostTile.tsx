@@ -121,8 +121,6 @@ export default function GhostTile({
             border: 'none',
             borderRadius: 16,
             height: 80,
-            opacity: 0.7,
-            mixBlendMode: 'screen',
           }}
           allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
           loading="lazy"
