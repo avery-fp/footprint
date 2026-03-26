@@ -127,6 +127,34 @@ export default function GhostTile({
   if (platform === 'applemusic') {
     const embedSrc = url.replace('music.apple.com', 'embed.music.apple.com')
 
+    const [isPlaying, setIsPlaying] = useState(false)
+    const audioRef = useRef<HTMLAudioElement | null>(null)
+
+    const handleToggle = async () => {
+      if (isPlaying) {
+        audioRef.current?.pause()
+        setIsPlaying(false)
+        return
+      }
+      // Use iTunes Search API (free, no auth) to get preview URL
+      try {
+        const match = url.match(/(?:\?i=|\/songs?\/)(\d+)/) || url.match(/\/(\d+)(?:\?|$)/)
+        if (!match) { window.open(url, '_blank'); return }
+        const trackId = match[1]
+        const res = await fetch(`https://itunes.apple.com/lookup?id=${trackId}&entity=song`)
+        const data = await res.json()
+        const previewUrl = data.results?.[0]?.previewUrl || data.results?.[1]?.previewUrl
+        if (!previewUrl) { window.open(url, '_blank'); return }
+        if (!audioRef.current) audioRef.current = new Audio()
+        audioRef.current.src = previewUrl
+        audioRef.current.play()
+        setIsPlaying(true)
+        audioRef.current.onended = () => setIsPlaying(false)
+      } catch {
+        window.open(url, '_blank')
+      }
+    }
+
     return (
       <div
         className="w-full fp-tile"
@@ -137,7 +165,7 @@ export default function GhostTile({
           position: 'relative',
           cursor: 'pointer',
         }}
-        onClick={() => window.open(url, '_blank')}
+        onClick={handleToggle}
       >
         <iframe
           src={embedSrc}
