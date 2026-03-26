@@ -279,7 +279,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         const isSpotifyEmbed = item.type === 'spotify' && item.render_mode === 'ghost'
 
         const gridClass = isVid ? 'col-span-2 aspect-video'
-          : isSpotifyEmbed ? 'col-span-2 aspect-video'
+          : isSpotifyEmbed ? 'col-span-1 aspect-square'
           : getGridClass(tileSize, tileAspect, false)
 
         const tileInner = (
