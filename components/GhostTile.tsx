@@ -121,10 +121,10 @@ export default function GhostTile({
   }
 
   // ════════════════════════════════════════
-  // APPLE MUSIC — 150px transparent compact bar
-  // Same approach as Spotify: bare iframe, no wrapper
+  // APPLE MUSIC — two-state: compact crop → expand to play
   // ════════════════════════════════════════
   if (platform === 'applemusic') {
+    const [isExpanded, setIsExpanded] = useState(false)
     const embedSrc = url.replace('music.apple.com', 'embed.music.apple.com')
 
     return (
@@ -133,8 +133,9 @@ export default function GhostTile({
         style={{
           borderRadius: 12,
           overflow: 'hidden',
-          height: 108,
+          height: isExpanded ? 140 : 70,
           position: 'relative',
+          transition: 'height 0.3s ease',
         }}
       >
         <iframe
@@ -148,10 +149,44 @@ export default function GhostTile({
             display: 'block',
             background: 'transparent',
             position: 'relative',
-            top: -37,
+            top: -30,
+            pointerEvents: isExpanded ? 'auto' : 'none',
           }}
           allow="autoplay *; encrypted-media *;"
         />
+        {!isExpanded && (
+          <div
+            onClick={() => setIsExpanded(true)}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              zIndex: 2,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              paddingRight: 16,
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="white" opacity={0.7}>
+              <path d="M4 2l10 6-10 6V2z"/>
+            </svg>
+          </div>
+        )}
+        {isExpanded && (
+          <div
+            onClick={() => setIsExpanded(false)}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 70,
+              zIndex: 2,
+              cursor: 'pointer',
+            }}
+          />
+        )}
       </div>
     )
   }
