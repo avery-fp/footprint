@@ -206,14 +206,18 @@ function resolveSubject(vertical, subjectLines) {
 // Email template
 // ---------------------------------------------------------------------------
 function buildEmail(contact) {
-  const name = contact.name || "there";
-  const firstName = name.split(" ")[0];
-  return `<div style="font-family:-apple-system,system-ui,sans-serif;max-width:480px;margin:0 auto;padding:32px 20px;color:#1a1a1a;">
-<p style="margin:0 0 16px;font-size:15px;line-height:1.5;">hey ${firstName},</p>
-<p style="margin:0 0 16px;font-size:15px;line-height:1.5;">footprint is a single-page site for everything you are — music, visuals, links, merch, shows — all in one place. $10, once, yours forever.</p>
-<p style="margin:0 0 16px;font-size:15px;line-height:1.5;">no algorithms. no followers. just you.</p>
-<p style="margin:0 0 24px;font-size:15px;line-height:1.5;"><a href="https://www.footprint.onl/api/track?cluster=${contact.vertical || "unknown"}&source=email" style="color:#1a1a1a;text-decoration:underline;">see what it looks like →</a></p>
-<p style="margin:0;font-size:13px;color:#999;">— footprint</p>
+  return `<div style="background-color: #0c0c10; width: 100%; min-height: 100%; margin: 0; padding: 0;">
+  <div style="max-width: 600px; margin: 0 auto; padding: 72px 32px 60px 32px; text-align: center;">
+    <p style="margin: 0; font-family: 'DM Mono', 'Courier New', monospace; font-size: 13px; line-height: 1.6; font-weight: 300; color: #555560; letter-spacing: 0.04em; text-transform: lowercase;">someone thought of you</p>
+    <p style="margin: 40px 0 0 0; font-family: 'DM Mono', 'Courier New', monospace; font-size: 21px; line-height: 1.55; font-weight: 300; color: #d4c5a9; letter-spacing: 0.01em;">you got a footprint.</p>
+    <p style="margin: 20px 16px 0 16px; font-family: 'DM Mono', 'Courier New', monospace; font-size: 13px; line-height: 1.8; font-weight: 300; color: #777780; letter-spacing: 0.02em;">a single page for everything you are.<br>your links. your work. your world.<br>it's yours now.</p>
+    <div style="margin: 48px 0 0 0;">
+      <a href="https://www.footprint.onl/build" style="display: inline-block; padding: 14px 36px; background-color: #d4c5a9; color: #0c0c10; font-family: 'DM Mono', 'Courier New', monospace; font-size: 14px; font-weight: 500; text-decoration: none; letter-spacing: 0.04em; border-radius: 3px;">claim yours</a>
+    </div>
+    <div style="margin: 80px 0 0 0; border-top: 1px solid #1e1e24; padding-top: 24px;">
+      <a href="https://footprint.onl" style="font-family: 'DM Mono', 'Courier New', monospace; font-size: 12px; color: #555560; text-decoration: none; letter-spacing: 0.06em;">footprint.onl</a>
+    </div>
+  </div>
 </div>`;
 }
 

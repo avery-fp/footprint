@@ -361,6 +361,17 @@ input:-webkit-autofill:focus {
   background: #050505;
 }
 
+@keyframes go-live-sheet {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes birth-fade-up {
   from {
     opacity: 0;
@@ -426,4 +437,33 @@ input:-webkit-autofill:focus {
 .fp-grid-container *,
 .fp-grid-container {
   touch-action: manipulation;
+}
+
+/* Build page — tile pulse animation */
+@keyframes tile-pulse {
+  0% { opacity: 0.3; transform: scale(0.95); }
+  50% { opacity: 1; transform: scale(1.02); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.animate-tile-pulse {
+  animation: tile-pulse 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Build page — breathing gradient */
+@keyframes breathe {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+/* Floating CTA — CSS-only fade-in, no hydration dependency */
+@keyframes cta-fade-in {
+  0% { opacity: 0; pointer-events: none; }
+  100% { opacity: 1; pointer-events: auto; }
+}
+.animate-cta-fade-in {
+  opacity: 0;
+  animation: cta-fade-in 0.8s ease 0.5s forwards;
+}
+
+.animate-breathe {
+  animation: breathe 8s ease-in-out infinite;
 }

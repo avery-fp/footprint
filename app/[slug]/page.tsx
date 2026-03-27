@@ -16,7 +16,12 @@ interface Props {
   params: { slug: string }
 }
 
+// Reserved paths that have their own routes — skip DB lookup
+const RESERVED_SLUGS = new Set(['build', 'login', 'signup', 'signin', 'auth', 'checkout', 'success', 'deed', 'gift', 'public', 'api'])
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  if (RESERVED_SLUGS.has(params.slug)) return { title: 'footprint' }
+
   const supabase = createServerSupabaseClient()
   const { data: footprint } = await supabase
     .from('footprints')
@@ -50,6 +55,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function FootprintPage({ params }: Props) {
+  if (RESERVED_SLUGS.has(params.slug)) notFound()
+
   const supabase = createServerSupabaseClient()
 
   // Fetch footprint by username + published

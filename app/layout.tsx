@@ -1,9 +1,6 @@
 import './globals.css'
 import { Toaster } from 'sonner'
 
-// Force dynamic rendering for all routes
-export const dynamic = 'force-dynamic'
-
 export const metadata = {
   title: 'footprint',
   description: 'one page for everything.',
@@ -31,7 +28,8 @@ export default function RootLayout({
     <html lang="en" style={{ backgroundColor: '#080808' }}>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-        <link rel="apple-touch-icon" href="/icon-transparent.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png" />
+        <link rel="apple-touch-icon" sizes="512x512" href="/apple-touch-icon.png" />
       </head>
       <body className="font-sans" style={{ backgroundColor: '#080808' }}>
         {children}
