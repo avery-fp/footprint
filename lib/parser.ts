@@ -11,7 +11,6 @@
 export type ContentType =
   | 'youtube'
   | 'spotify'
-  | 'applemusic'
   | 'twitter'
   | 'instagram'
   | 'tiktok'
@@ -44,7 +43,7 @@ const PATTERNS: Record<string, { regex: RegExp; type: ContentType }[]> = {
     { regex: /open\.spotify\.com\/(track|album|playlist|artist|episode)\/([a-zA-Z0-9]+)/, type: 'spotify' },
   ],
   applemusic: [
-    { regex: /music\.apple\.com\/([a-z]{2})\/(album|playlist|song|station|music-video)\/([^/?]+)\/([a-z0-9.]+)/i, type: 'applemusic' },
+    { regex: /music\.apple\.com\/([a-z]{2})\/(album|playlist|song|station|music-video)\/([^/?]+)\/([a-z0-9.]+)/i, type: 'link' as const },
   ],
   twitter: [
     { regex: /(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]+)\/status\/(\d+)/, type: 'twitter' },
@@ -114,7 +113,6 @@ async function parseByType(type: ContentType, url: string, match: RegExpMatchArr
   switch (type) {
     case 'youtube': return parseYouTube(url, match)
     case 'spotify': return await parseSpotify(url, match)
-    case 'applemusic': return parseAppleMusic(url, match)
     case 'twitter': return parseTwitter(url, match)
     case 'instagram': return parseInstagram(url, match)
     case 'tiktok': return parseTikTok(url, match)
@@ -197,12 +195,13 @@ function parseAppleMusic(url: string, match: RegExpMatchArray): ParsedContent {
   // Clean title from slug
   const title = slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 
+  // Apple Music embeds can't render cleanly — treat as a plain link tile
   return {
-    type: 'applemusic',
+    type: 'link',
     url,
-    external_id: id,
+    external_id: null,
     title,
-    description: null,
+    description: 'Apple Music',
     thumbnail_url: null,
     embed_html: null,
   }
@@ -356,7 +355,6 @@ export function getContentIcon(type: ContentType): string {
   const icons: Record<ContentType, string> = {
     youtube: '▶',
     spotify: '♫',
-    applemusic: '♫',
     twitter: '𝕏',
     instagram: '◎',
     tiktok: '♪',
@@ -376,7 +374,6 @@ export function getContentIcon(type: ContentType): string {
 export function getContentBackground(type: ContentType): string | null {
   const backgrounds: Partial<Record<ContentType, string>> = {
     spotify: 'linear-gradient(135deg, #1DB954, #191414)',
-    applemusic: 'linear-gradient(135deg, #FC3C44, #000)',
     soundcloud: 'linear-gradient(135deg, #ff5500, #ff7700)',
   }
   return backgrounds[type] || null
