@@ -169,8 +169,7 @@ function renderTemplate(template, vars) {
 }
 
 function pickSubject(vertical) {
-  const variants = SUBJECT_VARIANTS[vertical] || SUBJECT_VARIANTS._default
-  return variants[Math.floor(Math.random() * variants.length)]
+  return 'yours.'
 }
 
 // ═══════════════════════════════════════════
@@ -453,6 +452,7 @@ async function main() {
       title: contact.title || '',
       company: contact.company || '',
       vertical: contact.vertical || '',
+      unsubscribe_url: `https://footprint.onl/unsubscribe?e=${encodeURIComponent(contact.email)}`,
     })
 
     try {
