@@ -287,7 +287,7 @@ function parseSoundCloud(url: string, match: RegExpMatchArray): ParsedContent {
     title: 'SoundCloud Track',
     description: null,
     thumbnail_url: null,
-    embed_html: `<iframe src="https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23ffffff&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=true" frameborder="0" allow="autoplay" loading="lazy" class="w-full h-[166px] rounded-xl"></iframe>`,
+    embed_html: `<iframe src="https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23ffffff&auto_play=false&hide_related=true&show_comments=false&show_user=false&show_reposts=false&show_teaser=false&visual=true" frameborder="0" allow="autoplay" loading="lazy" class="w-full h-[166px] rounded-xl"></iframe>`,
   }
 }
 

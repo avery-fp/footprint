@@ -259,7 +259,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           onClick={handleActivate}
         >
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-[#ff5500]/80 flex items-center justify-center group-hover:scale-105 transition-transform">
+            <div className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm border border-white/10 flex items-center justify-center group-hover:scale-105 transition-transform">
               <svg className="w-3 h-3 text-white/80 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M8 5v14l11-7z"/>
               </svg>
@@ -276,7 +276,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         <div
           ref={containerRef}
           className="w-full fp-tile overflow-hidden"
-          style={{ height: `${scHeight}px` }}
+          style={{ height: `${scHeight}px`, position: 'relative' }}
         >
           <GlassEmbedFrame
             src={scSrc}
@@ -285,6 +285,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             sandbox="allow-scripts allow-same-origin allow-popups"
             onError={() => setIframeFailed(true)}
           />
+          {/* Cover SoundCloud logo / branding at bottom */}
+          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 28, background: '#000', zIndex: 2, pointerEvents: 'auto' }} />
         </div>
       )
     }
