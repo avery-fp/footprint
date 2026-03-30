@@ -105,18 +105,31 @@ export default function GhostTile({
     const spotifyEmbedSrc = `https://open.spotify.com/embed/${spotifyType}/${spotifyId}?theme=0`
 
     return (
-      <iframe
-        src={spotifyEmbedSrc}
-        className="w-full fp-tile"
-        style={{
-          border: 'none',
-          borderRadius: 12,
-          height: 80,
-          display: 'block',
-        }}
-        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-        loading="lazy"
-      />
+      <div
+        className="w-full fp-tile overflow-hidden"
+        style={{ borderRadius: 12, height: 80, position: 'relative' }}
+      >
+        <iframe
+          src={spotifyEmbedSrc}
+          className="w-full"
+          style={{ border: 'none', height: 80, display: 'block' }}
+          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+          loading="lazy"
+        />
+        {/* Cover Spotify logo / attribution at bottom-right */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            right: 0,
+            width: 80,
+            height: 24,
+            background: '#181818',
+            zIndex: 2,
+            pointerEvents: 'auto',
+          }}
+        />
+      </div>
     )
   }
 

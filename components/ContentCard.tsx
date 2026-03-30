@@ -224,7 +224,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           <div
             ref={containerRef}
             className="w-full fp-tile overflow-hidden rounded-[inherit]"
-            style={{ height: `${spotifyHeight}px` }}
+            style={{ height: `${spotifyHeight}px`, position: 'relative' }}
           >
             {isInView ? (
               <GlassEmbedFrame
@@ -238,6 +238,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             ) : (
               <GlassPlaceholder height={spotifyHeight} />
             )}
+            {/* Cover Spotify logo / "Open in Spotify" attribution */}
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 32, background: '#181818', zIndex: 2, pointerEvents: 'auto' }} />
           </div>
         )
       }
