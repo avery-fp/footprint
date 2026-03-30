@@ -595,6 +595,10 @@ function Tier2EmbedTile({
       ) : (
         <GlassPlaceholder height={embed.aspectRatio ? undefined : fallbackHeight} />
       )}
+      {/* Cover Bandcamp logo — top-left corner */}
+      {embed.platform === 'bandcamp' && (
+        <div style={{ position: 'absolute', top: 0, left: 0, width: 120, height: 28, background: '#000', zIndex: 2, pointerEvents: 'auto' }} />
+      )}
     </div>
   )
 }

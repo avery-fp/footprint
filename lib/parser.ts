@@ -373,8 +373,6 @@ export function getContentIcon(type: ContentType): string {
 // ============================================
 export function getContentBackground(type: ContentType): string | null {
   const backgrounds: Partial<Record<ContentType, string>> = {
-    spotify: 'linear-gradient(135deg, #1DB954, #191414)',
-    soundcloud: 'linear-gradient(135deg, #ff5500, #ff7700)',
   }
   return backgrounds[type] || null
 }
