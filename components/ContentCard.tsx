@@ -321,6 +321,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           ) : (
             <GlassPlaceholder aspectClass={aspectClass || 'aspect-video'} />
           )}
+          {/* Defensive click-blocker over Vimeo badge area */}
+          <div style={{ position: 'absolute', bottom: 0, right: 0, width: 50, height: 36, zIndex: 2, pointerEvents: 'auto' }} />
         </div>
       )
     }

@@ -168,7 +168,7 @@ export default function GhostTile({
   const iframeSrc = platform === 'youtube'
     ? `https://www.youtube.com/embed/${media_id}?autoplay=1&controls=0&rel=0&iv_load_policy=3&playsinline=1`
     : platform === 'vimeo'
-    ? `https://player.vimeo.com/video/${media_id}?title=0&byline=0&portrait=0&autoplay=1`
+    ? `https://player.vimeo.com/video/${media_id}?title=0&byline=0&portrait=0&badge=0&dnt=1&autoplay=1`
     : undefined
 
   return (

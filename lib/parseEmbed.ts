@@ -77,7 +77,7 @@ function parseVimeo(url: string): EmbedResult | null {
   if (!m) return null
   return {
     platform: 'vimeo',
-    embedUrl: `https://player.vimeo.com/video/${m[1]}?title=0&byline=0&portrait=0`,
+    embedUrl: `https://player.vimeo.com/video/${m[1]}?title=0&byline=0&portrait=0&badge=0&dnt=1`,
     height: 0,
     aspectRatio: '16/9',
     tier: 1,
