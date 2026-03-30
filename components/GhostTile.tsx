@@ -105,18 +105,31 @@ export default function GhostTile({
     const spotifyEmbedSrc = `https://open.spotify.com/embed/${spotifyType}/${spotifyId}?theme=0`
 
     return (
-      <iframe
-        src={spotifyEmbedSrc}
-        className="w-full fp-tile"
-        style={{
-          border: 'none',
-          borderRadius: 12,
-          height: 80,
-          display: 'block',
-        }}
-        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-        loading="lazy"
-      />
+      <div
+        className="w-full fp-tile overflow-hidden"
+        style={{ borderRadius: 12, height: 80, position: 'relative' }}
+      >
+        <iframe
+          src={spotifyEmbedSrc}
+          className="w-full"
+          style={{ border: 'none', height: 80, display: 'block' }}
+          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+          loading="lazy"
+        />
+        {/* Cover Spotify logo / attribution at bottom-right */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            right: 0,
+            width: 80,
+            height: 24,
+            background: '#181818',
+            zIndex: 2,
+            pointerEvents: 'auto',
+          }}
+        />
+      </div>
     )
   }
 
@@ -153,9 +166,9 @@ export default function GhostTile({
   // Blurred thumbnail bg + iframe reveal on play
   // ════════════════════════════════════════
   const iframeSrc = platform === 'youtube'
-    ? `https://www.youtube.com/embed/${media_id}?autoplay=1&modestbranding=1&playsinline=1&rel=0`
+    ? `https://www.youtube.com/embed/${media_id}?autoplay=1&controls=0&rel=0&iv_load_policy=3&playsinline=1`
     : platform === 'vimeo'
-    ? `https://player.vimeo.com/video/${media_id}?title=0&byline=0&portrait=0&autoplay=1`
+    ? `https://player.vimeo.com/video/${media_id}?title=0&byline=0&portrait=0&badge=0&dnt=1&autoplay=1`
     : undefined
 
   return (
@@ -196,6 +209,21 @@ export default function GhostTile({
             loading="lazy"
             onLoad={() => setIframeLoaded(true)}
           />
+          {/* Cover YouTube watermark logo — bottom-right corner */}
+          {platform === 'youtube' && (
+            <div
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                right: 0,
+                width: 50,
+                height: 40,
+                background: '#000',
+                zIndex: 2,
+                pointerEvents: 'auto',
+              }}
+            />
+          )}
         </div>
       )}
     </div>

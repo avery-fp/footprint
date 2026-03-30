@@ -136,11 +136,9 @@ describe('getContentIcon', () => {
 })
 
 describe('getContentBackground', () => {
-  it('returns gradient for Spotify', () => {
-    expect(getContentBackground('spotify')).toContain('#1DB954')
-  })
-
-  it('returns null for types without custom background', () => {
+  it('returns null for all types — brand gradients removed', () => {
+    expect(getContentBackground('spotify')).toBeNull()
+    expect(getContentBackground('soundcloud')).toBeNull()
     expect(getContentBackground('youtube')).toBeNull()
     expect(getContentBackground('link')).toBeNull()
   })

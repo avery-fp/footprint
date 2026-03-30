@@ -51,7 +51,7 @@ function parseYouTube(url: string): EmbedResult | null {
   if (!m) return null
   return {
     platform: 'youtube',
-    embedUrl: `https://www.youtube.com/embed/${m[1]}?autoplay=0&modestbranding=1&rel=0`,
+    embedUrl: `https://www.youtube.com/embed/${m[1]}?autoplay=0&controls=0&rel=0&iv_load_policy=3&playsinline=1`,
     height: 0, // aspect-ratio driven
     aspectRatio: '16/9',
     tier: 1,
@@ -66,7 +66,7 @@ function parseSoundCloud(url: string): EmbedResult | null {
   const isPlaylist = url.includes('/sets/')
   return {
     platform: 'soundcloud',
-    embedUrl: `https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23ffffff&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=true`,
+    embedUrl: `https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23ffffff&auto_play=false&hide_related=true&show_comments=false&show_user=false&show_reposts=false&show_teaser=false&visual=true`,
     height: isPlaylist ? 300 : 166,
     tier: 1,
   }
@@ -77,7 +77,7 @@ function parseVimeo(url: string): EmbedResult | null {
   if (!m) return null
   return {
     platform: 'vimeo',
-    embedUrl: `https://player.vimeo.com/video/${m[1]}?title=0&byline=0&portrait=0`,
+    embedUrl: `https://player.vimeo.com/video/${m[1]}?title=0&byline=0&portrait=0&badge=0&dnt=1`,
     height: 0,
     aspectRatio: '16/9',
     tier: 1,
