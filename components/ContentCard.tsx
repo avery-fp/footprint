@@ -462,9 +462,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             quality={90}
             onLoad={() => setIsLoaded(true)}
           />
-          <span className="absolute bottom-2 left-2.5 text-[9px] font-mono tracking-wider text-white/40">
-            {content.type}
-          </span>
         </a>
       )
     }
@@ -476,7 +473,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         className={`block fp-tile overflow-hidden ${aspectClass} fp-surface flex items-center justify-center`}
       >
         <span className="text-[10px] font-mono tracking-[0.15em] uppercase opacity-40">
-          {content.type}
+          &mdash;
         </span>
       </a>
     )
@@ -522,10 +519,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           onLoad={() => setIsLoaded(true)}
           onError={() => setIsLoaded(true)}
         />
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/40 to-transparent h-10" />
-        <span className="absolute bottom-2 left-2.5 text-[9px] font-mono tracking-wider text-white/50">
-          {hostname}
-        </span>
       </a>
     )
   }
@@ -663,16 +656,6 @@ function LinkCard({
           className="w-full h-full object-cover"
           loading="lazy"
         />
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent h-16" />
-        <div className="absolute bottom-2.5 left-3 right-3 flex items-center gap-2">
-          {favicon && (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={favicon} alt="" className="w-4 h-4 rounded-sm flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-          )}
-          <span className="text-[10px] font-mono tracking-wider text-white/70 truncate">
-            {hostname}
-          </span>
-        </div>
       </a>
     )
   }
@@ -701,24 +684,15 @@ function LinkCard({
           onError={() => setMeta(m => m ? { ...m, image: null } : m)}
         />
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4">
-          {favicon && (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={favicon} alt="" className="w-5 h-5 rounded-sm" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-          )}
           <span className="text-[11px] font-mono tracking-wider text-white/50 text-center truncate max-w-full">
-            {displayTitle !== hostname ? displayTitle : hostname}
+            {displayTitle !== hostname ? displayTitle : ''}
           </span>
-          {displayTitle !== hostname && (
-            <span className="text-[9px] font-mono tracking-wider text-white/30">
-              {hostname}
-            </span>
-          )}
         </div>
       </a>
     )
   }
 
-  // Text-only link card — frosted glass, favicon + title + domain
+  // Text-only link card — frosted glass, title only
   return (
     <a
       href={url}
@@ -731,18 +705,9 @@ function LinkCard({
         WebkitBackdropFilter: 'blur(20px)',
       }}
     >
-      {favicon && (
-        /* eslint-disable-next-line @next/next/no-img-element */
-        <img src={favicon} alt="" className="w-5 h-5 rounded-sm" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-      )}
       <span className="text-[11px] font-mono tracking-wider text-white/50 text-center truncate max-w-full">
-        {displayTitle !== hostname ? displayTitle : hostname}
+        {displayTitle !== hostname ? displayTitle : ''}
       </span>
-      {displayTitle !== hostname && (
-        <span className="text-[9px] font-mono tracking-wider text-white/30">
-          {hostname}
-        </span>
-      )}
     </a>
   )
 }
