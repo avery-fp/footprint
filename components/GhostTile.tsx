@@ -153,7 +153,7 @@ export default function GhostTile({
   // Blurred thumbnail bg + iframe reveal on play
   // ════════════════════════════════════════
   const iframeSrc = platform === 'youtube'
-    ? `https://www.youtube.com/embed/${media_id}?autoplay=1&modestbranding=1&playsinline=1&rel=0`
+    ? `https://www.youtube.com/embed/${media_id}?autoplay=1&controls=0&rel=0&iv_load_policy=3&playsinline=1`
     : platform === 'vimeo'
     ? `https://player.vimeo.com/video/${media_id}?title=0&byline=0&portrait=0&autoplay=1`
     : undefined
@@ -196,6 +196,21 @@ export default function GhostTile({
             loading="lazy"
             onLoad={() => setIframeLoaded(true)}
           />
+          {/* Cover YouTube watermark logo — bottom-right corner */}
+          {platform === 'youtube' && (
+            <div
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                right: 0,
+                width: 50,
+                height: 40,
+                background: '#000',
+                zIndex: 2,
+                pointerEvents: 'auto',
+              }}
+            />
+          )}
         </div>
       )}
     </div>

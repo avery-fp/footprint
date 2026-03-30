@@ -47,7 +47,6 @@ function enforceEmbedDarkMode(url: string, provider: string): string {
   const sep = url.includes('?') ? '&' : '?'
   switch (provider) {
     case 'youtube':
-      if (!url.includes('color=white')) return url + sep + 'color=white'
       return url
     case 'spotify':
       if (!url.includes('theme=0')) return url + sep + 'theme=0'
@@ -141,7 +140,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   if (content.type === 'youtube' && youtubeId && !iframeFailed) {
     // isExpanded: skip facade, render iframe immediately (used in lightbox)
     if (isExpanded) {
-      const ytSrc = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&modestbranding=1&rel=0&color=white`
+      const ytSrc = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&controls=0&rel=0&iv_load_policy=3&playsinline=1`
       return (
         <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative bg-black">
           <iframe
@@ -152,6 +151,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
           />
+          {/* Cover YouTube watermark logo */}
+          <div style={{ position: 'absolute', bottom: 0, right: 0, width: 50, height: 40, background: '#000', zIndex: 2, pointerEvents: 'auto' }} />
         </div>
       )
     }
@@ -190,7 +191,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       )
     }
     // YouTube activated state — canonical fix
-    const ytSrc = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&modestbranding=1&rel=0&color=white`
+    const ytSrc = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&controls=0&rel=0&iv_load_policy=3&playsinline=1`
     return (
       <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative bg-black">
         <iframe
@@ -201,6 +202,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           allowFullScreen
           referrerPolicy="strict-origin-when-cross-origin"
         />
+        {/* Cover YouTube watermark logo */}
+        <div style={{ position: 'absolute', bottom: 0, right: 0, width: 50, height: 40, background: '#000', zIndex: 2, pointerEvents: 'auto' }} />
       </div>
     )
   }

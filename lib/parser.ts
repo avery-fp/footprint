@@ -137,7 +137,7 @@ function parseYouTube(url: string, match: RegExpMatchArray): ParsedContent {
     title: 'YouTube Video',
     description: null,
     thumbnail_url: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
-    embed_html: `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&modestbranding=1&rel=0&showinfo=0" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy" class="w-full aspect-video rounded-xl"></iframe>`,
+    embed_html: `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&rel=0&iv_load_policy=3&playsinline=1" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy" class="w-full aspect-video rounded-xl"></iframe>`,
   }
 }
 
