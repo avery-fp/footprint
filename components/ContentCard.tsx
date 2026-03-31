@@ -238,7 +238,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             ) : (
               <GlassPlaceholder height={spotifyHeight} />
             )}
-            {/* Cover Spotify logo / "Open in Spotify" attribution — keep above play controls */}
+            {/* Cover Spotify branding — right side (logo/icons) + bottom (attribution) */}
+            <div style={{ position: 'absolute', top: 0, right: 0, width: 60, height: '100%', background: 'linear-gradient(to right, transparent, #181818 40%)', zIndex: 2, pointerEvents: 'auto' }} />
             <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 20, background: '#181818', zIndex: 2, pointerEvents: 'auto' }} />
           </div>
         )

@@ -68,7 +68,7 @@ export interface LayoutConfig {
 export function getLayoutConfig(_mode: LayoutMode): LayoutConfig {
   return {
     gap: 3,
-    tileRadius: 12,
+    tileRadius: 2,
     tileShadow: 'none',
     containerPadding: 0,
   }
