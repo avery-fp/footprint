@@ -115,15 +115,15 @@ export default function GhostTile({
           allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
           loading="lazy"
         />
-        {/* Cover Spotify branding on right side — logo, icons, checkmark */}
+        {/* Cover Spotify logo + icons at far right edge */}
         <div
           style={{
             position: 'absolute',
             top: 0,
             right: 0,
-            width: 100,
+            width: 36,
             height: '100%',
-            background: 'linear-gradient(to right, transparent, #181818 30%)',
+            background: '#181818',
             zIndex: 2,
             pointerEvents: 'auto',
           }}

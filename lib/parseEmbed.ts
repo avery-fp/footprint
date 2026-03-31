@@ -14,6 +14,7 @@ export type EmbedPlatform =
   | 'youtube'
   | 'soundcloud'
   | 'vimeo'
+  | 'twitch'
   | 'bandcamp'
   | 'google-maps'
   | 'codepen'
@@ -82,6 +83,44 @@ function parseVimeo(url: string): EmbedResult | null {
     aspectRatio: '16/9',
     tier: 1,
   }
+}
+
+function parseTwitch(url: string): EmbedResult | null {
+  // Clips: clips.twitch.tv/SLUG or twitch.tv/USER/clip/SLUG
+  const clipMatch = url.match(/clips\.twitch\.tv\/([a-zA-Z0-9_-]+)/) ||
+    url.match(/twitch\.tv\/[a-zA-Z0-9_]+\/clip\/([a-zA-Z0-9_-]+)/)
+  if (clipMatch) {
+    return {
+      platform: 'twitch',
+      embedUrl: `https://clips.twitch.tv/embed?clip=${clipMatch[1]}&parent=${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}&autoplay=false`,
+      height: 0,
+      aspectRatio: '16/9',
+      tier: 1,
+    }
+  }
+  // Videos: twitch.tv/videos/ID
+  const videoMatch = url.match(/twitch\.tv\/videos\/(\d+)/)
+  if (videoMatch) {
+    return {
+      platform: 'twitch',
+      embedUrl: `https://player.twitch.tv/?video=${videoMatch[1]}&parent=${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}&autoplay=false`,
+      height: 0,
+      aspectRatio: '16/9',
+      tier: 1,
+    }
+  }
+  // Live channels: twitch.tv/CHANNEL
+  const channelMatch = url.match(/twitch\.tv\/([a-zA-Z0-9_]{2,25})$/)
+  if (channelMatch) {
+    return {
+      platform: 'twitch',
+      embedUrl: `https://player.twitch.tv/?channel=${channelMatch[1]}&parent=${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}&autoplay=false`,
+      height: 0,
+      aspectRatio: '16/9',
+      tier: 1,
+    }
+  }
+  return null
 }
 
 // ── TIER 2 — work usually, fallback if not ──────────────────
@@ -155,6 +194,7 @@ const PARSERS: Array<(url: string) => EmbedResult | null> = [
   parseYouTube,
   parseSoundCloud,
   parseVimeo,
+  parseTwitch,
   // Tier 2
   parseBandcamp,
   parseGoogleMaps,
