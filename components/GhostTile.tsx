@@ -172,22 +172,44 @@ export default function GhostTile({
     : undefined
 
   return (
-    <div className="w-full h-full relative overflow-hidden fp-tile" style={{ borderRadius: 'inherit' }}>
+    <div
+      className="w-full h-full relative fp-tile group"
+      style={{
+        borderRadius: 'inherit',
+        overflow: 'hidden',
+        // clip-path clips cross-origin iframes (overflow:hidden alone doesn't)
+        clipPath: 'inset(0 round var(--fp-tile-radius, 0px))',
+      }}
+    >
       <ThumbnailBg src={thumbUrl} />
 
       <div
-        className="absolute inset-0 flex flex-col items-center justify-center gap-3 cursor-pointer"
+        className="absolute inset-0 flex items-center justify-center cursor-pointer"
         style={{
-          background: 'linear-gradient(to bottom, transparent 30%, rgba(0,0,0,0.5) 100%)',
           opacity: isPlaying ? 0 : 1,
           pointerEvents: isPlaying ? 'none' : 'auto',
-          transition: 'opacity 0.25s ease',
+          transition: 'opacity 0.4s ease',
           zIndex: 2,
         }}
         onClick={handlePlay}
       >
-        <PlayIcon />
-        <TitleBlock title={title} artist={artist} />
+        <div
+          className="w-11 h-11 rounded-full flex items-center justify-center group-hover:scale-110 transition-all duration-300"
+          style={{
+            background: 'rgba(0,0,0,0.35)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            opacity: 0.45,
+            transition: 'opacity 0.3s ease, transform 0.3s ease',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+          onMouseLeave={e => (e.currentTarget.style.opacity = '0.45')}
+        >
+          <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+        </div>
       </div>
 
       {isPlaying && iframeSrc && (
@@ -245,7 +267,7 @@ function ThumbnailBg({ src }: { src: string | null }) {
         src={src}
         alt=""
         className="absolute inset-0 w-full h-full object-cover"
-        style={{ filter: 'brightness(0.85)' }}
+        style={{}}
         loading="lazy"
         decoding="async"
       />

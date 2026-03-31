@@ -193,8 +193,8 @@ export default function PublishPage() {
             you're live
           </p>
 
-          <p className="font-mono text-white/40 text-[13px] mb-8">
-            footprint.onl/{finalSlug}/fp
+          <p className="font-mono text-[13px] mb-8">
+            <span className="text-white/40">footprint.onl/</span><span className="text-white/90">{finalSlug}</span>
           </p>
 
           <button

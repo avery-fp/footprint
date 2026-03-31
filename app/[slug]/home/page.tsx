@@ -1738,6 +1738,13 @@ export default function EditPage() {
             </div>
           )}
         </div>
+        {/* URL bar — greyed when unpublished, full white when live */}
+        <div className="px-4 pb-2">
+          <p className="font-mono text-[12px] tracking-[0.01em] transition-opacity duration-700">
+            <span className="text-white/20">footprint.onl/</span>
+            <span className={isPublished ? 'text-white/70' : 'text-white/[0.15]'}>{slug}</span>
+          </p>
+        </div>
         {/* Room pills */}
         <div className="flex items-center gap-3 px-4 pb-3 overflow-x-auto hide-scrollbar">
           <button
@@ -2267,33 +2274,45 @@ export default function EditPage() {
         )}
       </div>
 
-      {/* ═══ GO LIVE — full page takeover ═══ */}
+      {/* ═══ GO LIVE — iOS app-download sheet ═══ */}
       {showGoLive && !isPublished && (
-        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center birth-takeover">
-          {/* Dismiss zone */}
-          <div className="absolute inset-0" onClick={() => !goLiveLoading && setShowGoLive(false)} />
+        <div className="fixed inset-0 z-[100] flex items-end justify-center">
+          {/* Backdrop — blurred grid visible behind */}
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-xl"
+            style={{ animation: 'birth-fade-up 0.3s ease-out' }}
+            onClick={() => !goLiveLoading && setShowGoLive(false)}
+          />
 
-          <div className="relative z-10 text-center px-6" style={{ animation: 'birth-fade-up 0.6s ease-out' }}>
-            {/* Serial preview — huge, faint */}
+          {/* Sheet — rises from bottom */}
+          <div
+            className="relative z-10 w-full max-w-md mx-auto rounded-t-3xl border-t border-white/[0.08] px-8 pt-10 pb-10"
+            style={{
+              background: 'rgba(10, 10, 10, 0.85)',
+              backdropFilter: 'blur(40px)',
+              WebkitBackdropFilter: 'blur(40px)',
+              animation: 'go-live-sheet 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+              paddingBottom: 'calc(40px + env(safe-area-inset-bottom, 0px))',
+            }}
+          >
+            {/* Drag handle */}
+            <div className="w-8 h-0.5 bg-white/20 rounded-full mx-auto mb-10" />
+
+            {/* Username as "app name" */}
+            <p className="text-center font-mono text-white/90 tracking-[-0.01em] mb-1"
+              style={{ fontSize: 'clamp(20px, 5vw, 26px)' }}
+            >
+              footprint.onl/<span className="text-white">{slug}</span>
+            </p>
+
+            {/* Serial preview — faint */}
             {nextSerial && (
-              <p className="font-mono text-white/[0.08] tracking-[0.3em] mb-10"
-                style={{ fontSize: 'clamp(48px, 12vw, 80px)', fontWeight: 300 }}
-              >
-                {nextSerial.toString().padStart(4, '0')}
+              <p className="text-center font-mono text-white/[0.12] text-[11px] tracking-[0.2em] uppercase mt-2">
+                FP #{nextSerial.toLocaleString()}
               </p>
             )}
 
-            {/* URL */}
-            <p className="font-mono text-white/30 text-[13px] tracking-[0.02em] mb-2">
-              footprint.onl/{slug}
-            </p>
-
-            {/* Price — quiet */}
-            <p className="text-white/50 text-[13px] font-mono mb-12">
-              $10
-            </p>
-
-            {/* CTA */}
+            {/* CTA — "yours →" */}
             <button
               onClick={async () => {
                 setGoLiveLoading(true)
@@ -2321,20 +2340,15 @@ export default function EditPage() {
                 }
               }}
               disabled={goLiveLoading}
-              className="px-8 py-3 rounded-full bg-white text-black text-[13px] font-medium hover:bg-white/90 transition-all disabled:opacity-30"
+              className="w-full mt-10 py-4 rounded-2xl bg-white text-black text-[15px] font-medium hover:bg-white/90 transition-all disabled:opacity-30 active:scale-[0.98]"
             >
-              {goLiveLoading ? '...' : 'go live'}
+              {goLiveLoading ? '...' : 'yours \u2192'}
             </button>
 
-            <div className="mt-6">
-              <button
-                onClick={() => setShowGoLive(false)}
-                className="text-white/10 text-[11px] font-mono hover:text-white/25 transition-colors"
-                disabled={goLiveLoading}
-              >
-                back
-              </button>
-            </div>
+            {/* Price — barely there */}
+            <p className="text-center text-white/20 text-[11px] font-mono mt-4 tracking-wide">
+              $10 · one time · yours forever
+            </p>
           </div>
         </div>
       )}
