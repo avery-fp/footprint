@@ -14,8 +14,8 @@ import Image from 'next/image'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import GiftModal from '@/components/GiftModal'
 import LayoutToggle from '@/components/LayoutToggle'
-import { type RoomLayout } from '@/lib/grid-layouts'
-import { type LayoutMode, getLayoutConfig } from '@/lib/layout-engine'
+import { type RoomLayout, getGridLayout } from '@/lib/grid-layouts'
+import { getLayoutConfig } from '@/lib/layout-engine'
 import {
   resolveAspect as resolveAspectShared,
   isVideoTile as isVideoTileShared,
@@ -404,7 +404,6 @@ export default function EditPage() {
   const publicLayout = 'home' as const
   const [serialNumber, setSerialNumber] = useState<number | null>(null)
   const [isPublished, setIsPublished] = useState(false)
-  const layoutMode: LayoutMode = 'grid'
   const [statusToast, setStatusToast] = useState<string | null>(null)
   const [pasteUrl, setPasteUrl] = useState('')
   const [thoughtText, setThoughtText] = useState('')
@@ -1625,7 +1624,7 @@ export default function EditPage() {
               {activeRoomId && (
                 <>
                   <LayoutToggle
-                    current={(rooms.find(r => r.id === activeRoomId)?.layout === 'editorial' ? 'editorial' : 'grid') as RoomLayout}
+                    current={(() => { const l = rooms.find(r => r.id === activeRoomId)?.layout; return (l === 'editorial' ? 'mix' : (['grid', 'mix', 'rail'] as const).includes(l as RoomLayout) ? l as RoomLayout : 'grid') })()}
                     onToggle={(next) => handleToggleLayout(activeRoomId, next)}
                   />
                   <button
@@ -1812,8 +1811,8 @@ export default function EditPage() {
                 transition={{ duration: 0.35, ease: 'easeInOut' }}
                 className="grid grid-cols-2 md:grid-cols-4"
                 style={{
-                gap: `${getLayoutConfig(layoutMode).gap}px`,
-                '--fp-tile-radius': `${getLayoutConfig(layoutMode).tileRadius}px`,
+                gap: getGridLayout(rooms.find(r => r.id === activeRoomId)?.layout).gap,
+                '--fp-tile-radius': `${getLayoutConfig('grid').tileRadius}px`,
                 gridAutoRows: publicLayout === 'home' ? 'auto' : undefined,
                 gridAutoFlow: 'dense',
                 opacity: gridFade === 'out' ? 0 : 1,
