@@ -36,7 +36,7 @@ export function SortableCard({ id, content, onDelete, isDragging }: SortableCard
     <div
       ref={setNodeRef}
       style={style}
-      className={`relative group ${isOver ? 'ring-2 ring-white/30 rounded-xl' : ''} ${isActive ? 'scale-[0.98]' : ''}`}
+      className={`relative group ${isOver ? 'ring-2 ring-white/30 rounded-sm' : ''} ${isActive ? 'scale-[0.98]' : ''}`}
     >
       {/* The actual content card - receives clicks normally */}
       <ContentCard content={content} />

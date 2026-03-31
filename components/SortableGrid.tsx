@@ -156,7 +156,7 @@ export default function SortableGrid({ items, onReorder, onDelete }: SortableGri
         easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.18)',
       }}>
         {activeItem ? (
-          <div className="opacity-95 rotate-2 scale-[1.02] shadow-2xl shadow-black/50 ring-2 ring-white/20 rounded-xl">
+          <div className="opacity-95 rotate-2 scale-[1.02] shadow-2xl shadow-black/50 ring-2 ring-white/20 rounded-sm">
             <ContentCard content={activeItem} />
           </div>
         ) : null}

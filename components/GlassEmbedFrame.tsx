@@ -12,7 +12,7 @@ import { useState } from 'react'
 // ── Glass styling constant ──────────────────────────────────
 
 export const GLASS_STYLE: React.CSSProperties = {
-  borderRadius: '16px',
+  borderRadius: 'inherit',
   background: 'rgba(255, 255, 255, 0.06)',
   backdropFilter: 'blur(22px) saturate(140%)',
   WebkitBackdropFilter: 'blur(22px) saturate(140%)',

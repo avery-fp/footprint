@@ -106,7 +106,7 @@ export default function GhostTile({
     return (
       <div
         className="w-full fp-tile overflow-hidden"
-        style={{ borderRadius: 12, height: 80, position: 'relative' }}
+        style={{ borderRadius: 'inherit', height: 80, position: 'relative' }}
       >
         <iframe
           src={spotifyEmbedSrc}
@@ -115,15 +115,15 @@ export default function GhostTile({
           allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
           loading="lazy"
         />
-        {/* Cover Spotify logo / attribution at bottom-right */}
+        {/* Cover Spotify branding on right side — logo, icons, checkmark */}
         <div
           style={{
             position: 'absolute',
-            bottom: 0,
+            top: 0,
             right: 0,
-            width: 80,
-            height: 24,
-            background: '#181818',
+            width: 100,
+            height: '100%',
+            background: 'linear-gradient(to right, transparent, #181818 30%)',
             zIndex: 2,
             pointerEvents: 'auto',
           }}
