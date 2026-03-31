@@ -47,7 +47,6 @@ function enforceEmbedDarkMode(url: string, provider: string): string {
   const sep = url.includes('?') ? '&' : '?'
   switch (provider) {
     case 'youtube':
-      if (!url.includes('color=white')) return url + sep + 'color=white'
       return url
     case 'spotify':
       if (!url.includes('theme=0')) return url + sep + 'theme=0'
@@ -141,7 +140,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   if (content.type === 'youtube' && youtubeId && !iframeFailed) {
     // isExpanded: skip facade, render iframe immediately (used in lightbox)
     if (isExpanded) {
-      const ytSrc = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&modestbranding=1&rel=0&color=white`
+      const ytSrc = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&controls=0&rel=0&iv_load_policy=3&playsinline=1`
       return (
         <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative bg-black">
           <iframe
@@ -152,6 +151,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
           />
+          {/* Block clicks on YouTube watermark area */}
+          <div style={{ position: 'absolute', bottom: 0, right: 0, width: 50, height: 40, zIndex: 2, pointerEvents: 'auto' }} />
         </div>
       )
     }
@@ -179,8 +180,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               }
             }}
           />
-          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-            <div className="w-10 h-10 rounded-full bg-black/50 flex items-center justify-center group-hover:scale-110 transition-transform">
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center opacity-60 group-hover:opacity-100 group-hover:scale-110 transition-all duration-200">
               <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M8 5v14l11-7z"/>
               </svg>
@@ -190,7 +191,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       )
     }
     // YouTube activated state — canonical fix
-    const ytSrc = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&modestbranding=1&rel=0&color=white`
+    const ytSrc = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&controls=0&rel=0&iv_load_policy=3&playsinline=1`
     return (
       <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative bg-black">
         <iframe
@@ -201,6 +202,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           allowFullScreen
           referrerPolicy="strict-origin-when-cross-origin"
         />
+        {/* Block clicks on YouTube watermark area */}
+        <div style={{ position: 'absolute', bottom: 0, right: 0, width: 50, height: 40, zIndex: 2, pointerEvents: 'auto' }} />
       </div>
     )
   }
@@ -221,7 +224,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           <div
             ref={containerRef}
             className="w-full fp-tile overflow-hidden rounded-[inherit]"
-            style={{ height: `${spotifyHeight}px` }}
+            style={{ height: `${spotifyHeight}px`, position: 'relative' }}
           >
             {isInView ? (
               <GlassEmbedFrame
@@ -235,6 +238,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             ) : (
               <GlassPlaceholder height={spotifyHeight} />
             )}
+            {/* Cover Spotify logo / "Open in Spotify" attribution — keep above play controls */}
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 20, background: '#181818', zIndex: 2, pointerEvents: 'auto' }} />
           </div>
         )
       }
@@ -254,12 +259,12 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           onClick={handleActivate}
         >
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-[#ff5500]/80 flex items-center justify-center group-hover:scale-105 transition-transform">
+            <div className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm border border-white/10 flex items-center justify-center group-hover:scale-105 transition-transform">
               <svg className="w-3 h-3 text-white/80 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M8 5v14l11-7z"/>
               </svg>
             </div>
-            <p className="text-white/40 text-[10px] font-medium truncate max-w-[80%]">{content.title || 'SoundCloud'}</p>
+            <p className="text-white/40 text-[10px] font-medium truncate max-w-[80%]">{content.title || ''}</p>
           </div>
         </div>
       )
@@ -271,7 +276,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         <div
           ref={containerRef}
           className="w-full fp-tile overflow-hidden"
-          style={{ height: `${scHeight}px` }}
+          style={{ height: `${scHeight}px`, position: 'relative' }}
         >
           <GlassEmbedFrame
             src={scSrc}
@@ -280,6 +285,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             sandbox="allow-scripts allow-same-origin allow-popups"
             onError={() => setIframeFailed(true)}
           />
+          {/* Cover SoundCloud logo / branding at bottom */}
+          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 28, background: '#000', zIndex: 2, pointerEvents: 'auto' }} />
         </div>
       )
     }
@@ -288,8 +295,12 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       return (
         <div
           className={`w-full ${aspectClass} fp-tile overflow-hidden bg-black [&_iframe]:!h-full`}
-          dangerouslySetInnerHTML={{ __html: content.embed_html }}
-        />
+          style={{ position: 'relative' }}
+        >
+          <div dangerouslySetInnerHTML={{ __html: content.embed_html }} className="w-full h-full" />
+          {/* Cover SoundCloud branding in legacy embed_html */}
+          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 28, background: '#000', zIndex: 2, pointerEvents: 'auto' }} />
+        </div>
       )
     }
   }
@@ -314,6 +325,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           ) : (
             <GlassPlaceholder aspectClass={aspectClass || 'aspect-video'} />
           )}
+          {/* Defensive click-blocker over Vimeo badge area */}
+          <div style={{ position: 'absolute', bottom: 0, right: 0, width: 50, height: 36, zIndex: 2, pointerEvents: 'auto' }} />
         </div>
       )
     }
@@ -329,6 +342,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           ) : (
             <GlassPlaceholder aspectClass={aspectClass || 'aspect-video'} />
           )}
+          {/* Cover Vimeo badge in legacy embed_html */}
+          <div style={{ position: 'absolute', bottom: 0, right: 0, width: 50, height: 36, zIndex: 2, pointerEvents: 'auto' }} />
         </div>
       )
     }
@@ -453,9 +468,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             quality={90}
             onLoad={() => setIsLoaded(true)}
           />
-          <span className="absolute bottom-2 left-2.5 text-[9px] font-mono tracking-wider text-white/40">
-            {content.type}
-          </span>
         </a>
       )
     }
@@ -464,12 +476,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         href={content.url}
         target="_blank"
         rel="noopener noreferrer"
-        className={`block fp-tile overflow-hidden ${aspectClass} fp-surface flex items-center justify-center`}
-      >
-        <span className="text-[10px] font-mono tracking-[0.15em] uppercase opacity-40">
-          {content.type}
-        </span>
-      </a>
+        className={`block fp-tile overflow-hidden ${aspectClass} fp-surface`}
+      />
     )
   }
 
@@ -490,8 +498,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }
 
   // ════════════════════════════════════════
-  // LINK CARD — beautiful fallback for everything else
-  // Favicon + title + domain. Works for any URL on earth.
+  // LINK CARD — clean fallback for everything else
   // ════════════════════════════════════════
   if (content.thumbnail_url) {
     return (
@@ -513,10 +520,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           onLoad={() => setIsLoaded(true)}
           onError={() => setIsLoaded(true)}
         />
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/40 to-transparent h-10" />
-        <span className="absolute bottom-2 left-2.5 text-[9px] font-mono tracking-wider text-white/50">
-          {hostname}
-        </span>
       </a>
     )
   }
@@ -586,13 +589,16 @@ function Tier2EmbedTile({
       ) : (
         <GlassPlaceholder height={embed.aspectRatio ? undefined : fallbackHeight} />
       )}
+      {/* Cover Bandcamp logo — top-left corner */}
+      {embed.platform === 'bandcamp' && (
+        <div style={{ position: 'absolute', top: 0, left: 0, width: 120, height: 28, background: '#000', zIndex: 2, pointerEvents: 'auto' }} />
+      )}
     </div>
   )
 }
 
 // ════════════════════════════════════════════════════════════
 // LINK CARD — frosted glass with OG metadata
-// Favicon + title + domain. The universal fallback.
 // ════════════════════════════════════════════════════════════
 
 function LinkCard({
@@ -610,7 +616,6 @@ function LinkCard({
 }) {
   const [meta, setMeta] = useState<{
     title?: string | null
-    favicon?: string | null
     image?: string | null
   } | null>(null)
   const [imageLoaded, setImageLoaded] = useState(false)
@@ -630,7 +635,6 @@ function LinkCard({
   }, [isInView, url])
 
   const displayTitle = meta?.title || initialTitle || hostname
-  const favicon = meta?.favicon
   const ogImage = meta?.image
 
   // If we got an OG image, show it as visual tile
@@ -650,16 +654,6 @@ function LinkCard({
           className="w-full h-full object-cover"
           loading="lazy"
         />
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent h-16" />
-        <div className="absolute bottom-2.5 left-3 right-3 flex items-center gap-2">
-          {favicon && (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={favicon} alt="" className="w-4 h-4 rounded-sm flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-          )}
-          <span className="text-[10px] font-mono tracking-wider text-white/70 truncate">
-            {hostname}
-          </span>
-        </div>
       </a>
     )
   }
@@ -688,24 +682,15 @@ function LinkCard({
           onError={() => setMeta(m => m ? { ...m, image: null } : m)}
         />
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4">
-          {favicon && (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={favicon} alt="" className="w-5 h-5 rounded-sm" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-          )}
           <span className="text-[11px] font-mono tracking-wider text-white/50 text-center truncate max-w-full">
-            {displayTitle !== hostname ? displayTitle : hostname}
+            {displayTitle !== hostname ? displayTitle : ''}
           </span>
-          {displayTitle !== hostname && (
-            <span className="text-[9px] font-mono tracking-wider text-white/30">
-              {hostname}
-            </span>
-          )}
         </div>
       </a>
     )
   }
 
-  // Text-only link card — frosted glass, favicon + title + domain
+  // Text-only link card — frosted glass, title only
   return (
     <a
       href={url}
@@ -718,18 +703,9 @@ function LinkCard({
         WebkitBackdropFilter: 'blur(20px)',
       }}
     >
-      {favicon && (
-        /* eslint-disable-next-line @next/next/no-img-element */
-        <img src={favicon} alt="" className="w-5 h-5 rounded-sm" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-      )}
       <span className="text-[11px] font-mono tracking-wider text-white/50 text-center truncate max-w-full">
-        {displayTitle !== hostname ? displayTitle : hostname}
+        {displayTitle !== hostname ? displayTitle : ''}
       </span>
-      {displayTitle !== hostname && (
-        <span className="text-[9px] font-mono tracking-wider text-white/30">
-          {hostname}
-        </span>
-      )}
     </a>
   )
 }

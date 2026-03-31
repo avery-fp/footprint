@@ -220,6 +220,11 @@ input:-webkit-autofill:focus {
   display: none !important;
 }
 
+/* ═══ Brand suppression — ensure iframes never bleed outside tile ═══ */
+.tile-container iframe {
+  clip-path: inset(0);
+}
+
 /* Tile size transitions — smooth grid reflow via framer-motion layout */
 .tile-container {
   transition: box-shadow 0.3s ease;
