@@ -238,8 +238,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             ) : (
               <GlassPlaceholder height={spotifyHeight} />
             )}
-            {/* Cover Spotify logo / "Open in Spotify" attribution */}
-            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 32, background: '#181818', zIndex: 2, pointerEvents: 'auto' }} />
+            {/* Cover Spotify logo / "Open in Spotify" attribution — keep above play controls */}
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 20, background: '#181818', zIndex: 2, pointerEvents: 'auto' }} />
           </div>
         )
       }
@@ -264,7 +264,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 <path d="M8 5v14l11-7z"/>
               </svg>
             </div>
-            <p className="text-white/40 text-[10px] font-medium truncate max-w-[80%]">{content.title || 'SoundCloud'}</p>
+            <p className="text-white/40 text-[10px] font-medium truncate max-w-[80%]">{content.title || ''}</p>
           </div>
         </div>
       )
@@ -295,8 +295,12 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       return (
         <div
           className={`w-full ${aspectClass} fp-tile overflow-hidden bg-black [&_iframe]:!h-full`}
-          dangerouslySetInnerHTML={{ __html: content.embed_html }}
-        />
+          style={{ position: 'relative' }}
+        >
+          <div dangerouslySetInnerHTML={{ __html: content.embed_html }} className="w-full h-full" />
+          {/* Cover SoundCloud branding in legacy embed_html */}
+          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 28, background: '#000', zIndex: 2, pointerEvents: 'auto' }} />
+        </div>
       )
     }
   }
@@ -338,6 +342,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           ) : (
             <GlassPlaceholder aspectClass={aspectClass || 'aspect-video'} />
           )}
+          {/* Cover Vimeo badge in legacy embed_html */}
+          <div style={{ position: 'absolute', bottom: 0, right: 0, width: 50, height: 36, zIndex: 2, pointerEvents: 'auto' }} />
         </div>
       )
     }
@@ -470,12 +476,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         href={content.url}
         target="_blank"
         rel="noopener noreferrer"
-        className={`block fp-tile overflow-hidden ${aspectClass} fp-surface flex items-center justify-center`}
-      >
-        <span className="text-[10px] font-mono tracking-[0.15em] uppercase opacity-40">
-          &mdash;
-        </span>
-      </a>
+        className={`block fp-tile overflow-hidden ${aspectClass} fp-surface`}
+      />
     )
   }
 
@@ -496,8 +498,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }
 
   // ════════════════════════════════════════
-  // LINK CARD — beautiful fallback for everything else
-  // Favicon + title + domain. Works for any URL on earth.
+  // LINK CARD — clean fallback for everything else
   // ════════════════════════════════════════
   if (content.thumbnail_url) {
     return (
@@ -598,7 +599,6 @@ function Tier2EmbedTile({
 
 // ════════════════════════════════════════════════════════════
 // LINK CARD — frosted glass with OG metadata
-// Favicon + title + domain. The universal fallback.
 // ════════════════════════════════════════════════════════════
 
 function LinkCard({
@@ -616,7 +616,6 @@ function LinkCard({
 }) {
   const [meta, setMeta] = useState<{
     title?: string | null
-    favicon?: string | null
     image?: string | null
   } | null>(null)
   const [imageLoaded, setImageLoaded] = useState(false)
@@ -636,7 +635,6 @@ function LinkCard({
   }, [isInView, url])
 
   const displayTitle = meta?.title || initialTitle || hostname
-  const favicon = meta?.favicon
   const ogImage = meta?.image
 
   // If we got an OG image, show it as visual tile
