@@ -24,6 +24,16 @@ module.exports = {
     'md:row-span-2',
     'md:row-span-3',
     'md:row-span-4',
+    // rail layout
+    'flex-row',
+    'overflow-x-auto',
+    'snap-x',
+    'snap-mandatory',
+    'snap-start',
+    'flex-shrink-0',
+    'gap-2',
+    'gap-5',
+    'pb-4',
   ],
   theme: {
     extend: {

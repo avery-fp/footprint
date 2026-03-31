@@ -9,7 +9,7 @@ import { RemoveBubble } from '@/components/RemoveBubble'
 import { RolodexDrawer } from '@/components/RolodexDrawer'
 import FloatingCtaBar from '@/components/FloatingCtaBar'
 import { getGridLayout } from '@/lib/grid-layouts'
-import { getGridClass, resolveAspect, isVideoTile } from '@/lib/media/aspect'
+import { getGridClass, resolveAspect } from '@/lib/media/aspect'
 import {
   DndContext,
   closestCenter,
@@ -227,12 +227,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   }
 
   // Sortable tile wrapper for owner drag
-  function SortableTileWrapper({ item, idx, children, className }: { item: any; idx: number; children: React.ReactNode; className?: string }) {
+  function SortableTileWrapper({ item, idx, children, className, style: extraStyle }: { item: any; idx: number; children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
     const style = {
       transform: CSS.Transform.toString(transform),
       transition: transition || 'transform 200ms cubic-bezier(0.25, 1, 0.5, 1)',
       opacity: isDragging ? 0.4 : 1,
+      ...extraStyle,
     }
     return (
       <div ref={setNodeRef} style={style} className={className} {...attributes} {...listeners}>
@@ -249,24 +250,77 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const activeRoom = activeRoomId ? visibleRooms.find(r => r.id === activeRoomId) : null
   const roomLayout = activeRoom?.layout || 'grid'
   const layoutConfig = getGridLayout(roomLayout)
-  const isEditorial = roomLayout === 'editorial'
+  const isMix = roomLayout === 'mix' || roomLayout === 'editorial'
+  const isRail = layoutConfig.isRail === true
   const displayContent = isOwner ? localContent : content
 
-  const gridInner = (
+  const fadeStyle = {
+    opacity: roomFade === 'out' ? 0 : 1,
+    transform: roomFade === 'out' ? 'translateY(6px)' : roomFade === 'in' ? 'translateY(-6px)' : 'translateY(0)',
+    transition: 'opacity 250ms ease-out, transform 350ms ease-out',
+  }
+
+  const gridInner = isRail ? (
+    // ── RAIL MODE: horizontal snap scroll ──
+    <div
+      className={layoutConfig.containerClass}
+      style={{
+        scrollSnapType: 'x mandatory',
+        WebkitOverflowScrolling: 'touch' as any,
+        paddingLeft: '12px',
+        paddingRight: '12px',
+        ...fadeStyle,
+      }}
+    >
+      {displayContent.map((item: any, idx: number) => {
+        const tileInner = (
+          <div
+            className="relative w-full h-full overflow-hidden fp-tile-hover rounded-2xl"
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)' }}
+          >
+            <UnifiedTile
+              item={item}
+              index={idx}
+              size={1}
+              aspect="wide"
+              mode="public"
+              layout={roomLayout}
+              isMobile={isMobile}
+            />
+          </div>
+        )
+
+        const railTileClass = `${layoutConfig.tileClass} aspect-[4/3]`
+        const railStyle = { width: 'min(80vw, 340px)' }
+
+        if (isOwner) {
+          return (
+            <SortableTileWrapper key={item.id} item={item} idx={idx} className={railTileClass} style={railStyle}>
+              {tileInner}
+            </SortableTileWrapper>
+          )
+        }
+
+        return (
+          <div key={item.id} className={railTileClass} style={railStyle}>
+            {tileInner}
+          </div>
+        )
+      })}
+    </div>
+  ) : (
+    // ── GRID / MIX MODE: vertical CSS grid ──
     <div
       className={layoutConfig.containerClass}
       style={{
         gridAutoRows: 'auto',
-        gridAutoFlow: isEditorial ? 'dense' : undefined,
-        opacity: roomFade === 'out' ? 0 : 1,
-        transform: roomFade === 'out' ? 'translateY(6px)' : roomFade === 'in' ? 'translateY(-6px)' : 'translateY(0)',
-        transition: 'opacity 250ms ease-out, transform 350ms ease-out',
+        gridAutoFlow: isMix ? 'dense' : undefined,
+        ...fadeStyle,
       }}
     >
       {displayContent.map((item: any, idx: number) => {
         const tileSize = item.size || 1
-        const isVideo = isVideoTile(item.type, item.url)
-        const tileAspect = isEditorial
+        const tileAspect = isMix
           ? resolveAspect(item.aspect, item.type, item.url)
           : 'square'
 
