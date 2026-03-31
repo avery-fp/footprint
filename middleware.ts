@@ -49,7 +49,7 @@ function withSecurityHeaders(response: NextResponse) {
     "connect-src 'self' https://*.supabase.co https://api.stripe.com",
     "object-src 'none'",
     "base-uri 'self'",
-    "form-action 'self'",
+    "form-action 'self' https://*.supabase.co https://appleid.apple.com https://accounts.google.com",
   ].join('; '))
   if (process.env.NODE_ENV === 'production') {
     response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload')
