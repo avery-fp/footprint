@@ -29,7 +29,7 @@ interface GhostTileProps {
   title?: string
   artist?: string
   thumbnail_url?: string
-  size?: number
+
   onPlay?: () => void
 }
 
@@ -40,13 +40,12 @@ export default function GhostTile({
   title,
   artist,
   thumbnail_url,
-  size = 1,
   onPlay,
 }: GhostTileProps) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [iframeLoaded, setIframeLoaded] = useState(false)
   const tileId = useRef(`ghost-${media_id}-${Math.random().toString(36).slice(2, 6)}`)
-  const iframeRef = useRef<HTMLIFrameElement>(null)
+
 
   const archetype = getArchetype(platform, url)
 
@@ -222,7 +221,6 @@ export default function GhostTile({
           }}
         >
           <iframe
-            ref={iframeRef}
             src={iframeSrc}
             className="w-full h-full"
             style={{ border: 'none' }}

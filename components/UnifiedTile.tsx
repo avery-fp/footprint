@@ -184,7 +184,6 @@ export default function UnifiedTile({
           title={item.title || undefined}
           artist={item.artist || undefined}
           thumbnail_url={item.thumbnail_url_hq || item.thumbnail_url || undefined}
-          size={size}
         />
       </div>
     )
