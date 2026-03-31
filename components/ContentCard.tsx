@@ -151,8 +151,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
           />
-          {/* Cover YouTube watermark logo */}
-          <div style={{ position: 'absolute', bottom: 0, right: 0, width: 50, height: 40, background: '#000', zIndex: 2, pointerEvents: 'auto' }} />
+          {/* Block clicks on YouTube watermark area */}
+          <div style={{ position: 'absolute', bottom: 0, right: 0, width: 50, height: 40, zIndex: 2, pointerEvents: 'auto' }} />
         </div>
       )
     }
@@ -180,8 +180,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               }
             }}
           />
-          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-            <div className="w-10 h-10 rounded-full bg-black/50 flex items-center justify-center group-hover:scale-110 transition-transform">
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center opacity-60 group-hover:opacity-100 group-hover:scale-110 transition-all duration-200">
               <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M8 5v14l11-7z"/>
               </svg>
@@ -202,8 +202,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           allowFullScreen
           referrerPolicy="strict-origin-when-cross-origin"
         />
-        {/* Cover YouTube watermark logo */}
-        <div style={{ position: 'absolute', bottom: 0, right: 0, width: 50, height: 40, background: '#000', zIndex: 2, pointerEvents: 'auto' }} />
+        {/* Block clicks on YouTube watermark area */}
+        <div style={{ position: 'absolute', bottom: 0, right: 0, width: 50, height: 40, zIndex: 2, pointerEvents: 'auto' }} />
       </div>
     )
   }
