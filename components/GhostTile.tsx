@@ -186,6 +186,7 @@ export default function GhostTile({
         }}
         onClick={handlePlay}
       >
+        <PlayIcon />
         <TitleBlock title={title} artist={artist} />
       </div>
 
@@ -209,7 +210,7 @@ export default function GhostTile({
             loading="lazy"
             onLoad={() => setIframeLoaded(true)}
           />
-          {/* Cover YouTube watermark logo — bottom-right corner */}
+          {/* Block clicks on YouTube watermark area */}
           {platform === 'youtube' && (
             <div
               style={{
@@ -218,7 +219,6 @@ export default function GhostTile({
                 right: 0,
                 width: 50,
                 height: 40,
-                background: '#000',
                 zIndex: 2,
                 pointerEvents: 'auto',
               }}
