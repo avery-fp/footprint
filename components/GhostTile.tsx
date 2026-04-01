@@ -101,7 +101,7 @@ export default function GhostTile({
     const spotifyMatch = url.match(/open\.spotify\.com\/(track|album|playlist|artist|episode|show)\/([a-zA-Z0-9]+)/)
     const spotifyType = spotifyMatch?.[1] || 'track'
     const spotifyId = spotifyMatch?.[2] || media_id
-    const spotifyEmbedSrc = `https://open.spotify.com/embed/${spotifyType}/${spotifyId}?theme=0&autoplay=1`
+    const spotifyEmbedSrc = `https://open.spotify.com/embed/${spotifyType}/${spotifyId}?theme=0`
 
     return (
       <div
@@ -109,31 +109,38 @@ export default function GhostTile({
         style={{ borderRadius: 'inherit', height: 80, position: 'relative' }}
       >
         <ThumbnailBg src={thumbUrl} />
+        <div
+          className="absolute inset-0"
+          style={{
+            background: 'linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.6) 100%)',
+          }}
+        />
 
-        {/* Play button facade */}
+        {/* Custom UI overlay — always visible */}
         <div
           className="absolute inset-0 flex items-center gap-3 px-4 cursor-pointer"
-          style={{
-            opacity: isPlaying ? 0 : 1,
-            pointerEvents: isPlaying ? 'none' : 'auto',
-            transition: 'opacity 0.4s ease',
-            zIndex: 3,
-          }}
-          onClick={handlePlay}
+          style={{ zIndex: 3 }}
+          onClick={handleToggle}
         >
-          <div
-            className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 group-hover:scale-110 transition-all duration-300"
-            style={{
-              background: 'rgba(0,0,0,0.35)',
-              border: '1px solid rgba(255,255,255,0.12)',
-              backdropFilter: 'blur(8px)',
-              WebkitBackdropFilter: 'blur(8px)',
-            }}
-          >
-            <svg className="w-3.5 h-3.5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M8 5v14l11-7z"/>
-            </svg>
-          </div>
+          {isPlaying ? (
+            <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
+              <WaveformBars />
+            </div>
+          ) : (
+            <div
+              className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 group-hover:scale-110 transition-all duration-300"
+              style={{
+                background: 'rgba(0,0,0,0.35)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                backdropFilter: 'blur(8px)',
+                WebkitBackdropFilter: 'blur(8px)',
+              }}
+            >
+              <svg className="w-3.5 h-3.5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+            </div>
+          )}
           <div className="flex flex-col gap-0.5 min-w-0">
             {title && (
               <p className="truncate" style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.3, fontFamily: "'JetBrains Mono', monospace" }}>
@@ -148,38 +155,14 @@ export default function GhostTile({
           </div>
         </div>
 
-        {/* Spotify iframe — loaded on play */}
+        {/* Hidden Spotify iframe — audio only */}
         {isPlaying && (
-          <div
-            className="absolute inset-0"
-            style={{
-              opacity: iframeLoaded ? 1 : 0,
-              transition: 'opacity 0.25s ease',
-              zIndex: 1,
-            }}
-          >
-            <iframe
-              src={spotifyEmbedSrc}
-              className="w-full"
-              style={{ border: 'none', height: 80, display: 'block' }}
-              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-              loading="lazy"
-              onLoad={() => setIframeLoaded(true)}
-            />
-            {/* Cover Spotify branding on right side */}
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                right: 0,
-                width: 100,
-                height: '100%',
-                background: 'linear-gradient(to right, transparent, #181818 30%)',
-                zIndex: 2,
-                pointerEvents: 'auto',
-              }}
-            />
-          </div>
+          <iframe
+            src={spotifyEmbedSrc}
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: 80, border: 'none', opacity: 0, pointerEvents: 'none' }}
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+            loading="lazy"
+          />
         )}
       </div>
     )
