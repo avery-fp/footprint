@@ -96,99 +96,37 @@ export default function GhostTile({
   )
 
   // ════════════════════════════════════════
-  // SPOTIFY — 80px compact bar
+  // SPOTIFY — compact embed, native controls
   // ════════════════════════════════════════
   if (platform === 'spotify') {
     const spotifyEmbed = parseEmbed(url)
     const spotifyEmbedSrc = spotifyEmbed?.embedUrl || `https://open.spotify.com/embed/track/${media_id}?utm_source=generator&theme=0`
-    const showFacade = !isPlaying || !iframeLoaded
 
     return (
       <div
-        className="w-full fp-tile overflow-hidden group"
+        className="w-full fp-tile overflow-hidden"
         style={{ borderRadius: 'inherit', height: 80, position: 'relative' }}
       >
-        {/* Facade: album art + play button */}
+        <iframe
+          src={spotifyEmbedSrc}
+          className="w-full"
+          style={{ border: 'none', height: 80, display: 'block' }}
+          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+          loading="lazy"
+        />
+        {/* Cover Spotify branding on right side */}
         <div
-          className="absolute inset-0"
           style={{
-            opacity: showFacade ? 1 : 0,
-            pointerEvents: showFacade ? 'auto' : 'none',
-            transition: 'opacity 0.4s ease',
-            zIndex: 3,
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            width: 80,
+            height: '100%',
+            background: 'linear-gradient(to right, transparent, #181818 40%)',
+            zIndex: 2,
+            pointerEvents: 'none',
           }}
-        >
-          <ThumbnailBg src={thumbUrl} />
-          <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.6) 100%)' }} />
-          <div
-            className="absolute inset-0 flex items-center gap-3 px-4 cursor-pointer"
-            onClick={handlePlay}
-          >
-            <div
-              className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 group-hover:scale-110 transition-all duration-300"
-              style={{
-                background: 'rgba(0,0,0,0.35)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                backdropFilter: 'blur(8px)',
-                WebkitBackdropFilter: 'blur(8px)',
-              }}
-            >
-              {isPlaying ? (
-                <WaveformBars />
-              ) : (
-                <svg className="w-3.5 h-3.5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M8 5v14l11-7z"/>
-                </svg>
-              )}
-            </div>
-            <div className="flex flex-col gap-0.5 min-w-0">
-              {title && (
-                <p className="truncate" style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.3, fontFamily: "'JetBrains Mono', monospace" }}>
-                  {title}
-                </p>
-              )}
-              {artist && (
-                <p className="truncate" style={{ fontSize: '9px', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.15em', fontFamily: "'JetBrains Mono', monospace" }}>
-                  {artist}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Spotify embed — fades in once loaded */}
-        {isPlaying && (
-          <div
-            className="absolute inset-0"
-            style={{
-              opacity: iframeLoaded ? 1 : 0,
-              transition: 'opacity 0.25s ease',
-              zIndex: 1,
-            }}
-          >
-            <iframe
-              src={spotifyEmbedSrc}
-              className="w-full"
-              style={{ border: 'none', height: 80, display: 'block' }}
-              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-              loading="lazy"
-              onLoad={() => setIframeLoaded(true)}
-            />
-            {/* Cover Spotify branding on right side */}
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                right: 0,
-                width: 80,
-                height: '100%',
-                background: 'linear-gradient(to right, transparent, #181818 40%)',
-                zIndex: 4,
-                pointerEvents: 'none',
-              }}
-            />
-          </div>
-        )}
+        />
       </div>
     )
   }
