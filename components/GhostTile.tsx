@@ -125,7 +125,7 @@ export default function GhostTile({
             height: '100%',
             background: 'linear-gradient(to right, transparent, #181818 30%)',
             zIndex: 2,
-            pointerEvents: 'auto',
+            pointerEvents: 'none',
           }}
         />
       </div>
