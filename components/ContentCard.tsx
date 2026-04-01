@@ -214,10 +214,36 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   if (content.type === 'spotify') {
     const spotifyInfo = extractSpotifyInfo(content.url)
     if (spotifyInfo) {
-      // Always render inline embed player — tap play inside, music plays
       const embed = parseEmbed(content.url)
+
+      // Facade: album art + play button before activation
+      if (!isActivated) {
+        return (
+          <div
+            ref={containerRef}
+            className={`w-full ${aspectClass || 'aspect-square'} fp-tile overflow-hidden cursor-pointer relative group bg-black`}
+            onClick={handleActivate}
+          >
+            {content.thumbnail_url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={transformImageUrl(content.thumbnail_url)} alt="" className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+            )}
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.6) 100%)' }} />
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm border border-white/10 flex items-center justify-center group-hover:scale-105 transition-transform">
+                <svg className="w-3 h-3 text-white/80 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+              </div>
+              <p className="text-white/40 text-[10px] font-medium truncate max-w-[80%]">{content.title || ''}</p>
+            </div>
+          </div>
+        )
+      }
+
+      // Activated: load the Spotify embed
       if (embed) {
-        const spotifySrc = enforceEmbedDarkMode(embed.embedUrl, 'spotify')
+        const spotifySrc = enforceEmbedDarkMode(embed.embedUrl, 'spotify') + '&autoplay=1'
         const spotifyHeight = embed.height || getAEEmbedHeight('spotify')
 
         return (
