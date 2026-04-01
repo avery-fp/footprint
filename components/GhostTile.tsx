@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { audioManager } from '@/lib/audio-manager'
+import { parseEmbed } from '@/lib/parseEmbed'
 
 // ════════════════════════════════════════
 // GHOST TILE — de-branded media renderer
@@ -98,35 +99,31 @@ export default function GhostTile({
   // SPOTIFY — 80px compact bar
   // ════════════════════════════════════════
   if (platform === 'spotify') {
-    const spotifyMatch = url.match(/open\.spotify\.com\/(track|album|playlist|artist|episode|show)\/([a-zA-Z0-9]+)/)
-    const spotifyType = spotifyMatch?.[1] || 'track'
-    const spotifyId = spotifyMatch?.[2] || media_id
-    const spotifyEmbedSrc = `https://open.spotify.com/embed/${spotifyType}/${spotifyId}?theme=0`
+    const spotifyEmbed = parseEmbed(url)
+    const spotifyEmbedSrc = spotifyEmbed?.embedUrl || `https://open.spotify.com/embed/track/${media_id}?utm_source=generator&theme=0`
+    const showFacade = !isPlaying || !iframeLoaded
 
     return (
       <div
         className="w-full fp-tile overflow-hidden group"
         style={{ borderRadius: 'inherit', height: 80, position: 'relative' }}
       >
-        <ThumbnailBg src={thumbUrl} />
+        {/* Facade: album art + play button */}
         <div
           className="absolute inset-0"
           style={{
-            background: 'linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.6) 100%)',
+            opacity: showFacade ? 1 : 0,
+            pointerEvents: showFacade ? 'auto' : 'none',
+            transition: 'opacity 0.4s ease',
+            zIndex: 3,
           }}
-        />
-
-        {/* Custom UI overlay — always visible */}
-        <div
-          className="absolute inset-0 flex items-center gap-3 px-4 cursor-pointer"
-          style={{ zIndex: 3 }}
-          onClick={handleToggle}
         >
-          {isPlaying ? (
-            <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
-              <WaveformBars />
-            </div>
-          ) : (
+          <ThumbnailBg src={thumbUrl} />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.6) 100%)' }} />
+          <div
+            className="absolute inset-0 flex items-center gap-3 px-4 cursor-pointer"
+            onClick={handlePlay}
+          >
             <div
               className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 group-hover:scale-110 transition-all duration-300"
               style={{
@@ -136,33 +133,61 @@ export default function GhostTile({
                 WebkitBackdropFilter: 'blur(8px)',
               }}
             >
-              <svg className="w-3.5 h-3.5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z"/>
-              </svg>
+              {isPlaying ? (
+                <WaveformBars />
+              ) : (
+                <svg className="w-3.5 h-3.5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+              )}
             </div>
-          )}
-          <div className="flex flex-col gap-0.5 min-w-0">
-            {title && (
-              <p className="truncate" style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.3, fontFamily: "'JetBrains Mono', monospace" }}>
-                {title}
-              </p>
-            )}
-            {artist && (
-              <p className="truncate" style={{ fontSize: '9px', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.15em', fontFamily: "'JetBrains Mono', monospace" }}>
-                {artist}
-              </p>
-            )}
+            <div className="flex flex-col gap-0.5 min-w-0">
+              {title && (
+                <p className="truncate" style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.3, fontFamily: "'JetBrains Mono', monospace" }}>
+                  {title}
+                </p>
+              )}
+              {artist && (
+                <p className="truncate" style={{ fontSize: '9px', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.15em', fontFamily: "'JetBrains Mono', monospace" }}>
+                  {artist}
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Hidden Spotify iframe — audio only */}
+        {/* Spotify embed — fades in once loaded */}
         {isPlaying && (
-          <iframe
-            src={spotifyEmbedSrc}
-            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: 80, border: 'none', opacity: 0, pointerEvents: 'none' }}
-            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-            loading="lazy"
-          />
+          <div
+            className="absolute inset-0"
+            style={{
+              opacity: iframeLoaded ? 1 : 0,
+              transition: 'opacity 0.25s ease',
+              zIndex: 1,
+            }}
+          >
+            <iframe
+              src={spotifyEmbedSrc}
+              className="w-full"
+              style={{ border: 'none', height: 80, display: 'block' }}
+              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+              loading="lazy"
+              onLoad={() => setIframeLoaded(true)}
+            />
+            {/* Cover Spotify branding on right side */}
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                right: 0,
+                width: 80,
+                height: '100%',
+                background: 'linear-gradient(to right, transparent, #181818 40%)',
+                zIndex: 4,
+                pointerEvents: 'none',
+              }}
+            />
+          </div>
         )}
       </div>
     )
