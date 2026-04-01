@@ -216,40 +216,57 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     if (spotifyInfo) {
       const embed = parseEmbed(content.url)
       const spotifySrc = embed ? enforceEmbedDarkMode(embed.embedUrl, 'spotify') : null
+      const spotifyHeight = embed?.height || getAEEmbedHeight('spotify')
 
-      return (
-        <div
-          ref={containerRef}
-          className={`w-full ${aspectClass || 'aspect-square'} fp-tile overflow-hidden cursor-pointer relative group bg-black`}
-          onClick={() => { if (!isActivated) handleActivate() }}
-        >
-          {content.thumbnail_url && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={transformImageUrl(content.thumbnail_url)} alt="" className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
-          )}
-          <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.6) 100%)' }} />
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2" style={{ zIndex: 2 }}>
-            <div className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm border border-white/10 flex items-center justify-center group-hover:scale-105 transition-transform">
-              {isActivated ? (
-                <WaveformBarsCC />
-              ) : (
+      // Facade: album art + play button before activation
+      if (!isActivated) {
+        return (
+          <div
+            ref={containerRef}
+            className={`w-full ${aspectClass || 'aspect-square'} fp-tile overflow-hidden cursor-pointer relative group bg-black`}
+            onClick={handleActivate}
+          >
+            {content.thumbnail_url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={transformImageUrl(content.thumbnail_url)} alt="" className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+            )}
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.6) 100%)' }} />
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm border border-white/10 flex items-center justify-center group-hover:scale-105 transition-transform">
                 <svg className="w-3 h-3 text-white/80 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M8 5v14l11-7z"/>
                 </svg>
-              )}
+              </div>
+              <p className="text-white/40 text-[10px] font-medium truncate max-w-[80%]">{content.title || ''}</p>
             </div>
-            <p className="text-white/40 text-[10px] font-medium truncate max-w-[80%]">{content.title || ''}</p>
           </div>
-          {/* Hidden Spotify iframe — audio only */}
-          {isActivated && spotifySrc && (
-            <iframe
-              src={spotifySrc}
-              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none', opacity: 0, pointerEvents: 'none' }}
-              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-              loading="lazy"
-            />
-          )}
-        </div>
+        )
+      }
+
+      // Activated: show the real Spotify embed with branding covers
+      if (spotifySrc) {
+        return (
+          <div
+            ref={containerRef}
+            className="w-full fp-tile overflow-hidden rounded-[inherit]"
+            style={{ height: `${spotifyHeight}px`, position: 'relative' }}
+          >
+            {isInView ? (
+              <GlassEmbedFrame
+                src={spotifySrc}
+                height={spotifyHeight}
+                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                referrerPolicy="origin"
+                onError={() => setIframeFailed(true)}
+              />
+            ) : (
+              <GlassPlaceholder height={spotifyHeight} />
+            )}
+            {/* Cover Spotify branding — right side (logo/icons) + bottom (attribution) */}
+            <div style={{ position: 'absolute', top: 0, right: 0, width: 60, height: '100%', background: 'linear-gradient(to right, transparent, #181818 40%)', zIndex: 2, pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 20, background: '#181818', zIndex: 2, pointerEvents: 'none' }} />
+          </div>
         )
       }
     }
@@ -716,45 +733,5 @@ function LinkCard({
         {displayTitle !== hostname ? displayTitle : ''}
       </span>
     </a>
-  )
-}
-
-// ── Waveform animation bars (compact, for ContentCard Spotify) ──
-
-const ccBarKeyframes = `
-@keyframes cc-wave-1 { 0%, 100% { height: 20%; } 50% { height: 80%; } }
-@keyframes cc-wave-2 { 0%, 100% { height: 40%; } 50% { height: 60%; } }
-@keyframes cc-wave-3 { 0%, 100% { height: 60%; } 50% { height: 30%; } }
-@keyframes cc-wave-4 { 0%, 100% { height: 30%; } 50% { height: 90%; } }
-@keyframes cc-wave-5 { 0%, 100% { height: 50%; } 50% { height: 40%; } }
-`
-
-function WaveformBarsCC() {
-  const bars = [
-    { animation: 'cc-wave-1 1.2s ease-in-out infinite', delay: '0s' },
-    { animation: 'cc-wave-2 1.0s ease-in-out infinite', delay: '0.1s' },
-    { animation: 'cc-wave-3 0.8s ease-in-out infinite', delay: '0.2s' },
-    { animation: 'cc-wave-4 1.1s ease-in-out infinite', delay: '0.15s' },
-    { animation: 'cc-wave-5 0.9s ease-in-out infinite', delay: '0.05s' },
-  ]
-
-  return (
-    <>
-      <style dangerouslySetInnerHTML={{ __html: ccBarKeyframes }} />
-      <div className="flex items-end gap-[2px]" style={{ height: 14 }}>
-        {bars.map((bar, i) => (
-          <div
-            key={i}
-            style={{
-              width: 2,
-              borderRadius: 1,
-              background: 'rgba(255, 255, 255, 0.5)',
-              animation: bar.animation,
-              animationDelay: bar.delay,
-            }}
-          />
-        ))}
-      </div>
-    </>
   )
 }
