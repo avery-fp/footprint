@@ -51,7 +51,7 @@ function enforceEmbedDarkMode(url: string, provider: string): string {
       if (!url.includes('color=')) return url + sep + 'color=%23000000'
       return url
     case 'vimeo':
-      return url + (url.includes('color=') ? '' : sep + 'color=ffffff')
+      return url + (url.includes('color=') ? '' : sep + 'color=ffffff') + '&autoplay=1&muted=1'
     default:
       return url
   }
@@ -135,7 +135,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   if (content.type === 'youtube' && youtubeId && !iframeFailed) {
     // isExpanded: skip facade, render iframe immediately (used in lightbox)
     if (isExpanded) {
-      const ytSrc = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&controls=0&rel=0&iv_load_policy=3&playsinline=1`
+      const ytSrc = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&controls=1&rel=0&iv_load_policy=3&playsinline=1`
       return (
         <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative bg-black">
           <iframe
@@ -186,7 +186,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       )
     }
     // YouTube activated state — canonical fix
-    const ytSrc = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&controls=0&rel=0&iv_load_policy=3&playsinline=1`
+    const ytSrc = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&controls=1&rel=0&iv_load_policy=3&playsinline=1`
     return (
       <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative bg-black">
         <iframe
