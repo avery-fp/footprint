@@ -297,6 +297,20 @@ input:-webkit-autofill:focus {
   backdrop-filter: blur(8px);
 }
 
+/* ═══ Ghost play button — barely there ═══ */
+.fp-ghost-play {
+  opacity: 0.2;
+}
+
+@media (hover: hover) {
+  .fp-ghost-play {
+    opacity: 0;
+  }
+  .group:hover .fp-ghost-play {
+    opacity: 0.4;
+  }
+}
+
 /* ═══ Sound room — alive tiles ═══ */
 .fp-sound-tile {
   transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.35s ease;

@@ -96,95 +96,81 @@ export default function GhostTile({
   )
 
   // ════════════════════════════════════════
-  // SPOTIFY — de-branded: album art always visible, hidden iframe for audio
+  // SPOTIFY — facade → real embed on tap, branding masked
   // ════════════════════════════════════════
   if (platform === 'spotify') {
     const spotifyEmbed = parseEmbed(url)
     const spotifyEmbedSrc = spotifyEmbed?.embedUrl || `https://open.spotify.com/embed/track/${media_id}?utm_source=generator&theme=0`
 
-    return (
-      <div
-        className="w-full h-full fp-tile overflow-hidden cursor-pointer relative group bg-black"
-        style={{ borderRadius: 'inherit' }}
-        onClick={handleToggle}
-      >
-        {/* Album art — always visible, breathes when playing */}
-        {thumbnail_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={thumbnail_url}
-            alt={title || ''}
-            className="absolute inset-0 w-full h-full object-cover"
-            style={{
-              animation: isPlaying ? 'ghost-breathe 6s ease-in-out infinite' : 'none',
-              transition: 'transform 0.6s ease',
-            }}
-            loading="lazy"
-          />
-        ) : (
-          <div className="absolute inset-0" style={{ background: 'rgba(255,255,255,0.04)' }} />
-        )}
-
-        {/* Play hint — barely there, appears on hover */}
+    // Facade — album art, tap to reveal embed
+    if (!isPlaying) {
+      return (
         <div
-          className="absolute inset-0 flex items-center justify-center"
-          style={{
-            opacity: isPlaying ? 0 : 1,
-            transition: 'opacity 0.3s ease',
-            pointerEvents: 'none',
-            zIndex: 3,
-          }}
+          className="w-full h-full fp-tile overflow-hidden cursor-pointer relative group bg-black"
+          style={{ borderRadius: 'inherit' }}
+          onClick={handlePlay}
         >
-          <div
-            className="w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-40 transition-opacity duration-300"
-            style={{
-              background: 'rgba(255,255,255,0.08)',
-              backdropFilter: 'blur(4px)',
-              WebkitBackdropFilter: 'blur(4px)',
-            }}
-          >
-            <svg className="w-2.5 h-2.5 text-white/70 ml-px" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M8 5v14l11-7z"/>
-            </svg>
+          {thumbnail_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={thumbnail_url}
+              alt={title || ''}
+              className="absolute inset-0 w-full h-full object-cover"
+              loading="lazy"
+            />
+          ) : (
+            <div className="absolute inset-0" style={{ background: 'rgba(255,255,255,0.04)' }} />
+          )}
+
+          {/* Play hint — barely there, appears on hover */}
+          <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 3, pointerEvents: 'none' }}>
+            <div
+              className="fp-ghost-play w-7 h-7 rounded-full flex items-center justify-center transition-opacity duration-300"
+              style={{
+                background: 'rgba(255,255,255,0.08)',
+                backdropFilter: 'blur(4px)',
+                WebkitBackdropFilter: 'blur(4px)',
+              }}
+            >
+              <svg className="w-2.5 h-2.5 text-white/70 ml-px" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+            </div>
           </div>
-        </div>
 
-        {/* Waveform bars — fade in when playing */}
-        <div
-          className="absolute inset-0 flex items-center justify-center"
-          style={{
-            opacity: isPlaying ? 1 : 0,
-            transition: 'opacity 0.4s ease',
-            pointerEvents: 'none',
-            zIndex: 3,
-          }}
-        >
-          <WaveformBars />
-        </div>
-
-        {/* Idle waveform hint — subtle signal that this is audio */}
-        {!isPlaying && (
+          {/* Idle waveform hint */}
           <div
             className="absolute left-0 right-0 flex justify-center"
             style={{ bottom: 12, opacity: 0.15, pointerEvents: 'none', zIndex: 3 }}
           >
             <WaveformBarsIdle />
           </div>
-        )}
+        </div>
+      )
+    }
 
-        {/* Iframe behind album art — full-size so Spotify allows playback */}
-        {isPlaying && (
-          <iframe
-            src={spotifyEmbedSrc}
-            className="absolute inset-0 w-full h-full"
-            style={{
-              border: 'none',
-              zIndex: 0,
-              opacity: 0,
-            }}
-            allow="autoplay; clipboard-write; encrypted-media"
-          />
-        )}
+    // Activated — real Spotify embed, branding masked with dark overlays
+    return (
+      <div
+        className="w-full h-full fp-tile overflow-hidden relative bg-black"
+        style={{ borderRadius: 'inherit' }}
+      >
+        <iframe
+          src={spotifyEmbedSrc}
+          className="absolute inset-0 w-full h-full"
+          style={{ border: 'none' }}
+          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+        />
+        {/* Top mask — covers Spotify logo */}
+        <div
+          className="absolute top-0 left-0 right-0"
+          style={{ height: 28, background: 'linear-gradient(to bottom, black 60%, transparent)', zIndex: 2, pointerEvents: 'none' }}
+        />
+        {/* Bottom mask — covers "Save on Spotify" / "Open in Spotify" */}
+        <div
+          className="absolute bottom-0 left-0 right-0"
+          style={{ height: 32, background: 'linear-gradient(to top, black 60%, transparent)', zIndex: 2, pointerEvents: 'none' }}
+        />
       </div>
     )
   }
@@ -242,7 +228,7 @@ export default function GhostTile({
         onClick={handlePlay}
       >
         <div
-          className="w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-40 transition-opacity duration-300"
+          className="fp-ghost-play w-7 h-7 rounded-full flex items-center justify-center transition-opacity duration-300"
           style={{
             background: 'rgba(255,255,255,0.08)',
             backdropFilter: 'blur(4px)',
