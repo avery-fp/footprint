@@ -116,10 +116,16 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
   // Wallpaper filter
   const activeRoomIndex = activeRoomId ? visibleRooms.findIndex(r => r.id === activeRoomId) : -1
-  const wallpaperFilter = activeRoomIndex >= 0
+  const activeRoom = activeRoomId ? visibleRooms.find(r => r.id === activeRoomId) : null
+  const isSoundRoom = activeRoom?.name?.toLowerCase() === 'sound'
+  const wallpaperFilter = isSoundRoom
+    ? 'blur(20px) brightness(0.25) saturate(1.8) hue-rotate(-15deg)'
+    : activeRoomIndex >= 0
     ? ROOM_FILTERS[activeRoomIndex % ROOM_FILTERS.length]
     : DEFAULT_FILTER
-  const overlayColor = activeRoomIndex >= 0
+  const overlayColor = isSoundRoom
+    ? 'rgba(0,0,0,0.50)'
+    : activeRoomIndex >= 0
     ? ROOM_OVERLAYS[activeRoomIndex % ROOM_OVERLAYS.length]
     : DEFAULT_OVERLAY
 
@@ -251,7 +257,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // OUTER div: grid classes only (NO overflow-hidden)
   // INNER div: relative w-full h-full overflow-hidden rounded-xl + background
   // ═══════════════════════════════════════════
-  const activeRoom = activeRoomId ? visibleRooms.find(r => r.id === activeRoomId) : null
   const roomLayout = activeRoom?.layout || 'grid'
   const layoutConfig = getGridLayout(roomLayout)
   const isMix = roomLayout === 'mix' || roomLayout === 'editorial'
@@ -291,6 +296,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               mode="public"
               layout={roomLayout}
               isMobile={isMobile}
+              isSoundRoom={isSoundRoom}
             />
           </div>
         )
@@ -337,12 +343,17 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               item.url?.includes('youtube') ||
               item.url?.includes('youtu.be')
 
-        const gridClass = isVid ? 'col-span-2 aspect-video'
+        // Sound room: hero first tile + square videos (no letterboxing)
+        const gridClass = isSoundRoom && idx === 0
+          ? 'col-span-2 row-span-2 aspect-square'
+          : isSoundRoom && isVid
+          ? 'col-span-1 aspect-square'
+          : isVid ? 'col-span-2 aspect-video'
           : getGridClass(tileSize, tileAspect, false)
 
         const tileInner = (
             <div
-              className="relative w-full overflow-hidden fp-tile-hover h-full rounded-2xl"
+              className={`relative w-full overflow-hidden fp-tile-hover h-full rounded-2xl${isSoundRoom ? ' fp-sound-tile' : ''}`}
               style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)' }}
             >
               <UnifiedTile
@@ -353,6 +364,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 mode="public"
                 layout={roomLayout}
                 isMobile={isMobile}
+                isSoundRoom={isSoundRoom}
               />
             </div>
         )

@@ -59,6 +59,7 @@ interface UnifiedTileProps {
   layout?: string
   isMobile?: boolean
   isExpanded?: boolean
+  isSoundRoom?: boolean
 }
 
 // ── Recovery Tile — renders when type is unknown or media fails ──
@@ -89,6 +90,7 @@ export default function UnifiedTile({
   layout,
   isMobile = false,
   isExpanded = false,
+  isSoundRoom = false,
 }: UnifiedTileProps) {
   const canonicalType = resolveCanonicalType(item.type, item.url || '')
   const isAuto = aspect === 'auto'
@@ -174,13 +176,17 @@ export default function UnifiedTile({
   }
 
   // ── Ghost tile — de-branded media render ──
-  if (item.render_mode === 'ghost' && item.media_id) {
+  // In the sound room, force ghost rendering for audio platforms even without render_mode
+  const AUDIO_PLATFORMS = ['spotify', 'soundcloud', 'youtube', 'vimeo']
+  const forceGhost = isSoundRoom && AUDIO_PLATFORMS.includes(item.type)
+  const ghostMediaId = item.media_id || item.id // fallback to tile id for legacy tiles
+  if ((item.render_mode === 'ghost' || forceGhost) && ghostMediaId) {
     return (
       <div className="w-full h-full" data-tile-id={item.id} data-tile-type={`ghost-${item.type}`}>
         <GhostTile
           url={item.url}
           platform={item.type}
-          media_id={item.media_id}
+          media_id={ghostMediaId}
           title={item.title || undefined}
           artist={item.artist || undefined}
           thumbnail_url={item.thumbnail_url_hq || item.thumbnail_url || undefined}

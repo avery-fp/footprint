@@ -96,54 +96,110 @@ export default function GhostTile({
   )
 
   // ════════════════════════════════════════
-  // SPOTIFY — album art facade, tap to play
+  // SPOTIFY — de-branded: album art always visible, hidden iframe for audio
   // ════════════════════════════════════════
   if (platform === 'spotify') {
-    // Facade — album art + play button
-    if (!isPlaying) {
-      return (
-        <div
-          className="w-full h-full fp-tile overflow-hidden cursor-pointer relative group bg-black"
-          style={{ borderRadius: 'inherit' }}
-          onClick={handlePlay}
-        >
-          {thumbnail_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={thumbnail_url}
-              alt={title || ''}
-              className="w-full h-full object-cover"
-              loading="lazy"
-            />
-          ) : (
-            <div className="absolute inset-0" style={{ background: 'rgba(255,255,255,0.04)' }} />
-          )}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center opacity-60 group-hover:opacity-100 group-hover:scale-110 transition-all duration-200">
-              <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z"/>
-              </svg>
-            </div>
-          </div>
-        </div>
-      )
-    }
-
-    // Activated — Spotify embed plays the song
     const spotifyEmbed = parseEmbed(url)
     const spotifyEmbedSrc = spotifyEmbed?.embedUrl || `https://open.spotify.com/embed/track/${media_id}?utm_source=generator&theme=0`
+
     return (
       <div
-        className="w-full h-full fp-tile overflow-hidden relative bg-black"
+        className="w-full h-full fp-tile overflow-hidden cursor-pointer relative group bg-black"
         style={{ borderRadius: 'inherit' }}
+        onClick={handleToggle}
       >
-        <iframe
-          src={spotifyEmbedSrc}
-          className="w-full h-full"
-          style={{ border: 'none' }}
-          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-          loading="lazy"
+        {/* Album art — always visible, breathes when playing */}
+        {thumbnail_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={thumbnail_url}
+            alt={title || ''}
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{
+              animation: isPlaying ? 'ghost-breathe 6s ease-in-out infinite' : 'none',
+              transition: 'transform 0.6s ease',
+            }}
+            loading="lazy"
+          />
+        ) : (
+          <div className="absolute inset-0" style={{ background: 'rgba(255,255,255,0.04)' }} />
+        )}
+
+        {/* Gradient scrim for metadata legibility */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background: isPlaying
+              ? 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.2) 40%, transparent 70%)'
+              : 'linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 50%)',
+            transition: 'background 0.4s ease',
+          }}
         />
+
+        {/* Play/pause icon — crossfade */}
+        <div
+          className="absolute inset-0 flex items-center justify-center"
+          style={{
+            opacity: isPlaying ? 0 : 1,
+            transition: 'opacity 0.3s ease',
+            pointerEvents: 'none',
+            zIndex: 3,
+          }}
+        >
+          <div className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center opacity-60 group-hover:opacity-100 group-hover:scale-110 transition-all duration-200">
+            <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+          </div>
+        </div>
+
+        {/* Waveform bars — fade in when playing */}
+        <div
+          className="absolute inset-0 flex items-center justify-center"
+          style={{
+            opacity: isPlaying ? 1 : 0,
+            transition: 'opacity 0.4s ease',
+            pointerEvents: 'none',
+            zIndex: 3,
+          }}
+        >
+          <WaveformBars />
+        </div>
+
+        {/* Idle waveform hint — subtle signal that this is audio */}
+        {!isPlaying && (
+          <div
+            className="absolute left-0 right-0 flex justify-center"
+            style={{ bottom: (title || artist) ? 46 : 12, opacity: 0.15, pointerEvents: 'none', zIndex: 3 }}
+          >
+            <WaveformBarsIdle />
+          </div>
+        )}
+
+        {/* Title/artist metadata — always visible at bottom */}
+        <div
+          className="absolute bottom-0 left-0 right-0 p-3"
+          style={{ zIndex: 3, pointerEvents: 'none' }}
+        >
+          <TitleBlock title={title} artist={artist} />
+        </div>
+
+        {/* Hidden iframe — plays audio without showing Spotify UI */}
+        {isPlaying && (
+          <iframe
+            src={spotifyEmbedSrc}
+            style={{
+              position: 'absolute',
+              width: 1,
+              height: 1,
+              overflow: 'hidden',
+              clip: 'rect(0,0,0,0)',
+              border: 'none',
+            }}
+            allow="autoplay; clipboard-write; encrypted-media"
+            loading="lazy"
+          />
+        )}
       </div>
     )
   }
@@ -198,6 +254,18 @@ export default function GhostTile({
     >
       <ThumbnailBg src={thumbUrl} />
 
+      {/* Gradient scrim for metadata */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: 'linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 50%)',
+          pointerEvents: 'none',
+          zIndex: 1,
+          opacity: isPlaying ? 0 : 1,
+          transition: 'opacity 0.4s ease',
+        }}
+      />
+
       <div
         className="absolute inset-0 flex items-center justify-center cursor-pointer"
         style={{
@@ -226,6 +294,16 @@ export default function GhostTile({
           </svg>
         </div>
       </div>
+
+      {/* Title metadata — bottom of visual tile */}
+      {!isPlaying && (title || artist) && (
+        <div
+          className="absolute bottom-0 left-0 right-0 p-3"
+          style={{ zIndex: 2, pointerEvents: 'none' }}
+        >
+          <TitleBlock title={title} artist={artist} />
+        </div>
+      )}
 
       {isPlaying && iframeSrc && (
         <div
@@ -350,6 +428,7 @@ const barKeyframes = `
 @keyframes ghost-wave-3 { 0%, 100% { height: 60%; } 50% { height: 30%; } }
 @keyframes ghost-wave-4 { 0%, 100% { height: 30%; } 50% { height: 90%; } }
 @keyframes ghost-wave-5 { 0%, 100% { height: 50%; } 50% { height: 40%; } }
+@keyframes ghost-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.015); } }
 `
 
 function WaveformBars() {
@@ -379,5 +458,24 @@ function WaveformBars() {
         ))}
       </div>
     </>
+  )
+}
+
+function WaveformBarsIdle() {
+  const heights = [4, 7, 10, 6, 8]
+  return (
+    <div className="flex items-end gap-[2px]" style={{ height: 12 }}>
+      {heights.map((h, i) => (
+        <div
+          key={i}
+          style={{
+            width: 2,
+            height: h,
+            borderRadius: 1,
+            background: 'rgba(255, 255, 255, 0.5)',
+          }}
+        />
+      ))}
+    </div>
   )
 }

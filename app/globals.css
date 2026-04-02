@@ -297,6 +297,25 @@ input:-webkit-autofill:focus {
   backdrop-filter: blur(8px);
 }
 
+/* ═══ Sound room — alive tiles ═══ */
+.fp-sound-tile {
+  transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.35s ease;
+}
+
+@media (hover: hover) {
+  .fp-sound-tile:hover {
+    transform: scale(1.03);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.5), 0 0 60px rgba(255,255,255,0.03);
+    z-index: 2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fp-sound-tile:hover {
+    transform: none;
+  }
+}
+
 /* Card hover effect */
 .card-hover {
   transition: all 0.3s ease;
