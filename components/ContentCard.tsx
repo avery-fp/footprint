@@ -9,11 +9,6 @@ import type { EmbedResult } from '@/lib/parseEmbed'
 import GlassEmbedFrameExtracted, { GLASS_STYLE as GLASS_STYLE_IMPORTED, GlassPlaceholder as GlassPlaceholderExtracted } from '@/components/GlassEmbedFrame'
 import { transformImageUrl } from '@/lib/image'
 
-function extractSpotifyInfo(url: string): { type: string; id: string } | null {
-  const match = url.match(/open\.spotify\.com\/(track|album|playlist|artist|episode|show)\/([a-zA-Z0-9]+)/)
-  return match ? { type: match[1], id: match[2] } : null
-}
-
 // ════════════════════════════════════════
 // Glass Embed Frame — imported from extracted component
 // ════════════════════════════════════════
@@ -209,41 +204,36 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }
 
   // ════════════════════════════════════════
-  // SPOTIFY — album art facade on mobile, iframe on desktop
+  // SPOTIFY — clickable album art → opens Spotify
   // ════════════════════════════════════════
   if (content.type === 'spotify') {
-    const spotifyInfo = extractSpotifyInfo(content.url)
-    if (spotifyInfo) {
-      const embed = parseEmbed(content.url)
-      if (embed) {
-        const spotifySrc = enforceEmbedDarkMode(embed.embedUrl, 'spotify')
-        const spotifyHeight = embed.height || getAEEmbedHeight('spotify')
-
-        return (
-          <div
-            ref={containerRef}
-            className="w-full fp-tile overflow-hidden rounded-[inherit]"
-            style={{ height: `${spotifyHeight}px`, position: 'relative' }}
-          >
-            {isInView ? (
-              <GlassEmbedFrame
-                src={spotifySrc}
-                height={spotifyHeight}
-                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-                referrerPolicy="origin"
-                onError={() => setIframeFailed(true)}
-              />
-            ) : (
-              <GlassPlaceholder height={spotifyHeight} />
-            )}
-            {/* Cover Spotify branding — right side (logo/icons) + bottom (attribution) */}
-            <div style={{ position: 'absolute', top: 0, right: 0, width: 60, height: '100%', background: 'linear-gradient(to right, transparent, #181818 40%)', zIndex: 2, pointerEvents: 'none' }} />
-            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 20, background: '#181818', zIndex: 2, pointerEvents: 'none' }} />
+    const thumbSrc = content.thumbnail_url
+    return (
+      <a
+        href={content.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        ref={containerRef as any}
+        className={`block w-full h-full fp-tile overflow-hidden relative group ${!thumbSrc ? 'bg-black' : ''}`}
+      >
+        {thumbSrc ? (
+          <Image
+            src={transformImageUrl(thumbSrc)}
+            alt={content.title || ''}
+            fill
+            sizes="(max-width: 768px) 50vw, 25vw"
+            className="object-cover"
+            loading="lazy"
+            quality={90}
+            onLoad={() => setIsLoaded(true)}
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-white/30 text-2xl">♫</span>
           </div>
-        )
-      }
-    }
+        )}
+      </a>
+    )
   }
 
   // ════════════════════════════════════════

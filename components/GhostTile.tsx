@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { audioManager } from '@/lib/audio-manager'
-import { parseEmbed } from '@/lib/parseEmbed'
 
 // ════════════════════════════════════════
 // GHOST TILE — de-branded media renderer
@@ -96,38 +95,33 @@ export default function GhostTile({
   )
 
   // ════════════════════════════════════════
-  // SPOTIFY — compact embed, native controls
+  // SPOTIFY — clickable album art → opens Spotify
   // ════════════════════════════════════════
   if (platform === 'spotify') {
-    const spotifyEmbed = parseEmbed(url)
-    const spotifyEmbedSrc = spotifyEmbed?.embedUrl || `https://open.spotify.com/embed/track/${media_id}?utm_source=generator&theme=0`
-
     return (
-      <div
-        className="w-full fp-tile overflow-hidden"
-        style={{ borderRadius: 'inherit', height: 80, position: 'relative' }}
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`block w-full h-full fp-tile overflow-hidden relative ${!thumbnail_url ? 'bg-black' : ''}`}
+        style={{ borderRadius: 'inherit' }}
       >
-        <iframe
-          src={spotifyEmbedSrc}
-          className="w-full"
-          style={{ border: 'none', height: 80, display: 'block' }}
-          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-          loading="lazy"
-        />
-        {/* Cover Spotify branding on right side */}
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            right: 0,
-            width: 80,
-            height: '100%',
-            background: 'linear-gradient(to right, transparent, #181818 40%)',
-            zIndex: 2,
-            pointerEvents: 'none',
-          }}
-        />
-      </div>
+        {thumbnail_url ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={thumbnail_url}
+              alt={title || ''}
+              className="w-full h-full object-cover"
+              loading="lazy"
+            />
+          </>
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-white/30 text-2xl">♫</span>
+          </div>
+        )}
+      </a>
     )
   }
 
