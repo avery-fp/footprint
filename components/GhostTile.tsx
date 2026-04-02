@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { audioManager } from '@/lib/audio-manager'
+import { parseEmbed } from '@/lib/parseEmbed'
 
 // ════════════════════════════════════════
 // GHOST TILE — de-branded media renderer
@@ -95,13 +96,11 @@ export default function GhostTile({
   )
 
   // ════════════════════════════════════════
-  // SPOTIFY — 80px compact bar
+  // SPOTIFY — compact embed, native controls
   // ════════════════════════════════════════
   if (platform === 'spotify') {
-    const spotifyMatch = url.match(/open\.spotify\.com\/(track|album|playlist|artist|episode|show)\/([a-zA-Z0-9]+)/)
-    const spotifyType = spotifyMatch?.[1] || 'track'
-    const spotifyId = spotifyMatch?.[2] || media_id
-    const spotifyEmbedSrc = `https://open.spotify.com/embed/${spotifyType}/${spotifyId}?theme=0`
+    const spotifyEmbed = parseEmbed(url)
+    const spotifyEmbedSrc = spotifyEmbed?.embedUrl || `https://open.spotify.com/embed/track/${media_id}?utm_source=generator&theme=0`
 
     return (
       <div
@@ -115,17 +114,17 @@ export default function GhostTile({
           allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
           loading="lazy"
         />
-        {/* Cover Spotify branding on right side — logo, icons, checkmark */}
+        {/* Cover Spotify branding on right side */}
         <div
           style={{
             position: 'absolute',
             top: 0,
             right: 0,
-            width: 100,
+            width: 80,
             height: '100%',
-            background: 'linear-gradient(to right, transparent, #181818 30%)',
+            background: 'linear-gradient(to right, transparent, #181818 40%)',
             zIndex: 2,
-            pointerEvents: 'auto',
+            pointerEvents: 'none',
           }}
         />
       </div>
