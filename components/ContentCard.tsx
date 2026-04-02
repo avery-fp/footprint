@@ -66,6 +66,8 @@ interface ContentCardProps {
     description: string | null
     thumbnail_url: string | null
     embed_html: string | null
+    artist?: string | null
+    thumbnail_url_hq?: string | null
   }
   onWidescreen?: () => void
   isMobile?: boolean
@@ -204,53 +206,96 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }
 
   // ════════════════════════════════════════
-  // SPOTIFY — direct embed, no facade
-  // Mobile browsers require user gesture ON the iframe for audio.
+  // SPOTIFY — share card (album art + title + artist)
+  // No iframe. Tap opens Spotify. One tap = sound.
   // ════════════════════════════════════════
   if (content.type === 'spotify') {
-    const embed = parseEmbed(content.url)
+    const thumbSrc = content.thumbnail_url_hq || content.thumbnail_url
+    const trackTitle = content.title
+    const artistName = content.artist
 
-    if (embed) {
-      const spotifySrc = enforceEmbedDarkMode(embed.embedUrl, 'spotify')
-      return (
-        <div
-          ref={containerRef}
-          className="w-full h-full fp-tile overflow-hidden relative bg-black"
-        >
-          {isInView ? (
-            <iframe
-              src={spotifySrc}
-              className="w-full h-full"
-              style={{ border: 'none' }}
-              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-            />
-          ) : (
-            <div className="w-full h-full" style={{ background: 'rgba(0,0,0,0.3)' }} />
-          )}
-        </div>
-      )
-    }
-
-    // Fallback — open Spotify if parseEmbed fails
     return (
       <a
         href={content.url}
         target="_blank"
         rel="noopener noreferrer"
-        ref={containerRef as any}
-        className="block w-full h-full fp-tile overflow-hidden relative bg-black"
+        className="block w-full h-full relative overflow-hidden"
+        style={{ borderRadius: 'inherit' }}
       >
-        {content.thumbnail_url && (
-          <Image
-            src={transformImageUrl(content.thumbnail_url)}
-            alt={content.title || ''}
-            fill
-            sizes="(max-width: 768px) 50vw, 25vw"
-            className="object-cover"
-            loading="lazy"
-            quality={90}
+        {/* Blurred art bg */}
+        {thumbSrc && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={thumbSrc}
+            alt=""
+            aria-hidden
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{ filter: 'blur(40px) brightness(0.4)', transform: 'scale(1.1)' }}
           />
         )}
+
+        {/* Glass overlay */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background: 'rgba(0,0,0,0.5)',
+            backdropFilter: 'blur(60px)',
+            WebkitBackdropFilter: 'blur(60px)',
+          }}
+        />
+
+        {/* Card content */}
+        <div className="relative z-10 w-full h-full flex flex-col items-center justify-center p-4 gap-3">
+          {thumbSrc && (
+            <div
+              className="w-[70%] aspect-square rounded-xl overflow-hidden"
+              style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={thumbSrc}
+                alt={trackTitle || ''}
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
+            </div>
+          )}
+
+          {/* Title + artist */}
+          <div className="flex flex-col items-center gap-1 text-center px-2">
+            {trackTitle && (
+              <span
+                className="text-white/70 truncate max-w-full"
+                style={{ fontSize: '13px', fontFamily: "'DM Sans', sans-serif" }}
+              >
+                {trackTitle}
+              </span>
+            )}
+            {artistName && (
+              <span
+                className="text-white/25 uppercase tracking-widest truncate max-w-full"
+                style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                {artistName}
+              </span>
+            )}
+          </div>
+
+          {/* Idle waveform */}
+          <div className="flex items-end gap-[2px]" style={{ height: 12 }}>
+            {[4, 7, 10, 6, 8].map((h, i) => (
+              <div
+                key={i}
+                style={{
+                  width: 2,
+                  height: h,
+                  borderRadius: 1,
+                  background: 'rgba(255, 255, 255, 0.5)',
+                }}
+              />
+            ))}
+          </div>
+        </div>
       </a>
     )
   }

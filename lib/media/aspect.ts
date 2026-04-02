@@ -21,6 +21,7 @@ export function resolveAspect(
 ): string {
   if (stored && stored !== 'square') return stored
   if (stored === 'square') return 'square'
+  if (type === 'spotify') return 'portrait'
   if (type === 'youtube' || type === 'vimeo') return 'wide'
   // Video dominance — all videos default to wide (col-span-2 row-span-1)
   if (type === 'video') return 'wide'

@@ -343,11 +343,17 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               item.url?.includes('youtube') ||
               item.url?.includes('youtu.be')
 
+        const isSpotify = item.type === 'spotify'
+        const isAudioEmbed = item.type === 'soundcloud'
+
         // Sound room: hero first tile + square videos (no letterboxing)
+        // Spotify = portrait share card. SoundCloud = wide embed.
         const gridClass = isSoundRoom && idx === 0
           ? 'col-span-2 row-span-2 aspect-square'
           : isSoundRoom && isVid
           ? 'col-span-1 aspect-square'
+          : isSpotify ? 'col-span-1 aspect-[3/4]'
+          : isAudioEmbed ? 'col-span-2 aspect-video'
           : isVid ? 'col-span-2 aspect-video'
           : getGridClass(tileSize, tileAspect, false)
 

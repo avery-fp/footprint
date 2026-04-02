@@ -96,38 +96,54 @@ export default function GhostTile({
   )
 
   // ════════════════════════════════════════
-  // SPOTIFY — direct embed, no facade
-  // Mobile Safari doesn't delegate user gestures across postMessage
-  // to cross-origin iframes. IFrame API togglePlay() fires but audio
-  // stays blocked. The only reliable path: user taps Spotify's own
-  // play button directly inside the iframe.
+  // SPOTIFY — share card (album art + title + artist)
+  // No iframe. Tap opens Spotify. One tap = sound.
   // ════════════════════════════════════════
   if (platform === 'spotify') {
-    const spotifyEmbed = parseEmbed(url)
-    const spotifyEmbedSrc = spotifyEmbed?.embedUrl || `https://open.spotify.com/embed/track/${media_id}?utm_source=generator&theme=0`
-
     return (
-      <div
-        className="w-full h-full fp-tile overflow-hidden relative bg-black"
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block w-full h-full relative overflow-hidden"
         style={{ borderRadius: 'inherit' }}
       >
-        <iframe
-          src={spotifyEmbedSrc}
-          className="absolute inset-0 w-full h-full"
-          style={{ border: 'none' }}
-          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-        />
-        {/* Top mask — covers Spotify logo */}
+        {/* Blurred art bg — color tint bleeds through glass */}
+        <ThumbnailBg src={thumbnail_url} />
+
+        {/* Dark glass overlay */}
         <div
-          className="absolute top-0 left-0 right-0"
-          style={{ height: 28, background: 'linear-gradient(to bottom, black 60%, transparent)', zIndex: 2, pointerEvents: 'none' }}
+          className="absolute inset-0"
+          style={{
+            background: 'rgba(0,0,0,0.5)',
+            backdropFilter: 'blur(60px)',
+            WebkitBackdropFilter: 'blur(60px)',
+          }}
         />
-        {/* Bottom mask — covers "Save on Spotify" / "Open in Spotify" */}
-        <div
-          className="absolute bottom-0 left-0 right-0"
-          style={{ height: 32, background: 'linear-gradient(to top, black 60%, transparent)', zIndex: 2, pointerEvents: 'none' }}
-        />
-      </div>
+
+        {/* Card content */}
+        <div className="relative z-10 w-full h-full flex flex-col items-center justify-center p-4 gap-3">
+          {/* Album art */}
+          <div
+            className="w-[70%] aspect-square rounded-xl overflow-hidden"
+            style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={thumbnail_url}
+              alt=""
+              className="w-full h-full object-cover"
+              loading="lazy"
+            />
+          </div>
+
+          {/* Track + artist */}
+          <TitleBlock title={title} artist={artist} />
+
+          {/* Idle waveform */}
+          <WaveformBarsIdle />
+        </div>
+      </a>
     )
   }
 
