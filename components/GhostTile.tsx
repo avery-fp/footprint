@@ -109,7 +109,7 @@ export default function GhostTile({
         style={{ borderRadius: 'inherit' }}
       >
         {/* Blurred art bg — color tint bleeds through glass */}
-        <ThumbnailBg src={thumbnail_url} />
+        <ThumbnailBg src={thumbnail_url ?? null} />
 
         {/* Dark glass overlay */}
         <div
