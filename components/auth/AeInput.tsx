@@ -29,15 +29,15 @@ const AeInput = forwardRef<HTMLInputElement, AeInputProps>(
           fontSize: '16px',
           color: 'rgba(255,255,255,0.9)',
           caretColor: 'rgba(255,255,255,0.4)',
-          borderBottom: '1px solid rgba(255,255,255,0.15)',
+          borderBottom: '1px solid rgba(255,255,255,0.28)',
           paddingBottom: '12px',
           transition: 'border-color 200ms ease',
         }}
         onFocus={(e) => {
-          e.currentTarget.style.borderBottomColor = 'rgba(255,255,255,0.35)'
+          e.currentTarget.style.borderBottomColor = 'rgba(255,255,255,0.50)'
         }}
         onBlur={(e) => {
-          e.currentTarget.style.borderBottomColor = 'rgba(255,255,255,0.15)'
+          e.currentTarget.style.borderBottomColor = 'rgba(255,255,255,0.28)'
         }}
       />
     )

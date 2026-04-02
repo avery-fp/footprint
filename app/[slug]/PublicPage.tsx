@@ -147,10 +147,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     fetch('/api/user', { credentials: 'include' })
       .then(async r => {
         if (r.ok) {
-          const data = await r.json()
-          setIsLoggedIn(true)
-          if (data.user?.id === footprint.user_id) {
-            setIsOwner(true)
+          try {
+            const data = await r.json()
+            setIsLoggedIn(true)
+            if (data.user?.id === footprint.user_id) {
+              setIsOwner(true)
+            }
+          } catch {
+            // JSON parse failed — treat as not logged in
           }
         }
       })
@@ -275,7 +279,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       {displayContent.map((item: any, idx: number) => {
         const tileInner = (
           <div
-            className="relative w-full h-full overflow-hidden fp-tile-hover rounded-2xl"
+            className="relative w-full h-full overflow-hidden fp-tile-hover fp-tile-shimmer rounded-2xl"
             style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)' }}
           >
             <UnifiedTile
@@ -338,7 +342,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
         const tileInner = (
             <div
-              className={`relative w-full overflow-hidden fp-tile-hover ${isMusicEmbed ? '' : 'h-full rounded-2xl'}`}
+              className={`relative w-full overflow-hidden fp-tile-hover fp-tile-shimmer ${isMusicEmbed ? '' : 'h-full rounded-2xl'}`}
               style={isMusicEmbed ? {} : { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)' }}
             >
               <UnifiedTile

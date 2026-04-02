@@ -472,3 +472,16 @@ input:-webkit-autofill:focus {
 .animate-breathe {
   animation: breathe 8s ease-in-out infinite;
 }
+
+/* Tile shimmer — loading placeholder pulse */
+@keyframes fp-tile-shimmer {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+.fp-tile-shimmer {
+  animation: fp-tile-shimmer 1.8s ease-in-out infinite;
+  background: rgba(255, 255, 255, 0.08);
+}
+@media (prefers-reduced-motion: reduce) {
+  .fp-tile-shimmer { animation: none; }
+}
