@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { audioManager } from '@/lib/audio-manager'
+import { parseEmbed } from '@/lib/parseEmbed'
 
 // ════════════════════════════════════════
 // GHOST TILE — de-branded media renderer
@@ -95,33 +96,55 @@ export default function GhostTile({
   )
 
   // ════════════════════════════════════════
-  // SPOTIFY — clickable album art → opens Spotify
+  // SPOTIFY — album art facade, tap to play
   // ════════════════════════════════════════
   if (platform === 'spotify') {
-    return (
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={`block w-full h-full fp-tile overflow-hidden relative ${!thumbnail_url ? 'bg-black' : ''}`}
-        style={{ borderRadius: 'inherit' }}
-      >
-        {thumbnail_url ? (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
+    // Facade — album art + play button
+    if (!isPlaying) {
+      return (
+        <div
+          className="w-full h-full fp-tile overflow-hidden cursor-pointer relative group bg-black"
+          style={{ borderRadius: 'inherit' }}
+          onClick={handlePlay}
+        >
+          {thumbnail_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={thumbnail_url}
               alt={title || ''}
               className="w-full h-full object-cover"
               loading="lazy"
             />
-          </>
-        ) : (
+          ) : (
+            <div className="absolute inset-0" style={{ background: 'rgba(255,255,255,0.04)' }} />
+          )}
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-white/30 text-2xl">♫</span>
+            <div className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center opacity-60 group-hover:opacity-100 group-hover:scale-110 transition-all duration-200">
+              <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+            </div>
           </div>
-        )}
-      </a>
+        </div>
+      )
+    }
+
+    // Activated — Spotify embed plays the song
+    const spotifyEmbed = parseEmbed(url)
+    const spotifyEmbedSrc = spotifyEmbed?.embedUrl || `https://open.spotify.com/embed/track/${media_id}?utm_source=generator&theme=0`
+    return (
+      <div
+        className="w-full h-full fp-tile overflow-hidden relative bg-black"
+        style={{ borderRadius: 'inherit' }}
+      >
+        <iframe
+          src={spotifyEmbedSrc}
+          className="w-full h-full"
+          style={{ border: 'none' }}
+          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+          loading="lazy"
+        />
+      </div>
     )
   }
 

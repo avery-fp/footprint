@@ -337,16 +337,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               item.url?.includes('youtube') ||
               item.url?.includes('youtu.be')
 
-        const isMusicEmbed = item.type === 'spotify' && item.render_mode === 'ghost'
-
         const gridClass = isVid ? 'col-span-2 aspect-video'
-          : isMusicEmbed ? 'col-span-2'
           : getGridClass(tileSize, tileAspect, false)
 
         const tileInner = (
             <div
-              className={`relative w-full overflow-hidden fp-tile-hover ${isMusicEmbed ? '' : 'h-full rounded-2xl'}`}
-              style={isMusicEmbed ? {} : { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)' }}
+              className="relative w-full overflow-hidden fp-tile-hover h-full rounded-2xl"
+              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)' }}
             >
               <UnifiedTile
                 item={item}
