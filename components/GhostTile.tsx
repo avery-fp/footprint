@@ -125,18 +125,7 @@ export default function GhostTile({
           <div className="absolute inset-0" style={{ background: 'rgba(255,255,255,0.04)' }} />
         )}
 
-        {/* Gradient scrim for metadata legibility */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background: isPlaying
-              ? 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.2) 40%, transparent 70%)'
-              : 'linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 50%)',
-            transition: 'background 0.4s ease',
-          }}
-        />
-
-        {/* Play/pause icon — crossfade */}
+        {/* Play hint — barely there, appears on hover */}
         <div
           className="absolute inset-0 flex items-center justify-center"
           style={{
@@ -146,8 +135,15 @@ export default function GhostTile({
             zIndex: 3,
           }}
         >
-          <div className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center opacity-60 group-hover:opacity-100 group-hover:scale-110 transition-all duration-200">
-            <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+          <div
+            className="w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-40 transition-opacity duration-300"
+            style={{
+              background: 'rgba(255,255,255,0.08)',
+              backdropFilter: 'blur(4px)',
+              WebkitBackdropFilter: 'blur(4px)',
+            }}
+          >
+            <svg className="w-2.5 h-2.5 text-white/70 ml-px" fill="currentColor" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z"/>
             </svg>
           </div>
@@ -170,34 +166,23 @@ export default function GhostTile({
         {!isPlaying && (
           <div
             className="absolute left-0 right-0 flex justify-center"
-            style={{ bottom: (title || artist) ? 46 : 12, opacity: 0.15, pointerEvents: 'none', zIndex: 3 }}
+            style={{ bottom: 12, opacity: 0.15, pointerEvents: 'none', zIndex: 3 }}
           >
             <WaveformBarsIdle />
           </div>
         )}
 
-        {/* Title/artist metadata — always visible at bottom */}
-        <div
-          className="absolute bottom-0 left-0 right-0 p-3"
-          style={{ zIndex: 3, pointerEvents: 'none' }}
-        >
-          <TitleBlock title={title} artist={artist} />
-        </div>
-
-        {/* Hidden iframe — plays audio without showing Spotify UI */}
+        {/* Iframe behind album art — full-size so Spotify allows playback */}
         {isPlaying && (
           <iframe
             src={spotifyEmbedSrc}
+            className="absolute inset-0 w-full h-full"
             style={{
-              position: 'absolute',
-              width: 1,
-              height: 1,
-              overflow: 'hidden',
-              clip: 'rect(0,0,0,0)',
               border: 'none',
+              zIndex: 0,
+              opacity: 0,
             }}
             allow="autoplay; clipboard-write; encrypted-media"
-            loading="lazy"
           />
         )}
       </div>
@@ -214,19 +199,11 @@ export default function GhostTile({
       <div className="w-full h-full relative overflow-hidden fp-tile" style={{ borderRadius: 'inherit' }}>
         <ThumbnailBg src={thumbUrl} />
         <div
-          className="absolute inset-0"
-          style={{
-            background: 'linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.6) 100%)',
-            transition: 'background 0.25s ease',
-          }}
-        />
-        <div
-          className="absolute inset-0 flex flex-col items-center justify-center gap-3 cursor-pointer"
+          className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer"
           style={{ zIndex: 2 }}
           onClick={handleToggle}
         >
           {isPlaying ? <WaveformBars /> : null}
-          <TitleBlock title={title} artist={artist} />
         </div>
       </div>
     )
@@ -254,18 +231,6 @@ export default function GhostTile({
     >
       <ThumbnailBg src={thumbUrl} />
 
-      {/* Gradient scrim for metadata */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background: 'linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 50%)',
-          pointerEvents: 'none',
-          zIndex: 1,
-          opacity: isPlaying ? 0 : 1,
-          transition: 'opacity 0.4s ease',
-        }}
-      />
-
       <div
         className="absolute inset-0 flex items-center justify-center cursor-pointer"
         style={{
@@ -277,33 +242,18 @@ export default function GhostTile({
         onClick={handlePlay}
       >
         <div
-          className="w-11 h-11 rounded-full flex items-center justify-center group-hover:scale-110 transition-all duration-300"
+          className="w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-40 transition-opacity duration-300"
           style={{
-            background: 'rgba(0,0,0,0.35)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            backdropFilter: 'blur(8px)',
-            WebkitBackdropFilter: 'blur(8px)',
-            opacity: 0.45,
-            transition: 'opacity 0.3s ease, transform 0.3s ease',
+            background: 'rgba(255,255,255,0.08)',
+            backdropFilter: 'blur(4px)',
+            WebkitBackdropFilter: 'blur(4px)',
           }}
-          onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
-          onMouseLeave={e => (e.currentTarget.style.opacity = '0.45')}
         >
-          <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+          <svg className="w-2.5 h-2.5 text-white/70 ml-px" fill="currentColor" viewBox="0 0 24 24">
             <path d="M8 5v14l11-7z"/>
           </svg>
         </div>
       </div>
-
-      {/* Title metadata — bottom of visual tile */}
-      {!isPlaying && (title || artist) && (
-        <div
-          className="absolute bottom-0 left-0 right-0 p-3"
-          style={{ zIndex: 2, pointerEvents: 'none' }}
-        >
-          <TitleBlock title={title} artist={artist} />
-        </div>
-      )}
 
       {isPlaying && iframeSrc && (
         <div
