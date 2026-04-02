@@ -96,128 +96,36 @@ export default function GhostTile({
   )
 
   // ════════════════════════════════════════
-  // SPOTIFY — album art stays, IFrame API controls playback
+  // SPOTIFY — direct embed, no facade
+  // Mobile Safari doesn't delegate user gestures across postMessage
+  // to cross-origin iframes. IFrame API togglePlay() fires but audio
+  // stays blocked. The only reliable path: user taps Spotify's own
+  // play button directly inside the iframe.
   // ════════════════════════════════════════
-  const spotifyContainerRef = useRef<HTMLDivElement>(null)
-  const spotifyControllerRef = useRef<any>(null)
-  const [spotifyReady, setSpotifyReady] = useState(false)
-
-  // Initialize Spotify IFrame API controller once
-  useEffect(() => {
-    if (platform !== 'spotify') return
-    const container = spotifyContainerRef.current
-    if (!container) return
-
-    // Extract Spotify URI from URL (e.g. spotify:track:abc123)
-    const match = url.match(/open\.spotify\.com\/(track|album|playlist|episode)\/([a-zA-Z0-9]+)/)
-    if (!match) return
-    const [, type, id] = match
-    const uri = `spotify:${type}:${id}`
-
-    function initController(IFrameAPI: any) {
-      const options = { uri, width: '100%', height: '100%' }
-      IFrameAPI.createController(container, options, (controller: any) => {
-        spotifyControllerRef.current = controller
-        controller.addListener('ready', () => setSpotifyReady(true))
-      })
-    }
-
-    // Load the Spotify IFrame API script if not already loaded
-    if ((window as any).SpotifyIframeApi) {
-      initController((window as any).SpotifyIframeApi)
-    } else {
-      const prev = (window as any).onSpotifyIframeApiReady
-      ;(window as any).onSpotifyIframeApiReady = (IFrameAPI: any) => {
-        ;(window as any).SpotifyIframeApi = IFrameAPI
-        if (prev) prev(IFrameAPI)
-        initController(IFrameAPI)
-      }
-      if (!document.querySelector('script[src*="spotify.com/embed/iframe-api"]')) {
-        const script = document.createElement('script')
-        script.src = 'https://open.spotify.com/embed/iframe-api/v1'
-        script.async = true
-        document.head.appendChild(script)
-      }
-    }
-
-    return () => {
-      spotifyControllerRef.current = null
-    }
-  }, [platform, url])
-
-  // Toggle Spotify playback on state change via ref to avoid double-fire
-  const prevSpotifyPlaying = useRef(false)
-  useEffect(() => {
-    if (platform !== 'spotify' || !spotifyControllerRef.current || !spotifyReady) return
-    if (isPlaying !== prevSpotifyPlaying.current) {
-      prevSpotifyPlaying.current = isPlaying
-      spotifyControllerRef.current.togglePlay()
-    }
-  }, [isPlaying, platform, spotifyReady])
-
   if (platform === 'spotify') {
+    const spotifyEmbed = parseEmbed(url)
+    const spotifyEmbedSrc = spotifyEmbed?.embedUrl || `https://open.spotify.com/embed/track/${media_id}?utm_source=generator&theme=0`
+
     return (
       <div
-        className="w-full h-full fp-tile overflow-hidden cursor-pointer relative group bg-black"
+        className="w-full h-full fp-tile overflow-hidden relative bg-black"
         style={{ borderRadius: 'inherit' }}
-        onClick={handleToggle}
       >
-        {/* Album art — always visible, breathes when playing */}
-        {thumbnail_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={thumbnail_url}
-            alt={title || ''}
-            className="absolute inset-0 w-full h-full object-cover"
-            style={{
-              animation: isPlaying ? 'ghost-breathe 6s ease-in-out infinite' : 'none',
-              zIndex: 1,
-            }}
-            loading="lazy"
-          />
-        ) : (
-          <div className="absolute inset-0" style={{ background: 'rgba(255,255,255,0.04)', zIndex: 1 }} />
-        )}
-
-        {/* Play hint — only when not playing */}
-        {!isPlaying && (
-          <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 3, pointerEvents: 'none' }}>
-            <div
-              className="fp-ghost-play w-7 h-7 rounded-full flex items-center justify-center transition-opacity duration-300"
-              style={{
-                background: 'rgba(255,255,255,0.08)',
-                backdropFilter: 'blur(4px)',
-                WebkitBackdropFilter: 'blur(4px)',
-              }}
-            >
-              <svg className="w-2.5 h-2.5 text-white/70 ml-px" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z"/>
-              </svg>
-            </div>
-          </div>
-        )}
-
-        {/* Waveform bars — when playing */}
-        {isPlaying && (
-          <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 3, pointerEvents: 'none' }}>
-            <WaveformBars />
-          </div>
-        )}
-
-        {/* Idle waveform hint */}
-        {!isPlaying && (
-          <div
-            className="absolute left-0 right-0 flex justify-center"
-            style={{ bottom: 12, opacity: 0.15, pointerEvents: 'none', zIndex: 3 }}
-          >
-            <WaveformBarsIdle />
-          </div>
-        )}
-
-        {/* Spotify iframe — hidden behind album art, API controls playback */}
+        <iframe
+          src={spotifyEmbedSrc}
+          className="absolute inset-0 w-full h-full"
+          style={{ border: 'none' }}
+          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+        />
+        {/* Top mask — covers Spotify logo */}
         <div
-          ref={spotifyContainerRef}
-          style={{ position: 'absolute', inset: 0, zIndex: 0, opacity: 0, pointerEvents: 'none' }}
+          className="absolute top-0 left-0 right-0"
+          style={{ height: 28, background: 'linear-gradient(to bottom, black 60%, transparent)', zIndex: 2, pointerEvents: 'none' }}
+        />
+        {/* Bottom mask — covers "Save on Spotify" / "Open in Spotify" */}
+        <div
+          className="absolute bottom-0 left-0 right-0"
+          style={{ height: 32, background: 'linear-gradient(to top, black 60%, transparent)', zIndex: 2, pointerEvents: 'none' }}
         />
       </div>
     )

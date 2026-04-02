@@ -204,46 +204,12 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }
 
   // ════════════════════════════════════════
-  // SPOTIFY — album art facade, tap to play
+  // SPOTIFY — direct embed, no facade
+  // Mobile browsers require user gesture ON the iframe for audio.
   // ════════════════════════════════════════
   if (content.type === 'spotify') {
-    const thumbSrc = content.thumbnail_url
     const embed = parseEmbed(content.url)
 
-    // Facade — album art + play button
-    if (!isActivated) {
-      return (
-        <div
-          ref={containerRef}
-          className="w-full h-full fp-tile overflow-hidden cursor-pointer relative group bg-black"
-          onClick={handleActivate}
-        >
-          {thumbSrc ? (
-            <Image
-              src={transformImageUrl(thumbSrc)}
-              alt={content.title || ''}
-              fill
-              sizes="(max-width: 768px) 50vw, 25vw"
-              className="object-cover"
-              loading="lazy"
-              quality={90}
-              onLoad={() => setIsLoaded(true)}
-            />
-          ) : (
-            <div className="absolute inset-0" style={{ background: 'rgba(255,255,255,0.04)' }} />
-          )}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center opacity-60 group-hover:opacity-100 group-hover:scale-110 transition-all duration-200">
-              <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z"/>
-              </svg>
-            </div>
-          </div>
-        </div>
-      )
-    }
-
-    // Activated — Spotify embed plays the song
     if (embed) {
       const spotifySrc = enforceEmbedDarkMode(embed.embedUrl, 'spotify')
       return (
@@ -251,18 +217,21 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           ref={containerRef}
           className="w-full h-full fp-tile overflow-hidden relative bg-black"
         >
-          <iframe
-            src={spotifySrc}
-            className="w-full h-full"
-            style={{ border: 'none' }}
-            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-            loading="lazy"
-          />
+          {isInView ? (
+            <iframe
+              src={spotifySrc}
+              className="w-full h-full"
+              style={{ border: 'none' }}
+              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+            />
+          ) : (
+            <div className="w-full h-full" style={{ background: 'rgba(0,0,0,0.3)' }} />
+          )}
         </div>
       )
     }
 
-    // Fallback — open Spotify if embed fails
+    // Fallback — open Spotify if parseEmbed fails
     return (
       <a
         href={content.url}
@@ -271,9 +240,9 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         ref={containerRef as any}
         className="block w-full h-full fp-tile overflow-hidden relative bg-black"
       >
-        {thumbSrc && (
+        {content.thumbnail_url && (
           <Image
-            src={transformImageUrl(thumbSrc)}
+            src={transformImageUrl(content.thumbnail_url)}
             alt={content.title || ''}
             fill
             sizes="(max-width: 768px) 50vw, 25vw"
