@@ -265,14 +265,15 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   }
 
   const gridInner = isRail ? (
-    // ── RAIL MODE: horizontal snap scroll ──
+    // ── RAIL MODE: cinematic horizontal snap scroll ──
     <div
-      className={layoutConfig.containerClass}
+      className={`${layoutConfig.containerClass} hide-scrollbar`}
       style={{
         scrollSnapType: 'x mandatory',
+        scrollPaddingLeft: 'max(24px, calc((100vw - min(88vw, 620px)) / 2))',
         WebkitOverflowScrolling: 'touch' as any,
-        paddingLeft: '12px',
-        paddingRight: '12px',
+        paddingLeft: 'max(24px, calc((100vw - min(88vw, 620px)) / 2))',
+        paddingRight: 'max(24px, calc((100vw - min(88vw, 620px)) / 2))',
         ...fadeStyle,
       }}
     >
@@ -280,7 +281,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         const tileInner = (
           <div
             className="relative w-full h-full overflow-hidden fp-tile-hover rounded-2xl"
-            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)' }}
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
           >
             <UnifiedTile
               item={item}
@@ -294,8 +295,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </div>
         )
 
-        const railTileClass = `${layoutConfig.tileClass} aspect-[4/3]`
-        const railStyle = { width: 'min(80vw, 340px)' }
+        const railTileClass = `${layoutConfig.tileClass} aspect-[3/4]`
+        const railStyle: React.CSSProperties = {
+          width: 'min(88vw, 620px)',
+        }
 
         if (isOwner) {
           return (
@@ -492,12 +495,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
         {/* Grid */}
         <div
-          className="fp-grid-container mx-auto w-full px-3 md:px-4"
-          style={{ maxWidth: '880px' }}
+          className={`fp-grid-arrive ${isRail ? 'w-full' : 'fp-grid-container mx-auto w-full px-3 md:px-4'}`}
+          style={isRail ? undefined : { maxWidth: '880px' }}
         >
-          <div className="fp-grid-arrive">
-            {activeGrid}
-          </div>
+          {activeGrid}
         </div>
 
         {content.length === 0 && (

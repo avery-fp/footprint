@@ -38,11 +38,11 @@ const LAYOUTS: Record<RoomLayout, LayoutConfig> = {
     gap: '8px',
   },
   rail: {
-    containerClass: 'flex flex-row overflow-x-auto gap-5 pb-4',
-    tileClass: 'flex-shrink-0 snap-start relative overflow-hidden rounded-2xl',
+    containerClass: 'flex flex-row overflow-x-auto gap-4 pb-4',
+    tileClass: 'flex-shrink-0 snap-center relative overflow-hidden rounded-2xl',
     useFillMode: true,
     perTileSizing: false,
-    gap: '20px',
+    gap: '16px',
     isRail: true,
   },
 }
