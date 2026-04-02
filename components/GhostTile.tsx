@@ -96,54 +96,59 @@ export default function GhostTile({
   )
 
   // ════════════════════════════════════════
-  // SPOTIFY — share card (album art + title + artist)
-  // No iframe. Tap opens Spotify. One tap = sound.
+  // SPOTIFY — embed iframe IS the art
+  // Portrait tile → Spotify renders large album art on top.
+  // Gradient masks hide branding. User taps iframe = audio plays.
   // ════════════════════════════════════════
   if (platform === 'spotify') {
-    return (
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block w-full h-full relative overflow-hidden"
-        style={{ borderRadius: 'inherit' }}
-      >
-        {/* Blurred art bg — color tint bleeds through glass */}
-        <ThumbnailBg src={thumbnail_url ?? null} />
+    const embed = parseEmbed(url)
+    if (!embed) {
+      return (
+        <a href={url} target="_blank" rel="noopener noreferrer"
+           className="block w-full h-full relative overflow-hidden"
+           style={{ borderRadius: 'inherit' }}>
+          <ThumbnailBg src={thumbnail_url ?? null} />
+        </a>
+      )
+    }
 
-        {/* Dark glass overlay */}
+    return (
+      <div
+        className="w-full h-full relative fp-tile"
+        style={{
+          borderRadius: 'inherit',
+          overflow: 'hidden',
+          clipPath: 'inset(0 round var(--fp-tile-radius, 16px))',
+          background: '#000',
+        }}
+      >
+        <iframe
+          src={embed.embedUrl}
+          className="absolute inset-0 w-full h-full"
+          style={{ border: 'none' }}
+          allow="autoplay; clipboard-write; encrypted-media"
+          loading="lazy"
+          referrerPolicy="strict-origin-when-cross-origin"
+        />
+
+        {/* Top gradient — fades Spotify logo */}
         <div
-          className="absolute inset-0"
           style={{
-            background: 'rgba(0,0,0,0.5)',
-            backdropFilter: 'blur(60px)',
-            WebkitBackdropFilter: 'blur(60px)',
+            position: 'absolute', top: 0, left: 0, right: 0, height: 48,
+            background: 'linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.6) 50%, transparent 100%)',
+            pointerEvents: 'none', zIndex: 2,
           }}
         />
 
-        {/* Card content */}
-        <div className="relative z-10 w-full h-full flex flex-col items-center justify-center p-4 gap-3">
-          {/* Album art */}
-          <div
-            className="w-[70%] aspect-square rounded-xl overflow-hidden"
-            style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={thumbnail_url}
-              alt=""
-              className="w-full h-full object-cover"
-              loading="lazy"
-            />
-          </div>
-
-          {/* Track + artist */}
-          <TitleBlock title={title} artist={artist} />
-
-          {/* Idle waveform */}
-          <WaveformBarsIdle />
-        </div>
-      </a>
+        {/* Bottom gradient — fades "Open in Spotify" */}
+        <div
+          style={{
+            position: 'absolute', bottom: 0, left: 0, right: 0, height: 56,
+            background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 40%, transparent 100%)',
+            pointerEvents: 'none', zIndex: 2,
+          }}
+        />
+      </div>
     )
   }
 

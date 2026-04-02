@@ -206,98 +206,53 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }
 
   // ════════════════════════════════════════
-  // SPOTIFY — share card (album art + title + artist)
-  // No iframe. Tap opens Spotify. One tap = sound.
+  // SPOTIFY — embed iframe IS the art
+  // Portrait tile → large album art. Gradient masks hide branding.
+  // User taps iframe directly = audio plays. One tap.
   // ════════════════════════════════════════
   if (content.type === 'spotify') {
-    const thumbSrc = content.thumbnail_url_hq || content.thumbnail_url
-    const trackTitle = content.title
-    const artistName = content.artist
-
-    return (
-      <a
-        href={content.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block w-full h-full relative overflow-hidden"
-        style={{ borderRadius: 'inherit' }}
-      >
-        {/* Blurred art bg */}
-        {thumbSrc && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={thumbSrc}
-            alt=""
-            aria-hidden
-            className="absolute inset-0 w-full h-full object-cover"
-            style={{ filter: 'blur(40px) brightness(0.4)', transform: 'scale(1.1)' }}
-          />
-        )}
-
-        {/* Glass overlay */}
+    const embed = parseEmbed(content.url)
+    if (embed) {
+      return (
         <div
-          className="absolute inset-0"
+          ref={containerRef}
+          className="w-full h-full relative fp-tile"
           style={{
-            background: 'rgba(0,0,0,0.5)',
-            backdropFilter: 'blur(60px)',
-            WebkitBackdropFilter: 'blur(60px)',
+            borderRadius: 'inherit',
+            overflow: 'hidden',
+            clipPath: 'inset(0 round var(--fp-tile-radius, 16px))',
+            background: '#000',
           }}
-        />
+        >
+          <iframe
+            src={embed.embedUrl}
+            className="absolute inset-0 w-full h-full"
+            style={{ border: 'none' }}
+            allow="autoplay; clipboard-write; encrypted-media"
+            loading="lazy"
+            referrerPolicy="strict-origin-when-cross-origin"
+          />
 
-        {/* Card content */}
-        <div className="relative z-10 w-full h-full flex flex-col items-center justify-center p-4 gap-3">
-          {thumbSrc && (
-            <div
-              className="w-[70%] aspect-square rounded-xl overflow-hidden"
-              style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={thumbSrc}
-                alt={trackTitle || ''}
-                className="w-full h-full object-cover"
-                loading="lazy"
-              />
-            </div>
-          )}
+          {/* Top gradient — fades Spotify logo */}
+          <div
+            style={{
+              position: 'absolute', top: 0, left: 0, right: 0, height: 48,
+              background: 'linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.6) 50%, transparent 100%)',
+              pointerEvents: 'none', zIndex: 2,
+            }}
+          />
 
-          {/* Title + artist */}
-          <div className="flex flex-col items-center gap-1 text-center px-2">
-            {trackTitle && (
-              <span
-                className="text-white/70 truncate max-w-full"
-                style={{ fontSize: '13px', fontFamily: "'DM Sans', sans-serif" }}
-              >
-                {trackTitle}
-              </span>
-            )}
-            {artistName && (
-              <span
-                className="text-white/25 uppercase tracking-widest truncate max-w-full"
-                style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace" }}
-              >
-                {artistName}
-              </span>
-            )}
-          </div>
-
-          {/* Idle waveform */}
-          <div className="flex items-end gap-[2px]" style={{ height: 12 }}>
-            {[4, 7, 10, 6, 8].map((h, i) => (
-              <div
-                key={i}
-                style={{
-                  width: 2,
-                  height: h,
-                  borderRadius: 1,
-                  background: 'rgba(255, 255, 255, 0.5)',
-                }}
-              />
-            ))}
-          </div>
+          {/* Bottom gradient — fades "Open in Spotify" */}
+          <div
+            style={{
+              position: 'absolute', bottom: 0, left: 0, right: 0, height: 56,
+              background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 40%, transparent 100%)',
+              pointerEvents: 'none', zIndex: 2,
+            }}
+          />
         </div>
-      </a>
-    )
+      )
+    }
   }
 
   // ════════════════════════════════════════
