@@ -143,18 +143,22 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   }, [])
 
   // Check if user is logged in + owner
+  // Any failure (network, 401, malformed JSON) falls through to isOwner=false, isLoggedIn=false
+  // so FloatingCtaBar always renders for visitors
   useEffect(() => {
-    fetch('/api/user', { credentials: 'include' })
-      .then(async r => {
-        if (r.ok) {
-          const data = await r.json()
-          setIsLoggedIn(true)
-          if (data.user?.id === footprint.user_id) {
-            setIsOwner(true)
-          }
+    (async () => {
+      try {
+        const r = await fetch('/api/user', { credentials: 'include' })
+        if (!r.ok) return
+        const data = await r.json()
+        setIsLoggedIn(true)
+        if (data.user?.id === footprint.user_id) {
+          setIsOwner(true)
         }
-      })
-      .catch(() => {})
+      } catch {
+        // Silent — visitor path: CTA stays visible
+      }
+    })()
   }, [footprint.user_id])
 
   // Navigate to room
