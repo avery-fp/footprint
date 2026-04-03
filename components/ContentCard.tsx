@@ -66,6 +66,8 @@ interface ContentCardProps {
     description: string | null
     thumbnail_url: string | null
     embed_html: string | null
+    artist?: string | null
+    thumbnail_url_hq?: string | null
   }
   onWidescreen?: () => void
   isMobile?: boolean
@@ -85,7 +87,7 @@ interface ContentCardProps {
  * Everything fails gracefully. No broken states.
  */
 export default function ContentCard({ content, onWidescreen, isMobile = false, tileSize = 1, aspect = 'square', isPublicView = false, isExpanded = false }: ContentCardProps) {
-  const aspectClass = aspect === 'wide' ? 'aspect-video' : aspect === 'tall' ? 'aspect-[9/16]' : aspect === 'auto' ? '' : 'aspect-square'
+  const aspectClass = aspect === 'wide' ? 'aspect-video' : aspect === 'tall' ? 'aspect-[9/16]' : aspect === 'portrait' ? 'aspect-[3/4]' : 'aspect-square'
   const fitClass = 'object-cover'
   const [isActivated, setIsActivated] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
@@ -204,86 +206,58 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }
 
   // ════════════════════════════════════════
-  // SPOTIFY — album art facade, tap to play
+  // SPOTIFY — album art on top, embed controls at bottom.
+  // Art covers top ~65%. Bottom ~35% exposes Spotify's play controls.
+  // One tap on controls = inline audio.
   // ════════════════════════════════════════
   if (content.type === 'spotify') {
-    const thumbSrc = content.thumbnail_url
     const embed = parseEmbed(content.url)
-
-    // Facade — album art + play button
-    if (!isActivated) {
-      return (
-        <div
-          ref={containerRef}
-          className="w-full h-full fp-tile overflow-hidden cursor-pointer relative group bg-black"
-          onClick={handleActivate}
-        >
-          {thumbSrc ? (
-            <Image
-              src={transformImageUrl(thumbSrc)}
-              alt={content.title || ''}
-              fill
-              sizes="(max-width: 768px) 50vw, 25vw"
-              className="object-cover"
-              loading="lazy"
-              quality={90}
-              onLoad={() => setIsLoaded(true)}
-            />
-          ) : (
-            <div className="absolute inset-0" style={{ background: 'rgba(255,255,255,0.04)' }} />
-          )}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center opacity-60 group-hover:opacity-100 group-hover:scale-110 transition-all duration-200">
-              <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z"/>
-              </svg>
-            </div>
-          </div>
-        </div>
-      )
-    }
-
-    // Activated — Spotify embed plays the song
     if (embed) {
-      const spotifySrc = enforceEmbedDarkMode(embed.embedUrl, 'spotify')
+      const thumbSrc = content.thumbnail_url_hq || content.thumbnail_url
       return (
         <div
           ref={containerRef}
-          className="w-full h-full fp-tile overflow-hidden relative bg-black"
+          className="w-full h-full relative overflow-hidden"
+          style={{
+            borderRadius: 'inherit',
+            clipPath: 'inset(0 round var(--fp-tile-radius, 16px))',
+            background: '#000',
+          }}
         >
+          {/* Spotify embed — full tile, plays inline */}
           <iframe
-            src={spotifySrc}
-            className="w-full h-full"
+            src={embed.embedUrl}
+            className="absolute inset-0 w-full h-full"
             style={{ border: 'none' }}
             allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
             loading="lazy"
           />
+
+          {/* Our album art — covers top, replaces Spotify's art + logo */}
+          <div
+            className="absolute inset-x-0 top-0 overflow-hidden"
+            style={{ height: '65%', pointerEvents: 'none', zIndex: 2 }}
+          >
+            {thumbSrc ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={thumbSrc}
+                alt=""
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <div className="w-full h-full bg-black" />
+            )}
+            {/* Fade art into embed controls */}
+            <div
+              className="absolute inset-x-0 bottom-0"
+              style={{ height: 40, background: 'linear-gradient(to top, #000 0%, transparent 100%)' }}
+            />
+          </div>
         </div>
       )
     }
-
-    // Fallback — open Spotify if embed fails
-    return (
-      <a
-        href={content.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        ref={containerRef as any}
-        className="block w-full h-full fp-tile overflow-hidden relative bg-black"
-      >
-        {thumbSrc && (
-          <Image
-            src={transformImageUrl(thumbSrc)}
-            alt={content.title || ''}
-            fill
-            sizes="(max-width: 768px) 50vw, 25vw"
-            className="object-cover"
-            loading="lazy"
-            quality={90}
-          />
-        )}
-      </a>
-    )
   }
 
   // ════════════════════════════════════════

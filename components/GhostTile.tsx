@@ -96,81 +96,55 @@ export default function GhostTile({
   )
 
   // ════════════════════════════════════════
-  // SPOTIFY — facade → real embed on tap, branding masked
+  // SPOTIFY — album art on top, embed controls at bottom.
+  // Our art covers the top ~65%. The bottom ~35% exposes
+  // Spotify's native play controls from the iframe.
+  // One tap on controls = inline audio. No cross-origin issues.
   // ════════════════════════════════════════
   if (platform === 'spotify') {
-    const spotifyEmbed = parseEmbed(url)
-    const spotifyEmbedSrc = spotifyEmbed?.embedUrl || `https://open.spotify.com/embed/track/${media_id}?utm_source=generator&theme=0`
+    const embed = parseEmbed(url)
+    const embedSrc = embed?.embedUrl || `https://open.spotify.com/embed/track/${media_id}?utm_source=generator&theme=0`
 
-    // Facade — album art, tap to reveal embed
-    if (!isPlaying) {
-      return (
+    return (
+      <div
+        className="w-full h-full relative overflow-hidden"
+        style={{
+          borderRadius: 'inherit',
+          clipPath: 'inset(0 round var(--fp-tile-radius, 16px))',
+          background: '#000',
+        }}
+      >
+        {/* Spotify embed — full tile, plays inline */}
+        <iframe
+          src={embedSrc}
+          className="absolute inset-0 w-full h-full"
+          style={{ border: 'none' }}
+          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+          loading="lazy"
+        />
+
+        {/* Our album art — covers top portion, replaces Spotify's art + logo */}
         <div
-          className="w-full h-full fp-tile overflow-hidden cursor-pointer relative group bg-black"
-          style={{ borderRadius: 'inherit' }}
-          onClick={handlePlay}
+          className="absolute inset-x-0 top-0 overflow-hidden"
+          style={{ height: '65%', pointerEvents: 'none', zIndex: 2 }}
         >
           {thumbnail_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={thumbnail_url}
-              alt={title || ''}
-              className="absolute inset-0 w-full h-full object-cover"
+              alt=""
+              className="w-full h-full object-cover"
               loading="lazy"
             />
           ) : (
-            <div className="absolute inset-0" style={{ background: 'rgba(255,255,255,0.04)' }} />
+            <div className="w-full h-full bg-black" />
           )}
-
-          {/* Play hint — barely there, appears on hover */}
-          <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 3, pointerEvents: 'none' }}>
-            <div
-              className="fp-ghost-play w-7 h-7 rounded-full flex items-center justify-center transition-opacity duration-300"
-              style={{
-                background: 'rgba(255,255,255,0.08)',
-                backdropFilter: 'blur(4px)',
-                WebkitBackdropFilter: 'blur(4px)',
-              }}
-            >
-              <svg className="w-2.5 h-2.5 text-white/70 ml-px" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z"/>
-              </svg>
-            </div>
-          </div>
-
-          {/* Idle waveform hint */}
+          {/* Fade art into embed controls */}
           <div
-            className="absolute left-0 right-0 flex justify-center"
-            style={{ bottom: 12, opacity: 0.15, pointerEvents: 'none', zIndex: 3 }}
-          >
-            <WaveformBarsIdle />
-          </div>
+            className="absolute inset-x-0 bottom-0"
+            style={{ height: 40, background: 'linear-gradient(to top, #000 0%, transparent 100%)' }}
+          />
         </div>
-      )
-    }
-
-    // Activated — real Spotify embed, branding masked with dark overlays
-    return (
-      <div
-        className="w-full h-full fp-tile overflow-hidden relative bg-black"
-        style={{ borderRadius: 'inherit' }}
-      >
-        <iframe
-          src={spotifyEmbedSrc}
-          className="absolute inset-0 w-full h-full"
-          style={{ border: 'none' }}
-          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-        />
-        {/* Top mask — covers Spotify logo */}
-        <div
-          className="absolute top-0 left-0 right-0"
-          style={{ height: 28, background: 'linear-gradient(to bottom, black 60%, transparent)', zIndex: 2, pointerEvents: 'none' }}
-        />
-        {/* Bottom mask — covers "Save on Spotify" / "Open in Spotify" */}
-        <div
-          className="absolute bottom-0 left-0 right-0"
-          style={{ height: 32, background: 'linear-gradient(to top, black 60%, transparent)', zIndex: 2, pointerEvents: 'none' }}
-        />
       </div>
     )
   }
