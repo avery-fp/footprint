@@ -29,6 +29,14 @@ export const MOTION = {
     backdropBlur: 16,         // px
   },
 
+  // CommandLayer — concealed search surface
+  command: {
+    duration: 0.25,
+    easing: [0.33, 1, 0.68, 1],
+    staggerDelay: 0.04,
+    exitDuration: 0.18,
+  },
+
   // Long press
   longPress: {
     threshold: 450,           // ms

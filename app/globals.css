@@ -291,6 +291,17 @@ input:-webkit-autofill:focus {
   /* no content-visibility — render everything immediately */
 }
 
+/* Command layer — tile highlight pulse on search navigate */
+@keyframes fp-highlight-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0.3); }
+  50%  { box-shadow: 0 0 0 3px rgba(255,255,255,0.15); }
+  100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+}
+.fp-tile-highlight {
+  animation: fp-highlight-pulse 1.5s ease-out;
+  border-radius: 16px;
+}
+
 /* Tile failed to load — dark placeholder, never empty */
 [data-tile-id] img[src=""] {
   background: rgba(0, 0, 0, 0.3);
