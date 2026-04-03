@@ -8,6 +8,7 @@ import WeatherEffect from '@/components/WeatherEffect'
 import { RemoveBubble } from '@/components/RemoveBubble'
 import { RolodexDrawer } from '@/components/RolodexDrawer'
 import FloatingCtaBar from '@/components/FloatingCtaBar'
+import CommandLayer from '@/components/CommandLayer'
 import { getGridLayout } from '@/lib/grid-layouts'
 import { getGridClass, resolveAspect, isVideoTile } from '@/lib/media/aspect'
 import {
@@ -173,6 +174,23 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     const t = setTimeout(() => setShowToast(false), 2000)
     return () => clearTimeout(t)
   }, [showToast])
+
+  // Command layer — scroll to tile on search result selection
+  const handleTileNavigate = useCallback((tileId: string, roomId: string) => {
+    const scrollToTile = () => {
+      const el = document.querySelector(`[data-tile-id="${tileId}"]`)
+      if (!el) return
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      el.closest('.fp-tile-hover')?.classList.add('fp-tile-highlight')
+      setTimeout(() => el.closest('.fp-tile-hover')?.classList.remove('fp-tile-highlight'), 1500)
+    }
+    if (roomId && roomId !== activeRoomId) {
+      goToRoom(roomId)
+      setTimeout(scrollToTile, 600)
+    } else {
+      scrollToTile()
+    }
+  }, [activeRoomId, goToRoom])
 
   // ═══════════════════════════════════════════
   // Drag-to-reorder for owners on public page
@@ -352,6 +370,15 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
       )}
       <WeatherEffect type={footprint.weather_effect || null} />
+      <CommandLayer
+        content={allContent}
+        rooms={visibleRooms}
+        footprint={footprint}
+        theme={theme}
+        isMobile={isMobile}
+        activeRoomId={activeRoomId}
+        onNavigateToTile={handleTileNavigate}
+      />
 
       {/* Draft banner */}
       {isDraft && (
