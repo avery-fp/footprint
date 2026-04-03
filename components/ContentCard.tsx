@@ -206,53 +206,60 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }
 
   // ════════════════════════════════════════
-  // SPOTIFY — embed iframe IS the art
-  // Portrait tile → large album art. Gradient masks hide branding.
-  // User taps iframe directly = audio plays. One tap.
+  // SPOTIFY — share card. No iframe. No embed.
+  // Album art full bleed + title/artist overlay. Tap opens Spotify.
   // ════════════════════════════════════════
   if (content.type === 'spotify') {
-    const embed = parseEmbed(content.url)
-    if (embed) {
-      return (
-        <div
-          ref={containerRef}
-          className="w-full h-full relative fp-tile"
-          style={{
-            borderRadius: 'inherit',
-            overflow: 'hidden',
-            clipPath: 'inset(0 round var(--fp-tile-radius, 16px))',
-            background: '#000',
-          }}
-        >
-          <iframe
-            src={embed.embedUrl}
-            className="absolute inset-0 w-full h-full"
-            style={{ border: 'none' }}
-            allow="autoplay; clipboard-write; encrypted-media"
+    const thumbSrc = content.thumbnail_url_hq || content.thumbnail_url
+
+    return (
+      <a
+        href={content.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block w-full h-full relative overflow-hidden"
+        style={{ borderRadius: 'inherit' }}
+      >
+        {/* Album art — full bleed */}
+        {thumbSrc ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={thumbSrc}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover"
             loading="lazy"
-            referrerPolicy="strict-origin-when-cross-origin"
           />
+        ) : (
+          <div className="absolute inset-0 bg-black" />
+        )}
 
-          {/* Top gradient — fades Spotify logo */}
-          <div
-            style={{
-              position: 'absolute', top: 0, left: 0, right: 0, height: 48,
-              background: 'linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.6) 50%, transparent 100%)',
-              pointerEvents: 'none', zIndex: 2,
-            }}
-          />
+        {/* Bottom gradient — text readability */}
+        <div
+          className="absolute inset-x-0 bottom-0"
+          style={{ height: '50%', background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)' }}
+        />
 
-          {/* Bottom gradient — fades "Open in Spotify" */}
-          <div
-            style={{
-              position: 'absolute', bottom: 0, left: 0, right: 0, height: 56,
-              background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 40%, transparent 100%)',
-              pointerEvents: 'none', zIndex: 2,
-            }}
-          />
+        {/* Title + artist */}
+        <div className="absolute inset-x-0 bottom-0 z-10 p-4 flex flex-col items-center gap-1">
+          {content.title && (
+            <span
+              className="text-white/70 truncate max-w-full text-center"
+              style={{ fontSize: '13px', fontFamily: "'DM Sans', sans-serif" }}
+            >
+              {content.title}
+            </span>
+          )}
+          {content.artist && (
+            <span
+              className="text-white/25 uppercase tracking-widest truncate max-w-full text-center"
+              style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              {content.artist}
+            </span>
+          )}
         </div>
-      )
-    }
+      </a>
+    )
   }
 
   // ════════════════════════════════════════
