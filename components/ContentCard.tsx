@@ -66,6 +66,7 @@ interface ContentCardProps {
     description: string | null
     thumbnail_url: string | null
     embed_html: string | null
+    external_id?: string | null
     artist?: string | null
     thumbnail_url_hq?: string | null
   }
@@ -461,39 +462,117 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }
 
   // ════════════════════════════════════════
-  // SOCIAL — Twitter, Instagram, TikTok
+  // TWITTER / X — native text tile
   // ════════════════════════════════════════
-  if (['twitter', 'instagram', 'tiktok'].includes(content.type)) {
-    if (content.thumbnail_url) {
-      return (
-        <a
-          href={content.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          ref={containerRef as any}
-          className="block fp-tile overflow-hidden relative"
-        >
-          <Image
-            src={transformImageUrl(content.thumbnail_url)}
-            alt=""
-            width={400}
-            height={400}
-            sizes="(max-width: 768px) 50vw, 25vw"
-            className={`w-full ${aspectClass} ${fitClass}`}
-            loading="lazy"
-            quality={90}
-            onLoad={() => setIsLoaded(true)}
-          />
-        </a>
-      )
-    }
+  if (content.type === 'twitter') {
+    const tweetMatch = content.url.match(/(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]+)\/status\//)
+    const handle = tweetMatch?.[1] ? `@${tweetMatch[1]}` : null
+    // Title holds enriched tweet text (from oEmbed) or fallback "Tweet by @user"
+    const tweetText = content.title || (handle ? `Tweet by ${handle}` : 'Tweet')
+    const isFallback = !content.title || content.title.startsWith('Tweet by ')
+    const len = tweetText.length
+    const typo = isFallback
+      ? 'text-[14px] font-light tracking-[-0.01em] leading-snug'
+      : len <= 60
+      ? 'text-[14px] font-light tracking-[-0.01em] leading-snug'
+      : len <= 140
+      ? 'text-[12px] font-light tracking-[-0.005em] leading-relaxed'
+      : 'text-[11px] font-light tracking-normal leading-relaxed'
+
+    const glassStyle = {
+      background: 'rgba(255, 255, 255, 0.06)',
+      backdropFilter: 'blur(20px) saturate(120%)',
+      WebkitBackdropFilter: 'blur(20px) saturate(120%)',
+      border: '1px solid rgba(255, 255, 255, 0.08)',
+      fontFamily: "'DM Sans', sans-serif",
+    } as React.CSSProperties
+
     return (
       <a
         href={content.url}
         target="_blank"
         rel="noopener noreferrer"
-        className={`block fp-tile overflow-hidden ${aspectClass} fp-surface`}
-      />
+        className={`block w-full h-full fp-tile overflow-hidden relative flex flex-col items-center justify-center p-4 ${aspectClass}`}
+        style={glassStyle}
+      >
+        {/* 𝕏 glyph — top right */}
+        <span className="absolute top-2.5 right-3 text-[13px] text-white/[0.15] font-light select-none">𝕏</span>
+        {/* Tweet text */}
+        <p className={`whitespace-pre-wrap text-center text-white/80 ${typo} line-clamp-6`}>
+          {tweetText}
+        </p>
+        {/* Handle attribution */}
+        {handle && !isFallback && (
+          <span className="mt-2 text-[9px] text-white/30 uppercase tracking-[0.08em]">{handle}</span>
+        )}
+      </a>
+    )
+  }
+
+  // ════════════════════════════════════════
+  // TIKTOK — content facade (thumbnail), tap opens post
+  // ════════════════════════════════════════
+  if (content.type === 'tiktok') {
+    const thumbSrc = content.thumbnail_url_hq || content.thumbnail_url
+    return (
+      <a
+        href={content.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        ref={containerRef as any}
+        className={`block w-full h-full fp-tile overflow-hidden relative bg-black ${aspectClass}`}
+      >
+        {thumbSrc ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={thumbSrc}
+              alt={content.title || ''}
+              className="w-full h-full object-cover"
+              loading="lazy"
+              decoding="async"
+            />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center opacity-60">
+                <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+              </div>
+            </div>
+          </>
+        ) : (
+          <GlassPlaceholder aspectClass={aspectClass} />
+        )}
+      </a>
+    )
+  }
+
+  // ════════════════════════════════════════
+  // INSTAGRAM — content facade (og:image), tap opens post
+  // ════════════════════════════════════════
+  if (content.type === 'instagram') {
+    const thumbSrc = content.thumbnail_url_hq || content.thumbnail_url
+    return (
+      <a
+        href={content.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        ref={containerRef as any}
+        className={`block w-full h-full fp-tile overflow-hidden relative bg-black ${aspectClass}`}
+      >
+        {thumbSrc ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={thumbSrc}
+            alt={content.title || ''}
+            className="w-full h-full object-cover"
+            loading="lazy"
+            decoding="async"
+          />
+        ) : (
+          <GlassPlaceholder aspectClass={aspectClass} />
+        )}
+      </a>
     )
   }
 

@@ -14,6 +14,8 @@ const OEMBED_ENDPOINTS: Record<string, (url: string) => string> = {
   spotify: (url) => `https://open.spotify.com/oembed?url=${encodeURIComponent(url)}`,
   soundcloud: (url) => `https://soundcloud.com/oembed?url=${encodeURIComponent(url)}&format=json`,
   vimeo: (url) => `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(url)}`,
+  twitter: (url) => `https://publish.twitter.com/oembed?url=${encodeURIComponent(url)}&omit_script=true&dnt=true`,
+  tiktok: (url) => `https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`,
 }
 
 function detectPlatform(url: string): string | null {
@@ -21,6 +23,8 @@ function detectPlatform(url: string): string | null {
   if (/open\.spotify\.com/.test(url)) return 'spotify'
   if (/soundcloud\.com/.test(url)) return 'soundcloud'
   if (/vimeo\.com/.test(url)) return 'vimeo'
+  if (/twitter\.com|x\.com/.test(url)) return 'twitter'
+  if (/tiktok\.com/.test(url)) return 'tiktok'
   return null
 }
 

@@ -104,34 +104,74 @@ export async function POST(request: NextRequest) {
       tile = result.data
       error = result.error
     } else {
-      // Determine if this should be a ghost tile (YouTube, Spotify)
-      const isGhostDefault = ['youtube', 'spotify'].includes(parsed.type)
+      // Determine if this needs metadata enrichment at save time
+      const needsEnrich = ['youtube', 'spotify', 'twitter', 'tiktok', 'instagram'].includes(parsed.type)
 
-      // Fetch oEmbed metadata for ghost tiles at creation time
+      // Fetch oEmbed / OG metadata at creation time
       let ghostArtist: string | null = null
       let ghostThumbnailHq: string | null = null
       let ghostMediaId: string | null = parsed.external_id
+      let enrichedTitle: string | null = null
 
-      if (isGhostDefault) {
+      if (needsEnrich) {
         try {
-          const oembedEndpoints: Record<string, string> = {
-            youtube: `https://www.youtube.com/oembed?url=${encodeURIComponent(parsed.url)}&format=json`,
-            spotify: `https://open.spotify.com/oembed?url=${encodeURIComponent(parsed.url)}`,
-          }
-          const endpoint = oembedEndpoints[parsed.type]
-          if (endpoint) {
+          // Instagram: scrape og:image directly (no public oEmbed)
+          if (parsed.type === 'instagram') {
             try {
-              const res = await fetch(endpoint, { signal: AbortSignal.timeout(3000) })
+              const res = await fetch(parsed.url, {
+                signal: AbortSignal.timeout(5000),
+                headers: {
+                  'User-Agent': 'Mozilla/5.0 (compatible; Footprint/1.0; +https://footprint.onl)',
+                  'Accept': 'text/html,application/xhtml+xml',
+                },
+                redirect: 'follow',
+              })
               if (res.ok) {
-                const data = await res.json()
-                ghostArtist = data.author_name || null
-                ghostThumbnailHq = data.thumbnail_url || null
-                if (!ghostMediaId) ghostMediaId = parsed.external_id || null
+                const html = await res.text()
+                const ogImage = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i)?.[1]
+                  || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i)?.[1]
+                if (ogImage) ghostThumbnailHq = ogImage
+                const ogTitle = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i)?.[1]
+                  || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:title["']/i)?.[1]
+                if (ogTitle) enrichedTitle = ogTitle.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
               }
-            } catch { /* silent fallback — tile still creates without metadata */ }
+            } catch { /* silent fallback */ }
+          } else {
+            // oEmbed for YouTube, Spotify, Twitter, TikTok
+            const oembedEndpoints: Record<string, string> = {
+              youtube: `https://www.youtube.com/oembed?url=${encodeURIComponent(parsed.url)}&format=json`,
+              spotify: `https://open.spotify.com/oembed?url=${encodeURIComponent(parsed.url)}`,
+              twitter: `https://publish.twitter.com/oembed?url=${encodeURIComponent(parsed.url)}&omit_script=true&dnt=true`,
+              tiktok: `https://www.tiktok.com/oembed?url=${encodeURIComponent(parsed.url)}`,
+            }
+            const endpoint = oembedEndpoints[parsed.type]
+            if (endpoint) {
+              try {
+                const res = await fetch(endpoint, { signal: AbortSignal.timeout(3000) })
+                if (res.ok) {
+                  const data = await res.json()
+                  ghostArtist = data.author_name || null
+                  ghostThumbnailHq = data.thumbnail_url || null
+                  if (!ghostMediaId) ghostMediaId = parsed.external_id || null
+
+                  // Twitter: extract tweet text from oEmbed html field
+                  if (parsed.type === 'twitter' && data.html) {
+                    const pMatch = data.html.match(/<p[^>]*>([\s\S]*?)<\/p>/)
+                    if (pMatch) {
+                      enrichedTitle = pMatch[1].replace(/<[^>]+>/g, '').trim() || null
+                    }
+                  }
+
+                  // TikTok: use oEmbed title
+                  if (parsed.type === 'tiktok' && data.title) {
+                    enrichedTitle = data.title
+                  }
+                }
+              } catch { /* silent fallback — tile still creates without metadata */ }
+            }
           }
         } catch {
-          // oEmbed metadata fetch failed — proceed without metadata, not a blocker
+          // Metadata fetch failed — proceed without metadata, not a blocker
         }
       }
 
@@ -142,7 +182,7 @@ export async function POST(request: NextRequest) {
           serial_number: serialNumber,
           url: parsed.url,
           platform: parsed.type,
-          title: parsed.title,
+          title: enrichedTitle || parsed.title,
           metadata: {
             description: parsed.description,
             embed_html: parsed.embed_html,
@@ -151,7 +191,7 @@ export async function POST(request: NextRequest) {
           position: nextPosition,
           room_id: room_id || null,
           size: ['youtube', 'vimeo'].includes(parsed.type) ? 2 : 1,
-          ...(isGhostDefault ? {
+          ...(needsEnrich ? {
             render_mode: 'ghost',
             artist: ghostArtist,
             thumbnail_url_hq: ghostThumbnailHq,
