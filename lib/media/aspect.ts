@@ -23,9 +23,10 @@ export function resolveAspect(
   if (stored === 'square') return 'square'
   if (type === 'spotify') return 'portrait'
   if (type === 'youtube' || type === 'vimeo') return 'wide'
-  // Video dominance — all videos default to wide (col-span-2 row-span-1)
-  if (type === 'video') return 'wide'
-  if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return 'wide'
+  // Uploaded videos — square by default (most phone content is portrait/square).
+  // Stored aspect overrides this (handled above).
+  if (type === 'video') return 'square'
+  if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return 'square'
   if (type === 'image') return 'auto'
   return 'square'
 }

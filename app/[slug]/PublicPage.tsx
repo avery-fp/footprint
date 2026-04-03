@@ -337,24 +337,22 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           ? resolveAspect(item.aspect, item.type, item.url)
           : 'square'
 
-        const isVid = item.type === 'youtube' ||
-              item.type === 'video' ||
-              item.url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i) ||
-              item.url?.includes('youtube') ||
-              item.url?.includes('youtu.be')
+        // Only YouTube/Vimeo embeds need forced wide — they're iframe players.
+        // Uploaded videos + Instagram respect their stored aspect (portrait/square/wide).
+        const isEmbedVid = item.type === 'youtube' || item.type === 'vimeo' ||
+              item.url?.includes('youtube') || item.url?.includes('youtu.be')
 
         const isSpotify = item.type === 'spotify'
         const isAudioEmbed = item.type === 'soundcloud'
 
-        // Sound room: hero first tile + square videos (no letterboxing)
-        // Spotify = portrait share card. SoundCloud = wide embed.
+        // Sound room: hero first tile + square others
+        // Spotify = portrait. SoundCloud = wide. Embed videos = wide.
+        // Uploaded videos / Instagram / images = use their actual aspect.
         const gridClass = isSoundRoom && idx === 0
           ? 'col-span-2 row-span-2 aspect-square'
-          : isSoundRoom && isVid
-          ? 'col-span-1 aspect-square'
           : isSpotify ? 'col-span-1 aspect-[3/4]'
           : isAudioEmbed ? 'col-span-2 aspect-video'
-          : isVid ? 'col-span-2 aspect-video'
+          : isEmbedVid ? 'col-span-2 aspect-video'
           : getGridClass(tileSize, tileAspect, false)
 
         const tileInner = (
