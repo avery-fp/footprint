@@ -87,7 +87,7 @@ interface ContentCardProps {
  * Everything fails gracefully. No broken states.
  */
 export default function ContentCard({ content, onWidescreen, isMobile = false, tileSize = 1, aspect = 'square', isPublicView = false, isExpanded = false }: ContentCardProps) {
-  const aspectClass = aspect === 'wide' ? 'aspect-video' : aspect === 'tall' ? 'aspect-[9/16]' : aspect === 'auto' ? '' : 'aspect-square'
+  const aspectClass = aspect === 'wide' ? 'aspect-video' : aspect === 'tall' ? 'aspect-[9/16]' : aspect === 'portrait' ? 'aspect-[3/4]' : 'aspect-square'
   const fitClass = 'object-cover'
   const [isActivated, setIsActivated] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)

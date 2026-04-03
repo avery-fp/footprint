@@ -27,7 +27,7 @@ export function resolveAspect(
   // Stored aspect overrides this (handled above).
   if (type === 'video') return 'square'
   if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return 'square'
-  if (type === 'image') return 'auto'
+  if (type === 'image') return 'square'
   return 'square'
 }
 
