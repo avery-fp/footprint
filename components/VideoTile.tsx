@@ -34,15 +34,43 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
     return () => { nearObs.disconnect(); visObs.disconnect() }
   }, [])
 
-  // Play only when visible, pause when off-screen
+  // Play only when visible, pause when off-screen.
+  // Auto-unmute once playing — browsers require muted for autoplay,
+  // but we can unmute immediately after a user gesture has occurred.
   useEffect(() => {
-    if (!videoRef.current) return
-    if (isVisible) {
-      videoRef.current.play().catch(() => {})
-    } else {
-      videoRef.current.pause()
+    const v = videoRef.current
+    if (!v) return
+    let cancelled = false
+    const unlock = () => {
+      if (cancelled || !videoRef.current) return
+      videoRef.current.muted = false
+      setIsMuted(false)
+      audioManager.play(videoId)
+      cleanup()
     }
-  }, [isVisible, isReady])
+    const cleanup = () => {
+      document.removeEventListener('click', unlock)
+      document.removeEventListener('touchstart', unlock)
+    }
+    if (isVisible) {
+      v.play().then(() => {
+        if (cancelled) return
+        v.muted = false
+        setIsMuted(false)
+        audioManager.play(videoId)
+      }).catch(() => {
+        if (cancelled) return
+        document.addEventListener('click', unlock, { once: true })
+        document.addEventListener('touchstart', unlock, { once: true })
+      })
+    } else {
+      v.pause()
+    }
+    return () => {
+      cancelled = true
+      cleanup()
+    }
+  }, [isVisible, isReady, videoId])
 
   // Timeout — if video doesn't load in 8s, show fallback
   useEffect(() => {
