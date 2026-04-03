@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Image from 'next/image'
 import UnifiedTile from '@/components/UnifiedTile'
 
@@ -10,6 +10,7 @@ import { RolodexDrawer } from '@/components/RolodexDrawer'
 import FloatingCtaBar from '@/components/FloatingCtaBar'
 import CommandLayer from '@/components/CommandLayer'
 import { getGridLayout } from '@/lib/grid-layouts'
+import { useDepthExpansion } from '@/hooks/useDepthExpansion'
 import { getGridClass, resolveAspect } from '@/lib/media/aspect'
 import {
   DndContext,
@@ -89,6 +90,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [showToast, setShowToast] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [roomFade, setRoomFade] = useState<'visible' | 'out' | 'in'>('visible')
+
+  // ── Depth tile expansion (Z-axis navigation) ──
+  const { expanded, showOverlay, expand, collapse, registerRef } = useDepthExpansion()
+  const depthTouchStart = useRef(0)
 
   // Content filtering
   const validContent = useMemo(() =>
@@ -255,8 +260,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   }
 
   // Sortable tile wrapper for owner drag
-  function SortableTileWrapper({ item, idx, children, className, style: extraStyle }: { item: any; idx: number; children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
+  function SortableTileWrapper({ item, idx, children, className, style: extraStyle, disabled }: { item: any; idx: number; children: React.ReactNode; className?: string; style?: React.CSSProperties; disabled?: boolean }) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id, disabled })
     const style = {
       transform: CSS.Transform.toString(transform),
       transition: transition || 'transform 200ms cubic-bezier(0.25, 1, 0.5, 1)',
@@ -287,12 +292,33 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     transition: 'opacity 250ms ease-out, transform 350ms ease-out',
   }
 
+  // ── Depth expansion: per-tile style ──
+  // Expanded tile: scale + translate to viewport center, z-50
+  // Sibling tiles: 10% opacity, slight scale-down, non-interactive
+  // Street level (nothing expanded): subtle transition ready
+  const getDepthStyle = (tileId: string): React.CSSProperties => {
+    if (!expanded) return { transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease' }
+    if (expanded.id === tileId) return {
+      transform: expanded.transform,
+      zIndex: 50,
+      transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
+      willChange: 'transform',
+    }
+    return {
+      opacity: 0.1,
+      transform: 'scale(0.97)',
+      transition: 'opacity 0.4s ease-out, transform 0.4s ease-out',
+      pointerEvents: 'none' as const,
+    }
+  }
+
   const gridInner = isRail ? (
     // ── RAIL MODE: cinematic horizontal snap scroll ──
     <div
       className={`${layoutConfig.containerClass} hide-scrollbar`}
       style={{
-        scrollSnapType: 'x mandatory',
+        scrollSnapType: expanded ? 'none' : 'x mandatory',
+        overflow: expanded ? 'visible' : undefined,
         scrollPaddingLeft: 'max(24px, calc((100vw - min(88vw, 620px)) / 2))',
         WebkitOverflowScrolling: 'touch' as any,
         paddingLeft: 'max(24px, calc((100vw - min(88vw, 620px)) / 2))',
@@ -301,21 +327,32 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       }}
     >
       {displayContent.map((item: any, idx: number) => {
+        const isThisExpanded = expanded?.id === item.id
         const tileInner = (
           <div
-            className="relative w-full h-full overflow-hidden fp-tile-hover rounded-2xl"
-            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
+            ref={(el: HTMLDivElement | null) => registerRef(item.id, el)}
+            className="w-full h-full relative"
+            style={getDepthStyle(item.id)}
           >
-            <UnifiedTile
-              item={item}
-              index={idx}
-              size={1}
-              aspect="wide"
-              mode="public"
-              layout={roomLayout}
-              isMobile={isMobile}
-              isSoundRoom={isSoundRoom}
-            />
+            <div
+              className="relative w-full h-full overflow-hidden fp-tile-hover rounded-2xl"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
+            >
+              <UnifiedTile
+                item={item}
+                index={idx}
+                size={1}
+                aspect="wide"
+                mode="public"
+                layout={roomLayout}
+                isMobile={isMobile}
+                isSoundRoom={isSoundRoom}
+                isExpanded={isThisExpanded}
+              />
+            </div>
+            {!expanded && (
+              <div className="absolute inset-0 z-10" onClick={() => expand(item.id)} />
+            )}
           </div>
         )
 
@@ -326,7 +363,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
         if (isOwner) {
           return (
-            <SortableTileWrapper key={item.id} item={item} idx={idx} className={railTileClass} style={railStyle}>
+            <SortableTileWrapper key={item.id} item={item} idx={idx} className={railTileClass} style={railStyle} disabled={!!expanded}>
               {tileInner}
             </SortableTileWrapper>
           )
@@ -373,7 +410,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           : isEmbedVid ? 'col-span-2 aspect-video'
           : getGridClass(tileSize, tileAspect, false)
 
+        const isThisExpanded = expanded?.id === item.id
         const tileInner = (
+          <div
+            ref={(el: HTMLDivElement | null) => registerRef(item.id, el)}
+            className="w-full h-full relative"
+            style={getDepthStyle(item.id)}
+          >
             <div
               className={`relative w-full overflow-hidden fp-tile-hover h-full rounded-2xl${isSoundRoom ? ' fp-sound-tile' : ''}`}
               style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)' }}
@@ -387,13 +430,18 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 layout={roomLayout}
                 isMobile={isMobile}
                 isSoundRoom={isSoundRoom}
+                isExpanded={isThisExpanded}
               />
             </div>
+            {!expanded && (
+              <div className="absolute inset-0 z-10" onClick={() => expand(item.id)} />
+            )}
+          </div>
         )
 
         if (isOwner) {
           return (
-            <SortableTileWrapper key={item.id} item={item} idx={idx} className={gridClass}>
+            <SortableTileWrapper key={item.id} item={item} idx={idx} className={gridClass} disabled={!!expanded}>
               {tileInner}
             </SortableTileWrapper>
           )
@@ -540,6 +588,40 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         >
           {activeGrid}
         </div>
+
+        {/* ── Depth overlay: backdrop + close ── */}
+        {showOverlay && (
+          <>
+            <div
+              className="fixed inset-0 z-40"
+              style={{
+                backgroundColor: 'rgba(0, 0, 0, 0.65)',
+                opacity: expanded ? 1 : 0,
+                transition: 'opacity 0.4s ease',
+                willChange: 'opacity',
+              }}
+              onClick={collapse}
+              onTouchStart={(e) => { depthTouchStart.current = e.touches[0].clientY }}
+              onTouchEnd={(e) => { if (e.changedTouches[0].clientY - depthTouchStart.current > 60) collapse() }}
+            />
+            <button
+              className="fixed top-5 right-5 z-[60] w-10 h-10 flex items-center justify-center rounded-full transition-all touch-manipulation"
+              style={{
+                background: 'rgba(255, 255, 255, 0.08)',
+                backdropFilter: 'blur(8px)',
+                WebkitBackdropFilter: 'blur(8px)',
+                opacity: expanded ? 1 : 0,
+                transition: 'opacity 0.3s ease 0.15s',
+              }}
+              onClick={collapse}
+              aria-label="Close"
+            >
+              <svg className="w-4 h-4 text-white/60" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </>
+        )}
 
         {content.length === 0 && (
           <div className="py-16" />
