@@ -508,6 +508,13 @@ input:-webkit-autofill:focus {
   0%, 100% { opacity: 0.5; }
   50% { opacity: 1; }
 }
+@keyframes ghost-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.6; }
+}
+.animate-ghost-pulse {
+  animation: ghost-pulse 6s ease-in-out infinite;
+}
 /* Floating CTA — CSS-only fade-in, no hydration dependency */
 @keyframes cta-fade-in {
   0% { opacity: 0; pointer-events: none; }

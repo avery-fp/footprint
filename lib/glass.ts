@@ -13,7 +13,7 @@ export const GLASS = {
 } as const
 
 /** Glass style object — spread into React style prop */
-export const glassStyle: React.CSSProperties = {
+export const glassStyle = {
   background: GLASS.background,
   border: GLASS.border,
   backdropFilter: GLASS.backdropFilter,

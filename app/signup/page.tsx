@@ -142,8 +142,8 @@ export default function SignupPage() {
         {isUsernameValid && available !== false && (
           <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
-              <OAuthButton provider="google" label="sign up with Google" />
-              <OAuthButton provider="apple" label="sign up with Apple" />
+              <OAuthButton provider="google" label="continue with Google" />
+              <OAuthButton provider="apple" label="continue with Apple" />
             </div>
 
             <Divider />
@@ -161,7 +161,7 @@ export default function SignupPage() {
                   onMouseEnter={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.5)' }}
                   onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.35)' }}
                 >
-                  sign up with email instead
+                  use email instead
                 </button>
               </div>
             ) : (
