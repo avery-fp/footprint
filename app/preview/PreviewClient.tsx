@@ -125,11 +125,10 @@ export default function PreviewClient({ name, city, category, theme, themeId }: 
             {GHOST_TILES.map((tile, idx) => (
               <div
                 key={idx}
-                className={`${tile.span === 2 ? 'col-span-2' : 'col-span-1'} ${tile.aspect} relative overflow-hidden rounded-2xl animate-breathe`}
+                className={`${tile.span === 2 ? 'col-span-2' : 'col-span-1'} ${tile.aspect} relative overflow-hidden rounded-2xl animate-ghost-pulse`}
                 style={{
                   background: theme.colors.glass,
                   border: `1px solid ${theme.colors.border}`,
-                  opacity: 0.5,
                   animationDelay: `${idx * 1.2}s`,
                 }}
               />

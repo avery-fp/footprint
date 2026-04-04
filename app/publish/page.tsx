@@ -201,7 +201,7 @@ export default function PublishPage() {
             onClick={() => router.push(`/${finalSlug}/home`)}
             className="w-full py-3.5 rounded-xl bg-white text-black text-[14px] font-medium hover:bg-white/90 transition-all mb-3"
           >
-            open your room
+            open your space
           </button>
 
           <button
