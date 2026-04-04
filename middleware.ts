@@ -22,6 +22,7 @@ const publicRoutes = [
   '/signup',
   '/signin',
   '/login',
+  '/welcome',
   '/build',
   '/checkout',
   '/success',
