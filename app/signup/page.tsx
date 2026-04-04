@@ -3,8 +3,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import AeInput from '@/components/auth/AeInput'
 import AeArrow from '@/components/auth/AeArrow'
-import URLPreview from '@/components/auth/URLPreview'
 import AeQuietLink from '@/components/auth/AeQuietLink'
+import OAuthButton from '@/components/auth/OAuthButton'
+import Divider from '@/components/auth/Divider'
+import URLPreview from '@/components/auth/URLPreview'
 
 export default function SignupPage() {
   const [username, setUsername] = useState('')
@@ -13,6 +15,7 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false)
   const [shake, setShake] = useState(false)
   const [error, setError] = useState('')
+  const [showEmailForm, setShowEmailForm] = useState(false)
 
   // Username availability
   const [available, setAvailable] = useState<boolean | null>(null)
@@ -116,18 +119,11 @@ export default function SignupPage() {
           <URLPreview username={username} state={urlState} />
         </div>
 
-        <form
-          onSubmit={(e) => { e.preventDefault(); handleSubmit() }}
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            width: '100%',
-          }}
-        >
+        {/* Username input — always first */}
+        <div style={{ width: '100%', marginBottom: '20px' }}>
           <AeInput
             ref={usernameRef}
-            placeholder="username"
+            placeholder="claim your username"
             value={username}
             onChange={(e) => {
               const v = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')
@@ -140,46 +136,96 @@ export default function SignupPage() {
             autoFocus
             autoComplete="off"
           />
+        </div>
 
-          <div style={{ width: '100%', marginTop: '16px' }}>
-            <AeInput
-              placeholder="your email"
-              value={email}
-              onChange={(e) => { setEmail(e.target.value); setError('') }}
-              type="email"
-              autoComplete="email"
-            />
-          </div>
+        {/* OAuth buttons — quick signup path */}
+        {isUsernameValid && available !== false && (
+          <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
+              <OAuthButton provider="google" label="sign up with Google" />
+              <OAuthButton provider="apple" label="sign up with Apple" />
+            </div>
 
-          <div style={{ width: '100%', marginTop: '16px' }}>
-            <AeInput
-              placeholder="password"
-              value={password}
-              onChange={(e) => { setPassword(e.target.value); setError('') }}
-              type="password"
-              autoComplete="new-password"
-            />
-          </div>
+            <Divider />
 
-          {error && (
-            <p style={{
-              color: 'rgba(255,100,100,0.7)',
-              fontSize: '13px',
-              marginTop: '12px',
-              textAlign: 'center',
-            }}>
-              {error}
-            </p>
-          )}
+            {!showEmailForm ? (
+              <div style={{ marginTop: '16px', textAlign: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowEmailForm(true)}
+                  style={{
+                    background: 'none', border: 'none', color: 'rgba(255,255,255,0.35)',
+                    fontSize: '13px', cursor: 'pointer', padding: '12px',
+                    transition: 'color 200ms ease',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.5)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.35)' }}
+                >
+                  sign up with email instead
+                </button>
+              </div>
+            ) : (
+              <form
+                onSubmit={(e) => { e.preventDefault(); handleSubmit() }}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  width: '100%',
+                  marginTop: '16px',
+                }}
+              >
+                <AeInput
+                  placeholder="your email"
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); setError('') }}
+                  type="email"
+                  autoComplete="email"
+                />
 
-          <div style={{ marginTop: '24px' }}>
-            <AeArrow
-              onClick={handleSubmit}
-              visible={formValid}
-              disabled={loading}
-            />
-          </div>
-        </form>
+                <div style={{ width: '100%', marginTop: '16px' }}>
+                  <AeInput
+                    placeholder="password"
+                    value={password}
+                    onChange={(e) => { setPassword(e.target.value); setError('') }}
+                    type="password"
+                    autoComplete="new-password"
+                  />
+                </div>
+
+                {error && (
+                  <p style={{
+                    color: 'rgba(255,100,100,0.7)',
+                    fontSize: '13px',
+                    marginTop: '12px',
+                    textAlign: 'center',
+                  }}>
+                    {error}
+                  </p>
+                )}
+
+                <div style={{ marginTop: '24px' }}>
+                  <AeArrow
+                    onClick={handleSubmit}
+                    visible={formValid}
+                    disabled={loading}
+                  />
+                </div>
+              </form>
+            )}
+          </>
+        )}
+
+        {error && !showEmailForm && (
+          <p style={{
+            color: 'rgba(255,100,100,0.7)',
+            fontSize: '13px',
+            marginTop: '12px',
+            textAlign: 'center',
+          }}>
+            {error}
+          </p>
+        )}
 
         <div style={{ marginTop: '48px', textAlign: 'center' }}>
           <AeQuietLink text="already have a room? sign in" onClick={() => { window.location.href = '/login' }} />
