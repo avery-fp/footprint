@@ -24,7 +24,7 @@ export default function ContainerTile({ label, coverUrl, childCount, firstChildT
       className="w-full h-full relative overflow-hidden group cursor-pointer"
       style={{ borderRadius: 'inherit' }}
     >
-      {/* Blurred thumbnail background — the door hints at the room */}
+      {/* Blurred thumbnail background — the door hints at the space */}
       {bgUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img

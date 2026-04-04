@@ -10,6 +10,7 @@ import { RolodexDrawer } from '@/components/RolodexDrawer'
 import FloatingCtaBar from '@/components/FloatingCtaBar'
 import CommandLayer from '@/components/CommandLayer'
 import { getGridLayout } from '@/lib/grid-layouts'
+import { glassStyle } from '@/lib/glass'
 import { useDepthExpansion } from '@/hooks/useDepthExpansion'
 import { getGridClass, resolveAspect } from '@/lib/media/aspect'
 import {
@@ -522,8 +523,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
       )}
 
-      {/* Top-right — owner home button */}
-      {isOwner && (
+      {/* Top-right — owner home button. Not in DOM for visitors. Hidden during expansion. */}
+      {isOwner && !expanded && (
         <div className="fixed top-5 right-4 md:right-6 z-30">
           <a
             href={`/${footprint.username}/home`}
@@ -628,10 +629,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                   className="pointer-events-auto flex items-center justify-between px-5 flex-shrink-0"
                   style={{
                     height: '52px',
-                    background: 'rgba(0,0,0,0.3)',
-                    backdropFilter: 'blur(12px)',
-                    WebkitBackdropFilter: 'blur(12px)',
+                    ...glassStyle,
+                    border: 'none',
                     borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    borderRadius: 0,
                   }}
                 >
                   <span
@@ -655,27 +656,29 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                   </button>
                 </div>
 
-                {/* Child tiles — horizontal rail (axis change = depth cue) */}
-                <div className="flex-1 flex items-center pointer-events-auto">
+                {/* Child tiles — horizontal rail fills viewport below header */}
+                <div className="flex-1 flex items-center pointer-events-auto" style={{ padding: '12px 0' }}>
                   {containerChildren.length > 0 ? (
                     <div
-                      className="flex flex-row overflow-x-auto gap-4 hide-scrollbar w-full"
+                      className="flex flex-row overflow-x-auto gap-4 hide-scrollbar w-full h-full items-center"
                       style={{
                         scrollSnapType: 'x mandatory',
                         WebkitOverflowScrolling: 'touch' as any,
-                        paddingLeft: 'max(20px, calc((100vw - min(88vw, 620px)) / 2))',
-                        paddingRight: 'max(20px, calc((100vw - min(88vw, 620px)) / 2))',
-                        scrollPaddingLeft: 'max(20px, calc((100vw - min(88vw, 620px)) / 2))',
+                        paddingLeft: 'max(16px, calc((100vw - min(88vw, 620px)) / 2))',
+                        paddingRight: 'max(16px, calc((100vw - min(88vw, 620px)) / 2))',
+                        scrollPaddingLeft: 'max(16px, calc((100vw - min(88vw, 620px)) / 2))',
                       }}
                     >
                       {containerChildren.map((child: any, idx: number) => (
                         <div
                           key={child.id}
-                          className="flex-shrink-0 snap-center relative overflow-hidden rounded-2xl aspect-[3/4]"
+                          className="flex-shrink-0 snap-center relative overflow-hidden rounded-2xl"
                           style={{
-                            width: 'min(80vw, 520px)',
-                            background: 'rgba(255,255,255,0.06)',
-                            border: '1px solid rgba(255,255,255,0.08)',
+                            width: 'min(85vw, 580px)',
+                            height: '75%',
+                            minHeight: '300px',
+                            ...glassStyle,
+                            borderRadius: '16px',
                           }}
                         >
                           <UnifiedTile
@@ -781,47 +784,31 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             #{String(serial).padStart(4, '0')}
           </button>
 
-          {/* "Make yours" flyout */}
+          {/* Claim flyout */}
           {serialFlyout && !isOwner && (
             <>
             <div className="fixed inset-0" onClick={() => setSerialFlyout(false)} />
             <div
               className="absolute bottom-full left-0 mb-2"
-              style={{
-                animation: 'fadeInUp 0.25s ease',
-              }}
+              style={{ animation: 'fadeInUp 0.25s ease' }}
             >
-              <div
+              <a
+                href="/preview"
+                className="flex items-center no-underline touch-manipulation font-mono"
                 style={{
-                  background: 'rgba(255,255,255,0.08)',
-                  backdropFilter: 'blur(16px)',
-                  WebkitBackdropFilter: 'blur(16px)',
-                  border: '1px solid rgba(255,255,255,0.1)',
+                  ...glassStyle,
                   borderRadius: '12px',
                   padding: '12px 16px',
-                  minWidth: '180px',
+                  color: 'rgba(255,255,255,0.6)',
+                  fontSize: '12px',
+                  fontWeight: 400,
+                  letterSpacing: '0.04em',
+                  textDecoration: 'none',
+                  whiteSpace: 'nowrap',
                 }}
               >
-                <p
-                  className="font-mono"
-                  style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.1em', marginBottom: '8px' }}
-                >
-                  serial #{String(serial).padStart(4, '0')} claimed
-                </p>
-                <a
-                  href="/signup?ref=serial"
-                  className="flex items-center gap-2 no-underline touch-manipulation"
-                  style={{
-                    color: 'rgba(255,255,255,0.7)',
-                    fontSize: '13px',
-                    fontWeight: 400,
-                    letterSpacing: '0.02em',
-                    textDecoration: 'none',
-                  }}
-                >
-                  get yours {'\u2192'}
-                </a>
-              </div>
+                footprint.onl {'\u2192'}
+              </a>
             </div>
             </>
           )}

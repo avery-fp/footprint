@@ -298,7 +298,7 @@ export default function LoginPage() {
 
         {/* Footer links */}
         <div style={{ marginTop: '32px', textAlign: 'center' }}>
-          <AeQuietLink text="new here? claim your room" onClick={() => { window.location.href = '/signup' }} />
+          <AeQuietLink text="new here? claim your address" onClick={() => { window.location.href = '/signup' }} />
         </div>
 
         {mode === 'password' && (

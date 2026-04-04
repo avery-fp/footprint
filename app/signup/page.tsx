@@ -123,7 +123,7 @@ export default function SignupPage() {
         <div style={{ width: '100%', marginBottom: '20px' }}>
           <AeInput
             ref={usernameRef}
-            placeholder="claim your username"
+            placeholder="claim your address"
             value={username}
             onChange={(e) => {
               const v = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')
@@ -228,7 +228,7 @@ export default function SignupPage() {
         )}
 
         <div style={{ marginTop: '48px', textAlign: 'center' }}>
-          <AeQuietLink text="already have a room? sign in" onClick={() => { window.location.href = '/login' }} />
+          <AeQuietLink text="already claimed? sign in" onClick={() => { window.location.href = '/login' }} />
         </div>
       </div>
     </div>

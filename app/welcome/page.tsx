@@ -110,7 +110,7 @@ export default function WelcomePage() {
             welcome to footprint
           </p>
           <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: '15px', marginTop: '8px' }}>
-            claim your room
+            claim your address
           </p>
         </div>
 

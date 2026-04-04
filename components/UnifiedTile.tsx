@@ -218,7 +218,7 @@ export default function UnifiedTile({
     )
   }
 
-  // ── Payment link tile (Stripe hosted) — commerce becomes real ──
+  // ── Payment link tile — price tag in a museum ──
   const isPaymentLink = item.url && (
     item.url.includes('buy.stripe.com') ||
     item.url.includes('checkout.stripe.com') ||
@@ -230,7 +230,7 @@ export default function UnifiedTile({
         href={item.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="w-full h-full flex flex-col items-center justify-center gap-3 p-4 group cursor-pointer no-underline"
+        className="w-full h-full flex flex-col items-center justify-center p-6 group cursor-pointer no-underline"
         style={{
           background: 'rgba(255,255,255,0.04)',
           borderRadius: 'inherit',
@@ -239,38 +239,22 @@ export default function UnifiedTile({
         data-tile-id={item.id}
         data-tile-type="payment"
       >
-        {item.thumbnail_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={item.thumbnail_url}
-            alt={item.title || ''}
-            className="w-16 h-16 rounded-xl object-cover"
-            style={{ border: '1px solid rgba(255,255,255,0.08)' }}
-          />
-        ) : (
-          <div
-            className="w-12 h-12 rounded-full flex items-center justify-center"
-            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
-          >
-            <svg className="w-5 h-5 text-white/50" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
-            </svg>
-          </div>
-        )}
-        <span
-          className="text-white/70 font-mono tracking-[0.1em] uppercase text-center leading-tight group-hover:text-white/90 transition-colors"
-          style={{ fontSize: '11px', fontWeight: 400 }}
-        >
-          {item.title || 'pay'}
-        </span>
-        {item.description && (
+        {/* Product name — small, above the price */}
+        {item.title && item.title !== 'Pay' && (
           <span
-            className="text-white/30 text-center line-clamp-2"
-            style={{ fontSize: '11px' }}
+            className="text-white/30 font-mono tracking-[0.12em] uppercase text-center mb-3"
+            style={{ fontSize: '9px', fontWeight: 400 }}
           >
-            {item.description}
+            {item.title}
           </span>
         )}
+        {/* Price IS the content — large, centered */}
+        <span
+          className="text-white/70 font-mono text-center leading-none group-hover:text-white/90 transition-colors"
+          style={{ fontSize: '28px', fontWeight: 300, letterSpacing: '-0.02em' }}
+        >
+          {item.description || 'pay'}
+        </span>
       </a>
     )
   }
