@@ -65,6 +65,8 @@ interface UnifiedTileProps {
   isMobile?: boolean
   isExpanded?: boolean
   isSoundRoom?: boolean
+  childCount?: number
+  firstChildThumb?: string | null
 }
 
 // ── Recovery Tile — renders when type is unknown or media fails ──
@@ -96,6 +98,8 @@ export default function UnifiedTile({
   isMobile = false,
   isExpanded = false,
   isSoundRoom = false,
+  childCount,
+  firstChildThumb,
 }: UnifiedTileProps) {
   // ── Container tile — a door, not a window ──
   if (item.type === 'container') {
@@ -104,6 +108,8 @@ export default function UnifiedTile({
         <ContainerTile
           label={item.container_label || item.title || 'Collection'}
           coverUrl={item.container_cover_url}
+          childCount={childCount}
+          firstChildThumb={firstChildThumb}
         />
       </div>
     )

@@ -71,10 +71,13 @@ export default async function FootprintPage({ params }: Props) {
 
   // Fetch tiles + rooms in parallel (single round-trip, no waterfall)
   // Street level only: parent_tile_id IS NULL (children render inside containers)
-  const [{ data: images }, { data: links }, { data: roomsData }] = await Promise.all([
+  const [{ data: images }, { data: links }, { data: roomsData }, { data: childImages }, { data: childLinks }] = await Promise.all([
     supabase.from('library').select('*').eq('serial_number', footprint.serial_number).is('parent_tile_id', null).order('position'),
     supabase.from('links').select('*').eq('serial_number', footprint.serial_number).is('parent_tile_id', null).order('position'),
     supabase.from('rooms').select('*').eq('serial_number', footprint.serial_number).neq('hidden', true).order('position'),
+    // Lightweight child queries for container facade metadata (count + first thumbnail)
+    supabase.from('library').select('id, parent_tile_id, image_url, position').eq('serial_number', footprint.serial_number).not('parent_tile_id', 'is', null).order('position'),
+    supabase.from('links').select('id, parent_tile_id, thumbnail, position').eq('serial_number', footprint.serial_number).not('parent_tile_id', 'is', null).order('position'),
   ])
 
   // Canonical type from URL — library has no type column, so derive once here
@@ -125,6 +128,25 @@ export default async function FootprintPage({ params }: Props) {
     content: content.filter(item => item.room_id === room.id),
   }))
 
+  // Build container facade metadata: child count + first child thumbnail
+  const containerMeta: Record<string, { childCount: number; firstThumb: string | null }> = {}
+  for (const img of (childImages || []).sort((a: any, b: any) => a.position - b.position)) {
+    if (!img.parent_tile_id) continue
+    if (!containerMeta[img.parent_tile_id]) containerMeta[img.parent_tile_id] = { childCount: 0, firstThumb: null }
+    containerMeta[img.parent_tile_id].childCount++
+    if (!containerMeta[img.parent_tile_id].firstThumb && img.image_url) {
+      containerMeta[img.parent_tile_id].firstThumb = transformImageUrl(img.image_url)
+    }
+  }
+  for (const link of (childLinks || []).sort((a: any, b: any) => a.position - b.position)) {
+    if (!link.parent_tile_id) continue
+    if (!containerMeta[link.parent_tile_id]) containerMeta[link.parent_tile_id] = { childCount: 0, firstThumb: null }
+    containerMeta[link.parent_tile_id].childCount++
+    if (!containerMeta[link.parent_tile_id].firstThumb && link.thumbnail) {
+      containerMeta[link.parent_tile_id].firstThumb = transformImageUrl(link.thumbnail)
+    }
+  }
+
   const serial = footprint.serial_number.toString().padStart(4, '0')
   const theme = getTheme(footprint.dimension || 'midnight')
   const pageUrl = `https://footprint.onl/${params.slug}`
@@ -142,6 +164,7 @@ export default async function FootprintPage({ params }: Props) {
         theme={theme}
         serial={serial}
         pageUrl={pageUrl}
+        containerMeta={containerMeta}
       />
     </>
   )

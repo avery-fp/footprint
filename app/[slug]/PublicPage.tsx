@@ -47,6 +47,7 @@ interface PublicPageProps {
   serial: string
   pageUrl: string
   isDraft?: boolean
+  containerMeta?: Record<string, { childCount: number; firstThumb: string | null }>
 }
 
 // Room subtitles removed — the rooms speak for themselves
@@ -72,7 +73,7 @@ const ROOM_OVERLAYS = [
 ]
 const DEFAULT_OVERLAY = 'rgba(0,0,0,0.35)'
 
-export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl, isDraft }: PublicPageProps) {
+export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl, isDraft, containerMeta = {} }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
 
   // Default to first room
@@ -94,6 +95,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // ── Depth expansion — containers only ──
   const { expanded, showOverlay, children: containerChildren, loadingChildren, expand, collapse, registerRef } = useDepthExpansion()
   const depthTouchStart = useRef(0)
+
+  // Resolve expanded container label for header bar
+  const expandedContainerLabel = useMemo(() => {
+    if (!expanded) return ''
+    const item = allContent.find(c => c.id === expanded.id)
+    return item?.container_label || item?.title || 'Collection'
+  }, [expanded, allContent])
 
   // Content filtering
   const validContent = useMemo(() =>
@@ -345,6 +353,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 isMobile={isMobile}
                 isSoundRoom={isSoundRoom}
                 isExpanded={isThisExpanded}
+                childCount={containerMeta[item.id]?.childCount}
+                firstChildThumb={containerMeta[item.id]?.firstThumb}
               />
             </div>
             {/* Container click interceptor — only containers are doors */}
@@ -430,6 +440,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 isMobile={isMobile}
                 isSoundRoom={isSoundRoom}
                 isExpanded={isThisExpanded}
+                childCount={containerMeta[item.id]?.childCount}
+                firstChildThumb={containerMeta[item.id]?.firstThumb}
               />
             </div>
             {/* Container click interceptor — only containers are doors */}
@@ -604,44 +616,66 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               onTouchStart={(e) => { depthTouchStart.current = e.touches[0].clientY }}
               onTouchEnd={(e) => { if (e.changedTouches[0].clientY - depthTouchStart.current > 60) collapse() }}
             />
-            {/* Close button */}
-            <button
-              className="fixed top-5 right-5 z-[60] w-10 h-10 flex items-center justify-center rounded-full transition-all touch-manipulation"
-              style={{
-                background: 'rgba(255,255,255,0.08)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                opacity: expanded ? 1 : 0,
-                transition: 'opacity 0.3s ease 0.2s',
-              }}
-              onClick={collapse}
-              aria-label="Close container"
-            >
-              <svg className="w-4 h-4 text-white/60" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-
-            {/* Child tiles rendered inside expanded container */}
+            {/* Expanded container viewport: header bar + horizontal child rail */}
             {expanded && (
               <div
-                className="fixed inset-0 z-[55] flex items-center justify-center pointer-events-none"
+                className="fixed inset-0 z-[55] flex flex-col pointer-events-none"
                 style={{ opacity: loadingChildren ? 0 : 1, transition: 'opacity 0.3s ease 0.3s' }}
               >
+                {/* Header bar — container label left, close X right */}
                 <div
-                  className="pointer-events-auto overflow-y-auto hide-scrollbar"
+                  className="pointer-events-auto flex items-center justify-between px-5 flex-shrink-0"
                   style={{
-                    width: isMobile ? '88vw' : 'min(82vw, 720px)',
-                    maxHeight: '78vh',
-                    padding: '16px',
+                    height: '52px',
+                    background: 'rgba(0,0,0,0.3)',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
+                    borderBottom: '1px solid rgba(255,255,255,0.06)',
                   }}
                 >
+                  <span
+                    className="font-mono text-white/50 tracking-[0.15em] uppercase truncate"
+                    style={{ fontSize: '11px', fontWeight: 400 }}
+                  >
+                    {expandedContainerLabel}
+                  </span>
+                  <button
+                    className="w-8 h-8 flex items-center justify-center rounded-full transition-all touch-manipulation flex-shrink-0 ml-3"
+                    style={{
+                      background: 'rgba(255,255,255,0.06)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                    }}
+                    onClick={collapse}
+                    aria-label="Close container"
+                  >
+                    <svg className="w-3.5 h-3.5 text-white/50" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Child tiles — horizontal rail (axis change = depth cue) */}
+                <div className="flex-1 flex items-center pointer-events-auto">
                   {containerChildren.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-2.5 md:gap-3">
+                    <div
+                      className="flex flex-row overflow-x-auto gap-4 hide-scrollbar w-full"
+                      style={{
+                        scrollSnapType: 'x mandatory',
+                        WebkitOverflowScrolling: 'touch' as any,
+                        paddingLeft: 'max(20px, calc((100vw - min(88vw, 620px)) / 2))',
+                        paddingRight: 'max(20px, calc((100vw - min(88vw, 620px)) / 2))',
+                        scrollPaddingLeft: 'max(20px, calc((100vw - min(88vw, 620px)) / 2))',
+                      }}
+                    >
                       {containerChildren.map((child: any, idx: number) => (
                         <div
                           key={child.id}
-                          className={`${child.size >= 2 ? 'col-span-2 aspect-video' : 'col-span-1 aspect-square'} relative overflow-hidden rounded-xl`}
-                          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}
+                          className="flex-shrink-0 snap-center relative overflow-hidden rounded-2xl aspect-[3/4]"
+                          style={{
+                            width: 'min(80vw, 520px)',
+                            background: 'rgba(255,255,255,0.06)',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                          }}
                         >
                           <UnifiedTile
                             item={{
@@ -661,14 +695,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                             size={child.size || 1}
                             aspect={child.aspect || 'square'}
                             mode="public"
-                            layout="grid"
+                            layout="rail"
                             isMobile={isMobile}
                           />
                         </div>
                       ))}
                     </div>
                   ) : !loadingChildren ? (
-                    <div className="flex items-center justify-center py-12">
+                    <div className="flex items-center justify-center w-full py-12">
                       <span className="text-white/20 font-mono text-xs tracking-widest uppercase">empty</span>
                     </div>
                   ) : null}
@@ -719,15 +753,17 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </>
       )}
 
-      {/* Serial number — fixed bottom-left */}
+      {/* Serial number — fixed bottom-left, stays visible (dimmed) during expansion */}
       {!isDraft && serial && (
         <div
-          className="fixed bottom-4 left-4 z-20 select-none pointer-events-none font-mono"
+          className="fixed bottom-4 left-4 select-none pointer-events-none font-mono"
           style={{
             color: 'rgba(255,255,255,0.15)',
             fontSize: '11px',
             fontWeight: 300,
-            opacity: 0.4,
+            opacity: expanded ? 0.2 : 0.4,
+            zIndex: expanded ? 60 : 20,
+            transition: 'opacity 0.3s ease',
           }}
         >
           #{String(serial).padStart(4, '0')}

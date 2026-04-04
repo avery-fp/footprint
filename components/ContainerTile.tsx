@@ -12,23 +12,31 @@ interface ContainerTileProps {
   label: string
   coverUrl?: string | null
   childCount?: number
+  firstChildThumb?: string | null
 }
 
-export default function ContainerTile({ label, coverUrl, childCount }: ContainerTileProps) {
+export default function ContainerTile({ label, coverUrl, childCount, firstChildThumb }: ContainerTileProps) {
+  // Blurred background: prefer coverUrl, fall back to first child thumbnail
+  const bgUrl = coverUrl || firstChildThumb
+
   return (
     <div
       className="w-full h-full relative overflow-hidden group cursor-pointer"
       style={{ borderRadius: 'inherit' }}
     >
-      {/* Cover image or dark glass */}
-      {coverUrl ? (
+      {/* Blurred thumbnail background — the door hints at the room */}
+      {bgUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={coverUrl}
+          src={bgUrl}
           alt=""
           className="absolute inset-0 w-full h-full object-cover"
           loading="lazy"
-          style={{ filter: 'brightness(0.35) saturate(0.8)' }}
+          style={{
+            filter: 'blur(12px) saturate(0.8)',
+            opacity: 0.18,
+            transform: 'scale(1.1)',
+          }}
         />
       ) : (
         <div
@@ -76,17 +84,17 @@ export default function ContainerTile({ label, coverUrl, childCount }: Container
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m0 0l6.75-6.75M12 19.5l-6.75-6.75" />
           </svg>
         </div>
-
-        {/* Child count badge */}
-        {childCount !== undefined && childCount > 0 && (
-          <span
-            className="text-white/25 font-mono"
-            style={{ fontSize: '9px', letterSpacing: '0.1em' }}
-          >
-            {childCount} {childCount === 1 ? 'tile' : 'tiles'}
-          </span>
-        )}
       </div>
+
+      {/* Child count — small monospace number, bottom-right corner */}
+      {childCount !== undefined && childCount > 0 && (
+        <span
+          className="absolute bottom-2.5 right-3 font-mono text-white/20"
+          style={{ fontSize: '10px', fontWeight: 500 }}
+        >
+          {childCount}
+        </span>
+      )}
 
       {/* Bottom border glow — architectural entry line */}
       <div
