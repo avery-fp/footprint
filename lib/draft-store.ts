@@ -18,6 +18,9 @@ export interface DraftContent {
   room_id?: string | null
   size?: number
   aspect?: string | null
+  container_label?: string | null
+  container_cover_url?: string | null
+  parent_tile_id?: string | null
 }
 
 export interface DraftFootprint {

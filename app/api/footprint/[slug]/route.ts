@@ -71,6 +71,7 @@ export async function GET(
         size: item.size || 1,
         aspect: item.aspect || null,
         caption: item.caption || null,
+        parent_tile_id: item.parent_tile_id || null,
       }))
       const linkTiles = (linksResult.data || []).map(item => ({
         id: item.id,
@@ -89,11 +90,15 @@ export async function GET(
         artist: item.artist || null,
         thumbnail_url_hq: item.thumbnail_url_hq || null,
         media_id: item.media_id || null,
+        container_label: item.container_label || null,
+        container_cover_url: item.container_cover_url || null,
+        parent_tile_id: item.parent_tile_id || null,
       }))
 
-      allTiles = [...libraryTiles, ...linkTiles].sort((a, b) =>
-        (a.position ?? 0) - (b.position ?? 0)
-      )
+      // Only street-level tiles (no children inside containers)
+      allTiles = [...libraryTiles, ...linkTiles]
+        .filter(t => !t.parent_tile_id)
+        .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
     }
 
     return NextResponse.json({

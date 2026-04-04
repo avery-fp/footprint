@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Image from 'next/image'
 import UnifiedTile from '@/components/UnifiedTile'
 
@@ -10,6 +10,7 @@ import { RolodexDrawer } from '@/components/RolodexDrawer'
 import FloatingCtaBar from '@/components/FloatingCtaBar'
 import CommandLayer from '@/components/CommandLayer'
 import { getGridLayout } from '@/lib/grid-layouts'
+import { useDepthExpansion } from '@/hooks/useDepthExpansion'
 import { getGridClass, resolveAspect } from '@/lib/media/aspect'
 import {
   DndContext,
@@ -89,6 +90,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [showToast, setShowToast] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [roomFade, setRoomFade] = useState<'visible' | 'out' | 'in'>('visible')
+
+  // ── Depth expansion — containers only ──
+  const { expanded, showOverlay, children: containerChildren, loadingChildren, expand, collapse, registerRef } = useDepthExpansion()
+  const depthTouchStart = useRef(0)
 
   // Content filtering
   const validContent = useMemo(() =>
@@ -255,8 +260,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   }
 
   // Sortable tile wrapper for owner drag
-  function SortableTileWrapper({ item, idx, children, className, style: extraStyle }: { item: any; idx: number; children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
+  function SortableTileWrapper({ item, idx, children, className, style: extraStyle, disabled }: { item: any; idx: number; children: React.ReactNode; className?: string; style?: React.CSSProperties; disabled?: boolean }) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id, disabled })
     const style = {
       transform: CSS.Transform.toString(transform),
       transition: transition || 'transform 200ms cubic-bezier(0.25, 1, 0.5, 1)',
@@ -287,6 +292,23 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     transition: 'opacity 250ms ease-out, transform 350ms ease-out',
   }
 
+  // ── Depth expansion: per-tile style ──
+  const getDepthStyle = (tileId: string): React.CSSProperties => {
+    if (!expanded) return { transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease' }
+    if (expanded.id === tileId) return {
+      transform: expanded.transform,
+      zIndex: 50,
+      transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
+      willChange: 'transform',
+    }
+    return {
+      opacity: 0.1,
+      transform: 'scale(0.97)',
+      transition: 'opacity 0.4s ease-out, transform 0.4s ease-out',
+      pointerEvents: 'none' as const,
+    }
+  }
+
   const gridInner = isRail ? (
     // ── RAIL MODE: cinematic horizontal snap scroll ──
     <div
@@ -301,21 +323,34 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       }}
     >
       {displayContent.map((item: any, idx: number) => {
+        const isContainer = item.type === 'container'
+        const isThisExpanded = expanded?.id === item.id
         const tileInner = (
           <div
-            className="relative w-full h-full overflow-hidden fp-tile-hover rounded-2xl"
-            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
+            ref={(el: HTMLDivElement | null) => registerRef(item.id, el)}
+            className="w-full h-full relative"
+            style={getDepthStyle(item.id)}
           >
-            <UnifiedTile
-              item={item}
-              index={idx}
-              size={1}
-              aspect="wide"
-              mode="public"
-              layout={roomLayout}
-              isMobile={isMobile}
-              isSoundRoom={isSoundRoom}
-            />
+            <div
+              className="relative w-full h-full overflow-hidden fp-tile-hover rounded-2xl"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
+            >
+              <UnifiedTile
+                item={item}
+                index={idx}
+                size={1}
+                aspect="wide"
+                mode="public"
+                layout={roomLayout}
+                isMobile={isMobile}
+                isSoundRoom={isSoundRoom}
+                isExpanded={isThisExpanded}
+              />
+            </div>
+            {/* Container click interceptor — only containers are doors */}
+            {isContainer && !expanded && (
+              <div className="absolute inset-0 z-10 cursor-pointer" onClick={() => expand(item.id)} />
+            )}
           </div>
         )
 
@@ -326,7 +361,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
         if (isOwner) {
           return (
-            <SortableTileWrapper key={item.id} item={item} idx={idx} className={railTileClass} style={railStyle}>
+            <SortableTileWrapper key={item.id} item={item} idx={idx} className={railTileClass} style={railStyle} disabled={!!expanded}>
               {tileInner}
             </SortableTileWrapper>
           )
@@ -373,7 +408,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           : isEmbedVid ? 'col-span-2 aspect-video'
           : getGridClass(tileSize, tileAspect, false)
 
+        const isContainer = item.type === 'container'
+        const isThisExpanded = expanded?.id === item.id
         const tileInner = (
+          <div
+            ref={(el: HTMLDivElement | null) => registerRef(item.id, el)}
+            className="w-full h-full relative"
+            style={getDepthStyle(item.id)}
+          >
             <div
               className={`relative w-full overflow-hidden fp-tile-hover h-full rounded-2xl${isSoundRoom ? ' fp-sound-tile' : ''}`}
               style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)' }}
@@ -387,13 +429,19 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 layout={roomLayout}
                 isMobile={isMobile}
                 isSoundRoom={isSoundRoom}
+                isExpanded={isThisExpanded}
               />
             </div>
+            {/* Container click interceptor — only containers are doors */}
+            {isContainer && !expanded && (
+              <div className="absolute inset-0 z-10 cursor-pointer" onClick={() => expand(item.id)} />
+            )}
+          </div>
         )
 
         if (isOwner) {
           return (
-            <SortableTileWrapper key={item.id} item={item} idx={idx} className={gridClass}>
+            <SortableTileWrapper key={item.id} item={item} idx={idx} className={gridClass} disabled={!!expanded}>
               {tileInner}
             </SortableTileWrapper>
           )
@@ -540,6 +588,95 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         >
           {activeGrid}
         </div>
+
+        {/* ── Depth overlay: backdrop + close + child tiles ── */}
+        {showOverlay && (
+          <>
+            <div
+              className="fixed inset-0 z-40"
+              style={{
+                backgroundColor: 'rgba(0, 0, 0, 0.65)',
+                opacity: expanded ? 1 : 0,
+                transition: 'opacity 0.4s ease',
+                willChange: 'opacity',
+              }}
+              onClick={collapse}
+              onTouchStart={(e) => { depthTouchStart.current = e.touches[0].clientY }}
+              onTouchEnd={(e) => { if (e.changedTouches[0].clientY - depthTouchStart.current > 60) collapse() }}
+            />
+            {/* Close button */}
+            <button
+              className="fixed top-5 right-5 z-[60] w-10 h-10 flex items-center justify-center rounded-full transition-all touch-manipulation"
+              style={{
+                background: 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                opacity: expanded ? 1 : 0,
+                transition: 'opacity 0.3s ease 0.2s',
+              }}
+              onClick={collapse}
+              aria-label="Close container"
+            >
+              <svg className="w-4 h-4 text-white/60" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            {/* Child tiles rendered inside expanded container */}
+            {expanded && (
+              <div
+                className="fixed inset-0 z-[55] flex items-center justify-center pointer-events-none"
+                style={{ opacity: loadingChildren ? 0 : 1, transition: 'opacity 0.3s ease 0.3s' }}
+              >
+                <div
+                  className="pointer-events-auto overflow-y-auto hide-scrollbar"
+                  style={{
+                    width: isMobile ? '88vw' : 'min(82vw, 720px)',
+                    maxHeight: '78vh',
+                    padding: '16px',
+                  }}
+                >
+                  {containerChildren.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-2.5 md:gap-3">
+                      {containerChildren.map((child: any, idx: number) => (
+                        <div
+                          key={child.id}
+                          className={`${child.size >= 2 ? 'col-span-2 aspect-video' : 'col-span-1 aspect-square'} relative overflow-hidden rounded-xl`}
+                          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}
+                        >
+                          <UnifiedTile
+                            item={{
+                              id: child.id,
+                              url: child.url,
+                              type: child.type,
+                              title: child.title || null,
+                              description: child.description || null,
+                              thumbnail_url: child.thumbnail_url || null,
+                              embed_html: child.embed_html || null,
+                              render_mode: child.render_mode,
+                              artist: child.artist,
+                              thumbnail_url_hq: child.thumbnail_url_hq,
+                              media_id: child.media_id,
+                            }}
+                            index={idx}
+                            size={child.size || 1}
+                            aspect={child.aspect || 'square'}
+                            mode="public"
+                            layout="grid"
+                            isMobile={isMobile}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : !loadingChildren ? (
+                    <div className="flex items-center justify-center py-12">
+                      <span className="text-white/20 font-mono text-xs tracking-widest uppercase">empty</span>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            )}
+          </>
+        )}
 
         {content.length === 0 && (
           <div className="py-16" />

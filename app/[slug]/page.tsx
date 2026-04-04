@@ -70,9 +70,10 @@ export default async function FootprintPage({ params }: Props) {
   if (!footprint) notFound()
 
   // Fetch tiles + rooms in parallel (single round-trip, no waterfall)
+  // Street level only: parent_tile_id IS NULL (children render inside containers)
   const [{ data: images }, { data: links }, { data: roomsData }] = await Promise.all([
-    supabase.from('library').select('*').eq('serial_number', footprint.serial_number).order('position'),
-    supabase.from('links').select('*').eq('serial_number', footprint.serial_number).order('position'),
+    supabase.from('library').select('*').eq('serial_number', footprint.serial_number).is('parent_tile_id', null).order('position'),
+    supabase.from('links').select('*').eq('serial_number', footprint.serial_number).is('parent_tile_id', null).order('position'),
     supabase.from('rooms').select('*').eq('serial_number', footprint.serial_number).neq('hidden', true).order('position'),
   ])
 
@@ -110,6 +111,9 @@ export default async function FootprintPage({ params }: Props) {
       artist: link.artist || null,
       thumbnail_url_hq: link.thumbnail_url_hq || null,
       media_id: link.media_id || null,
+      // Container tile fields
+      container_label: link.container_label || null,
+      container_cover_url: link.container_cover_url || null,
     })),
   ].sort((a, b) => a.position - b.position)
 

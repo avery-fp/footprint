@@ -45,7 +45,7 @@ type PageMode =
   | { type: 'viewing' }
   | { type: 'arranging' }
   | { type: 'tile_menu'; tileId: string }
-  | { type: 'adding'; method: 'idle' | 'url' | 'thought' }
+  | { type: 'adding'; method: 'idle' | 'url' | 'thought' | 'container' }
 
 // ═══════════════════════════════════════════
 // Sortable Tile
@@ -353,6 +353,15 @@ function SortableTile({
                 }`}>
                   {content.title || ''}
                 </p>
+              ) : content.type === 'container' ? (
+                <div className="flex flex-col items-center justify-center gap-2">
+                  <svg className="w-5 h-5 text-white/30" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
+                  </svg>
+                  <span className="text-[10px] text-white/40 font-mono tracking-widest uppercase">
+                    {content.container_label || content.title || 'collection'}
+                  </span>
+                </div>
               ) : (
                 <>
                   <div className="text-2xl mb-1 opacity-60">
@@ -389,6 +398,7 @@ export default function EditPage() {
   const [draft, setDraft] = useState<DraftFootprint | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isAdding, setIsAdding] = useState(false)
+  const [containerLabel, setContainerLabel] = useState('')
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
   const [draggingTileId, setDraggingTileId] = useState<string | null>(null)
   const [editingThought, setEditingThought] = useState<string | null>(null)
@@ -574,7 +584,7 @@ export default function EditPage() {
     setMode({ type: 'tile_menu', tileId })
   }
   const closeTileMenu = () => { setEditingThought(null); setMode({ type: 'arranging' }) }
-  const startAdding = (method: 'url' | 'thought') => setMode({ type: 'adding', method })
+  const startAdding = (method: 'url' | 'thought' | 'container') => setMode({ type: 'adding', method })
   const stopAdding = () => setMode({ type: 'arranging' })
 
   // Switch rooms with crossfade
@@ -749,6 +759,8 @@ export default function EditPage() {
               artist: tile.artist || null,
               thumbnail_url_hq: tile.thumbnail_url_hq || null,
               media_id: tile.media_id || null,
+              container_label: tile.container_label || null,
+              container_cover_url: tile.container_cover_url || null,
             }
           })
           setTileSources(sources)
@@ -936,6 +948,47 @@ export default function EditPage() {
       stopAdding()
     } catch (e) {
       console.error('Failed to add thought:', e)
+    } finally {
+      setIsAdding(false)
+    }
+  }
+
+  async function handleAddContainer() {
+    if (!containerLabel.trim() || !draft) return
+    setIsAdding(true)
+    try {
+      const res = await fetch('/api/containers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug, label: containerLabel, room_id: activeRoomId }),
+      })
+      const data = await res.json()
+      if (data.tile) {
+        setTileSources(prev => ({ ...prev, [data.tile.id]: 'links' }))
+        setDraft(prev => prev ? {
+          ...prev,
+          content: [...prev.content, {
+            id: data.tile.id,
+            url: data.tile.url,
+            type: 'container',
+            title: data.tile.title,
+            description: null,
+            thumbnail_url: null,
+            embed_html: null,
+            position: data.tile.position,
+            room_id: data.tile.room_id || null,
+            size: data.tile.size || 2,
+            aspect: null,
+            container_label: data.tile.container_label,
+            container_cover_url: data.tile.container_cover_url,
+          }],
+          updated_at: Date.now(),
+        } : null)
+      }
+      setContainerLabel('')
+      stopAdding()
+    } catch (e) {
+      console.error('Failed to create container:', e)
     } finally {
       setIsAdding(false)
     }
@@ -2122,6 +2175,48 @@ export default function EditPage() {
                 </button>
               )}
 
+              {/* Move to collection */}
+              {selectedTile.type !== 'container' && (() => {
+                const containers = draft.content.filter(c => c.type === 'container')
+                if (containers.length === 0) return null
+                return (
+                  <div className="flex items-center justify-between py-3 border-t border-white/[0.06]">
+                    <span className="text-sm text-white/50 font-mono">collection</span>
+                    <select
+                      value={selectedTile.parent_tile_id || ''}
+                      onChange={(e) => {
+                        const parentId = e.target.value || null
+                        const source = tileSources[mode.tileId] || 'links'
+                        fetch('/api/tiles', {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ id: mode.tileId, source, slug, parent_tile_id: parentId }),
+                        }).then(() => {
+                          // Remove from street-level view when moved into a container
+                          if (parentId) {
+                            setDraft(prev => prev ? {
+                              ...prev,
+                              content: prev.content.filter(c => c.id !== mode.tileId),
+                              updated_at: Date.now(),
+                            } : null)
+                            closeTileMenu()
+                          } else {
+                            // Moving back to street — would need a refresh
+                            window.location.reload()
+                          }
+                        }).catch(e => console.error('Failed to move tile:', e))
+                      }}
+                      className="bg-white/[0.08] text-white text-xs font-mono rounded-lg px-3 py-2 border border-white/10 outline-none"
+                    >
+                      <option value="">none</option>
+                      {containers.map(c => (
+                        <option key={c.id} value={c.id}>{c.container_label || c.title || 'collection'}</option>
+                      ))}
+                    </select>
+                  </div>
+                )
+              })()}
+
               {/* Delete tile */}
               <button
                 onClick={() => {
@@ -2224,7 +2319,41 @@ export default function EditPage() {
           </div>
         )}
 
-        {/* Default pill: upload | link | thought + wallpaper/layout controls */}
+        {/* Container label input */}
+        {pillMode === 'container' && (
+          <div className="w-80 bg-black/60 backdrop-blur-sm border border-white/20 rounded-2xl p-3 materialize">
+            <input
+              type="text"
+              placeholder="collection name"
+              value={containerLabel}
+              onChange={e => setContainerLabel(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') handleAddContainer()
+                if (e.key === 'Escape') { stopAdding(); setContainerLabel('') }
+              }}
+              autoFocus
+              maxLength={100}
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl font-mono text-sm focus:border-white/30 focus:outline-none text-white placeholder:text-white/30"
+            />
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={handleAddContainer}
+                disabled={isAdding || !containerLabel.trim()}
+                className="flex-1 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl font-mono text-xs transition disabled:opacity-50"
+              >
+                {isAdding ? 'creating...' : 'create'}
+              </button>
+              <button
+                onClick={() => { stopAdding(); setContainerLabel('') }}
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white/60 rounded-xl font-mono text-xs transition"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Default pill: upload | link | thought | container + wallpaper/layout controls */}
         {pillMode === 'idle' && (
           <div className="flex flex-col items-center gap-2">
             {wallpaperUrl && (
@@ -2267,6 +2396,16 @@ export default function EditPage() {
                 className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all"
               >
                 <span className="text-white/60 text-sm font-medium">Aa</span>
+              </button>
+              <div className="w-px h-6 bg-white/10" />
+              <button
+                onClick={() => startAdding('container')}
+                className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all"
+                title="Create collection"
+              >
+                <svg className="w-4 h-4 text-white/60" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
+                </svg>
               </button>
             </div>
           </div>

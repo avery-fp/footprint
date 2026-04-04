@@ -6,7 +6,10 @@ import VideoTileBase from '@/components/VideoTile'
 import GhostTileBase from '@/components/GhostTile'
 import TileImage from '@/components/TileImage'
 import ZoomableImage from '@/components/ZoomableImage'
+import ContainerTileBase from '@/components/ContainerTile'
 import { getImageSizes } from '@/lib/media/aspect'
+
+const ContainerTile = memo(ContainerTileBase)
 
 const ContentCard = memo(ContentCardBase)
 const VideoTile = memo(VideoTileBase)
@@ -51,6 +54,8 @@ interface UnifiedTileProps {
     artist?: string | null
     thumbnail_url_hq?: string | null
     media_id?: string | null
+    container_label?: string | null
+    container_cover_url?: string | null
   }
   index: number
   size: number
@@ -92,6 +97,18 @@ export default function UnifiedTile({
   isExpanded = false,
   isSoundRoom = false,
 }: UnifiedTileProps) {
+  // ── Container tile — a door, not a window ──
+  if (item.type === 'container') {
+    return (
+      <div className="w-full h-full" data-tile-id={item.id} data-tile-type="container">
+        <ContainerTile
+          label={item.container_label || item.title || 'Collection'}
+          coverUrl={item.container_cover_url}
+        />
+      </div>
+    )
+  }
+
   const canonicalType = resolveCanonicalType(item.type, item.url || '')
   const isAuto = aspect === 'auto'
 

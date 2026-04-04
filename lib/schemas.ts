@@ -153,4 +153,13 @@ export const tilesPatchSchema = z.object({
   caption: z.string().optional(),
   title: z.string().optional(),
   room_id: z.string().nullable().optional(),
+  parent_tile_id: z.string().nullable().optional(),
+})
+
+// Container tile creation
+export const containerPostSchema = z.object({
+  slug: z.string().min(1, 'slug and label required'),
+  label: z.string().min(1, 'slug and label required').max(100),
+  cover_url: z.string().optional(),
+  room_id: z.string().optional(),
 })

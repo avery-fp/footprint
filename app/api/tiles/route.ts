@@ -3,7 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { parseURL } from '@/lib/parser'
 import { getUserIdFromRequest } from '@/lib/auth'
-import { tilesPostSchema, tilesDeleteSchema, tilesPutSchema, tilesPatchSchema } from '@/lib/schemas'
+import { tilesPostSchema, tilesDeleteSchema, tilesPutSchema, tilesPatchSchema, containerPostSchema } from '@/lib/schemas'
 import { validateBody } from '@/lib/validate'
 import { routeLogger } from '@/lib/logger'
 
@@ -357,7 +357,7 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json()
     const v = validateBody(tilesPatchSchema, body)
     if (!v.success) return v.response
-    const { id, source, slug, size, caption, title, room_id, aspect } = v.data
+    const { id, source, slug, size, caption, title, room_id, aspect, parent_tile_id } = v.data
 
     const supabase = createServerSupabaseClient()
     const serialNumber = await getSerialNumber(request, supabase, slug)
@@ -371,6 +371,7 @@ export async function PATCH(request: NextRequest) {
     if (caption !== undefined) updates.caption = caption || null
     if (title !== undefined) updates.title = title
     if (room_id !== undefined) updates.room_id = room_id || null
+    if (parent_tile_id !== undefined) updates.parent_tile_id = parent_tile_id || null
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
