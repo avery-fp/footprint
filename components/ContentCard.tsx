@@ -136,9 +136,21 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   const youtubeId = content.type === 'youtube' ? extractYouTubeId(content.url) : null
   if (content.type === 'youtube' && youtubeId && !iframeFailed) {
+    // postMessage unmute — mobile Safari enforces mute on iframe autoplay
+    // even after user gesture. enablejsapi=1 + postMessage bypasses this.
+    const handleYTLoad = (e: React.SyntheticEvent<HTMLIFrameElement>) => {
+      const iframe = e.currentTarget
+      setTimeout(() => {
+        try {
+          iframe.contentWindow?.postMessage('{"event":"command","func":"unMute","args":""}', '*')
+          iframe.contentWindow?.postMessage('{"event":"command","func":"setVolume","args":[100]}', '*')
+        } catch {}
+      }, 800)
+    }
+
     // isExpanded: skip facade, render iframe immediately (used in lightbox)
     if (isExpanded) {
-      const ytSrc = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&controls=1&rel=0&iv_load_policy=3&playsinline=1`
+      const ytSrc = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&enablejsapi=1&controls=1&rel=0&iv_load_policy=3&playsinline=1`
       return (
         <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative bg-black">
           <iframe
@@ -148,6 +160,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             allow="autoplay; encrypted-media; fullscreen"
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
+            onLoad={handleYTLoad}
           />
           {/* Block clicks on YouTube watermark area */}
           <div style={{ position: 'absolute', bottom: 0, right: 0, width: 50, height: 40, zIndex: 2, pointerEvents: 'auto' }} />
@@ -189,7 +202,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       )
     }
     // YouTube activated state — canonical fix
-    const ytSrc = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&controls=1&rel=0&iv_load_policy=3&playsinline=1`
+    const ytSrc = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&enablejsapi=1&controls=1&rel=0&iv_load_policy=3&playsinline=1`
     return (
       <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative bg-black">
         <iframe
@@ -199,6 +212,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           allow="autoplay; encrypted-media; fullscreen"
           allowFullScreen
           referrerPolicy="strict-origin-when-cross-origin"
+          onLoad={handleYTLoad}
         />
         {/* Block clicks on YouTube watermark area */}
         <div style={{ position: 'absolute', bottom: 0, right: 0, width: 50, height: 40, zIndex: 2, pointerEvents: 'auto' }} />

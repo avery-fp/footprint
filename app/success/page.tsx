@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { loadDraft, clearDraft } from '@/lib/draft-store'
+import ClaimCeremony from '@/components/ClaimCeremony'
 
-type Step = 'publishing' | 'welcome' | 'password' | 'error'
+type Step = 'publishing' | 'ceremony' | 'welcome' | 'password' | 'error'
 
 export default function SuccessPage() {
   const searchParams = useSearchParams()
@@ -53,7 +54,7 @@ export default function SuccessPage() {
         if (res.ok && data.success) {
           setSerialNumber(data.serial_number)
           clearDraft(slug)
-          setStep('welcome')
+          setStep('ceremony')
         } else {
           setErrorMessage(data.error || 'Failed to publish')
           setStep('error')
@@ -144,6 +145,17 @@ export default function SuccessPage() {
           </button>
         </div>
       </div>
+    )
+  }
+
+  // Ceremony — serial illumination
+  if (step === 'ceremony' && serialNumber && slug) {
+    return (
+      <ClaimCeremony
+        serial={serialNumber}
+        slug={slug}
+        onComplete={() => setStep('welcome')}
+      />
     )
   }
 

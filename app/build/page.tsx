@@ -5,13 +5,13 @@ import { useRouter } from 'next/navigation'
 
 /**
  * /build — post-signup landing for users without a slug yet.
- * Redirects to /publish where they claim a username and go live.
+ * Redirects to /claim where they claim a username and go live.
  */
 export default function BuildPage() {
   const router = useRouter()
 
   useEffect(() => {
-    router.replace('/publish')
+    router.replace('/claim')
   }, [router])
 
   return (

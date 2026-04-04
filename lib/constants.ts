@@ -8,7 +8,7 @@ export const FOOTPRINT_PRICE_DISPLAY = `$${FOOTPRINT_PRICE_CENTS / 100}`
  */
 export const RESERVED_SLUGS = [
   'admin', 'api', 'auth', 'app',
-  'build', 'checkout',
+  'build', 'checkout', 'claim',
   'dashboard', 'deed', 'docs',
   'example',
   'help', 'home',

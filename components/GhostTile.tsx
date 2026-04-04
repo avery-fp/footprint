@@ -162,10 +162,22 @@ export default function GhostTile({
   // Blurred thumbnail bg + iframe reveal on play
   // ════════════════════════════════════════
   const iframeSrc = platform === 'youtube'
-    ? `https://www.youtube.com/embed/${media_id}?autoplay=1&controls=1&rel=0&iv_load_policy=3&playsinline=1`
+    ? `https://www.youtube.com/embed/${media_id}?autoplay=1&enablejsapi=1&controls=1&rel=0&iv_load_policy=3&playsinline=1`
     : platform === 'vimeo'
     ? `https://player.vimeo.com/video/${media_id}?title=0&byline=0&portrait=0&badge=0&dnt=1&autoplay=1`
     : undefined
+
+  // postMessage unmute for mobile Safari
+  const handleYTLoad = useCallback((e: React.SyntheticEvent<HTMLIFrameElement>) => {
+    if (platform !== 'youtube') return
+    const iframe = e.currentTarget
+    setTimeout(() => {
+      try {
+        iframe.contentWindow?.postMessage('{"event":"command","func":"unMute","args":""}', '*')
+        iframe.contentWindow?.postMessage('{"event":"command","func":"setVolume","args":[100]}', '*')
+      } catch {}
+    }, 800)
+  }, [platform])
 
   return (
     <div
@@ -220,7 +232,7 @@ export default function GhostTile({
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
             loading="lazy"
-            onLoad={() => setIframeLoaded(true)}
+            onLoad={(e) => { setIframeLoaded(true); handleYTLoad(e) }}
           />
           {/* Block clicks on YouTube watermark area */}
           {platform === 'youtube' && (

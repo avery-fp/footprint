@@ -61,6 +61,7 @@ export default function AddTileSheet({
   const [thoughtValue, setThoughtValue] = useState('')
   const [detectedType, setDetectedType] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
   const urlInputRef = useRef<HTMLInputElement>(null)
   const thoughtInputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -199,6 +200,17 @@ export default function AddTileSheet({
                 <span className="text-white/40">↑</span>
                 upload
               </button>
+              <button
+                onClick={() => cameraInputRef.current?.click()}
+                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[13px] font-mono text-white/60 hover:text-white/80 transition-all"
+                style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                }}
+              >
+                <span className="text-white/40">●</span>
+                record
+              </button>
               {urlValue.trim() && (
                 <button
                   onClick={handleSubmitUrl}
@@ -237,12 +249,21 @@ export default function AddTileSheet({
           </>
         )}
 
-        {/* Hidden file input */}
+        {/* Hidden file input — gallery picker */}
         <input
           ref={fileInputRef}
           type="file"
           accept="image/*,video/*"
           multiple
+          className="hidden"
+          onChange={handleFileSelect}
+        />
+        {/* Hidden file input — direct camera capture (phone) */}
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept="video/*"
+          capture="environment"
           className="hidden"
           onChange={handleFileSelect}
         />
