@@ -162,9 +162,9 @@ export default function GhostTile({
   // Blurred thumbnail bg + iframe reveal on play
   // ════════════════════════════════════════
   const iframeSrc = platform === 'youtube'
-    ? `https://www.youtube.com/embed/${media_id}?autoplay=1&mute=1&controls=1&rel=0&iv_load_policy=3&playsinline=1`
+    ? `https://www.youtube.com/embed/${media_id}?autoplay=1&controls=1&rel=0&iv_load_policy=3&playsinline=1`
     : platform === 'vimeo'
-    ? `https://player.vimeo.com/video/${media_id}?title=0&byline=0&portrait=0&badge=0&dnt=1&autoplay=1&muted=1`
+    ? `https://player.vimeo.com/video/${media_id}?title=0&byline=0&portrait=0&badge=0&dnt=1&autoplay=1`
     : undefined
 
   return (
