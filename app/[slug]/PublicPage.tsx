@@ -89,6 +89,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [isOwner, setIsOwner] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [showToast, setShowToast] = useState(false)
+  const [serialFlyout, setSerialFlyout] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [roomFade, setRoomFade] = useState<'visible' | 'out' | 'in'>('visible')
 
@@ -753,20 +754,77 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </>
       )}
 
-      {/* Serial number — fixed bottom-left, stays visible (dimmed) during expansion */}
+      {/* Serial number — fixed bottom-left, tappable for visitors */}
       {!isDraft && serial && (
         <div
-          className="fixed bottom-4 left-4 select-none pointer-events-none font-mono"
+          className="fixed bottom-4 left-4 font-mono"
           style={{
-            color: 'rgba(255,255,255,0.15)',
-            fontSize: '11px',
-            fontWeight: 300,
-            opacity: expanded ? 0.2 : 0.4,
             zIndex: expanded ? 60 : 20,
             transition: 'opacity 0.3s ease',
           }}
         >
-          #{String(serial).padStart(4, '0')}
+          <button
+            onClick={() => { if (!isOwner) setSerialFlyout(v => !v) }}
+            className="select-none touch-manipulation"
+            style={{
+              color: 'rgba(255,255,255,0.15)',
+              fontSize: '11px',
+              fontWeight: 300,
+              opacity: expanded ? 0.2 : 0.4,
+              background: 'none',
+              border: 'none',
+              padding: '4px 0',
+              cursor: isOwner ? 'default' : 'pointer',
+              transition: 'opacity 0.3s ease',
+            }}
+          >
+            #{String(serial).padStart(4, '0')}
+          </button>
+
+          {/* "Make yours" flyout */}
+          {serialFlyout && !isOwner && (
+            <>
+            <div className="fixed inset-0" onClick={() => setSerialFlyout(false)} />
+            <div
+              className="absolute bottom-full left-0 mb-2"
+              style={{
+                animation: 'fadeInUp 0.25s ease',
+              }}
+            >
+              <div
+                style={{
+                  background: 'rgba(255,255,255,0.08)',
+                  backdropFilter: 'blur(16px)',
+                  WebkitBackdropFilter: 'blur(16px)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '12px',
+                  padding: '12px 16px',
+                  minWidth: '180px',
+                }}
+              >
+                <p
+                  className="font-mono"
+                  style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.1em', marginBottom: '8px' }}
+                >
+                  serial #{String(serial).padStart(4, '0')} claimed
+                </p>
+                <a
+                  href="/signup?ref=serial"
+                  className="flex items-center gap-2 no-underline touch-manipulation"
+                  style={{
+                    color: 'rgba(255,255,255,0.7)',
+                    fontSize: '13px',
+                    fontWeight: 400,
+                    letterSpacing: '0.02em',
+                    textDecoration: 'none',
+                  }}
+                >
+                  get yours {'\u2192'}
+                </a>
+              </div>
+            </div>
+            </>
+          )}
         </div>
       )}
 

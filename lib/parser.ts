@@ -19,6 +19,7 @@ export type ContentType =
   | 'video'
   | 'image'
   | 'thought'
+  | 'payment'
   | 'link'
 
 // What we return after parsing
@@ -60,6 +61,10 @@ const PATTERNS: Record<string, { regex: RegExp; type: ContentType }[]> = {
   ],
   soundcloud: [
     { regex: /soundcloud\.com\/([a-zA-Z0-9-]+)\/([a-zA-Z0-9-]+)/, type: 'soundcloud' },
+  ],
+  payment: [
+    { regex: /buy\.stripe\.com\//, type: 'payment' },
+    { regex: /checkout\.stripe\.com\//, type: 'payment' },
   ],
   video: [
     { regex: /\.(mp4|mov|webm|avi|m4v|mkv)(\?.*)?$/i, type: 'video' },
@@ -120,6 +125,7 @@ async function parseByType(type: ContentType, url: string, match: RegExpMatchArr
     case 'soundcloud': return parseSoundCloud(url, match)
     case 'video': return parseVideo(url)
     case 'image': return parseImage(url)
+    case 'payment': return parsePaymentLink(url)
     default: return parseGenericLink(url)
   }
 }
@@ -329,6 +335,21 @@ function parseImage(url: string): ParsedContent {
 }
 
 // ============================================
+// PAYMENT LINK (Stripe hosted)
+// ============================================
+function parsePaymentLink(url: string): ParsedContent {
+  return {
+    type: 'payment',
+    url,
+    external_id: null,
+    title: 'Pay',
+    description: null,
+    thumbnail_url: null,
+    embed_html: null,
+  }
+}
+
+// ============================================
 // GENERIC LINK (fallback)
 // ============================================
 function parseGenericLink(url: string): ParsedContent {
@@ -363,6 +384,7 @@ export function getContentIcon(type: ContentType): string {
     video: '▶',
     image: '▣',
     thought: '◈',
+    payment: '◈',
     link: '◎',
   }
   return icons[type] || '◎'

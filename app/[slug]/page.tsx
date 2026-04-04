@@ -17,7 +17,7 @@ interface Props {
 }
 
 // Reserved paths that have their own routes — skip DB lookup
-const RESERVED_SLUGS = new Set(['build', 'login', 'signup', 'signin', 'auth', 'checkout', 'success', 'deed', 'gift', 'public', 'api'])
+const RESERVED_SLUGS = new Set(['build', 'login', 'signup', 'signin', 'auth', 'checkout', 'success', 'deed', 'gift', 'public', 'api', 'preview'])
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (RESERVED_SLUGS.has(params.slug)) return { title: 'footprint' }
