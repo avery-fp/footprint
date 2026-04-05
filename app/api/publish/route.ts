@@ -235,8 +235,8 @@ export async function POST(request: NextRequest) {
               quantity: 1,
             },
           ],
-          success_url: `${baseUrl}/${encodeURIComponent(cleanUsername)}/home?session_id={CHECKOUT_SESSION_ID}&username=${encodeURIComponent(cleanUsername)}`,
-          cancel_url: `${baseUrl}/${encodeURIComponent(cleanUsername)}/home`,
+          success_url: `${baseUrl}/claim?session_id={CHECKOUT_SESSION_ID}&username=${encodeURIComponent(cleanUsername)}`,
+          cancel_url: `${baseUrl}/claim`,
           customer_creation: 'always',
           metadata: {
             product: 'footprint_publish',
