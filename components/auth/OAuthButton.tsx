@@ -53,28 +53,30 @@ export default function OAuthButton({ provider, label }: OAuthButtonProps) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: '10px',
+        gap: '12px',
         width: '100%',
-        padding: '14px 20px',
-        background: 'rgba(255,255,255,0.06)',
-        border: '1px solid rgba(255,255,255,0.10)',
-        borderRadius: '8px',
-        color: 'rgba(255,255,255,0.85)',
-        fontSize: '14px',
+        padding: '16px 20px',
+        background: 'transparent',
+        border: '1px solid rgba(255,255,255,0.18)',
+        borderRadius: 0,
+        color: 'rgba(255,255,255,0.6)',
+        fontSize: '10px',
+        letterSpacing: '0.25em',
+        textTransform: 'uppercase',
         fontFamily: 'inherit',
         cursor: loading ? 'wait' : 'pointer',
-        transition: 'all 200ms ease',
-        opacity: loading ? 0.5 : 1,
+        transition: 'border-color 200ms ease, color 200ms ease',
+        opacity: loading ? 0.4 : 1,
       }}
       onMouseEnter={(e) => {
         if (!loading) {
-          e.currentTarget.style.background = 'rgba(255,255,255,0.10)'
-          e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)'
+          e.currentTarget.style.borderColor = 'rgba(255,255,255,0.5)'
+          e.currentTarget.style.color = 'rgba(255,255,255,0.9)'
         }
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.background = 'rgba(255,255,255,0.06)'
-        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.10)'
+        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)'
+        e.currentTarget.style.color = 'rgba(255,255,255,0.6)'
       }}
     >
       {icon}

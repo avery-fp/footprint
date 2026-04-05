@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { humanError, humanUsernameReason } from '@/lib/errors'
-import { getTheme } from '@/lib/themes'
 import OAuthButton from '@/components/auth/OAuthButton'
 import ClaimCeremony from '@/components/ClaimCeremony'
 
@@ -181,18 +180,16 @@ export default function ClaimClient({ authenticated }: ClaimClientProps) {
     document.cookie = 'post_auth_redirect=/claim; path=/; max-age=600; samesite=lax'
   }
 
-  const theme = getTheme('midnight')
-
   // Shared shell — same for both phases, same gravity
   const ClaimShell = ({ children }: { children: React.ReactNode }) => (
     <div
       className="min-h-screen flex flex-col items-center justify-center px-6 relative"
-      style={{ background: theme.colors.background, color: theme.colors.text }}
+      style={{ background: '#080808', color: '#fff' }}
     >
       {/* Ghost serial */}
       <div
         className="fixed bottom-4 left-4 z-10 select-none pointer-events-none font-mono"
-        style={{ color: theme.colors.textMuted, fontSize: '11px', fontWeight: 300, opacity: 0.2 }}
+        style={{ color: 'rgba(255,255,255,0.3)', fontSize: '11px', fontWeight: 300, opacity: 0.2 }}
       >
         #????
       </div>
@@ -250,16 +247,17 @@ export default function ClaimClient({ authenticated }: ClaimClientProps) {
     return (
       <ClaimShell>
         <div className="w-full max-w-xs">
-          <div className="space-y-3" onClick={() => handleOAuth('google')}>
-            <OAuthButton provider="google" label="continue with google" />
-          </div>
-          <div className="mt-3" onClick={() => handleOAuth('apple')}>
-            <OAuthButton provider="apple" label="continue with apple" />
-          </div>
-
-          <p className="text-center text-white/90 text-[28px] mt-10" style={{ fontWeight: 500 }}>
+          <p className="text-center text-white/90 mb-16" style={{ fontSize: '64px', fontWeight: 100, letterSpacing: '-0.03em', lineHeight: 1 }}>
             $10
           </p>
+          <div className="space-y-2">
+            <div onClick={() => handleOAuth('google')}>
+              <OAuthButton provider="google" label="google" />
+            </div>
+            <div onClick={() => handleOAuth('apple')}>
+              <OAuthButton provider="apple" label="apple" />
+            </div>
+          </div>
         </div>
       </ClaimShell>
     )
@@ -271,17 +269,22 @@ export default function ClaimClient({ authenticated }: ClaimClientProps) {
   return (
     <ClaimShell>
       <div className="w-full max-w-xs">
-        <div className="space-y-4">
+        <p className="text-center text-white/90 mb-12" style={{ fontSize: '64px', fontWeight: 100, letterSpacing: '-0.03em', lineHeight: 1 }}>
+          $10
+        </p>
+
+        <div className="space-y-2">
           {/* Username */}
           <div>
             <div
-              className="flex items-center gap-0 rounded-xl overflow-hidden"
+              className="flex items-center gap-0 overflow-hidden"
               style={{
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border-subtle)',
+                background: 'transparent',
+                border: '1px solid rgba(255,255,255,0.15)',
+                borderRadius: 0,
               }}
             >
-              <span className="text-white/20 text-[13px] pl-4 shrink-0">fp.onl/</span>
+              <span className="text-white/25 text-[13px] pl-4 shrink-0">fp.onl/</span>
               <input
                 type="text"
                 value={username}
@@ -291,26 +294,26 @@ export default function ClaimClient({ authenticated }: ClaimClientProps) {
                 }}
                 placeholder="username"
                 aria-label="Username"
-                className="flex-1 bg-transparent py-3.5 pr-4 text-white/90 placeholder:text-white/20 focus:outline-none text-[14px]"
+                className="flex-1 bg-transparent py-4 pr-4 text-white/90 placeholder:text-white/20 focus:outline-none text-[14px]"
                 autoFocus
               />
               <button
                 onClick={handlePublish}
                 disabled={loading || !available || !username.trim()}
-                className="pr-4 text-white/40 text-[18px] hover:text-white/70 transition-colors disabled:opacity-30"
+                className="pr-4 text-white/40 text-[18px] hover:text-white/70 transition-colors disabled:opacity-20"
                 aria-label="Submit"
               >
-                {loading ? '...' : '\u2192'}
+                {loading ? '...' : '→'}
               </button>
             </div>
             {username.length >= 2 && (
               <div className="mt-1.5 px-1">
                 {checking ? (
-                  <p className="text-white/20 text-[11px]">checking...</p>
+                  <p className="text-white/20 text-[10px] tracking-widest uppercase">checking</p>
                 ) : available === true ? (
-                  <p className="text-green-400/70 text-[11px]">available</p>
+                  <p className="text-white/40 text-[10px] tracking-widest uppercase">available</p>
                 ) : available === false ? (
-                  <p className="text-red-400/70 text-[11px]">
+                  <p className="text-white/40 text-[10px] tracking-widest uppercase">
                     {availReason ? humanUsernameReason(availReason) : 'taken'}
                   </p>
                 ) : null}
@@ -323,19 +326,16 @@ export default function ClaimClient({ authenticated }: ClaimClientProps) {
             type="text"
             value={promo}
             onChange={(e) => setPromo(e.target.value)}
-            placeholder="promo code (optional)"
+            placeholder="promo code"
             aria-label="Promo code"
-            className="w-full rounded-xl px-4 py-3.5 text-white/90 placeholder:text-white/20 focus:outline-none text-[14px]"
+            className="w-full px-4 py-4 text-white/90 placeholder:text-white/20 focus:outline-none text-[14px]"
             style={{
-              background: 'var(--bg-elevated)',
-              border: '1px solid var(--border-subtle)',
+              background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.15)',
+              borderRadius: 0,
             }}
           />
         </div>
-
-        <p className="text-center text-white/90 text-[28px] mt-8" style={{ fontWeight: 500 }}>
-          $10
-        </p>
       </div>
     </ClaimShell>
   )
