@@ -229,38 +229,15 @@ export default function ClaimClient({ authenticated }: ClaimClientProps) {
     return (
       <ClaimShell>
         <div className="w-full max-w-xs text-center">
-          {serial && (
-            <p className="font-mono text-white/25 text-[11px] tracking-[0.2em] uppercase mb-6">
-              FP #{serial.toLocaleString()}
-            </p>
-          )}
-
-          <p className="text-[22px] font-light tracking-[-0.01em] text-white/90 mb-3">
-            you&apos;re live
-          </p>
-
-          <p className="font-mono text-[13px] mb-8">
+          <p className="font-mono text-[13px] mb-3">
             <span className="text-white/40">fp.onl/</span>
             <span className="text-white/90">{finalSlug}</span>
           </p>
-
-          <button
-            onClick={() => router.push(`/${finalSlug}/home`)}
-            className="w-full py-3.5 rounded-xl bg-white text-black text-[14px] font-medium hover:bg-white/90 transition-all mb-3"
-          >
-            open your space
-          </button>
-
-          <button
-            onClick={() => {
-              const url = `https://footprint.onl/${finalSlug}/fp`
-              navigator.clipboard.writeText(url)
-              toast.success('copied')
-            }}
-            className="w-full py-3 text-white/30 text-[12px] hover:text-white/50 transition-colors"
-          >
-            copy link
-          </button>
+          {serial && (
+            <p className="font-mono text-white/25 text-[11px]">
+              #{serial.toLocaleString()}
+            </p>
+          )}
         </div>
       </ClaimShell>
     )
@@ -282,12 +259,6 @@ export default function ClaimClient({ authenticated }: ClaimClientProps) {
 
           <p className="text-center text-white/90 text-[28px] mt-10" style={{ fontWeight: 500 }}>
             $10
-          </p>
-          <p className="text-center text-white/30 text-[13px] mt-2" style={{ fontWeight: 300, letterSpacing: '3px' }}>
-            permanent.
-          </p>
-          <p className="text-center text-white/15 text-[11px] mt-1" style={{ fontWeight: 300 }}>
-            one-time. no subscription. yours forever.
           </p>
         </div>
       </ClaimShell>
@@ -364,12 +335,6 @@ export default function ClaimClient({ authenticated }: ClaimClientProps) {
 
         <p className="text-center text-white/90 text-[28px] mt-8" style={{ fontWeight: 500 }}>
           $10
-        </p>
-        <p className="text-center text-white/30 text-[13px] mt-2" style={{ fontWeight: 300, letterSpacing: '3px' }}>
-          permanent.
-        </p>
-        <p className="text-center text-white/15 text-[11px] mt-1" style={{ fontWeight: 300 }}>
-          one-time. no subscription. yours forever.
         </p>
       </div>
     </ClaimShell>

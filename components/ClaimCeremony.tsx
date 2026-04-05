@@ -100,22 +100,6 @@ export default function ClaimCeremony({ serial, slug, onComplete }: ClaimCeremon
           {serialDisplay}
         </h1>
 
-        {/* Tagline — fades up after illuminate */}
-        <p
-          className={reducedMotion ? '' : phase >= 3 ? 'ceremony-tagline ceremony-tagline-enter' : 'ceremony-tagline'}
-          style={{
-            fontFamily: DM,
-            fontSize: '15px',
-            fontWeight: 300,
-            fontStyle: 'italic',
-            color: 'rgba(255,255,255,0.2)',
-            marginTop: '24px',
-            opacity: reducedMotion ? 1 : phase >= 3 ? undefined : 0,
-          }}
-        >
-          yours. permanent.
-        </p>
-
         {/* URL */}
         <p
           className={reducedMotion ? '' : phase >= 3 ? 'ceremony-tagline ceremony-tagline-enter' : 'ceremony-tagline'}
@@ -123,13 +107,13 @@ export default function ClaimCeremony({ serial, slug, onComplete }: ClaimCeremon
             fontFamily: MONO,
             fontSize: '13px',
             color: 'rgba(255,255,255,0.15)',
-            marginTop: '8px',
+            marginTop: '24px',
             letterSpacing: '0.02em',
             opacity: reducedMotion ? 1 : phase >= 3 ? undefined : 0,
             animationDelay: phase >= 3 && !reducedMotion ? '200ms' : undefined,
           }}
         >
-          footprint.onl/{slug}
+          fp.onl/{slug}
         </p>
 
         {/* Continue */}
@@ -156,7 +140,7 @@ export default function ClaimCeremony({ serial, slug, onComplete }: ClaimCeremon
           onMouseEnter={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.5)' }}
           onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.25)' }}
         >
-          continue
+          →
         </button>
       </div>
     </div>
