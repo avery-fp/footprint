@@ -33,15 +33,37 @@ export async function POST(request: NextRequest) {
     const supabase = createServerSupabaseClient()
 
     // Get user's unpublished footprint
-    const { data: footprint } = await supabase
+    let { data: footprint } = await supabase
       .from('footprints')
       .select('*')
       .eq('user_id', userId)
       .eq('is_primary', true)
       .single()
 
+    // For the /claim flow: OAuth users arrive authenticated but without a footprint yet.
+    // Create a placeholder footprint so check-username and publish-paid can proceed.
     if (!footprint) {
-      return NextResponse.json({ error: 'No footprint found' }, { status: 404 })
+      if (validatedBody.action === 'check-username' || validatedBody.action === 'publish-paid') {
+        const { data: newFp, error: createFpError } = await supabase
+          .from('footprints')
+          .insert({
+            user_id: userId,
+            username: `pending-${userId.replace(/-/g, '').slice(0, 12)}`,
+            is_primary: true,
+            published: false,
+          })
+          .select('*')
+          .single()
+
+        if (createFpError || !newFp) {
+          log.error({ err: createFpError }, 'Failed to create placeholder footprint')
+          return NextResponse.json({ error: 'Could not initialize your space. Try again.' }, { status: 500 })
+        }
+
+        footprint = newFp
+      } else {
+        return NextResponse.json({ error: 'No footprint found' }, { status: 404 })
+      }
     }
 
     switch (validatedBody.action) {
