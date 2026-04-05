@@ -199,7 +199,7 @@ export default function ClaimPage() {
 
       {/* Ghost building — if they arrived from preview with ?name= */}
       {previewName && (
-        <div className="fixed inset-0 z-0 pointer-events-none flex flex-col items-center" style={{ opacity: 0.15 }}>
+        <div className="fixed inset-0 z-0 pointer-events-none flex flex-col items-center animate-ghost-breath animate-ghost-drift">
           <div style={{ height: '80px' }} />
           <h2
             className={`${
@@ -242,6 +242,14 @@ export default function ClaimPage() {
           </div>
         </div>
       )}
+
+      {/* Ghost serial — unclaimed, waiting */}
+      <div
+        className="fixed bottom-4 left-4 z-10 select-none pointer-events-none font-mono"
+        style={{ color: theme.colors.textMuted, fontSize: '11px', fontWeight: 300, opacity: 0.2 }}
+      >
+        #????
+      </div>
 
       <div className="relative z-10 w-full flex flex-col items-center">
         {children}

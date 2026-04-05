@@ -515,6 +515,21 @@ input:-webkit-autofill:focus {
 .animate-ghost-pulse {
   animation: ghost-pulse 6s ease-in-out infinite;
 }
+@keyframes ghost-drift {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-2px); }
+}
+.animate-ghost-drift {
+  animation: ghost-drift 20s ease-in-out infinite alternate;
+}
+@keyframes ghost-breath {
+  0% { opacity: 0.15; }
+  40% { opacity: 0.20; }
+  100% { opacity: 0.15; }
+}
+.animate-ghost-breath {
+  animation: ghost-breath 3s ease-in-out forwards;
+}
 /* Floating CTA — CSS-only fade-in, no hydration dependency */
 @keyframes cta-fade-in {
   0% { opacity: 0; pointer-events: none; }
