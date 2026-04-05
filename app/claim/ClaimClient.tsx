@@ -283,10 +283,10 @@ export default function ClaimClient({ authenticated }: ClaimClientProps) {
           <p className="text-center text-white/90 text-[28px] mt-10" style={{ fontWeight: 500 }}>
             $10
           </p>
-          <p className="text-center text-white/40 text-[11px] mt-2" style={{ fontFamily: 'Space Grotesk, sans-serif', fontWeight: 300, letterSpacing: '3px' }}>
+          <p className="text-center text-white/30 text-[13px] mt-2" style={{ fontWeight: 300, letterSpacing: '3px' }}>
             permanent.
           </p>
-          <p className="text-center text-white/15 text-[10px] mt-1" style={{ fontFamily: 'Space Grotesk, sans-serif', fontWeight: 300 }}>
+          <p className="text-center text-white/15 text-[11px] mt-1" style={{ fontWeight: 300 }}>
             one-time. no subscription. yours forever.
           </p>
         </div>
@@ -365,10 +365,10 @@ export default function ClaimClient({ authenticated }: ClaimClientProps) {
         <p className="text-center text-white/90 text-[28px] mt-8" style={{ fontWeight: 500 }}>
           $10
         </p>
-        <p className="text-center text-white/40 text-[11px] mt-2" style={{ fontFamily: 'Space Grotesk, sans-serif', fontWeight: 300, letterSpacing: '3px' }}>
+        <p className="text-center text-white/30 text-[13px] mt-2" style={{ fontWeight: 300, letterSpacing: '3px' }}>
           permanent.
         </p>
-        <p className="text-center text-white/15 text-[10px] mt-1" style={{ fontFamily: 'Space Grotesk, sans-serif', fontWeight: 300 }}>
+        <p className="text-center text-white/15 text-[11px] mt-1" style={{ fontWeight: 300 }}>
           one-time. no subscription. yours forever.
         </p>
       </div>
