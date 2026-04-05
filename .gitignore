@@ -54,3 +54,13 @@ provider-configs.json
 ses-configs.json
 sent-log.csv
 lists/
+
+# Email targeting / outreach
+email-targets/
+send-state.json
+
+# Local databases
+*.db
+
+# Pipeline logs
+output/logs/
