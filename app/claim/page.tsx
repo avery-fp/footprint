@@ -4,15 +4,27 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { humanError, humanUsernameReason } from '@/lib/errors'
+import { getTheme } from '@/lib/themes'
 import ClaimCeremony from '@/components/ClaimCeremony'
 
 type Step = 'username' | 'processing' | 'ceremony' | 'done'
+
+// Ghost tile grid — mirrors the preview template proportions
+const GHOST_TILES = [
+  { span: 2, aspect: 'aspect-video' },
+  { span: 1, aspect: 'aspect-square' },
+  { span: 1, aspect: 'aspect-square' },
+  { span: 1, aspect: 'aspect-square' },
+  { span: 1, aspect: 'aspect-square' },
+  { span: 2, aspect: 'aspect-video' },
+]
 
 export default function ClaimPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const sessionId = searchParams.get('session_id')
   const presetUsername = searchParams.get('username')
+  const previewName = searchParams.get('name')
 
   const [step, setStep] = useState<Step>(sessionId ? 'processing' : 'username')
   const [username, setUsername] = useState(presetUsername || '')
@@ -168,13 +180,82 @@ export default function ClaimPage() {
     }
   }
 
+  // Midnight theme — the product's atmosphere
+  const theme = getTheme('midnight')
+
+  // Shared background shell for all claim states
+  const ClaimShell = ({ children }: { children: React.ReactNode }) => (
+    <div
+      className="min-h-screen flex flex-col items-center justify-center px-6 relative"
+      style={{ background: theme.colors.background, color: theme.colors.text }}
+    >
+      {/* Warm radial depth — same as public pages */}
+      <div
+        className="fixed inset-0 z-0 pointer-events-none"
+        style={{
+          background: 'radial-gradient(ellipse at 50% 30%, rgba(255,255,255,0.02) 0%, transparent 70%)',
+        }}
+      />
+
+      {/* Ghost building — if they arrived from preview with ?name= */}
+      {previewName && (
+        <div className="fixed inset-0 z-0 pointer-events-none flex flex-col items-center" style={{ opacity: 0.15 }}>
+          <div style={{ height: '80px' }} />
+          <h2
+            className={`${
+              previewName.length <= 6
+                ? 'text-4xl md:text-6xl tracking-[0.22em] font-normal'
+                : previewName.length <= 12
+                ? 'text-3xl md:text-5xl tracking-[0.14em] font-normal'
+                : 'text-2xl md:text-4xl tracking-[0.06em] font-light'
+            }`}
+            style={{ color: theme.colors.text }}
+          >
+            {previewName}
+          </h2>
+          <div className="flex items-center justify-center mt-4 mb-6">
+            <div className="flex items-center gap-0 font-mono">
+              {['work', 'links', 'about'].map((space, i) => (
+                <span key={space} className="flex items-center whitespace-nowrap">
+                  {i > 0 && <span className="mx-2.5" style={{ fontSize: '8px', opacity: 0.4 }}>{'\u00b7'}</span>}
+                  <span style={{ fontSize: '11px', letterSpacing: '2.5px', textTransform: 'lowercase', fontWeight: i === 0 ? 400 : 300, opacity: i === 0 ? 0.7 : 0.4 }}>
+                    {space}
+                  </span>
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="w-full px-3 md:px-4" style={{ maxWidth: '880px' }}>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {GHOST_TILES.map((tile, idx) => (
+                <div
+                  key={idx}
+                  className={`${tile.span === 2 ? 'col-span-2' : 'col-span-1'} ${tile.aspect} relative overflow-hidden rounded-2xl animate-ghost-pulse`}
+                  style={{
+                    background: theme.colors.glass,
+                    border: `1px solid ${theme.colors.border}`,
+                    animationDelay: `${idx * 1.2}s`,
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="relative z-10 w-full flex flex-col items-center">
+        {children}
+      </div>
+    </div>
+  )
+
   // Processing state (waiting for Stripe finalization)
   if (step === 'processing') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: 'var(--bg-void)' }}>
+      <ClaimShell>
         <div className="w-12 h-12 rounded-full border-2 border-white/10 border-t-white/50 animate-spin" />
         <p className="mt-4 text-white/30 text-[13px]">claiming...</p>
-      </div>
+      </ClaimShell>
     )
   }
 
@@ -192,7 +273,7 @@ export default function ClaimPage() {
   // Done — claimed!
   if (step === 'done') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: 'var(--bg-void)' }}>
+      <ClaimShell>
         <div className="w-full max-w-xs text-center">
           {serial && (
             <p className="font-mono text-white/25 text-[11px] tracking-[0.2em] uppercase mb-6">
@@ -226,13 +307,13 @@ export default function ClaimPage() {
             copy link
           </button>
         </div>
-      </div>
+      </ClaimShell>
     )
   }
 
   // Username + promo step
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: 'var(--bg-void)' }}>
+    <ClaimShell>
       <div className="w-full max-w-xs">
         <div className="space-y-4">
           {/* Username */}
@@ -296,6 +377,6 @@ export default function ClaimPage() {
           one-time. no subscription. yours forever.
         </p>
       </div>
-    </div>
+    </ClaimShell>
   )
 }
