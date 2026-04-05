@@ -9,7 +9,7 @@ import { createSessionToken, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from 
  * Bridges Supabase auth to our custom JWT session system.
  *
  * Flow:
- * 1. Exchange code for Supabase session
+ * 1. Exchange PKCE code + code_verifier for Supabase session
  * 2. Look up or create user in our DB
  * 3. Issue fp_session JWT
  * 4. Redirect:
@@ -37,25 +37,69 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    )
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
-    const { data: authData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
+    // Exchange the PKCE auth code for a session via Supabase's token endpoint.
+    // We call the API directly because the SDK's exchangeCodeForSession reads
+    // the code_verifier from its in-memory storage, which doesn't persist
+    // across the two separate route handlers (OAuth initiation → callback).
+    const codeVerifier = request.cookies.get('pkce_code_verifier')?.value
 
-    if (exchangeError || !authData?.user?.email) {
-      const loginUrl = new URL('/login', origin)
-      loginUrl.searchParams.set('error', 'Link expired. Try again.')
-      return NextResponse.redirect(loginUrl)
+    let authUser: any = null
+
+    if (codeVerifier) {
+      // PKCE flow (OAuth via /api/auth/oauth)
+      const tokenRes = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=pkce`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': supabaseServiceKey,
+          'Authorization': `Bearer ${supabaseServiceKey}`,
+        },
+        body: JSON.stringify({
+          auth_code: code,
+          code_verifier: codeVerifier,
+        }),
+      })
+
+      const tokenData = await tokenRes.json()
+
+      if (!tokenRes.ok || !tokenData.user?.email) {
+        console.error('[callback] PKCE token exchange failed:', tokenData)
+        const loginUrl = new URL('/login', origin)
+        loginUrl.searchParams.set('error', 'Sign-in failed. Try again.')
+        return NextResponse.redirect(loginUrl)
+      }
+
+      authUser = tokenData.user
+    } else {
+      // Non-PKCE fallback (magic links, older flows)
+      const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      })
+
+      const { data: authData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
+
+      if (exchangeError || !authData?.user?.email) {
+        const loginUrl = new URL('/login', origin)
+        loginUrl.searchParams.set('error', 'Link expired. Try again.')
+        return NextResponse.redirect(loginUrl)
+      }
+
+      authUser = authData.user
     }
 
-    const email = authData.user.email
-    const providerName = authData.user.app_metadata?.provider || 'magic_link'
-    const userMeta = authData.user.user_metadata || {}
+    const email = authUser.email
+    const providerName = authUser.app_metadata?.provider || 'magic_link'
+    const userMeta = authUser.user_metadata || {}
     const displayName = userMeta.full_name || userMeta.name || ''
     const avatarUrl = userMeta.avatar_url || userMeta.picture || ''
+
+    // DB operations use service role client
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    })
 
     // Look up or create user in our DB
     let { data: user } = await supabase
@@ -74,7 +118,7 @@ export async function GET(request: NextRequest) {
         .insert({
           email,
           auth_provider: providerName,
-          oauth_provider_id: authData.user.id,
+          oauth_provider_id: authUser.id,
           display_name: displayName,
           avatar_url: avatarUrl,
         })
@@ -131,7 +175,10 @@ export async function GET(request: NextRequest) {
     const response = NextResponse.redirect(new URL(destination, origin))
     response.cookies.set(SESSION_COOKIE_NAME, sessionToken, SESSION_COOKIE_OPTIONS)
 
-    // Clear the post_auth_redirect cookie
+    // Clear PKCE and redirect cookies
+    if (codeVerifier) {
+      response.cookies.set('pkce_code_verifier', '', { path: '/', maxAge: 0 })
+    }
     if (postAuthRedirect) {
       response.cookies.set('post_auth_redirect', '', { path: '/', maxAge: 0 })
     }

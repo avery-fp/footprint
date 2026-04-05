@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import crypto from 'crypto'
 
 /**
  * POST /api/auth/oauth
  *
  * Initiates OAuth flow via Supabase Auth for Apple or Google.
- * Returns the redirect URL that the client should navigate to.
+ * Uses PKCE so the auth code comes back as a query param (not a hash fragment)
+ * which the server-side callback route can read.
+ *
+ * Stores the PKCE code_verifier in an httpOnly cookie so the callback
+ * can exchange the code.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -22,34 +26,44 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'OAuth not configured' }, { status: 500 })
     }
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey)
+    // Generate PKCE code_verifier and code_challenge
+    const codeVerifier = crypto.randomBytes(32).toString('base64url')
+    const codeChallenge = crypto
+      .createHash('sha256')
+      .update(codeVerifier)
+      .digest('base64url')
 
+    // Build callback URL with optional post-auth redirect
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.footprint.onl'
     const callbackUrl = new URL('/auth/callback', baseUrl)
-    // Pass post-auth redirect through the OAuth flow as a query param
-    // so it survives even if the cookie doesn't make it through cross-origin redirects
     if (redirect && typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')) {
       callbackUrl.searchParams.set('redirect', redirect)
     }
-    const redirectTo = callbackUrl.toString()
 
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: provider as 'google' | 'apple',
-      options: {
-        redirectTo,
-        queryParams: provider === 'google' ? {
-          access_type: 'offline',
-          prompt: 'consent',
-        } : undefined,
-      },
-    })
+    // Build Supabase authorize URL with PKCE
+    const authUrl = new URL(`${supabaseUrl}/auth/v1/authorize`)
+    authUrl.searchParams.set('provider', provider)
+    authUrl.searchParams.set('redirect_to', callbackUrl.toString())
+    authUrl.searchParams.set('code_challenge', codeChallenge)
+    authUrl.searchParams.set('code_challenge_method', 's256')
 
-    if (error || !data?.url) {
-      console.error('[oauth] Supabase OAuth error:', error)
-      return NextResponse.json({ error: 'Failed to start sign-in' }, { status: 500 })
+    if (provider === 'google') {
+      authUrl.searchParams.set('access_type', 'offline')
+      authUrl.searchParams.set('prompt', 'consent')
     }
 
-    return NextResponse.json({ url: data.url })
+    const response = NextResponse.json({ url: authUrl.toString() })
+
+    // Store code_verifier in httpOnly cookie for the callback to use
+    response.cookies.set('pkce_code_verifier', codeVerifier, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 600, // 10 minutes
+    })
+
+    return response
   } catch (err) {
     console.error('[oauth] unexpected error:', err)
     return NextResponse.json({ error: 'Something went wrong' }, { status: 500 })
