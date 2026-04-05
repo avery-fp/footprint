@@ -252,10 +252,10 @@ export default function ClaimClient({ authenticated }: ClaimClientProps) {
           </p>
           <div className="space-y-2">
             <div onClick={() => handleOAuth('google')}>
-              <OAuthButton provider="google" label="google" />
+              <OAuthButton provider="google" label="google" redirectAfterAuth="/claim" />
             </div>
             <div onClick={() => handleOAuth('apple')}>
-              <OAuthButton provider="apple" label="apple" />
+              <OAuthButton provider="apple" label="apple" redirectAfterAuth="/claim" />
             </div>
           </div>
         </div>

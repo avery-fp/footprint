@@ -106,7 +106,8 @@ export async function GET(request: NextRequest) {
 
     // Determine redirect destination
     // Priority: post_auth_redirect cookie (set by /claim) > query param > default
-    const postAuthRedirect = request.cookies.get('post_auth_redirect')?.value
+    const rawPostAuth = request.cookies.get('post_auth_redirect')?.value || ''
+    const postAuthRedirect = rawPostAuth.startsWith('/') && !rawPostAuth.startsWith('//') ? rawPostAuth : ''
     let destination = postAuthRedirect || customRedirect || '/dashboard'
 
     // Only apply /welcome fallback if no explicit redirect was requested
