@@ -9,7 +9,7 @@ import { createClient } from '@supabase/supabase-js'
  */
 export async function POST(request: NextRequest) {
   try {
-    const { provider } = await request.json()
+    const { provider, redirect } = await request.json()
 
     if (!provider || !['google', 'apple'].includes(provider)) {
       return NextResponse.json({ error: 'Invalid provider' }, { status: 400 })
@@ -25,7 +25,13 @@ export async function POST(request: NextRequest) {
     const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.footprint.onl'
-    const redirectTo = `${baseUrl}/auth/callback`
+    const callbackUrl = new URL('/auth/callback', baseUrl)
+    // Pass post-auth redirect through the OAuth flow as a query param
+    // so it survives even if the cookie doesn't make it through cross-origin redirects
+    if (redirect && typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')) {
+      callbackUrl.searchParams.set('redirect', redirect)
+    }
+    const redirectTo = callbackUrl.toString()
 
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: provider as 'google' | 'apple',

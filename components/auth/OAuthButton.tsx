@@ -5,9 +5,10 @@ import { useState } from 'react'
 interface OAuthButtonProps {
   provider: 'google' | 'apple'
   label: string
+  redirectAfterAuth?: string
 }
 
-export default function OAuthButton({ provider, label }: OAuthButtonProps) {
+export default function OAuthButton({ provider, label, redirectAfterAuth }: OAuthButtonProps) {
   const [loading, setLoading] = useState(false)
 
   const handleClick = async () => {
@@ -18,7 +19,7 @@ export default function OAuthButton({ provider, label }: OAuthButtonProps) {
       const res = await fetch('/api/auth/oauth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider }),
+        body: JSON.stringify({ provider, redirect: redirectAfterAuth }),
       })
       const data = await res.json()
 

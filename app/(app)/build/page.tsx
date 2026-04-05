@@ -39,8 +39,8 @@ function SignInModal({ onClose }: { onClose: () => void }) {
 
         {/* OAuth buttons */}
         <div className="flex flex-col gap-3 mb-4">
-          <OAuthButton provider="google" label="continue with Google" />
-          <OAuthButton provider="apple" label="continue with Apple" />
+          <OAuthButton provider="google" label="continue with Google" redirectAfterAuth="/build" />
+          <OAuthButton provider="apple" label="continue with Apple" redirectAfterAuth="/build" />
         </div>
 
         <Divider />
