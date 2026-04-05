@@ -228,7 +228,7 @@ export default function SignupPage() {
         )}
 
         <div style={{ marginTop: '48px', textAlign: 'center' }}>
-          <AeQuietLink text="already claimed? sign in" onClick={() => { window.location.href = '/login' }} />
+          <AeQuietLink text="already claimed? enter" onClick={() => { window.location.href = '/login' }} />
         </div>
       </div>
     </div>

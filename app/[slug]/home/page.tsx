@@ -1199,7 +1199,7 @@ export default function EditPage() {
 
   async function handleCreateRoom() {
     if (!draft || !serialNumber) return
-    const name = prompt('Room name:')
+    const name = prompt('Space name:')
     if (!name?.trim()) return
     try {
       const res = await fetch('/api/rooms', {
@@ -1209,20 +1209,20 @@ export default function EditPage() {
       })
       const json = await res.json()
       if (!res.ok) {
-        alert(json.error || 'Failed to create room')
+        alert(json.error || 'Failed to create space')
         return
       }
       if (json.room) setRooms(prev => [...prev, json.room])
     } catch (e) {
-      console.error('Failed to create room:', e)
-      alert('Failed to create room')
+      console.error('Failed to create space:', e)
+      alert('Failed to create space')
     }
   }
 
   async function handleRenameRoom(roomId: string) {
     const room = rooms.find(r => r.id === roomId)
     if (!room) return
-    const name = prompt('Rename room:', room.name)
+    const name = prompt('Rename space:', room.name)
     if (!name?.trim() || name.trim() === room.name) return
     try {
       const res = await fetch('/api/rooms', {
@@ -1230,10 +1230,10 @@ export default function EditPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: roomId, name: name.trim(), slug }),
       })
-      if (!res.ok) { alert('Failed to rename room'); return }
+      if (!res.ok) { alert('Failed to rename space'); return }
       setRooms(prev => prev.map(r => r.id === roomId ? { ...r, name: name.trim() } : r))
     } catch (e) {
-      console.error('Failed to rename room:', e)
+      console.error('Failed to rename space:', e)
     }
   }
 
@@ -1241,7 +1241,7 @@ export default function EditPage() {
     if (!draft) return
     const tilesInRoom = draft.content.filter(c => c.room_id === roomId)
     if (tilesInRoom.length === 0) return
-    if (!confirm(`Remove ${tilesInRoom.length} tile${tilesInRoom.length > 1 ? 's' : ''} from this room? They won't be deleted.`)) return
+    if (!confirm(`Remove ${tilesInRoom.length} tile${tilesInRoom.length > 1 ? 's' : ''} from this space? They won't be deleted.`)) return
     // Optimistic update
     setDraft(prev => prev ? {
       ...prev,
@@ -1262,11 +1262,11 @@ export default function EditPage() {
   }
 
   async function handleDeleteRoom(roomId: string) {
-    if (!confirm('Delete this room? Tiles will be unassigned, not deleted.')) return
+    if (!confirm('Delete this space? Tiles will be unassigned, not deleted.')) return
     try {
       const res = await fetch(`/api/rooms?id=${roomId}&slug=${encodeURIComponent(slug)}`, { method: 'DELETE' })
       if (!res.ok) {
-        alert('Failed to delete room')
+        alert('Failed to delete space')
         return
       }
       setRooms(prev => prev.filter(r => r.id !== roomId))
@@ -1935,7 +1935,7 @@ export default function EditPage() {
         ) : (
           <div className="text-center py-32 flex flex-col items-center gap-4">
             <p className="text-white/30 text-sm font-mono">
-              {activeRoomId ? 'this room is empty.' : 'nothing here yet.'}
+              {activeRoomId ? 'this space is empty.' : 'nothing here yet.'}
             </p>
             {isArranging ? (
               <button
@@ -2127,7 +2127,7 @@ export default function EditPage() {
                 })
                 return (
                   <div className="flex items-center justify-between py-3 border-t border-white/[0.06]">
-                    <span className="text-sm text-white/50 font-mono">reset room</span>
+                    <span className="text-sm text-white/50 font-mono">reset space</span>
                     <button
                       onClick={() => {
                         for (const t of roomTiles) {
@@ -2151,7 +2151,7 @@ export default function EditPage() {
               {/* Room assign */}
               {rooms.length > 0 && (
                 <div className="flex items-center justify-between py-3 border-t border-white/[0.06]">
-                  <span className="text-sm text-white/50 font-mono">room</span>
+                  <span className="text-sm text-white/50 font-mono">space</span>
                   <select
                     value={selectedTile.room_id || ''}
                     onChange={(e) => assignTileRoom(mode.tileId, e.target.value || null)}

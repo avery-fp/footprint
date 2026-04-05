@@ -100,7 +100,7 @@ export default function DeedClient({
           )}
           {slug && (
             <div className="flex items-center justify-between py-3 border-b border-white/[0.06]">
-              <span className="text-white/25 text-xs" style={{ fontFamily: DM }}>Room</span>
+              <span className="text-white/25 text-xs" style={{ fontFamily: DM }}>Space</span>
               <Link
                 href={`/${slug}`}
                 className="text-white/50 hover:text-white/80 text-sm font-mono transition-colors"

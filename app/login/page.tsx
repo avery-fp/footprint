@@ -158,7 +158,7 @@ export default function LoginPage() {
             check your email
           </p>
           <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '13px', marginTop: '12px', lineHeight: '1.6' }}>
-            we sent a sign-in link to {email}
+            we sent an entry link to {email}
           </p>
           <div style={{ marginTop: '48px' }}>
             <AeQuietLink text="try another way" onClick={() => { setMagicSent(false); setMode('choose') }} />
@@ -292,7 +292,7 @@ export default function LoginPage() {
               <circle cx="12" cy="16" r="1"/>
               <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
             </svg>
-            sign in with passkey
+            enter with passkey
           </button>
         </div>
 

@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
       if (fpErr.code === '23505') {
         return NextResponse.json({ error: 'That name was just taken. Try another.' }, { status: 409 })
       }
-      return NextResponse.json({ error: 'Could not create room. Try again.' }, { status: 500 })
+      return NextResponse.json({ error: 'Could not create your space. Try again.' }, { status: 500 })
     }
 
     console.log('[claim-username] success:', clean, session.userId)
