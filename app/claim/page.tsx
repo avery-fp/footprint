@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
-import { FOOTPRINT_PRICE_DISPLAY } from '@/lib/constants'
 import { humanError, humanUsernameReason } from '@/lib/errors'
 import ClaimCeremony from '@/components/ClaimCeremony'
 
@@ -235,18 +234,11 @@ export default function ClaimPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: 'var(--bg-void)' }}>
       <div className="w-full max-w-xs">
-        <p className="text-center text-[22px] font-light tracking-[-0.01em] text-white/90 mb-3">
-          claim
-        </p>
-        <p className="text-center text-white/30 text-[13px] leading-relaxed mb-10">
-          choose your Footprint URL. this is permanent.
-        </p>
-
         <div className="space-y-4">
           {/* Username */}
           <div>
             <div className="flex items-center gap-0 rounded-xl overflow-hidden" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}>
-              <span className="text-white/20 text-[13px] pl-4 shrink-0">footprint.onl/</span>
+              <span className="text-white/20 text-[13px] pl-4 shrink-0">fp.onl/</span>
               <input
                 type="text"
                 value={username}
@@ -259,6 +251,14 @@ export default function ClaimPage() {
                 className="flex-1 bg-transparent py-3.5 pr-4 text-white/90 placeholder:text-white/20 focus:outline-none text-[14px]"
                 autoFocus
               />
+              <button
+                onClick={handlePublish}
+                disabled={loading || !available || !username.trim()}
+                className="pr-4 text-white/40 text-[18px] hover:text-white/70 transition-colors disabled:opacity-30"
+                aria-label="Submit"
+              >
+                {loading ? '...' : '\u2192'}
+              </button>
             </div>
             {username.length >= 2 && (
               <div className="mt-1.5 px-1">
@@ -283,18 +283,16 @@ export default function ClaimPage() {
             className="w-full rounded-xl px-4 py-3.5 text-white/90 placeholder:text-white/20 focus:outline-none text-[14px]"
             style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}
           />
-
-          {/* Claim button */}
-          <button
-            onClick={handlePublish}
-            disabled={loading || !available || !username.trim()}
-            className="w-full py-3.5 rounded-xl bg-white text-black text-[14px] font-medium hover:bg-white/90 transition-all disabled:opacity-40"
-          >
-            {loading ? '...' : promo.trim() ? 'claim' : `claim \u2014 ${FOOTPRINT_PRICE_DISPLAY}`}
-          </button>
         </div>
 
-        <p className="mt-6 text-center text-white/15 text-[11px]">
+        <p className="text-center text-white/90 text-[28px] mt-8" style={{ fontWeight: 500 }}>
+          $10
+        </p>
+        <p className="text-center text-white/30 text-[13px] mt-1" style={{ fontWeight: 300 }}>
+          permanent.
+        </p>
+
+        <p className="mt-8 text-center text-white/15 text-[11px]">
           one-time. no subscription. yours forever.
         </p>
       </div>
