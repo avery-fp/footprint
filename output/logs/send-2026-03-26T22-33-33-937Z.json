@@ -1,0 +1,30 @@
+{
+  "timestamp": "2026-03-26T22:33:33.934Z",
+  "mode": "dry-run",
+  "sent": 554,
+  "errors": 0,
+  "total": 554,
+  "providers": [
+    "dry-run"
+  ],
+  "topClusters": [
+    [
+      "twitter",
+      527
+    ],
+    [
+      "twitter+instagram",
+      27
+    ]
+  ],
+  "topSubjects": [
+    [
+      "all of you. one place. $10.",
+      554
+    ]
+  ],
+  "scoreRange": {
+    "top": "100",
+    "bottom": "100"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "timestamp": "2026-03-27T05:27:03.014Z",
+  "mode": "live",
+  "sent": 321,
+  "errors": 0,
+  "total": 321,
+  "providers": [
+    "resend"
+  ],
+  "topClusters": [
+    [
+      "twitter",
+      307
+    ],
+    [
+      "twitter+instagram",
+      14
+    ]
+  ],
+  "topSubjects": [
+    [
+      "all of you. one place. $10.",
+      321
+    ]
+  ],
+  "scoreRange": {
+    "top": "100",
+    "bottom": "100"
+  }
+}

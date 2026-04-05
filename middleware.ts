@@ -28,6 +28,7 @@ const publicRoutes = [
   '/success',
   '/deed',
   '/gift',
+  '/claim',
   '/api/',
   '/public',
 ]

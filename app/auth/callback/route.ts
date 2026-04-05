@@ -105,27 +105,35 @@ export async function GET(request: NextRequest) {
     const sessionToken = await createSessionToken(user.id, user.email)
 
     // Determine redirect destination
-    let destination = customRedirect || '/dashboard'
+    // Priority: post_auth_redirect cookie (set by /claim) > query param > default
+    const postAuthRedirect = request.cookies.get('post_auth_redirect')?.value
+    let destination = postAuthRedirect || customRedirect || '/dashboard'
 
-    if (isNewUser) {
-      // New user → send to /welcome to claim username
-      destination = '/welcome'
-    } else {
-      // Existing user — check if they have a footprint
-      const { data: footprint } = await supabase
-        .from('footprints')
-        .select('username')
-        .eq('user_id', user.id)
-        .eq('is_primary', true)
-        .single()
-
-      if (!footprint) {
+    // Only apply /welcome fallback if no explicit redirect was requested
+    if (!postAuthRedirect && !customRedirect) {
+      if (isNewUser) {
         destination = '/welcome'
+      } else {
+        const { data: footprint } = await supabase
+          .from('footprints')
+          .select('username')
+          .eq('user_id', user.id)
+          .eq('is_primary', true)
+          .single()
+
+        if (!footprint) {
+          destination = '/welcome'
+        }
       }
     }
 
     const response = NextResponse.redirect(new URL(destination, origin))
     response.cookies.set(SESSION_COOKIE_NAME, sessionToken, SESSION_COOKIE_OPTIONS)
+
+    // Clear the post_auth_redirect cookie
+    if (postAuthRedirect) {
+      response.cookies.set('post_auth_redirect', '', { path: '/', maxAge: 0 })
+    }
 
     return response
   } catch (err) {

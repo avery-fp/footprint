@@ -1,0 +1,26 @@
+{
+  "timestamp": "2026-03-27T05:20:15.740Z",
+  "mode": "live",
+  "sent": 3,
+  "errors": 0,
+  "total": 3,
+  "providers": [
+    "resend"
+  ],
+  "topClusters": [
+    [
+      "twitter",
+      3
+    ]
+  ],
+  "topSubjects": [
+    [
+      "all of you. one place. $10.",
+      3
+    ]
+  ],
+  "scoreRange": {
+    "top": "100",
+    "bottom": "100"
+  }
+}
