@@ -25,6 +25,9 @@ export default function OAuthButton({ provider, label, redirectAfterAuth }: OAut
       const data = await res.json()
 
       if (data.url) {
+        if (redirectAfterAuth) {
+          document.cookie = `post_auth_redirect=${redirectAfterAuth};path=/;max-age=600;SameSite=Lax`
+        }
         window.location.href = data.url
       }
     } catch {
