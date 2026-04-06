@@ -541,15 +541,21 @@ export default function EditPage() {
   }, [stripeSessionId, stripeUsername])
 
   // After OAuth redirect back with ?claim=1, open claim overlay
+  // Skip if user already owns this footprint (has a serial number)
   const shouldClaim = searchParams.get('claim') === '1'
   useEffect(() => {
-    if (shouldClaim && !isLoading) {
+    if (shouldClaim && !isLoading && !serialNumber) {
       setClaimOverlay('claim')
       const url = new URL(window.location.href)
       url.searchParams.delete('claim')
       window.history.replaceState({}, '', url.toString())
+    } else if (shouldClaim && !isLoading && serialNumber) {
+      // Owner returning from OAuth — just clean up the URL
+      const url = new URL(window.location.href)
+      url.searchParams.delete('claim')
+      window.history.replaceState({}, '', url.toString())
     }
-  }, [shouldClaim, isLoading])
+  }, [shouldClaim, isLoading, serialNumber])
 
   // Set redirect cookie when auth overlay is showing
   useEffect(() => {
