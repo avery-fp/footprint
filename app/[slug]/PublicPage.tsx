@@ -89,6 +89,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [wallpaperLoaded, setWallpaperLoaded] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [isOwner, setIsOwner] = useState(false)
+  const [authChecked, setAuthChecked] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [showToast, setShowToast] = useState(false)
   const [serialFlyout, setSerialFlyout] = useState(false)
@@ -132,19 +133,17 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     }
   }, [])
 
-  // Handle ?claim=1 — fire after 1s, mount-only (no deps that change)
+  // Handle ?claim=1 — wait for auth check, then fire after 1s
+  // Owner sees normal page. Visitor sees the void.
   useEffect(() => {
-    if (!initialClaimParam.current) return
+    if (!initialClaimParam.current || !authChecked) return
+    if (isOwner) return // owners never see the void
     const timer = setTimeout(() => {
-      // Re-read current state via setter callbacks to avoid stale closures
-      setClaimActive(prev => {
-        if (prev) return prev // already active
-        setClaimPhase('auth') // start at auth, will upgrade when isLoggedIn resolves
-        return true
-      })
+      setClaimActive(true)
+      setClaimPhase(isLoggedIn ? 'username' : 'auth')
     }, 1000)
     return () => clearTimeout(timer)
-  }, [])
+  }, [authChecked, isOwner, isLoggedIn])
 
   // Handle Stripe return — waits for isLoggedIn
   useEffect(() => {
@@ -340,7 +339,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     (async () => {
       try {
         const r = await fetch('/api/user', { credentials: 'include' })
-        if (!r.ok) return
+        if (!r.ok) { setAuthChecked(true); return }
         const data = await r.json()
         setIsLoggedIn(true)
         if (data.user?.id === footprint.user_id) {
@@ -348,6 +347,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         }
       } catch {
         // Silent — visitor path: CTA stays visible
+      } finally {
+        setAuthChecked(true)
       }
     })()
   }, [footprint.user_id])
