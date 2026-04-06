@@ -36,12 +36,7 @@ export default function SovereignTile({ slug, onDismiss, onComplete }: Sovereign
     const sessionId = params.get('session_id')
     const returnUsername = params.get('username')
 
-    // Clean URL
-    if (sessionId || params.get('claim')) {
-      window.history.replaceState({}, '', window.location.pathname)
-    }
-
-    // Check auth, then decide phase
+    // URL already cleaned by PublicPage — just check auth and decide phase
     fetch('/api/user', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {

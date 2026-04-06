@@ -105,6 +105,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     )
   )
 
+  // Clean URL for everyone (owners too) so ?claim=1 doesn't linger
+  useEffect(() => {
+    if (wantsClaim.current) {
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [])
+
+  // Activate void for visitors only, after auth resolves
   useEffect(() => {
     if (!authChecked || isOwner || !wantsClaim.current) return
     setClaimActive(true)
