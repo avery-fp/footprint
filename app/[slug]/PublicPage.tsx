@@ -642,7 +642,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             className={`object-cover transition-opacity duration-700 ${wallpaperLoaded ? 'opacity-100' : 'opacity-0'}`}
             style={{
               filter: claimActive
-                ? 'blur(40px) brightness(0.2)'
+                ? 'blur(60px) brightness(0.15)'
                 : footprint.background_blur !== false ? wallpaperFilter : 'none',
               transition: 'filter 0.8s ease',
             }}
@@ -650,7 +650,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           />
           <div
             className="absolute inset-0 transition-all duration-800"
-            style={{ backgroundColor: claimActive ? 'rgba(0,0,0,0.7)' : overlayColor }}
+            style={{ backgroundColor: claimActive ? 'rgba(0,0,0,0.8)' : overlayColor }}
           />
         </div>
       )}
@@ -689,8 +689,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       <div
         className="relative z-10 flex-1 flex flex-col"
         style={{
-          filter: claimActive ? 'saturate(0) brightness(0.3)' : 'none',
-          opacity: claimActive ? 0.05 : 1,
+          filter: claimActive ? 'saturate(0) brightness(0.2)' : 'none',
+          opacity: claimActive ? 0.02 : 1,
           transition: 'filter 800ms ease-out, opacity 800ms ease-out',
           pointerEvents: claimActive ? 'none' : 'auto',
         }}
@@ -985,51 +985,59 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       )}
 
       {/* ═══════════════════════════════════════════
-          INTEGRATED VOID TRANSITION — claim overlay
-          No boxes. No borders. Text in fog.
+          THE SOVEREIGN TILE — identity is a depth level
           ═══════════════════════════════════════════ */}
       {claimActive && claimPhase !== 'ceremony' && claimPhase !== 'done' && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center claim-overlay-enter"
+          className="fixed inset-0 z-50 flex items-center justify-center"
           style={{ pointerEvents: 'auto' }}
+          onClick={() => setClaimActive(false)}
         >
-          {/* Close — top right, barely visible */}
-          <button
-            onClick={() => setClaimActive(false)}
-            className="fixed top-6 right-6 touch-manipulation"
+          {/* The Tile — glass, no border, atmospheric */}
+          <div
+            className="claim-overlay-enter"
+            onClick={(e) => e.stopPropagation()}
             style={{
-              background: 'none',
-              border: 'none',
-              color: 'rgba(255,255,255,0.15)',
-              fontSize: '18px',
-              cursor: 'pointer',
-              padding: '12px',
-              zIndex: 51,
+              width: 'min(88vw, 380px)',
+              minHeight: '280px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '32px',
+              padding: '48px 32px',
+              background: 'rgba(255,255,255,0.02)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              borderRadius: '24px',
             }}
-            aria-label="Close"
           >
-            {'\u00d7'}
-          </button>
-
-          <div className="flex flex-col items-center gap-8">
-            {/* Phase: Auth — Google/Apple in the void */}
+            {/* State 1: Auth — GOOGLE / APPLE / $10 */}
             {claimPhase === 'auth' && (
               <>
-                <span
-                  className="font-mono"
+                <button
+                  onClick={() => handleClaimOAuth('google')}
+                  className="touch-manipulation font-mono"
                   style={{
-                    fontSize: '32px',
-                    fontWeight: 300,
-                    color: 'rgba(255,255,255,0.6)',
-                    letterSpacing: '0.02em',
+                    background: 'none',
+                    border: 'none',
+                    color: 'rgba(255,255,255,0.4)',
+                    fontSize: '10px',
+                    letterSpacing: '0.25em',
+                    textTransform: 'uppercase' as const,
+                    cursor: 'pointer',
+                    padding: '16px 32px',
+                    transition: 'color 200ms ease',
                   }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.8)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.4)' }}
                 >
-                  $10
-                </span>
+                  google
+                </button>
 
-                <div className="flex flex-col items-center gap-4 mt-4">
+                {process.env.NEXT_PUBLIC_APPLE_ENABLED === 'true' && (
                   <button
-                    onClick={() => handleClaimOAuth('google')}
+                    onClick={() => handleClaimOAuth('apple')}
                     className="touch-manipulation font-mono"
                     style={{
                       background: 'none',
@@ -1039,102 +1047,85 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                       letterSpacing: '0.25em',
                       textTransform: 'uppercase' as const,
                       cursor: 'pointer',
-                      padding: '12px 24px',
+                      padding: '16px 32px',
                       transition: 'color 200ms ease',
                     }}
                     onMouseEnter={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.8)' }}
                     onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.4)' }}
                   >
-                    google
+                    apple
                   </button>
-                  {process.env.NEXT_PUBLIC_APPLE_ENABLED === 'true' && (
-                    <button
-                      onClick={() => handleClaimOAuth('apple')}
-                      className="touch-manipulation font-mono"
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: 'rgba(255,255,255,0.4)',
-                        fontSize: '10px',
-                        letterSpacing: '0.25em',
-                        textTransform: 'uppercase' as const,
-                        cursor: 'pointer',
-                        padding: '12px 24px',
-                        transition: 'color 200ms ease',
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.8)' }}
-                      onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.4)' }}
-                    >
-                      apple
-                    </button>
-                  )}
-                </div>
+                )}
+
+                <span
+                  className="font-mono"
+                  style={{
+                    fontSize: '13px',
+                    fontWeight: 300,
+                    color: 'rgba(255,255,255,0.25)',
+                    letterSpacing: '0.06em',
+                    marginTop: '8px',
+                  }}
+                >
+                  $10
+                </span>
               </>
             )}
 
-            {/* Phase: Username — fp.onl/________ */}
+            {/* State 2: Address — fp.onl/________ + $10 */}
             {claimPhase === 'username' && (
               <>
                 <div className="flex items-baseline gap-0">
                   <span
                     className="font-mono"
                     style={{
-                      fontSize: '18px',
+                      fontSize: '16px',
                       fontWeight: 300,
-                      color: 'rgba(255,255,255,0.3)',
+                      color: 'rgba(255,255,255,0.25)',
                       letterSpacing: '0.02em',
                     }}
                   >
                     fp.onl/
                   </span>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={claimUsername}
-                      onChange={(e) => setClaimUsername(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ''))}
-                      placeholder=""
-                      autoFocus
-                      maxLength={30}
-                      className="font-mono"
-                      style={{
-                        fontSize: '18px',
-                        fontWeight: 300,
-                        color: claimAvailable === true
-                          ? 'rgba(130,255,180,0.7)'
-                          : claimAvailable === false
-                          ? 'rgba(255,130,130,0.7)'
-                          : 'rgba(255,255,255,0.7)',
-                        background: 'none',
-                        border: 'none',
-                        borderBottom: '1px solid rgba(255,255,255,0.1)',
-                        outline: 'none',
-                        letterSpacing: '0.02em',
-                        width: `${Math.max(claimUsername.length, 8)}ch`,
-                        padding: '4px 0',
-                        caretColor: 'rgba(255,255,255,0.5)',
-                        transition: 'color 300ms ease, border-color 300ms ease',
-                      }}
-                      onKeyDown={(e) => { if (e.key === 'Enter') handleClaimSubmit() }}
-                    />
-                    {/* Availability indicator */}
-                    {claimChecking && (
-                      <span
-                        className="absolute -right-6 top-1/2 -translate-y-1/2 font-mono"
-                        style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)' }}
-                      >
-                        ...
-                      </span>
-                    )}
-                  </div>
+                  <input
+                    type="text"
+                    value={claimUsername}
+                    onChange={(e) => setClaimUsername(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ''))}
+                    autoFocus
+                    maxLength={30}
+                    className="font-mono"
+                    style={{
+                      fontSize: '16px',
+                      fontWeight: 300,
+                      color: claimAvailable === true
+                        ? 'rgba(130,255,180,0.6)'
+                        : claimAvailable === false
+                        ? 'rgba(255,100,100,0.6)'
+                        : 'rgba(255,255,255,0.6)',
+                      background: 'none',
+                      border: 'none',
+                      borderBottom: '0.5px solid rgba(255,255,255,0.08)',
+                      outline: 'none',
+                      letterSpacing: '0.02em',
+                      width: `${Math.max(claimUsername.length, 6)}ch`,
+                      padding: '4px 0',
+                      caretColor: 'rgba(255,255,255,0.4)',
+                      transition: 'color 300ms ease',
+                    }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleClaimSubmit() }}
+                  />
+                  {claimChecking && (
+                    <span className="font-mono ml-2" style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)' }}>...</span>
+                  )}
                 </div>
 
                 <span
                   className="font-mono"
                   style={{
-                    fontSize: '14px',
+                    fontSize: '13px',
                     fontWeight: 300,
-                    color: 'rgba(255,255,255,0.35)',
-                    letterSpacing: '0.04em',
+                    color: 'rgba(255,255,255,0.25)',
+                    letterSpacing: '0.06em',
                   }}
                 >
                   $10
@@ -1143,27 +1134,23 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 <button
                   onClick={handleClaimSubmit}
                   disabled={!claimAvailable || claimLoading}
-                  className="touch-manipulation"
+                  className="touch-manipulation font-mono"
                   style={{
                     background: 'none',
                     border: 'none',
                     color: claimAvailable && !claimLoading
-                      ? 'rgba(255,255,255,0.5)'
-                      : 'rgba(255,255,255,0.15)',
-                    fontSize: '20px',
+                      ? 'rgba(255,255,255,0.4)'
+                      : 'rgba(255,255,255,0.1)',
+                    fontSize: '18px',
                     cursor: claimAvailable && !claimLoading ? 'pointer' : 'default',
                     padding: '12px',
                     transition: 'color 200ms ease',
                   }}
                   onMouseEnter={(e) => {
-                    if (claimAvailable && !claimLoading) {
-                      e.currentTarget.style.color = 'rgba(255,255,255,0.85)'
-                    }
+                    if (claimAvailable && !claimLoading) e.currentTarget.style.color = 'rgba(255,255,255,0.7)'
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.color = claimAvailable && !claimLoading
-                      ? 'rgba(255,255,255,0.5)'
-                      : 'rgba(255,255,255,0.15)'
+                    e.currentTarget.style.color = claimAvailable && !claimLoading ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.1)'
                   }}
                 >
                   {claimLoading ? '...' : '\u2192'}
@@ -1171,19 +1158,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               </>
             )}
 
-            {/* Phase: Processing — waiting for Stripe finalization */}
+            {/* Processing — waiting for Stripe */}
             {claimPhase === 'processing' && (
-              <span
-                className="font-mono"
-                style={{
-                  fontSize: '14px',
-                  fontWeight: 300,
-                  color: 'rgba(255,255,255,0.4)',
-                  letterSpacing: '0.15em',
-                }}
-              >
-                ...
-              </span>
+              <span className="font-mono" style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.15em' }}>...</span>
             )}
           </div>
         </div>
