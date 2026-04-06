@@ -246,7 +246,7 @@ export default function CommandLayer({
             <motion.div
               key="command-panel"
               role="dialog"
-              aria-label="Search your room"
+              aria-label="Search your space"
               className="fixed left-4 z-[46] w-[380px] flex flex-col overflow-hidden"
               style={{
                 top: '12%',
@@ -375,7 +375,7 @@ export default function CommandLayer({
               {!query.trim() && (
                 <div className="px-4 pb-4 pt-1">
                   <div className="text-[11px] text-white/10 font-mono">
-                    search your room
+                    search your space
                   </div>
                 </div>
               )}

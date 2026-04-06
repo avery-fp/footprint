@@ -123,7 +123,7 @@ export default function SignupPage() {
         <div style={{ width: '100%', marginBottom: '20px' }}>
           <AeInput
             ref={usernameRef}
-            placeholder="claim your address"
+            placeholder="username"
             value={username}
             onChange={(e) => {
               const v = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')

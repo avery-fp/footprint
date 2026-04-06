@@ -9,6 +9,7 @@ interface OAuthButtonProps {
 }
 
 export default function OAuthButton({ provider, label, redirectAfterAuth }: OAuthButtonProps) {
+  if (provider === 'apple' && process.env.NEXT_PUBLIC_APPLE_ENABLED !== 'true') return null
   const [loading, setLoading] = useState(false)
 
   const handleClick = async () => {
@@ -61,7 +62,7 @@ export default function OAuthButton({ provider, label, redirectAfterAuth }: OAut
         border: '1px solid rgba(255,255,255,0.18)',
         borderRadius: 0,
         color: 'rgba(255,255,255,0.6)',
-        fontSize: '10px',
+        fontSize: '12px',
         letterSpacing: '0.25em',
         textTransform: 'uppercase',
         fontFamily: 'inherit',

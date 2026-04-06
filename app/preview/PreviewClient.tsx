@@ -159,7 +159,7 @@ export default function PreviewClient({ name, city, category, theme, themeId }: 
               transition: 'all 0.3s ease',
             }}
           >
-            claim your address {'\u2192'}
+            →
           </a>
           <p
             className="font-mono text-center"

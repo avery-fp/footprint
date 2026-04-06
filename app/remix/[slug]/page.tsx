@@ -200,7 +200,7 @@ export default function RemixPage() {
       <div style={styles.ctaSection}>
         <h2 style={styles.ctaTitle}>Make yours</h2>
         <p style={{ ...styles.ctaDescription, color: data.theme.colors.textMuted }}>
-          Get your own footprint with this room&apos;s style. Swap, add, or
+          Get your own footprint with this space&apos;s style. Swap, add, or
           remove anything to make it yours.
         </p>
         <button

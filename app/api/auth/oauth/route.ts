@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
 
     const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.footprint.onl'
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin
     const callbackUrl = new URL('/auth/callback', baseUrl)
     // Pass post-auth redirect through the OAuth flow as a query param
     // so it survives even if the cookie doesn't make it through cross-origin redirects

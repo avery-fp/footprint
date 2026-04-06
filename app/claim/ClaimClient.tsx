@@ -309,11 +309,11 @@ export default function ClaimClient({ authenticated }: ClaimClientProps) {
             {username.length >= 2 && (
               <div className="mt-1.5 px-1">
                 {checking ? (
-                  <p className="text-white/20 text-[10px] tracking-widest uppercase">checking</p>
+                  <p className="text-white/20 text-[12px] tracking-widest uppercase">checking</p>
                 ) : available === true ? (
-                  <p className="text-white/40 text-[10px] tracking-widest uppercase">available</p>
+                  <p className="text-white/40 text-[12px] tracking-widest uppercase">available</p>
                 ) : available === false ? (
-                  <p className="text-white/40 text-[10px] tracking-widest uppercase">
+                  <p className="text-white/40 text-[12px] tracking-widest uppercase">
                     {availReason ? humanUsernameReason(availReason) : 'taken'}
                   </p>
                 ) : null}

@@ -34,7 +34,7 @@ export default function ContainerTile({ label, coverUrl, childCount, firstChildT
           loading="lazy"
           style={{
             filter: 'blur(12px) saturate(0.8)',
-            opacity: 0.18,
+            opacity: 0.35,
             transform: 'scale(1.1)',
           }}
         />
@@ -42,7 +42,7 @@ export default function ContainerTile({ label, coverUrl, childCount, firstChildT
         <div
           className="absolute inset-0"
           style={{
-            background: 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.05) 100%)',
           }}
         />
       )}

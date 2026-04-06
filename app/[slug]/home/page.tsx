@@ -1898,7 +1898,7 @@ export default function EditPage() {
                     background: 'rgba(255, 255, 255, 0.04)',
                   }}
                 >
-                  {goLiveLoading ? '...' : 'go live'}
+                  {goLiveLoading ? '...' : '→'}
                 </button>
               )}
               {/* Edit button */}

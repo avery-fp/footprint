@@ -507,7 +507,7 @@ function PackFormModal({
             />
           </div>
           <div style={styles.formGroup}>
-            <label style={styles.formLabel}>Room Name (optional)</label>
+            <label style={styles.formLabel}>Space name</label>
             <input
               value={roomName}
               onChange={(e) => setRoomName(e.target.value)}

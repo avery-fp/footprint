@@ -120,7 +120,7 @@ export default function SortableGrid({ items, onReorder, onDelete }: SortableGri
       <div className="text-center py-20 text-white/40">
         <p className="text-5xl mb-4 opacity-20">◈</p>
         <p className="text-lg mb-2">Nothing here yet</p>
-        <p className="font-mono text-xs">Paste a URL above to get started</p>
+        <p className="font-mono text-xs">paste a url above</p>
       </div>
     )
   }

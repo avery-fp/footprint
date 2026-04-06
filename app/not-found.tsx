@@ -136,24 +136,6 @@ export default function NotFound() {
           {price}
         </p>
 
-        {/* Tagline */}
-        <p
-          className="transition-all duration-700 ease-out"
-          style={{
-            fontFamily: DM,
-            fontSize: '15px',
-            fontWeight: 300,
-            fontStyle: 'italic',
-            color: 'rgba(255,255,255,0.18)',
-            marginBottom: '48px',
-            opacity: visible ? 1 : 0,
-            transform: visible ? 'translateY(0)' : 'translateY(8px)',
-            transitionDelay: '300ms',
-          }}
-        >
-          permanent.
-        </p>
-
         {/* CTA */}
         <div
           className="flex flex-col items-center gap-5 transition-all duration-700 ease-out"

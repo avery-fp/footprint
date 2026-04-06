@@ -34,13 +34,13 @@ function SignInModal({ onClose }: { onClose: () => void }) {
       >
         <div className="w-8 h-0.5 bg-white/20 rounded-full mx-auto mb-8 sm:hidden" />
         <h2 className="text-lg font-light text-white/80 mb-6 tracking-wide">
-          sign in to publish
+          sign in
         </h2>
 
         {/* OAuth buttons */}
         <div className="flex flex-col gap-3 mb-4">
-          <OAuthButton provider="google" label="continue with Google" redirectAfterAuth="/build" />
-          <OAuthButton provider="apple" label="continue with Apple" redirectAfterAuth="/build" />
+          <OAuthButton provider="google" label="google" redirectAfterAuth="/build" />
+          <OAuthButton provider="apple" label="apple" redirectAfterAuth="/build" />
         </div>
 
         <Divider />
@@ -442,7 +442,7 @@ export default function BuildPage() {
             backdrop-blur-sm
           "
         >
-          sign up to publish
+          →
         </button>
       </div>
 
