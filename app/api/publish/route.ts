@@ -198,7 +198,7 @@ export async function POST(request: NextRequest) {
       }
 
       case 'publish-paid': {
-        const { username } = validatedBody
+        const { username, return_to } = validatedBody
 
         const cleanUsername = username.toLowerCase().trim()
 
@@ -257,8 +257,10 @@ export async function POST(request: NextRequest) {
               quantity: 1,
             },
           ],
-          success_url: `${baseUrl}/claim?session_id={CHECKOUT_SESSION_ID}&username=${encodeURIComponent(cleanUsername)}`,
-          cancel_url: `${baseUrl}/claim`,
+          success_url: return_to
+            ? `${baseUrl}${return_to}${return_to.includes('?') ? '&' : '?'}session_id={CHECKOUT_SESSION_ID}&username=${encodeURIComponent(cleanUsername)}`
+            : `${baseUrl}/claim?session_id={CHECKOUT_SESSION_ID}&username=${encodeURIComponent(cleanUsername)}`,
+          cancel_url: return_to ? `${baseUrl}${return_to}` : `${baseUrl}/claim`,
           customer_creation: 'always',
           metadata: {
             product: 'footprint_publish',
