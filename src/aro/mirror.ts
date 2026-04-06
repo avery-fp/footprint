@@ -56,17 +56,20 @@ async function callClaude(prompt: string, systemPrompt: string): Promise<{ text:
 
 // ─── System prompt for mirror hook generation ─────────────
 
-const SYSTEM_PROMPT = `You are a cold email copywriter for footprint.onl — a $10 digital portfolio/personal page builder. Your job is to write a short, personalized outreach email to a local business.
+const SYSTEM_PROMPT = `You are writing a cold email to a small business. The voice is flat, indifferent, observational. You are not selling. You are noting an obvious fact about their fragmented online presence and telling them where to put it back together.
 
 Rules:
-- Subject line: max 8 words, no spam triggers, no caps lock, no exclamation marks
-- Body: 3-5 sentences max. Plain text, no HTML formatting in the text version.
-- Mirror the business's world — reference their specific category, location, or what they do
-- Present footprint as a tool that solves a real problem for them (online presence, link-in-bio, portfolio)
-- NO fake familiarity ("I love your work!"), NO cringe, NO corporate speak
-- Include a single CTA: "footprint.onl"
-- Sign off simply: "— footprint"
-- Tone: direct, minimal, confident. Like a text from someone who gets it.
+- Subject: max 6 words. lowercase. no caps. no exclamation marks. no emoji.
+- Body text: 2-4 sentences max. lowercase preferred. no marketing. no enthusiasm. no "we offer" or "you get".
+- Reference their specific situation: scattered profiles, dead website, broken links, outdated info — whatever the website copy reveals.
+- End with: footprint.onl/ae?claim=1 (no "visit", no "click here", no CTA framing — just the URL bare)
+- NEVER mention price. NEVER use the words: free, founding, launch, promo, offer, deal, special, founder, early, exclusive, $, dollar, cost.
+- NEVER use enthusiasm. No "love your work", no "amazing", no "I noticed".
+- Write like someone who couldn't care less whether they sign up.
+- No sign-off. No "— footprint". The URL is the ending.
+
+Example tone:
+"u have 4 profiles and a dead site. put it all here. or don't. footprint.onl/ae?claim=1"
 
 Output format (strict — output ONLY this JSON, nothing else):
 {
@@ -76,7 +79,7 @@ Output format (strict — output ONLY this JSON, nothing else):
   "hook_style": "mirror"
 }
 
-The body_html should be a minimal styled email with dark background (#0c0c10), monospace font, and a single CTA button linking to footprint.onl. Keep it under 200 words total.`
+The body_html should be minimal: black background (#0c0c10), monospace font, the body text rendered as plain paragraphs. No buttons. No styled CTAs. The URL appears as plain text inline at the end of the body. Keep total length under 100 words.`
 
 // ─── Generate a mirror hook for one target ────────────────
 
@@ -102,12 +105,12 @@ Generate the personalized email now.`
     if (!jsonMatch) throw new Error('No JSON in response')
     parsed = JSON.parse(jsonMatch[0])
   } catch {
-    // Fallback: generate a basic response
+    // Fallback: generate a flat observational line
     parsed = {
-      subject: `${input.business_name}, one page for everything`,
-      body_text: `${input.business_name} — your whole online presence, one clean page. $10, yours forever. footprint.onl\n\n— footprint`,
+      subject: `${input.business_name.toLowerCase()}`,
+      body_text: `scattered profiles. dead links. put it all here. or don't.\n\nfootprint.onl/ae?claim=1`,
       body_html: buildFallbackHtml(input.business_name),
-      hook_style: 'direct',
+      hook_style: 'mirror',
     }
   }
 
@@ -124,16 +127,16 @@ Generate the personalized email now.`
 // ─── Fallback HTML template ───────────────────────────────
 
 function buildFallbackHtml(businessName: string): string {
+  const safeName = businessName.toLowerCase().replace(/[<>&"']/g, '')
   return `<div style="background-color: #0c0c10; width: 100%; min-height: 100%; margin: 0; padding: 0;">
-  <div style="max-width: 600px; margin: 0 auto; padding: 72px 32px 60px 32px; text-align: center;">
-    <p style="margin: 0; font-family: 'DM Mono', 'Courier New', monospace; font-size: 13px; line-height: 1.6; font-weight: 300; color: #555560; letter-spacing: 0.04em; text-transform: lowercase;">${businessName}</p>
-    <p style="margin: 40px 0 0 0; font-family: 'DM Mono', 'Courier New', monospace; font-size: 18px; line-height: 1.55; font-weight: 300; color: #d4c5a9; letter-spacing: 0.01em;">your whole online presence.<br>one clean page. $10.</p>
-    <div style="margin: 48px 0 0 0;">
-      <a href="https://www.footprint.onl" style="display: inline-block; padding: 14px 36px; background-color: #d4c5a9; color: #0c0c10; font-family: 'DM Mono', 'Courier New', monospace; font-size: 14px; font-weight: 500; text-decoration: none; letter-spacing: 0.04em; border-radius: 3px;">see footprint</a>
-    </div>
-    <div style="margin: 80px 0 0 0; border-top: 1px solid #1e1e24; padding-top: 24px;">
-      <p style="margin: 0; font-family: 'DM Mono', 'Courier New', monospace; font-size: 12px; color: #555560;">— footprint</p>
-    </div>
+  <div style="max-width: 540px; margin: 0 auto; padding: 64px 32px;">
+    <p style="margin: 0; font-family: 'DM Mono', 'Courier New', monospace; font-size: 14px; line-height: 1.7; font-weight: 300; color: #888892;">
+      ${safeName}. scattered profiles. dead links.<br>
+      put it all here. or don't.
+    </p>
+    <p style="margin: 32px 0 0 0; font-family: 'DM Mono', 'Courier New', monospace; font-size: 14px; line-height: 1.7; font-weight: 300; color: #d4c5a9;">
+      footprint.onl/ae?claim=1
+    </p>
   </div>
 </div>`
 }

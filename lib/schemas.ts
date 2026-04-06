@@ -87,6 +87,11 @@ export const publishSchema = z.discriminatedUnion('action', [
     return_to: z.string().optional(),
   }),
   z.object({
+    action: z.literal('publish'),
+    username: z.string().min(1, 'Username required'),
+    return_to: z.string().optional(),
+  }),
+  z.object({
     action: z.literal('finalize'),
     session_id: z.string().min(1, 'Missing session_id or username'),
     username: z.string().min(1, 'Missing session_id or username'),

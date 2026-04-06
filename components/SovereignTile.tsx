@@ -28,6 +28,7 @@ export default function SovereignTile({ slug, onDismiss, onComplete }: Sovereign
   const [loading, setLoading] = useState(false)
   const [serial, setSerial] = useState<number | null>(null)
   const [finalSlug, setFinalSlug] = useState('')
+  const [seedPhase, setSeedPhase] = useState<boolean | null>(null)
   const finalizeCalledRef = useRef(false)
 
   // ── ONE init effect — replaces 5 racing effects ──
@@ -35,6 +36,12 @@ export default function SovereignTile({ slug, onDismiss, onComplete }: Sovereign
     const params = new URLSearchParams(window.location.search)
     const sessionId = params.get('session_id')
     const returnUsername = params.get('username')
+
+    // Fetch seed phase status in parallel — UI uses it to hide $10
+    fetch('/api/publish/phase')
+      .then(r => r.ok ? r.json() : { seedPhase: false })
+      .then(data => setSeedPhase(data.seedPhase === true))
+      .catch(() => setSeedPhase(false))
 
     // URL already cleaned by PublicPage — just check auth and decide phase
     fetch('/api/user', { credentials: 'include' })
@@ -132,7 +139,7 @@ export default function SovereignTile({ slug, onDismiss, onComplete }: Sovereign
     } catch { /* silent */ }
   }, [slug])
 
-  // ── Submit username → Stripe ──
+  // ── Submit username → seed (instant) or paid (Stripe) ──
   const handleSubmit = useCallback(async () => {
     if (!available || loading || !username) return
     setLoading(true)
@@ -142,14 +149,20 @@ export default function SovereignTile({ slug, onDismiss, onComplete }: Sovereign
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          action: 'publish-paid',
+          action: 'publish',
           username,
           return_to: `/${slug}?claim=1`,
         }),
       })
       const data = await res.json()
       if (data.url) {
+        // Paid path → Stripe redirect
         window.location.href = data.url
+      } else if (data.success && data.serial) {
+        // Seed path → instant ceremony
+        setSerial(data.serial)
+        setFinalSlug(data.slug || username)
+        setPhase('ceremony')
       } else {
         setLoading(false)
       }
@@ -242,13 +255,15 @@ export default function SovereignTile({ slug, onDismiss, onComplete }: Sovereign
               </button>
             )}
 
-            <span className="font-mono" style={{ fontSize: '13px', fontWeight: 300, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.06em', marginTop: '8px' }}>
-              $10
-            </span>
+            {seedPhase === false && (
+              <span className="font-mono" style={{ fontSize: '13px', fontWeight: 300, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.06em', marginTop: '8px' }}>
+                $10
+              </span>
+            )}
           </>
         )}
 
-        {/* Username — fp.onl/________ + $10 + → */}
+        {/* Username — fp.onl/________ + (optional $10) + → */}
         {phase === 'username' && (
           <>
             <div className="flex items-baseline gap-0">
@@ -283,9 +298,11 @@ export default function SovereignTile({ slug, onDismiss, onComplete }: Sovereign
               )}
             </div>
 
-            <span className="font-mono" style={{ fontSize: '13px', fontWeight: 300, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.06em' }}>
-              $10
-            </span>
+            {seedPhase === false && (
+              <span className="font-mono" style={{ fontSize: '13px', fontWeight: 300, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.06em' }}>
+                $10
+              </span>
+            )}
 
             <button
               onClick={handleSubmit}
