@@ -5,39 +5,31 @@ import { createSessionToken, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from 
 /**
  * GET /auth/callback
  *
- * Handles OAuth + Magic Link callbacks from Supabase Auth.
- * Bridges Supabase auth to our custom JWT session system.
+ * ONE JOB: exchange the OAuth code, issue a session, and return
+ * to the slug with ?claim=1. Never redirect to /login, /welcome,
+ * /dashboard, or any other SaaS slop page.
  *
- * Flow:
- * 1. Exchange code for Supabase session
- * 2. Look up or create user in our DB
- * 3. Issue fp_session JWT
- * 4. Redirect:
- *    - New user (no footprint) → /welcome (claim username)
- *    - Existing user → /dashboard
+ * The Sovereign Tile on PublicPage handles everything from there.
  */
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
-
   const code = searchParams.get('code')
   const error = searchParams.get('error')
-  const errorDescription = searchParams.get('error_description')
-  const rawRedirect = searchParams.get('redirect') || ''
-  const customRedirect = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : ''
 
-  console.log('[callback] URL:', request.url)
-  console.log('[callback] All params:', Object.fromEntries(searchParams.entries()))
-  console.log('[callback] rawRedirect:', JSON.stringify(rawRedirect), '→ customRedirect:', JSON.stringify(customRedirect))
+  // Read the slug from cookie or query param — where the user came from
+  const rawPostAuth = request.cookies.get('post_auth_redirect')?.value || ''
+  const redirectParam = searchParams.get('redirect') || ''
+  const returnPath = (rawPostAuth.startsWith('/') && !rawPostAuth.startsWith('//'))
+    ? rawPostAuth
+    : (redirectParam.startsWith('/') && !redirectParam.startsWith('//'))
+    ? redirectParam
+    : '/ae?claim=1' // absolute fallback — always a slug, never a SaaS page
 
-  // Handle errors
-  if (error) {
-    const loginUrl = new URL('/login', origin)
-    loginUrl.searchParams.set('error', errorDescription || 'Sign-in failed. Try again.')
-    return NextResponse.redirect(loginUrl)
-  }
-
-  if (!code) {
-    return NextResponse.redirect(new URL('/login', origin))
+  if (error || !code) {
+    // Even on error, go back to the slug — the Sovereign Tile handles state
+    const response = NextResponse.redirect(new URL(returnPath, origin))
+    if (rawPostAuth) response.cookies.set('post_auth_redirect', '', { path: '/', maxAge: 0 })
+    return response
   }
 
   try {
@@ -50,30 +42,26 @@ export async function GET(request: NextRequest) {
     const { data: authData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
 
     if (exchangeError || !authData?.user?.email) {
-      const loginUrl = new URL('/login', origin)
-      loginUrl.searchParams.set('error', 'Link expired. Try again.')
-      return NextResponse.redirect(loginUrl)
+      const response = NextResponse.redirect(new URL(returnPath, origin))
+      if (rawPostAuth) response.cookies.set('post_auth_redirect', '', { path: '/', maxAge: 0 })
+      return response
     }
 
     const email = authData.user.email
-    const providerName = authData.user.app_metadata?.provider || 'magic_link'
+    const providerName = authData.user.app_metadata?.provider || 'oauth'
     const userMeta = authData.user.user_metadata || {}
     const displayName = userMeta.full_name || userMeta.name || ''
     const avatarUrl = userMeta.avatar_url || userMeta.picture || ''
 
-    // Look up or create user in our DB
+    // Look up or create user
     let { data: user } = await supabase
       .from('users')
       .select('id, email')
       .eq('email', email)
       .single()
 
-    let isNewUser = false
-
     if (!user) {
-      // New user — create account
-      isNewUser = true
-      const { data: newUser, error: createError } = await supabase
+      const { data: newUser } = await supabase
         .from('users')
         .insert({
           email,
@@ -85,71 +73,38 @@ export async function GET(request: NextRequest) {
         .select('id, email')
         .single()
 
-      if (createError || !newUser) {
-        console.error('[callback] Failed to create user:', createError)
-        const loginUrl = new URL('/login', origin)
-        loginUrl.searchParams.set('error', 'Could not create account. Try again.')
-        return NextResponse.redirect(loginUrl)
-      }
-
       user = newUser
     } else {
-      // Existing user — update OAuth metadata if missing
+      // Update metadata if missing
       await supabase
         .from('users')
         .update({
           ...(displayName && { display_name: displayName }),
           ...(avatarUrl && { avatar_url: avatarUrl }),
-          ...(!user.email && { email }),
         })
         .eq('id', user.id)
     }
 
-    // Create our custom JWT session token
+    if (!user) {
+      // Creation failed — still go back to the slug
+      const response = NextResponse.redirect(new URL(returnPath, origin))
+      if (rawPostAuth) response.cookies.set('post_auth_redirect', '', { path: '/', maxAge: 0 })
+      return response
+    }
+
+    // Issue session
     const sessionToken = await createSessionToken(user.id, user.email)
 
-    // Determine redirect destination
-    // Priority: post_auth_redirect cookie (set by /claim) > query param > default
-    const rawPostAuth = request.cookies.get('post_auth_redirect')?.value || ''
-    const postAuthRedirect = rawPostAuth.startsWith('/') && !rawPostAuth.startsWith('//') ? rawPostAuth : ''
-    let destination = postAuthRedirect || customRedirect || '/dashboard'
-
-    console.log('[callback] postAuthRedirect cookie:', JSON.stringify(rawPostAuth), '→', JSON.stringify(postAuthRedirect))
-    console.log('[callback] destination (before fallback):', JSON.stringify(destination), '| isNewUser:', isNewUser)
-
-    // Only apply /welcome fallback if no explicit redirect was requested
-    if (!postAuthRedirect && !customRedirect) {
-      if (isNewUser) {
-        destination = '/welcome'
-      } else {
-        const { data: footprint } = await supabase
-          .from('footprints')
-          .select('username')
-          .eq('user_id', user.id)
-          .eq('is_primary', true)
-          .single()
-
-        if (!footprint) {
-          destination = '/welcome'
-        }
-      }
-    }
-
-    console.log('[callback] FINAL destination:', JSON.stringify(destination))
-
-    const response = NextResponse.redirect(new URL(destination, origin))
+    // Always return to the slug with ?claim=1
+    const response = NextResponse.redirect(new URL(returnPath, origin))
     response.cookies.set(SESSION_COOKIE_NAME, sessionToken, SESSION_COOKIE_OPTIONS)
-
-    // Clear the post_auth_redirect cookie
-    if (postAuthRedirect) {
-      response.cookies.set('post_auth_redirect', '', { path: '/', maxAge: 0 })
-    }
+    if (rawPostAuth) response.cookies.set('post_auth_redirect', '', { path: '/', maxAge: 0 })
 
     return response
   } catch (err) {
-    console.error('[callback] Error:', err)
-    const loginUrl = new URL('/login', origin)
-    loginUrl.searchParams.set('error', 'Something went wrong. Try again.')
-    return NextResponse.redirect(loginUrl)
+    console.error('[callback]', err)
+    const response = NextResponse.redirect(new URL(returnPath, origin))
+    if (rawPostAuth) response.cookies.set('post_auth_redirect', '', { path: '/', maxAge: 0 })
+    return response
   }
 }

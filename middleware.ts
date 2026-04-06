@@ -109,10 +109,11 @@ export function middleware(request: NextRequest) {
     return withSecurityHeaders(NextResponse.next())
   }
 
-  // No session → redirect to login
-  const loginUrl = request.nextUrl.clone()
-  loginUrl.pathname = '/login'
-  return NextResponse.redirect(loginUrl)
+  // No session → redirect to /ae?claim=1 (the Sovereign Tile handles auth)
+  const claimUrl = request.nextUrl.clone()
+  claimUrl.pathname = '/ae'
+  claimUrl.searchParams.set('claim', '1')
+  return NextResponse.redirect(claimUrl)
 }
 
 export const config = {
