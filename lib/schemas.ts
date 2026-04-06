@@ -84,6 +84,7 @@ export const publishSchema = z.discriminatedUnion('action', [
   z.object({
     action: z.literal('publish-paid'),
     username: z.string().min(1, 'Username required'),
+    return_to: z.string().optional(),
   }),
   z.object({
     action: z.literal('finalize'),

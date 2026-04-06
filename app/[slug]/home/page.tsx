@@ -13,6 +13,8 @@ import { snapToPreset } from '@/lib/aspect-ratios'
 import Image from 'next/image'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import GiftModal from '@/components/GiftModal'
+import OAuthButton from '@/components/auth/OAuthButton'
+import { humanUsernameReason } from '@/lib/errors'
 import LayoutToggle from '@/components/LayoutToggle'
 import { type RoomLayout, getGridLayout } from '@/lib/grid-layouts'
 import { getLayoutConfig } from '@/lib/layout-engine'
@@ -425,6 +427,13 @@ export default function EditPage() {
   const [birthMoment, setBirthMoment] = useState<{ serial: number; slug: string } | null>(null)
   const [birthCountUp, setBirthCountUp] = useState(0)
   const [birthPhase, setBirthPhase] = useState<'counting' | 'reveal' | 'done'>('counting')
+  // Auth/claim overlay state
+  const [claimOverlay, setClaimOverlay] = useState<'closed' | 'auth' | 'claim'>('closed')
+  const [claimUsername, setClaimUsername] = useState('')
+  const [claimAvailable, setClaimAvailable] = useState<boolean | null>(null)
+  const [claimChecking, setClaimChecking] = useState(false)
+  const [claimReason, setClaimReason] = useState('')
+  const [claimLoading, setClaimLoading] = useState(false)
   // Gift state
   const [showGiftModal, setShowGiftModal] = useState(false)
   const [giftsRemaining, setGiftsRemaining] = useState(0)
@@ -530,6 +539,79 @@ export default function EditPage() {
 
     finalize()
   }, [stripeSessionId, stripeUsername])
+
+  // After OAuth redirect back with ?claim=1, open claim overlay
+  const shouldClaim = searchParams.get('claim') === '1'
+  useEffect(() => {
+    if (shouldClaim && !isLoading) {
+      setClaimOverlay('claim')
+      const url = new URL(window.location.href)
+      url.searchParams.delete('claim')
+      window.history.replaceState({}, '', url.toString())
+    }
+  }, [shouldClaim, isLoading])
+
+  // Set redirect cookie when auth overlay is showing
+  useEffect(() => {
+    if (claimOverlay === 'auth') {
+      document.cookie = `post_auth_redirect=/${encodeURIComponent(slug)}/home?claim=1; path=/; max-age=600; samesite=lax`
+    }
+  }, [claimOverlay, slug])
+
+  // Debounced username availability check
+  useEffect(() => {
+    if (!claimUsername.trim() || claimUsername.length < 2) {
+      setClaimAvailable(null)
+      setClaimReason('')
+      return
+    }
+    const timer = setTimeout(async () => {
+      setClaimChecking(true)
+      try {
+        const res = await fetch('/api/publish', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'check-username', username: claimUsername.trim() }),
+        })
+        const data = await res.json()
+        setClaimAvailable(data.available)
+        setClaimReason(data.reason || '')
+      } catch {
+        setClaimAvailable(null)
+      } finally {
+        setClaimChecking(false)
+      }
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [claimUsername])
+
+  const handleClaimSubmit = async () => {
+    if (!claimUsername.trim() || !claimAvailable || claimLoading) return
+    setClaimLoading(true)
+    try {
+      const res = await fetch('/api/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'publish-paid',
+          username: claimUsername.trim(),
+          return_to: `/${encodeURIComponent(claimUsername.trim())}/home`,
+        }),
+      })
+      const data = await res.json()
+      if (data.url) {
+        window.location.href = data.url
+      } else {
+        setStatusToast(data.error || 'something went wrong')
+        setTimeout(() => setStatusToast(null), 3000)
+        setClaimLoading(false)
+      }
+    } catch {
+      setStatusToast('connection lost')
+      setTimeout(() => setStatusToast(null), 3000)
+      setClaimLoading(false)
+    }
+  }
 
   const urlInputRef = useRef<HTMLInputElement>(null)
   const thoughtInputRef = useRef<HTMLTextAreaElement>(null)
@@ -717,9 +799,10 @@ export default function EditPage() {
           next: { revalidate: 0 },
         })
 
-        // Auth/ownership failure → redirect to login or show error
+        // Auth/ownership failure → show auth overlay instead of redirecting
         if (res.status === 401) {
-          router.push(`/login?redirect=${encodeURIComponent(`/${slug}/home`)}`)
+          setClaimOverlay('auth')
+          setIsLoading(false)
           return
         }
         if (res.status === 403) {
@@ -1761,13 +1844,9 @@ export default function EditPage() {
                         return
                       }
                     }
-                    // No serial — first-time publish, show checkout modal
-                    try {
-                      const res = await fetch('/api/next-serial')
-                      const data = await res.json()
-                      setNextSerial(data.serial || null)
-                    } catch {}
-                    setShowGoLive(true)
+                    // No serial — first-time publish, show claim overlay
+                    setClaimUsername(slug)
+                    setClaimOverlay('claim')
                   }}
                   disabled={goLiveLoading}
                   className="text-[13px] text-white/60 hover:text-white/90 transition font-mono flex items-center justify-center px-5 rounded-full border border-white/[0.10] hover:border-white/25 disabled:opacity-30"
@@ -2412,81 +2491,103 @@ export default function EditPage() {
         )}
       </div>
 
-      {/* ═══ GO LIVE — iOS app-download sheet ═══ */}
-      {showGoLive && !isPublished && (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center">
-          {/* Backdrop — blurred grid visible behind */}
+      {/* ═══ AUTH / CLAIM OVERLAY — glass panel ═══ */}
+      {claimOverlay !== 'closed' && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+          {/* Backdrop */}
           <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-xl"
+            className="absolute inset-0 bg-black/80 backdrop-blur-xl"
             style={{ animation: 'birth-fade-up 0.3s ease-out' }}
-            onClick={() => !goLiveLoading && setShowGoLive(false)}
+            onClick={() => !claimLoading && setClaimOverlay('closed')}
           />
 
-          {/* Sheet — rises from bottom */}
+          {/* Glass panel */}
           <div
-            className="relative z-10 w-full max-w-md mx-auto rounded-t-3xl border-t border-white/[0.08] px-8 pt-10 pb-10"
+            className="relative z-10 w-full max-w-xs mx-6 rounded-2xl border border-white/[0.08] p-8"
             style={{
-              background: 'rgba(10, 10, 10, 0.85)',
+              background: 'rgba(10, 10, 10, 0.95)',
               backdropFilter: 'blur(40px)',
               WebkitBackdropFilter: 'blur(40px)',
               animation: 'go-live-sheet 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-              paddingBottom: 'calc(40px + env(safe-area-inset-bottom, 0px))',
             }}
           >
-            {/* Drag handle */}
-            <div className="w-8 h-0.5 bg-white/20 rounded-full mx-auto mb-10" />
+            {claimOverlay === 'auth' ? (
+              /* ── Phase 1: Sign in ── */
+              <>
+                <div className="space-y-3 mb-6">
+                  <OAuthButton provider="google" label="continue with google" />
+                  <OAuthButton provider="apple" label="continue with apple" />
+                </div>
 
-            {/* Username as "app name" */}
-            <p className="text-center font-mono text-white/90 tracking-[-0.01em] mb-1"
-              style={{ fontSize: 'clamp(20px, 5vw, 26px)' }}
-            >
-              footprint.onl/<span className="text-white">{slug}</span>
-            </p>
+                <p className="text-center text-white/90 text-[28px] mt-8" style={{ fontWeight: 500 }}>
+                  $10
+                </p>
+                <p className="text-center text-white/30 text-[13px] mt-2" style={{ fontWeight: 300, letterSpacing: '3px' }}>
+                  permanent.
+                </p>
+                <p className="text-center text-white/15 text-[11px] mt-1" style={{ fontWeight: 300 }}>
+                  one-time. no subscription. yours forever.
+                </p>
+              </>
+            ) : (
+              /* ── Phase 2: Claim username ── */
+              <>
+                <div>
+                  <div
+                    className="flex items-center gap-0 rounded-xl overflow-hidden"
+                    style={{
+                      background: 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                    }}
+                  >
+                    <span className="text-white/20 text-[13px] pl-4 shrink-0">fp.onl/</span>
+                    <input
+                      type="text"
+                      value={claimUsername}
+                      onChange={(e) => {
+                        setClaimUsername(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ''))
+                        setClaimAvailable(null)
+                      }}
+                      placeholder="username"
+                      aria-label="Username"
+                      className="flex-1 bg-transparent py-3.5 pr-4 text-white/90 placeholder:text-white/20 focus:outline-none text-[14px]"
+                      autoFocus
+                    />
+                    <button
+                      onClick={handleClaimSubmit}
+                      disabled={claimLoading || !claimAvailable || !claimUsername.trim()}
+                      className="pr-4 text-white/40 text-[18px] hover:text-white/70 transition-colors disabled:opacity-30"
+                      aria-label="Submit"
+                    >
+                      {claimLoading ? '...' : '\u2192'}
+                    </button>
+                  </div>
+                  {claimUsername.length >= 2 && (
+                    <div className="mt-1.5 px-1">
+                      {claimChecking ? (
+                        <p className="text-white/20 text-[11px]">checking...</p>
+                      ) : claimAvailable === true ? (
+                        <p className="text-green-400/70 text-[11px]">available</p>
+                      ) : claimAvailable === false ? (
+                        <p className="text-red-400/70 text-[11px]">
+                          {claimReason ? humanUsernameReason(claimReason) : 'taken'}
+                        </p>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
 
-            {/* Serial preview — faint */}
-            {nextSerial && (
-              <p className="text-center font-mono text-white/[0.12] text-[11px] tracking-[0.2em] uppercase mt-2">
-                FP #{nextSerial.toLocaleString()}
-              </p>
+                <p className="text-center text-white/90 text-[28px] mt-8" style={{ fontWeight: 500 }}>
+                  $10
+                </p>
+                <p className="text-center text-white/30 text-[13px] mt-2" style={{ fontWeight: 300, letterSpacing: '3px' }}>
+                  permanent.
+                </p>
+                <p className="text-center text-white/15 text-[11px] mt-1" style={{ fontWeight: 300 }}>
+                  one-time. no subscription. yours forever.
+                </p>
+              </>
             )}
-
-            {/* CTA — "yours →" */}
-            <button
-              onClick={async () => {
-                setGoLiveLoading(true)
-                try {
-                  const res = await fetch('/api/publish', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      action: 'publish-paid',
-                      username: slug,
-                    }),
-                  })
-                  const data = await res.json()
-                  if (data.url) {
-                    window.location.href = data.url
-                  } else {
-                    setStatusToast(data.error || 'something went wrong')
-                    setTimeout(() => setStatusToast(null), 3000)
-                    setGoLiveLoading(false)
-                  }
-                } catch {
-                  setStatusToast('connection lost')
-                  setTimeout(() => setStatusToast(null), 3000)
-                  setGoLiveLoading(false)
-                }
-              }}
-              disabled={goLiveLoading}
-              className="w-full mt-10 py-4 rounded-2xl bg-white text-black text-[15px] font-medium hover:bg-white/90 transition-all disabled:opacity-30 active:scale-[0.98]"
-            >
-              {goLiveLoading ? '...' : 'yours \u2192'}
-            </button>
-
-            {/* Price — barely there */}
-            <p className="text-center text-white/20 text-[11px] font-mono mt-4 tracking-wide">
-              $10 · one time · yours forever
-            </p>
           </div>
         </div>
       )}
