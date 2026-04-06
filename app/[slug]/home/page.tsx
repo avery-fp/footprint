@@ -1723,12 +1723,10 @@ export default function EditPage() {
               {claimOverlay === 'auth' ? (
                 <>
                   <div className="space-y-3 mb-6">
-                    <OAuthButton provider="google" label="continue with google" />
-                    <OAuthButton provider="apple" label="continue with apple" />
+                    <OAuthButton provider="google" label="google" />
+                    <OAuthButton provider="apple" label="apple" />
                   </div>
                   <p className="text-center text-white/90 text-[28px] mt-8" style={{ fontWeight: 500 }}>$10</p>
-                  <p className="text-center text-white/30 text-[13px] mt-2" style={{ fontWeight: 300, letterSpacing: '3px' }}>permanent.</p>
-                  <p className="text-center text-white/15 text-[11px] mt-1" style={{ fontWeight: 300 }}>one-time. no subscription. yours forever.</p>
                 </>
               ) : (
                 <>
@@ -1745,8 +1743,6 @@ export default function EditPage() {
                     )}
                   </div>
                   <p className="text-center text-white/90 text-[28px] mt-8" style={{ fontWeight: 500 }}>$10</p>
-                  <p className="text-center text-white/30 text-[13px] mt-2" style={{ fontWeight: 300, letterSpacing: '3px' }}>permanent.</p>
-                  <p className="text-center text-white/15 text-[11px] mt-1" style={{ fontWeight: 300 }}>one-time. no subscription. yours forever.</p>
                 </>
               )}
             </div>
@@ -2562,18 +2558,12 @@ export default function EditPage() {
               /* ── Phase 1: Sign in ── */
               <>
                 <div className="space-y-3 mb-6">
-                  <OAuthButton provider="google" label="continue with google" />
-                  <OAuthButton provider="apple" label="continue with apple" />
+                  <OAuthButton provider="google" label="google" />
+                  <OAuthButton provider="apple" label="apple" />
                 </div>
 
                 <p className="text-center text-white/90 text-[28px] mt-8" style={{ fontWeight: 500 }}>
                   $10
-                </p>
-                <p className="text-center text-white/30 text-[13px] mt-2" style={{ fontWeight: 300, letterSpacing: '3px' }}>
-                  permanent.
-                </p>
-                <p className="text-center text-white/15 text-[11px] mt-1" style={{ fontWeight: 300 }}>
-                  one-time. no subscription. yours forever.
                 </p>
               </>
             ) : (
@@ -2626,12 +2616,6 @@ export default function EditPage() {
 
                 <p className="text-center text-white/90 text-[28px] mt-8" style={{ fontWeight: 500 }}>
                   $10
-                </p>
-                <p className="text-center text-white/30 text-[13px] mt-2" style={{ fontWeight: 300, letterSpacing: '3px' }}>
-                  permanent.
-                </p>
-                <p className="text-center text-white/15 text-[11px] mt-1" style={{ fontWeight: 300 }}>
-                  one-time. no subscription. yours forever.
                 </p>
               </>
             )}
