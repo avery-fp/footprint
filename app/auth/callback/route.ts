@@ -25,6 +25,10 @@ export async function GET(request: NextRequest) {
   const rawRedirect = searchParams.get('redirect') || ''
   const customRedirect = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : ''
 
+  console.log('[callback] URL:', request.url)
+  console.log('[callback] All params:', Object.fromEntries(searchParams.entries()))
+  console.log('[callback] rawRedirect:', JSON.stringify(rawRedirect), '→ customRedirect:', JSON.stringify(customRedirect))
+
   // Handle errors
   if (error) {
     const loginUrl = new URL('/login', origin)
@@ -110,6 +114,9 @@ export async function GET(request: NextRequest) {
     const postAuthRedirect = rawPostAuth.startsWith('/') && !rawPostAuth.startsWith('//') ? rawPostAuth : ''
     let destination = postAuthRedirect || customRedirect || '/dashboard'
 
+    console.log('[callback] postAuthRedirect cookie:', JSON.stringify(rawPostAuth), '→', JSON.stringify(postAuthRedirect))
+    console.log('[callback] destination (before fallback):', JSON.stringify(destination), '| isNewUser:', isNewUser)
+
     // Only apply /welcome fallback if no explicit redirect was requested
     if (!postAuthRedirect && !customRedirect) {
       if (isNewUser) {
@@ -127,6 +134,8 @@ export async function GET(request: NextRequest) {
         }
       }
     }
+
+    console.log('[callback] FINAL destination:', JSON.stringify(destination))
 
     const response = NextResponse.redirect(new URL(destination, origin))
     response.cookies.set(SESSION_COOKIE_NAME, sessionToken, SESSION_COOKIE_OPTIONS)
