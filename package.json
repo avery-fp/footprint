@@ -23,7 +23,7 @@
     "aro:send:dry": "node scripts/send-engine.js --dry-run",
     "launch": "node scripts/launch.js",
     "launch:dry": "node scripts/launch.js --dry-run",
-    "scrape": "node scrape-engine.js",
+    "aro:swarm": "npx tsx cli/swarm.ts",
     "send": "node send-engine.js",
     "typecheck": "tsc --noEmit",
     "screenshot:grid": "node scripts/screenshot-grid.js",

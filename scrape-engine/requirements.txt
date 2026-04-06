@@ -1,2 +1,0 @@
-twscrape>=0.12
-instaloader>=4.10

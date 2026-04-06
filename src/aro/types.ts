@@ -129,3 +129,120 @@ export interface EventCSVRow {
   value?: string
   meta_json?: string
 }
+
+// ─── Email Swarm Types ───────────────────────────────────
+
+export interface SwarmTarget {
+  id: string
+  place_id: string
+  name: string
+  category: string
+  city: string
+  state: string | null
+  country: string
+  address: string | null
+  phone: string | null
+  website: string | null
+  email: string | null
+  email_source: 'website_scrape' | 'constructed' | 'hunter' | null
+  rating: number | null
+  review_count: number
+  score: number
+  status: 'scraped' | 'enriched' | 'messaged' | 'sent' | 'bounced' | 'converted' | 'unsubscribed'
+  scraped_at: string
+  enriched_at: string | null
+  created_at: string
+}
+
+export interface SwarmMessage {
+  id: string
+  target_id: string
+  subject: string
+  body_html: string
+  body_text: string
+  hook_style: 'mirror' | 'direct' | 'value'
+  model: string | null
+  tokens_used: number
+  generated_at: string
+  created_at: string
+}
+
+export interface SwarmSend {
+  id: string
+  target_id: string
+  message_id: string
+  ses_message_id: string | null
+  provider: string
+  from_domain: string
+  status: 'queued' | 'sent' | 'delivered' | 'bounced' | 'complained' | 'failed'
+  error: string | null
+  sent_at: string | null
+  delivered_at: string | null
+  bounced_at: string | null
+  created_at: string
+}
+
+export interface SwarmDomain {
+  id: string
+  domain: string
+  region: string
+  daily_limit: number
+  sent_today: number
+  bounced_today: number
+  complained_today: number
+  bounce_rate: number
+  complaint_rate: number
+  status: 'warming' | 'active' | 'paused' | 'suspended'
+  warmup_day: number
+  last_sent_at: string | null
+  last_reset_at: string
+  created_at: string
+}
+
+export interface SwarmScrapeJob {
+  id: string
+  city: string
+  category: string
+  radius_meters: number
+  results_count: number
+  status: 'pending' | 'running' | 'completed' | 'failed'
+  error: string | null
+  started_at: string | null
+  completed_at: string | null
+  created_at: string
+}
+
+export interface MirrorHookInput {
+  business_name: string
+  category: string
+  city: string
+  website_copy: string | null
+  rating: number | null
+  review_count: number
+}
+
+export interface MirrorHookOutput {
+  subject: string
+  body_html: string
+  body_text: string
+  hook_style: 'mirror' | 'direct' | 'value'
+  model: string
+  tokens_used: number
+}
+
+export interface SESRegionConfig {
+  region: string
+  accessKeyId: string
+  secretAccessKey: string
+  fromAddress: string
+  domain: string
+}
+
+export interface SwarmCycleResult {
+  scraped: number
+  enriched: number
+  mirrored: number
+  sent: number
+  bounced: number
+  errors: string[]
+}
