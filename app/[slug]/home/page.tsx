@@ -1701,10 +1701,57 @@ export default function EditPage() {
   if (isLoading || !draft) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#07080A]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-6 h-6 border-2 border-white/10 border-t-white/40 rounded-full animate-spin" />
-          <span className="text-xs text-white/30 font-mono">loading</span>
-        </div>
+        {claimOverlay === 'closed' && (
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-6 h-6 border-2 border-white/10 border-t-white/40 rounded-full animate-spin" />
+            <span className="text-xs text-white/30 font-mono">loading</span>
+          </div>
+        )}
+
+        {/* Auth/claim overlay rendered during loading state (e.g. 401) */}
+        {claimOverlay !== 'closed' && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" />
+            <div
+              className="relative z-10 w-full max-w-xs mx-6 rounded-2xl border border-white/[0.08] p-8"
+              style={{
+                background: 'rgba(10, 10, 10, 0.95)',
+                backdropFilter: 'blur(40px)',
+                WebkitBackdropFilter: 'blur(40px)',
+              }}
+            >
+              {claimOverlay === 'auth' ? (
+                <>
+                  <div className="space-y-3 mb-6">
+                    <OAuthButton provider="google" label="continue with google" />
+                    <OAuthButton provider="apple" label="continue with apple" />
+                  </div>
+                  <p className="text-center text-white/90 text-[28px] mt-8" style={{ fontWeight: 500 }}>$10</p>
+                  <p className="text-center text-white/30 text-[13px] mt-2" style={{ fontWeight: 300, letterSpacing: '3px' }}>permanent.</p>
+                  <p className="text-center text-white/15 text-[11px] mt-1" style={{ fontWeight: 300 }}>one-time. no subscription. yours forever.</p>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <div className="flex items-center gap-0 rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                      <span className="text-white/20 text-[13px] pl-4 shrink-0">fp.onl/</span>
+                      <input type="text" value={claimUsername} onChange={(e) => { setClaimUsername(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, '')); setClaimAvailable(null) }} placeholder="username" aria-label="Username" className="flex-1 bg-transparent py-3.5 pr-4 text-white/90 placeholder:text-white/20 focus:outline-none text-[14px]" autoFocus />
+                      <button onClick={handleClaimSubmit} disabled={claimLoading || !claimAvailable || !claimUsername.trim()} className="pr-4 text-white/40 text-[18px] hover:text-white/70 transition-colors disabled:opacity-30" aria-label="Submit">{claimLoading ? '...' : '\u2192'}</button>
+                    </div>
+                    {claimUsername.length >= 2 && (
+                      <div className="mt-1.5 px-1">
+                        {claimChecking ? <p className="text-white/20 text-[11px]">checking...</p> : claimAvailable === true ? <p className="text-green-400/70 text-[11px]">available</p> : claimAvailable === false ? <p className="text-red-400/70 text-[11px]">{claimReason ? humanUsernameReason(claimReason) : 'taken'}</p> : null}
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-center text-white/90 text-[28px] mt-8" style={{ fontWeight: 500 }}>$10</p>
+                  <p className="text-center text-white/30 text-[13px] mt-2" style={{ fontWeight: 300, letterSpacing: '3px' }}>permanent.</p>
+                  <p className="text-center text-white/15 text-[11px] mt-1" style={{ fontWeight: 300 }}>one-time. no subscription. yours forever.</p>
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     )
   }
