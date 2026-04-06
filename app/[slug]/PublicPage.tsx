@@ -8,7 +8,7 @@ import WeatherEffect from '@/components/WeatherEffect'
 import { RemoveBubble } from '@/components/RemoveBubble'
 import { RolodexDrawer } from '@/components/RolodexDrawer'
 import FloatingCtaBar from '@/components/FloatingCtaBar'
-import ClaimCeremony from '@/components/ClaimCeremony'
+import SovereignTile from '@/components/SovereignTile'
 import CommandLayer from '@/components/CommandLayer'
 import { getGridLayout } from '@/lib/grid-layouts'
 import { glassStyle } from '@/lib/glass'
@@ -96,171 +96,25 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [isMobile, setIsMobile] = useState(false)
   const [roomFade, setRoomFade] = useState<'visible' | 'out' | 'in'>('visible')
 
-  // ── Integrated Void Transition — claim overlay ──
+  // ── Integrated Void Transition ──
   const [claimActive, setClaimActive] = useState(false)
-  const [claimPhase, setClaimPhase] = useState<'auth' | 'username' | 'processing' | 'ceremony' | 'done'>('auth')
-  const [claimUsername, setClaimUsername] = useState('')
-  const [claimAvailable, setClaimAvailable] = useState<boolean | null>(null)
-  const [claimChecking, setClaimChecking] = useState(false)
-  const [claimLoading, setClaimLoading] = useState(false)
-  const [claimSerial, setClaimSerial] = useState<string | null>(null)
-  const [claimSlug, setClaimSlug] = useState<string | null>(null)
-  const usernameCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  // Capture URL params on first render (before effects clean them)
-  const initialClaimParam = useRef(
-    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('claim') === '1'
-  )
-  const initialSessionId = useRef(
-    typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('session_id') : null
-  )
-  const initialReturnUsername = useRef(
-    typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('username') : null
+  const wantsClaim = useRef(
+    typeof window !== 'undefined' && (
+      new URLSearchParams(window.location.search).has('claim') ||
+      new URLSearchParams(window.location.search).has('session_id')
+    )
   )
 
-  // Activate claim overlay — visitors only
+  useEffect(() => {
+    if (!authChecked || isOwner || !wantsClaim.current) return
+    setClaimActive(true)
+  }, [authChecked, isOwner])
+
   const activateClaim = useCallback(() => {
     if (isOwner) return
     setSerialFlyout(false)
     setClaimActive(true)
-    setClaimPhase(isLoggedIn ? 'username' : 'auth')
-  }, [isLoggedIn, isOwner])
-
-  // Clean URL once on mount
-  useEffect(() => {
-    if (initialClaimParam.current || initialSessionId.current) {
-      window.history.replaceState({}, '', window.location.pathname)
-    }
-  }, [])
-
-  // Handle ?claim=1 — wait for auth check, then fire after 1s
-  // Owner sees normal page. Visitor sees the void.
-  useEffect(() => {
-    if (!initialClaimParam.current || !authChecked) return
-    if (isOwner) return // owners never see the void
-    const timer = setTimeout(() => {
-      setClaimActive(true)
-      setClaimPhase(isLoggedIn ? 'username' : 'auth')
-    }, 1000)
-    return () => clearTimeout(timer)
-  }, [authChecked, isOwner, isLoggedIn])
-
-  // Handle Stripe return — waits for isLoggedIn
-  useEffect(() => {
-    const sessionId = initialSessionId.current
-    const username = initialReturnUsername.current
-    if (!sessionId || !username || !isLoggedIn) return
-    // Prevent re-processing
-    initialSessionId.current = null
-    initialReturnUsername.current = null
-
-    setClaimActive(true)
-    setClaimPhase('processing')
-    ;(async () => {
-      try {
-        const res = await fetch('/api/publish', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ action: 'finalize', session_id: sessionId, username }),
-        })
-        const data = await res.json()
-        if (data.success && data.serial) {
-          setClaimSerial(String(data.serial).padStart(4, '0'))
-          setClaimSlug(data.slug || username)
-          setClaimPhase('ceremony')
-        }
-      } catch { /* silent — stays in processing */ }
-    })()
-  }, [isLoggedIn])
-
-  // Upgrade claim phase when auth resolves
-  useEffect(() => {
-    if (claimActive && isLoggedIn && claimPhase === 'auth') {
-      setClaimPhase('username')
-    }
-  }, [isLoggedIn, claimActive, claimPhase])
-
-  // Owner guard — if owner status resolves after claim activated, deactivate
-  useEffect(() => {
-    if (isOwner && claimActive) {
-      setClaimActive(false)
-    }
-  }, [isOwner, claimActive])
-
-  // Username availability check (debounced)
-  useEffect(() => {
-    if (usernameCheckTimer.current) clearTimeout(usernameCheckTimer.current)
-    if (!claimUsername || claimUsername.length < 2) {
-      setClaimAvailable(null)
-      setClaimChecking(false)
-      return
-    }
-    // Validate format
-    if (!/^[a-z0-9][a-z0-9._-]*$/i.test(claimUsername) || claimUsername.length > 30) {
-      setClaimAvailable(false)
-      setClaimChecking(false)
-      return
-    }
-    setClaimChecking(true)
-    usernameCheckTimer.current = setTimeout(async () => {
-      try {
-        const res = await fetch('/api/publish', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ action: 'check-username', username: claimUsername }),
-        })
-        const data = await res.json()
-        setClaimAvailable(data.available === true)
-      } catch {
-        setClaimAvailable(null)
-      }
-      setClaimChecking(false)
-    }, 400)
-  }, [claimUsername])
-
-  // Handle claim submission
-  const handleClaimSubmit = useCallback(async () => {
-    if (!claimAvailable || claimLoading || !claimUsername) return
-    setClaimLoading(true)
-    try {
-      const res = await fetch('/api/publish', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          action: 'publish-paid',
-          username: claimUsername,
-          return_to: `/${footprint.username}?claim=1`,
-        }),
-      })
-      const data = await res.json()
-      if (data.url) {
-        // Redirect to Stripe — will return to /{slug}?claim=1&session_id=...&username=...
-        window.location.href = data.url
-      } else if (data.error) {
-        setClaimLoading(false)
-      }
-    } catch {
-      setClaimLoading(false)
-    }
-  }, [claimAvailable, claimLoading, claimUsername, footprint.username])
-
-  // OAuth handler for claim overlay
-  const handleClaimOAuth = useCallback(async (provider: 'google' | 'apple') => {
-    const redirectPath = `/${footprint.username}?claim=1`
-    document.cookie = `post_auth_redirect=${redirectPath};path=/;max-age=600;SameSite=Lax`
-    try {
-      const res = await fetch('/api/auth/oauth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider, redirect: redirectPath }),
-      })
-      const data = await res.json()
-      if (data.url) window.location.href = data.url
-    } catch { /* silent */ }
-  }, [footprint.username])
+  }, [isOwner])
 
   // ── Depth expansion — containers only ──
   const { expanded, showOverlay, children: containerChildren, loadingChildren, expand, collapse, registerRef } = useDepthExpansion()
@@ -1007,198 +861,12 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
       )}
 
-      {/* ═══════════════════════════════════════════
-          THE SOVEREIGN TILE — identity is a depth level
-          ═══════════════════════════════════════════ */}
-      {claimActive && !isOwner && claimPhase !== 'ceremony' && claimPhase !== 'done' && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ pointerEvents: 'auto' }}
-          onClick={() => setClaimActive(false)}
-        >
-          {/* The Tile — glass, no border, atmospheric */}
-          <div
-            className="claim-overlay-enter"
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: 'min(88vw, 380px)',
-              minHeight: '280px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '32px',
-              padding: '48px 32px',
-              background: 'rgba(255,255,255,0.02)',
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)',
-              borderRadius: '24px',
-            }}
-          >
-            {/* State 1: Auth — GOOGLE / APPLE / $10 */}
-            {claimPhase === 'auth' && (
-              <>
-                <button
-                  onClick={() => handleClaimOAuth('google')}
-                  className="touch-manipulation font-mono"
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'rgba(255,255,255,0.4)',
-                    fontSize: '10px',
-                    letterSpacing: '0.25em',
-                    textTransform: 'uppercase' as const,
-                    cursor: 'pointer',
-                    padding: '16px 32px',
-                    transition: 'color 200ms ease',
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.8)' }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.4)' }}
-                >
-                  google
-                </button>
-
-                {process.env.NEXT_PUBLIC_APPLE_ENABLED === 'true' && (
-                  <button
-                    onClick={() => handleClaimOAuth('apple')}
-                    className="touch-manipulation font-mono"
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: 'rgba(255,255,255,0.4)',
-                      fontSize: '10px',
-                      letterSpacing: '0.25em',
-                      textTransform: 'uppercase' as const,
-                      cursor: 'pointer',
-                      padding: '16px 32px',
-                      transition: 'color 200ms ease',
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.8)' }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.4)' }}
-                  >
-                    apple
-                  </button>
-                )}
-
-                <span
-                  className="font-mono"
-                  style={{
-                    fontSize: '13px',
-                    fontWeight: 300,
-                    color: 'rgba(255,255,255,0.25)',
-                    letterSpacing: '0.06em',
-                    marginTop: '8px',
-                  }}
-                >
-                  $10
-                </span>
-              </>
-            )}
-
-            {/* State 2: Address — fp.onl/________ + $10 */}
-            {claimPhase === 'username' && (
-              <>
-                <div className="flex items-baseline gap-0">
-                  <span
-                    className="font-mono"
-                    style={{
-                      fontSize: '16px',
-                      fontWeight: 300,
-                      color: 'rgba(255,255,255,0.25)',
-                      letterSpacing: '0.02em',
-                    }}
-                  >
-                    fp.onl/
-                  </span>
-                  <input
-                    type="text"
-                    value={claimUsername}
-                    onChange={(e) => setClaimUsername(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ''))}
-                    autoFocus
-                    maxLength={30}
-                    className="font-mono"
-                    style={{
-                      fontSize: '16px',
-                      fontWeight: 300,
-                      color: claimAvailable === true
-                        ? 'rgba(130,255,180,0.6)'
-                        : claimAvailable === false
-                        ? 'rgba(255,100,100,0.6)'
-                        : 'rgba(255,255,255,0.6)',
-                      background: 'none',
-                      border: 'none',
-                      borderBottom: '0.5px solid rgba(255,255,255,0.08)',
-                      outline: 'none',
-                      letterSpacing: '0.02em',
-                      width: `${Math.max(claimUsername.length, 6)}ch`,
-                      padding: '4px 0',
-                      caretColor: 'rgba(255,255,255,0.4)',
-                      transition: 'color 300ms ease',
-                    }}
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleClaimSubmit() }}
-                  />
-                  {claimChecking && (
-                    <span className="font-mono ml-2" style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)' }}>...</span>
-                  )}
-                </div>
-
-                <span
-                  className="font-mono"
-                  style={{
-                    fontSize: '13px',
-                    fontWeight: 300,
-                    color: 'rgba(255,255,255,0.25)',
-                    letterSpacing: '0.06em',
-                  }}
-                >
-                  $10
-                </span>
-
-                <button
-                  onClick={handleClaimSubmit}
-                  disabled={!claimAvailable || claimLoading}
-                  className="touch-manipulation font-mono"
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: claimAvailable && !claimLoading
-                      ? 'rgba(255,255,255,0.4)'
-                      : 'rgba(255,255,255,0.1)',
-                    fontSize: '18px',
-                    cursor: claimAvailable && !claimLoading ? 'pointer' : 'default',
-                    padding: '12px',
-                    transition: 'color 200ms ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (claimAvailable && !claimLoading) e.currentTarget.style.color = 'rgba(255,255,255,0.7)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.color = claimAvailable && !claimLoading ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.1)'
-                  }}
-                >
-                  {claimLoading ? '...' : '\u2192'}
-                </button>
-              </>
-            )}
-
-            {/* Processing — waiting for Stripe */}
-            {claimPhase === 'processing' && (
-              <span className="font-mono" style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.15em' }}>...</span>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Claim ceremony — full screen serial reveal */}
-      {claimActive && claimPhase === 'ceremony' && claimSerial && (
-        <ClaimCeremony
-          serial={parseInt(claimSerial, 10)}
-          slug={claimSlug || claimUsername}
-          onComplete={() => {
-            setClaimPhase('done')
-            // Navigate to their new footprint
-            if (claimSlug) window.location.href = `/${claimSlug}/home`
-          }}
+      {/* The Sovereign Tile — self-contained claim flow */}
+      {claimActive && !isOwner && (
+        <SovereignTile
+          slug={footprint.username}
+          onDismiss={() => setClaimActive(false)}
+          onComplete={(s) => { window.location.href = `/${s}/home` }}
         />
       )}
     </div>
