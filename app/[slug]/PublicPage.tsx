@@ -106,66 +106,88 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [claimSlug, setClaimSlug] = useState<string | null>(null)
   const usernameCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Activate claim overlay
+  // Capture URL params on first render (before effects clean them)
+  const initialClaimParam = useRef(
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('claim') === '1'
+  )
+  const initialSessionId = useRef(
+    typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('session_id') : null
+  )
+  const initialReturnUsername = useRef(
+    typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('username') : null
+  )
+
+  // Activate claim overlay — visitors only
   const activateClaim = useCallback(() => {
+    if (isOwner) return
     setSerialFlyout(false)
     setClaimActive(true)
     setClaimPhase(isLoggedIn ? 'username' : 'auth')
+  }, [isLoggedIn, isOwner])
+
+  // Clean URL once on mount
+  useEffect(() => {
+    if (initialClaimParam.current || initialSessionId.current) {
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [])
+
+  // Handle ?claim=1 — fire after 1s, mount-only (no deps that change)
+  useEffect(() => {
+    if (!initialClaimParam.current) return
+    const timer = setTimeout(() => {
+      // Re-read current state via setter callbacks to avoid stale closures
+      setClaimActive(prev => {
+        if (prev) return prev // already active
+        setClaimPhase('auth') // start at auth, will upgrade when isLoggedIn resolves
+        return true
+      })
+    }, 1000)
+    return () => clearTimeout(timer)
+  }, [])
+
+  // Handle Stripe return — waits for isLoggedIn
+  useEffect(() => {
+    const sessionId = initialSessionId.current
+    const username = initialReturnUsername.current
+    if (!sessionId || !username || !isLoggedIn) return
+    // Prevent re-processing
+    initialSessionId.current = null
+    initialReturnUsername.current = null
+
+    setClaimActive(true)
+    setClaimPhase('processing')
+    ;(async () => {
+      try {
+        const res = await fetch('/api/publish', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ action: 'finalize', session_id: sessionId, username }),
+        })
+        const data = await res.json()
+        if (data.success && data.serial) {
+          setClaimSerial(String(data.serial).padStart(4, '0'))
+          setClaimSlug(data.slug || username)
+          setClaimPhase('ceremony')
+        }
+      } catch { /* silent — stays in processing */ }
+    })()
   }, [isLoggedIn])
 
-  // Detect ?claim=1 query param — auto-activate after 1s
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const params = new URLSearchParams(window.location.search)
-
-    // Handle Stripe return: ?claim=1&session_id=...&username=...
-    const sessionId = params.get('session_id')
-    const returnUsername = params.get('username')
-    if (sessionId && returnUsername && isLoggedIn) {
-      setClaimActive(true)
-      setClaimPhase('processing')
-      // Finalize the Stripe payment
-      ;(async () => {
-        try {
-          const res = await fetch('/api/publish', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ action: 'finalize', session_id: sessionId, username: returnUsername }),
-          })
-          const data = await res.json()
-          if (data.success && data.serial) {
-            setClaimSerial(String(data.serial).padStart(4, '0'))
-            setClaimSlug(data.slug || returnUsername)
-            setClaimPhase('ceremony')
-          } else {
-            // Fallback — redirect to claim page
-            window.location.href = `/claim?session_id=${sessionId}&username=${returnUsername}`
-          }
-        } catch {
-          window.location.href = `/claim?session_id=${sessionId}&username=${returnUsername}`
-        }
-      })()
-      // Clean URL
-      window.history.replaceState({}, '', window.location.pathname)
-      return
-    }
-
-    if (params.get('claim') === '1') {
-      // Clean the URL param
-      window.history.replaceState({}, '', window.location.pathname)
-      // Show the building for 1s, then dissolve
-      const timer = setTimeout(() => activateClaim(), 1000)
-      return () => clearTimeout(timer)
-    }
-  }, [isLoggedIn, activateClaim])
-
-  // Update claimPhase when auth state changes
+  // Upgrade claim phase when auth resolves
   useEffect(() => {
     if (claimActive && isLoggedIn && claimPhase === 'auth') {
       setClaimPhase('username')
     }
   }, [isLoggedIn, claimActive, claimPhase])
+
+  // Owner guard — if owner status resolves after claim activated, deactivate
+  useEffect(() => {
+    if (isOwner && claimActive) {
+      setClaimActive(false)
+    }
+  }, [isOwner, claimActive])
 
   // Username availability check (debounced)
   useEffect(() => {
@@ -987,7 +1009,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       {/* ═══════════════════════════════════════════
           THE SOVEREIGN TILE — identity is a depth level
           ═══════════════════════════════════════════ */}
-      {claimActive && claimPhase !== 'ceremony' && claimPhase !== 'done' && (
+      {claimActive && !isOwner && claimPhase !== 'ceremony' && claimPhase !== 'done' && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"
           style={{ pointerEvents: 'auto' }}
