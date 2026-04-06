@@ -80,8 +80,9 @@ export function middleware(request: NextRequest) {
   const isPublicRoute = publicRoutes.some(route => pathname === route || pathname.startsWith(route + '/'))
   const isApiRoute = pathname.startsWith('/api/') || pathname.startsWith('/api')
   const isPublicProfile = /^\/[a-zA-Z0-9_-]+$/.test(pathname)
+  const isHomeEditor = /^\/[a-zA-Z0-9_-]+\/home$/.test(pathname)
 
-  if (isPublicRoute || isApiRoute || isPublicProfile) {
+  if (isPublicRoute || isApiRoute || isPublicProfile || isHomeEditor) {
     // ── SID attribution cookie: capture ?sid= on any public/profile route ──
     const sid = request.nextUrl.searchParams.get('sid')
     if (sid && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sid)) {
