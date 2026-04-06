@@ -1723,8 +1723,8 @@ export default function EditPage() {
               {claimOverlay === 'auth' ? (
                 <>
                   <div className="space-y-3 mb-6">
-                    <OAuthButton provider="google" label="google" />
-                    <OAuthButton provider="apple" label="apple" />
+                    <OAuthButton provider="google" label="google" redirectAfterAuth={`/${slug}/home?claim=1`} />
+                    <OAuthButton provider="apple" label="apple" redirectAfterAuth={`/${slug}/home?claim=1`} />
                   </div>
                   <p className="text-center text-white/90 text-[28px] mt-8" style={{ fontWeight: 500 }}>$10</p>
                 </>
@@ -2558,8 +2558,8 @@ export default function EditPage() {
               /* ── Phase 1: Sign in ── */
               <>
                 <div className="space-y-3 mb-6">
-                  <OAuthButton provider="google" label="google" />
-                  <OAuthButton provider="apple" label="apple" />
+                  <OAuthButton provider="google" label="google" redirectAfterAuth={`/${slug}/home?claim=1`} />
+                  <OAuthButton provider="apple" label="apple" redirectAfterAuth={`/${slug}/home?claim=1`} />
                 </div>
 
                 <p className="text-center text-white/90 text-[28px] mt-8" style={{ fontWeight: 500 }}>
