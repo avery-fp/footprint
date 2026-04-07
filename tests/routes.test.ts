@@ -72,4 +72,8 @@ describe('withParams', () => {
   it('preserves existing query when appending multiple new params with unicode', () => {
     expect(withParams('/ae?claim=1', { ref: 'preview', name: 'João' })).toBe('/ae?claim=1&ref=preview&name=Jo%C3%A3o')
   })
+
+  it('accepts numeric values and stringifies them', () => {
+    expect(withParams('/foo', { page: 1, limit: 50 })).toBe('/foo?page=1&limit=50')
+  })
 })

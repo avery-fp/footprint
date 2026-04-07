@@ -895,8 +895,12 @@ export default function EditPage() {
         }
       } catch (error) {
         console.error('Failed to load footprint:', error)
-        // Network error — bounce to the canonical auth entry
-        router.push(AUTH_ENTRY)
+        // Network error — show the in-page auth overlay so the user can
+        // retry without losing editor context. The post_auth_redirect
+        // cookie effect (see line 562) will bounce them back to this URL
+        // after successful sign-in.
+        setClaimOverlay('auth')
+        setIsLoading(false)
         return
       }
       setIsLoading(false)
@@ -1719,34 +1723,36 @@ export default function EditPage() {
         {claimOverlay !== 'closed' && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center">
             <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" />
-            <div
-              className="relative z-10 w-full max-w-xs mx-6 rounded-2xl border border-white/[0.08] p-8"
-              style={{
-                background: 'rgba(10, 10, 10, 0.95)',
-                backdropFilter: 'blur(40px)',
-                WebkitBackdropFilter: 'blur(40px)',
-              }}
-            >
-              {claimOverlay === 'auth' ? (
+            {claimOverlay === 'auth' ? (
+              // AuthModal is its own card — no wrapper needed. Blocker state:
+              // no onClose because the user can't use the editor without auth.
+              <div className="relative z-10">
                 <AuthModal redirectAfterAuth={`/${slug}/home?claim=1`} showPrice />
-              ) : (
-                <>
-                  <div>
-                    <div className="flex items-center gap-0 rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                      <span className="text-white/20 text-[13px] pl-4 shrink-0">fp.onl/</span>
-                      <input type="text" value={claimUsername} onChange={(e) => { setClaimUsername(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, '')); setClaimAvailable(null) }} placeholder="username" aria-label="Username" className="flex-1 bg-transparent py-3.5 pr-4 text-white/90 placeholder:text-white/20 focus:outline-none text-[14px]" autoFocus />
-                      <button onClick={handleClaimSubmit} disabled={claimLoading || !claimAvailable || !claimUsername.trim()} className="pr-4 text-white/40 text-[18px] hover:text-white/70 transition-colors disabled:opacity-30" aria-label="Submit">{claimLoading ? '...' : '\u2192'}</button>
-                    </div>
-                    {claimUsername.length >= 2 && (
-                      <div className="mt-1.5 px-1">
-                        {claimChecking ? <p className="text-white/20 text-[11px]">checking...</p> : claimAvailable === true ? <p className="text-green-400/70 text-[11px]">available</p> : claimAvailable === false ? <p className="text-red-400/70 text-[11px]">{claimReason ? humanUsernameReason(claimReason) : 'taken'}</p> : null}
-                      </div>
-                    )}
+              </div>
+            ) : (
+              <div
+                className="relative z-10 w-full max-w-xs mx-6 rounded-2xl border border-white/[0.08] p-8"
+                style={{
+                  background: 'rgba(10, 10, 10, 0.95)',
+                  backdropFilter: 'blur(40px)',
+                  WebkitBackdropFilter: 'blur(40px)',
+                }}
+              >
+                <div>
+                  <div className="flex items-center gap-0 rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <span className="text-white/20 text-[13px] pl-4 shrink-0">fp.onl/</span>
+                    <input type="text" value={claimUsername} onChange={(e) => { setClaimUsername(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, '')); setClaimAvailable(null) }} placeholder="username" aria-label="Username" className="flex-1 bg-transparent py-3.5 pr-4 text-white/90 placeholder:text-white/20 focus:outline-none text-[14px]" autoFocus />
+                    <button onClick={handleClaimSubmit} disabled={claimLoading || !claimAvailable || !claimUsername.trim()} className="pr-4 text-white/40 text-[18px] hover:text-white/70 transition-colors disabled:opacity-30" aria-label="Submit">{claimLoading ? '...' : '\u2192'}</button>
                   </div>
-                  <p className="text-center text-white/90 text-[28px] mt-8" style={{ fontWeight: 500 }}>$10</p>
-                </>
-              )}
-            </div>
+                  {claimUsername.length >= 2 && (
+                    <div className="mt-1.5 px-1">
+                      {claimChecking ? <p className="text-white/20 text-[11px]">checking...</p> : claimAvailable === true ? <p className="text-green-400/70 text-[11px]">available</p> : claimAvailable === false ? <p className="text-red-400/70 text-[11px]">{claimReason ? humanUsernameReason(claimReason) : 'taken'}</p> : null}
+                    </div>
+                  )}
+                </div>
+                <p className="text-center text-white/90 text-[28px] mt-8" style={{ fontWeight: 500 }}>$10</p>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -2546,21 +2552,26 @@ export default function EditPage() {
             onClick={() => !claimLoading && setClaimOverlay('closed')}
           />
 
-          {/* Glass panel */}
-          <div
-            className="relative z-10 w-full max-w-xs mx-6 rounded-2xl border border-white/[0.08] p-8"
-            style={{
-              background: 'rgba(10, 10, 10, 0.95)',
-              backdropFilter: 'blur(40px)',
-              WebkitBackdropFilter: 'blur(40px)',
-              animation: 'go-live-sheet 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-            }}
-          >
-            {claimOverlay === 'auth' ? (
-              /* ── Phase 1: Sign in ── */
-              <AuthModal redirectAfterAuth={`/${slug}/home?claim=1`} showPrice />
-            ) : (
-              /* ── Phase 2: Claim username ── */
+          {claimOverlay === 'auth' ? (
+            /* ── Phase 1: Sign in — AuthModal is its own card ── */
+            <div className="relative z-10" style={{ animation: 'go-live-sheet 0.4s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+              <AuthModal
+                redirectAfterAuth={`/${slug}/home?claim=1`}
+                showPrice
+                onClose={() => setClaimOverlay('closed')}
+              />
+            </div>
+          ) : (
+            /* ── Phase 2: Claim username ── */
+            <div
+              className="relative z-10 w-full max-w-xs mx-6 rounded-2xl border border-white/[0.08] p-8"
+              style={{
+                background: 'rgba(10, 10, 10, 0.95)',
+                backdropFilter: 'blur(40px)',
+                WebkitBackdropFilter: 'blur(40px)',
+                animation: 'go-live-sheet 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+              }}
+            >
               <>
                 <div>
                   <div
@@ -2611,8 +2622,8 @@ export default function EditPage() {
                   $10
                 </p>
               </>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -188,6 +188,7 @@ export default function SovereignTile({ slug, onDismiss, onComplete }: Sovereign
           <AuthModal
             redirectAfterAuth={`/${slug}?claim=1`}
             showPrice={seedPhase === false}
+            onClose={onDismiss}
           />
         </div>
       </div>

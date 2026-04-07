@@ -51,4 +51,4 @@ if (updateError) {
 }
 
 console.log(`Password set for ${user.email} (FP #${user.serial_number})`)
-console.log(`Sign in at: /auth/login`)
+console.log(`Sign in at: /ae?claim=1`)
