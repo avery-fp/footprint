@@ -76,6 +76,23 @@ export function middleware(request: NextRequest) {
     return withSecurityHeaders(NextResponse.rewrite(rewrite))
   }
 
+  // ── 2a. Legacy auth entry points → canonical /ae?claim=1 (hard 307) ──
+  // Every old/cached/external /login, /signin, /auth/login link lands here.
+  // Doing it in middleware gives a real HTTP redirect — not a RSC template
+  // that only fires after JS hydration — so crawlers, link previewers,
+  // curl, and email clients all navigate correctly.
+  if (
+    pathname === '/login' ||
+    pathname === '/signin' ||
+    pathname === '/auth/login'
+  ) {
+    const claimUrl = request.nextUrl.clone()
+    claimUrl.pathname = '/ae'
+    claimUrl.search = ''
+    claimUrl.searchParams.set('claim', '1')
+    return withSecurityHeaders(NextResponse.redirect(claimUrl, 307))
+  }
+
   // ── 3. Public routes ──
   const isPublicRoute = publicRoutes.some(route => pathname === route || pathname.startsWith(route + '/'))
   const isApiRoute = pathname.startsWith('/api/') || pathname.startsWith('/api')
