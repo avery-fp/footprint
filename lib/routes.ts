@@ -20,3 +20,22 @@ export function authEntryFor(slug?: string | null): string {
   if (!slug || !/^[a-zA-Z0-9_-]+$/.test(slug)) return AUTH_ENTRY
   return `/${slug}?claim=1`
 }
+
+/**
+ * Append query parameters to a URL, preserving any existing query string.
+ *
+ * Skips entries whose value is null or undefined. Values are URL-encoded.
+ *
+ * Use this when you need to carry attribution data through the auth flow,
+ * e.g. `withParams(AUTH_ENTRY, { ref: 'preview', name, city })`.
+ */
+export function withParams(
+  base: string,
+  params: Record<string, string | number | null | undefined>
+): string {
+  const entries = Object.entries(params).filter(([, v]) => v != null) as [string, string | number][]
+  if (entries.length === 0) return base
+  const sep = base.includes('?') ? '&' : '?'
+  const qs = entries.map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`).join('&')
+  return `${base}${sep}${qs}`
+}

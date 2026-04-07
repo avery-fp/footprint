@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { AUTH_ENTRY, authEntryFor } from '@/lib/routes'
+import { AUTH_ENTRY, authEntryFor, withParams } from '@/lib/routes'
 
 /**
  * Unit tests for the auth-entry helper.
@@ -45,5 +45,31 @@ describe('authEntryFor', () => {
   it('falls back to AUTH_ENTRY for slugs with whitespace or control chars', () => {
     expect(authEntryFor('foo bar')).toBe(AUTH_ENTRY)
     expect(authEntryFor('\nfoo')).toBe(AUTH_ENTRY)
+  })
+})
+
+describe('withParams', () => {
+  it('returns the base unchanged when no params are given', () => {
+    expect(withParams('/foo', {})).toBe('/foo')
+  })
+
+  it('appends a single query param to a bare path', () => {
+    expect(withParams('/foo', { a: '1' })).toBe('/foo?a=1')
+  })
+
+  it('joins with & when the base already has a query string', () => {
+    expect(withParams('/foo?b=2', { a: '1' })).toBe('/foo?b=2&a=1')
+  })
+
+  it('URL-encodes special characters in values', () => {
+    expect(withParams('/foo', { a: 'hello world' })).toBe('/foo?a=hello%20world')
+  })
+
+  it('skips entries whose value is null or undefined', () => {
+    expect(withParams('/foo', { a: '1', b: undefined, c: null, d: '4' })).toBe('/foo?a=1&d=4')
+  })
+
+  it('preserves existing query when appending multiple new params with unicode', () => {
+    expect(withParams('/ae?claim=1', { ref: 'preview', name: 'João' })).toBe('/ae?claim=1&ref=preview&name=Jo%C3%A3o')
   })
 })

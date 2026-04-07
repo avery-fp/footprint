@@ -9,27 +9,20 @@ import type { NextRequest } from 'next/server'
  * 2. Public routes → pass through
  * 3. Auth-required routes → check fp_session cookie exists
  *    - present  → allow through
- *    - missing  → redirect to /auth/login
+ *    - missing  → redirect to /ae?claim=1 (the canonical auth entry)
  *
  * Middleware does NOT verify/decode the JWT. API routes handle that.
  */
 
+// Only multi-segment routes need explicit entries here. Single-segment
+// public routes (/login, /signup, /signin, /welcome, /claim, /build, etc.)
+// are caught by the isPublicProfile regex below. /api/ is caught by
+// isApiRoute. /auth covers both /auth/login and /auth/callback via prefix.
 const publicRoutes = [
   '/',
   '/auth',
-  '/auth/login',
-  '/auth/callback',
-  '/signup',
-  '/signin',
-  '/login',
-  '/welcome',
-  '/build',
-  '/checkout',
-  '/success',
   '/deed',
   '/gift',
-  '/claim',
-  '/api/',
   '/public',
 ]
 

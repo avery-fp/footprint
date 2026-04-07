@@ -411,10 +411,15 @@ export async function POST(request: NextRequest) {
               quantity: 1,
             },
           ],
+          // Fallback routes through /ae?claim=1 — the canonical entry. The
+          // separate URL-cleaning race in PublicPage means session_id may
+          // still be lost when finalizing via the fallback path; tracked as
+          // a follow-up. The non-fallback (return_to-provided) path is the
+          // one currently exercised.
           success_url: return_to
             ? `${baseUrl}${return_to}${return_to.includes('?') ? '&' : '?'}session_id={CHECKOUT_SESSION_ID}&username=${encodeURIComponent(cleanUsername)}`
-            : `${baseUrl}/claim?session_id={CHECKOUT_SESSION_ID}&username=${encodeURIComponent(cleanUsername)}`,
-          cancel_url: return_to ? `${baseUrl}${return_to}` : `${baseUrl}/claim`,
+            : `${baseUrl}/ae?claim=1&session_id={CHECKOUT_SESSION_ID}&username=${encodeURIComponent(cleanUsername)}`,
+          cancel_url: return_to ? `${baseUrl}${return_to}` : `${baseUrl}/ae`,
           customer_creation: 'always',
           metadata: {
             product: 'footprint_publish',

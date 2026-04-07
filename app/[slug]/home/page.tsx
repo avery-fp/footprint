@@ -14,6 +14,7 @@ import Image from 'next/image'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import GiftModal from '@/components/GiftModal'
 import AuthModal from '@/components/auth/AuthModal'
+import { AUTH_ENTRY } from '@/lib/routes'
 import { humanUsernameReason } from '@/lib/errors'
 import LayoutToggle from '@/components/LayoutToggle'
 import { type RoomLayout, getGridLayout } from '@/lib/grid-layouts'
@@ -894,8 +895,8 @@ export default function EditPage() {
         }
       } catch (error) {
         console.error('Failed to load footprint:', error)
-        // Network error — redirect to login as safest fallback
-        router.push(`/auth/login?redirect=${encodeURIComponent(`/${slug}/home`)}`)
+        // Network error — bounce to the canonical auth entry
+        router.push(AUTH_ENTRY)
         return
       }
       setIsLoading(false)
@@ -1789,7 +1790,8 @@ export default function EditPage() {
               <button
                 onClick={async () => {
                   await fetch('/api/auth/signout', { method: 'POST' })
-                  window.location.href = '/login'
+                  // After sign-out: drop them on their public profile
+                  window.location.href = `/${slug}`
                 }}
                 className="text-[11px] text-white/25 hover:text-white/50 transition font-mono"
                 style={{ minHeight: '44px', padding: '0 4px' }}

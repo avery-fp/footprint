@@ -2,6 +2,7 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { verifySessionToken } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { AUTH_ENTRY } from '@/lib/routes'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,12 +32,12 @@ export default async function ARODashboard() {
   const token = cookieStore.get('fp_session')?.value
 
   if (!token) {
-    redirect('/login')
+    redirect(AUTH_ENTRY)
   }
 
   const session = await verifySessionToken(token)
   if (!session) {
-    redirect('/login')
+    redirect(AUTH_ENTRY)
   }
 
   const admins = getAdminEmails()

@@ -1,6 +1,7 @@
 'use client'
 
 import type { Theme } from '@/lib/themes'
+import { AUTH_ENTRY, withParams } from '@/lib/routes'
 
 /**
  * PREVIEW TEMPLATE — shows what a footprint COULD look like.
@@ -142,7 +143,7 @@ export default function PreviewClient({ name, city, category, theme, themeId }: 
         {/* Claim CTA — the conversion point */}
         <div className="flex flex-col items-center gap-4 pb-10 px-4">
           <a
-            href={`/signup?ref=preview&name=${encodeURIComponent(name)}${city ? `&city=${encodeURIComponent(city)}` : ''}`}
+            href={withParams(AUTH_ENTRY, { ref: 'preview', name, city })}
             className="inline-flex items-center touch-manipulation"
             style={{
               padding: '14px 32px',

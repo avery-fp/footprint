@@ -1,5 +1,6 @@
 import { SignJWT, jwtVerify } from 'jose'
 import { createServerSupabaseClient } from './supabase'
+import { AUTH_ENTRY } from './routes'
 import type { NextRequest } from 'next/server'
 
 // Secret key for JWT signing — MUST be set via JWT_SECRET env var in production
@@ -128,7 +129,7 @@ async function sendEmail(params: { from: string; to: string; subject: string; ht
  */
 export async function sendWelcomeEmail(email: string, serialNumber: number, username?: string) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.footprint.onl'
-  const loginUrl = `${baseUrl}/login`
+  const loginUrl = `${baseUrl}${AUTH_ENTRY}`
 
   if (!process.env.RESEND_API_KEY) {
     console.log(`[DEV] Welcome email for ${email} (FP #${serialNumber}): ${loginUrl}`)

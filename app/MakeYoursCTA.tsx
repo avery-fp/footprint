@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { AUTH_ENTRY } from '@/lib/routes'
 
 export default function MakeYoursCTA({ isLoggedIn }: { isLoggedIn: boolean }) {
   const [visible, setVisible] = useState(false)
@@ -16,7 +17,7 @@ export default function MakeYoursCTA({ isLoggedIn }: { isLoggedIn: boolean }) {
 
   return (
     <Link
-      href="/signup"
+      href={AUTH_ENTRY}
       className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 text-white/25 hover:text-white/50 transition-all duration-500 text-[13px] tracking-[0.1em]"
       style={{
         opacity: visible ? 1 : 0,

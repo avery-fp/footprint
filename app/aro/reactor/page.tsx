@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { AUTH_ENTRY } from '@/lib/routes'
 
 interface JobSummary {
   id: string
@@ -97,7 +98,7 @@ export default function ReactorPage() {
         <div style={s.authBox}>
           <h1 style={s.logo}>REACTOR</h1>
           <p style={s.sub}>admin session required</p>
-          <a href="/login" style={s.loginLink}>Sign in</a>
+          <a href={AUTH_ENTRY} style={s.loginLink}>Sign in</a>
         </div>
       </div>
     )

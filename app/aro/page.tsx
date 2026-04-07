@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { AUTH_ENTRY } from '@/lib/routes'
 
 interface Pack {
   id: string
@@ -217,7 +218,7 @@ export default function AroDashboard() {
             Admin session required.
           </p>
           <a
-            href="/login"
+            href={AUTH_ENTRY}
             style={{
               ...styles.authButton,
               display: 'inline-block',

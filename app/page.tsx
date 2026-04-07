@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { AUTH_ENTRY } from '@/lib/routes'
 
 export default function LandingPage() {
   const [vis, setVis] = useState(false)
@@ -79,7 +80,7 @@ export default function LandingPage() {
 
       {/* CTA */}
       <Link
-        href="/login"
+        href={AUTH_ENTRY}
         style={{
           marginTop: '28px',
           padding: '14px 40px',
