@@ -19,9 +19,14 @@ interface SovereignTileProps {
 }
 
 type Phase = 'init' | 'auth' | 'username' | 'processing' | 'ceremony' | 'done'
+type AuthSub = 'buttons' | 'email-input' | 'email-sent'
 
 export default function SovereignTile({ slug, onDismiss, onComplete }: SovereignTileProps) {
   const [phase, setPhase] = useState<Phase>('init')
+  const [authSub, setAuthSub] = useState<AuthSub>('buttons')
+  const [authError, setAuthError] = useState<string | null>(null)
+  const [email, setEmail] = useState('')
+  const [emailLoading, setEmailLoading] = useState(false)
   const [username, setUsername] = useState('')
   const [available, setAvailable] = useState<boolean | null>(null)
   const [checking, setChecking] = useState(false)
@@ -124,6 +129,7 @@ export default function SovereignTile({ slug, onDismiss, onComplete }: Sovereign
 
   // ── OAuth handler ──
   const handleOAuth = useCallback(async (provider: 'google' | 'apple') => {
+    setAuthError(null)
     const redirectPath = `/${slug}?claim=1`
     document.cookie = `post_auth_redirect=${redirectPath};path=/;max-age=600;SameSite=Lax`
     try {
@@ -133,9 +139,43 @@ export default function SovereignTile({ slug, onDismiss, onComplete }: Sovereign
         body: JSON.stringify({ provider, redirect: redirectPath }),
       })
       const data = await res.json()
-      if (data.url) window.location.href = data.url
-    } catch { /* silent */ }
+      if (data.url) {
+        window.location.href = data.url
+      } else {
+        setAuthError(data.error || `couldn't start ${provider} sign-in`)
+      }
+    } catch {
+      setAuthError('network error — try again')
+    }
   }, [slug])
+
+  // ── Magic link handler ──
+  const handleMagicLink = useCallback(async () => {
+    const clean = email.trim().toLowerCase()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) {
+      setAuthError('enter a valid email')
+      return
+    }
+    setAuthError(null)
+    setEmailLoading(true)
+    try {
+      const res = await fetch('/api/auth/magic-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: clean }),
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setAuthSub('email-sent')
+      } else {
+        setAuthError(data.error || "couldn't send link")
+      }
+    } catch {
+      setAuthError('network error — try again')
+    } finally {
+      setEmailLoading(false)
+    }
+  }, [email])
 
   // ── Submit username → Stripe ──
   const handleSubmit = useCallback(async () => {
@@ -202,54 +242,159 @@ export default function SovereignTile({ slug, onDismiss, onComplete }: Sovereign
           borderRadius: '24px',
         }}
       >
-        {/* Auth — GOOGLE / APPLE / $10 */}
-        {phase === 'auth' && (
+        {/* Auth phase */}
+        {phase === 'auth' && authSub === 'buttons' && (
           <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
+              {(['google', 'apple', 'email'] as const).map((method) => (
+                <button
+                  key={method}
+                  onClick={() => {
+                    setAuthError(null)
+                    if (method === 'email') setAuthSub('email-input')
+                    else handleOAuth(method)
+                  }}
+                  className="touch-manipulation font-mono"
+                  style={{
+                    width: '100%',
+                    height: '44px',
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: '12px',
+                    color: 'rgba(255,255,255,0.7)',
+                    fontSize: '12px',
+                    letterSpacing: '0.08em',
+                    textTransform: 'lowercase' as const,
+                    cursor: 'pointer',
+                    transition: 'background 200ms ease, color 200ms ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.1)'
+                    e.currentTarget.style.color = 'rgba(255,255,255,0.95)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.06)'
+                    e.currentTarget.style.color = 'rgba(255,255,255,0.7)'
+                  }}
+                >
+                  {method}
+                </button>
+              ))}
+            </div>
+
+            <span className="font-mono" style={{ fontSize: '13px', fontWeight: 300, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.06em' }}>
+              $10
+            </span>
+
+            {authError && (
+              <span className="font-mono" style={{ fontSize: '10px', color: 'rgba(255,120,120,0.7)', letterSpacing: '0.04em', marginTop: '-12px' }}>
+                {authError}
+              </span>
+            )}
+          </>
+        )}
+
+        {/* Auth — email input */}
+        {phase === 'auth' && authSub === 'email-input' && (
+          <>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); setAuthError(null) }}
+              placeholder="your@email.com"
+              autoFocus
+              inputMode="email"
+              autoComplete="email"
+              className="font-mono"
+              style={{
+                width: '100%',
+                height: '44px',
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: '12px',
+                color: 'rgba(255,255,255,0.9)',
+                fontSize: '13px',
+                padding: '0 16px',
+                outline: 'none',
+                letterSpacing: '0.02em',
+                textAlign: 'center',
+              }}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleMagicLink() }}
+            />
+
             <button
-              onClick={() => handleOAuth('google')}
+              onClick={handleMagicLink}
+              disabled={emailLoading}
               className="touch-manipulation font-mono"
+              style={{
+                width: '100%',
+                height: '44px',
+                background: 'rgba(255,255,255,0.9)',
+                border: 'none',
+                borderRadius: '12px',
+                color: '#0a0a0a',
+                fontSize: '12px',
+                letterSpacing: '0.08em',
+                textTransform: 'lowercase' as const,
+                cursor: emailLoading ? 'default' : 'pointer',
+                opacity: emailLoading ? 0.5 : 1,
+                transition: 'opacity 200ms ease',
+              }}
+            >
+              {emailLoading ? '...' : 'continue'}
+            </button>
+
+            {authError && (
+              <span className="font-mono" style={{ fontSize: '10px', color: 'rgba(255,120,120,0.7)', letterSpacing: '0.04em' }}>
+                {authError}
+              </span>
+            )}
+
+            <button
+              onClick={() => { setAuthSub('buttons'); setAuthError(null) }}
+              className="font-mono"
               style={{
                 background: 'none',
                 border: 'none',
-                color: 'rgba(255,255,255,0.4)',
+                color: 'rgba(255,255,255,0.3)',
                 fontSize: '10px',
-                letterSpacing: '0.25em',
-                textTransform: 'uppercase' as const,
+                letterSpacing: '0.15em',
                 cursor: 'pointer',
-                padding: '16px 32px',
-                transition: 'color 200ms ease',
+                textTransform: 'lowercase' as const,
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.8)' }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.4)' }}
             >
-              google
+              ← back
             </button>
+          </>
+        )}
 
-            {process.env.NEXT_PUBLIC_APPLE_ENABLED === 'true' && (
-              <button
-                onClick={() => handleOAuth('apple')}
-                className="touch-manipulation font-mono"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'rgba(255,255,255,0.4)',
-                  fontSize: '10px',
-                  letterSpacing: '0.25em',
-                  textTransform: 'uppercase' as const,
-                  cursor: 'pointer',
-                  padding: '16px 32px',
-                  transition: 'color 200ms ease',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.8)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.4)' }}
-              >
-                apple
-              </button>
-            )}
+        {/* Auth — email sent confirmation */}
+        {phase === 'auth' && authSub === 'email-sent' && (
+          <>
+            <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span className="font-mono" style={{ fontSize: '14px', color: 'rgba(255,255,255,0.9)', letterSpacing: '0.02em' }}>
+                check your inbox
+              </span>
+              <span className="font-mono" style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.04em' }}>
+                we sent a link to {email}
+              </span>
+            </div>
 
-            <span className="font-mono" style={{ fontSize: '13px', fontWeight: 300, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.06em', marginTop: '8px' }}>
-              $10
-            </span>
+            <button
+              onClick={() => { setAuthSub('buttons'); setEmail(''); setAuthError(null) }}
+              className="font-mono"
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'rgba(255,255,255,0.3)',
+                fontSize: '10px',
+                letterSpacing: '0.15em',
+                cursor: 'pointer',
+                textTransform: 'lowercase' as const,
+              }}
+            >
+              ← back
+            </button>
           </>
         )}
 
