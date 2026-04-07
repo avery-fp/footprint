@@ -31,7 +31,28 @@ export interface MonitorResult {
   alerts: string[]
 }
 
-export async function runMonitorCycle(): Promise<MonitorResult> {
+export interface MonitorOptions {
+  dryRun?: boolean
+}
+
+export async function runMonitorCycle(opts: MonitorOptions = {}): Promise<MonitorResult> {
+  // DRY-RUN HARD GUARD: short-circuit before any DB read or write. Monitor
+  // writes to swarm_domains (bounce/complaint counters, warmup advancement,
+  // pause/resume) regardless of intent — those writes have no place in a
+  // dry run. The mock-only pipeline in src/aro/swarm.ts bypasses monitor
+  // entirely; this guard is defense-in-depth.
+  if (opts.dryRun) {
+    console.log('  [monitor] DRY-RUN guard: skipping (no DB read, no swarm_domains writes)')
+    return {
+      domainsChecked: 0,
+      domainsPaused: 0,
+      domainsAdvanced: 0,
+      totalBounces: 0,
+      totalComplaints: 0,
+      alerts: [],
+    }
+  }
+
   const supabase = getSupabase()
   const alerts: string[] = []
   let domainsPaused = 0

@@ -135,18 +135,37 @@ async function main() {
     process.exit(0)
   }
 
-  // Validate minimum config
+  // Validate minimum config.
+  //
+  // Dry-run mode runs the mock pipeline (src/aro/swarm.ts → runDryRunMockPipeline)
+  // which DOES NOT touch Supabase, Google Places, SES, or website scraping.
+  // The only external dependency is Claude (for hook generation), so dry-run
+  // requires only ANTHROPIC_API_KEY.
+  //
+  // Live mode requires Supabase (DB), Google Places (scraping), Anthropic
+  // (hook generation), and at least one of SES or Resend (sending).
   const missing: string[] = []
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL && !process.env.SUPABASE_URL) {
-    missing.push('SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL')
-  }
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    missing.push('SUPABASE_SERVICE_ROLE_KEY')
+
+  if (!process.env.ANTHROPIC_API_KEY) {
+    missing.push('ANTHROPIC_API_KEY')
   }
 
-  if (missing.length > 0 && !opts.dryRun) {
+  if (!opts.dryRun) {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL && !process.env.SUPABASE_URL) {
+      missing.push('SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL')
+    }
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      missing.push('SUPABASE_SERVICE_ROLE_KEY')
+    }
+  }
+
+  if (missing.length > 0) {
     console.error(`Missing required env vars: ${missing.join(', ')}`)
-    console.error('Set these in .env or run with --dry-run')
+    if (opts.dryRun) {
+      console.error('Dry-run mode requires ANTHROPIC_API_KEY only.')
+    } else {
+      console.error('Set these in .env or run with --dry-run for tone audit only.')
+    }
     process.exit(1)
   }
 

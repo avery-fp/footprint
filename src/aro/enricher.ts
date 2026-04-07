@@ -138,6 +138,17 @@ export interface EnrichResult {
 }
 
 export async function enrichTargets(opts: EnrichOptions = {}): Promise<EnrichResult> {
+  // DRY-RUN HARD GUARD: short-circuit before any external call. The previous
+  // in-loop dryRun check still fetched every target's website over real HTTP
+  // (with the recognizable FootprintBot user-agent) and only skipped the DB
+  // update. The new contract is: dry-run touches NO target websites and
+  // performs NO DB writes. The mock-only pipeline in src/aro/swarm.ts handles
+  // dry-run target generation.
+  if (opts.dryRun) {
+    console.log('  [enricher] DRY-RUN guard: skipping (no website fetches, no DB write)')
+    return { enriched: 0, noWebsite: 0, noEmailFound: 0, errors: [] }
+  }
+
   const supabase = getSupabase()
   const batchSize = opts.batchSize || 50
 

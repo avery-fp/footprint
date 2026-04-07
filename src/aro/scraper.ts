@@ -143,6 +143,17 @@ export interface ScrapeResult {
 }
 
 export async function scrapeCity(opts: ScrapeOptions): Promise<ScrapeResult> {
+  // DRY-RUN HARD GUARD: short-circuit before any external call. The previous
+  // in-loop dryRun check still ran the geocode + Places + Details API calls
+  // and only skipped the DB write — costing real Google Places quota on every
+  // dry run. The new contract is: dry-run touches NO third-party APIs and
+  // performs NO DB writes. The mock-only pipeline in src/aro/swarm.ts is the
+  // only legitimate path for dry-run target generation.
+  if (opts.dryRun) {
+    console.log(`  [scraper] DRY-RUN guard: skipping ${opts.city}/${opts.category} (no Google Places call, no DB write)`)
+    return { scraped: 0, duplicates: 0, errors: [] }
+  }
+
   const apiKey = process.env.GOOGLE_PLACES_API_KEY
   if (!apiKey) {
     return { scraped: 0, duplicates: 0, errors: ['GOOGLE_PLACES_API_KEY not set'] }

@@ -241,6 +241,16 @@ export interface BatchSendResult {
 }
 
 export async function sendBatch(opts: SendOptions = {}): Promise<BatchSendResult> {
+  // DRY-RUN HARD GUARD: short-circuit before any DB call or env read. The
+  // previous in-loop dryRun check still called swarm_reset_daily_counters RPC
+  // and queried swarm_targets/swarm_messages. The new contract is: dry-run
+  // performs NO DB calls and NO env reads. The mock-only pipeline in
+  // src/aro/swarm.ts is the legitimate path for dry-run output.
+  if (opts.dryRun) {
+    console.log('  [sender] DRY-RUN guard: skipping (no DB read, no SES, no Resend, no daily-counter reset)')
+    return { sent: 0, failed: 0, skipped: 0, providers: [] }
+  }
+
   const supabase = getSupabase()
   const batchSize = opts.batchSize || 50
   const delayMs = opts.delayMs || 200

@@ -219,6 +219,10 @@ export interface MirrorHookInput {
   website_copy: string | null
   rating: number | null
   review_count: number
+  // Opaque per-recipient token used to render the CAN-SPAM unsubscribe URL.
+  // In production this is the swarm_targets.id (uuid). The token is appended
+  // to the email body by appendComplianceFooter() — the LLM never sees it.
+  target_token: string
 }
 
 export interface MirrorHookOutput {

@@ -105,7 +105,7 @@ describe('Swarm types', () => {
     expect(result.errors).toHaveLength(0)
   })
 
-  it('MirrorHookInput contains business context', () => {
+  it('MirrorHookInput contains business context and target_token', () => {
     const input: MirrorHookInput = {
       business_name: 'Ace Barbershop',
       category: 'barbershop',
@@ -113,10 +113,12 @@ describe('Swarm types', () => {
       website_copy: 'Premium cuts since 2015. Walk-ins welcome.',
       rating: 4.8,
       review_count: 230,
+      target_token: '00000000-0000-4000-8000-000000000001',
     }
 
     expect(input.business_name).toBe('Ace Barbershop')
     expect(input.website_copy).toContain('Premium cuts')
+    expect(input.target_token).toMatch(/^[0-9a-f-]{36}$/)
   })
 
   it('SESRegionConfig has all required fields', () => {
