@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import ClaimCeremony from '@/components/ClaimCeremony'
+import AuthModal from '@/components/auth/AuthModal'
 
 /**
  * SovereignTile — self-contained claim flow.
@@ -124,20 +125,10 @@ export default function SovereignTile({ slug, onDismiss, onComplete }: Sovereign
     return () => clearTimeout(timer)
   }, [username, phase])
 
-  // ── OAuth handler ──
-  const handleOAuth = useCallback(async (provider: 'google' | 'apple') => {
-    const redirectPath = `/${slug}?claim=1`
-    document.cookie = `post_auth_redirect=${redirectPath};path=/;max-age=600;SameSite=Lax`
-    try {
-      const res = await fetch('/api/auth/oauth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider, redirect: redirectPath }),
-      })
-      const data = await res.json()
-      if (data.url) window.location.href = data.url
-    } catch { /* silent */ }
-  }, [slug])
+  // OAuth, passkey, and email magic-link are all handled inside <AuthModal />
+  // (which delegates to OAuthButton + PasskeyButton). The redirectAfterAuth
+  // path is set as `/${slug}?claim=1` below so users land back on the claim
+  // flow with their session cookie set.
 
   // ── Submit username → seed (instant) or paid (Stripe) ──
   const handleSubmit = useCallback(async () => {
@@ -185,7 +176,25 @@ export default function SovereignTile({ slug, onDismiss, onComplete }: Sovereign
   // ── Init phase — invisible ──
   if (phase === 'init') return null
 
-  // ── Render the tile ──
+  // ── Auth phase — render the unified AuthModal ──
+  if (phase === 'auth') {
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center"
+        style={{ pointerEvents: 'auto' }}
+        onClick={onDismiss}
+      >
+        <div onClick={(e) => e.stopPropagation()}>
+          <AuthModal
+            redirectAfterAuth={`/${slug}?claim=1`}
+            showPrice={seedPhase === false}
+          />
+        </div>
+      </div>
+    )
+  }
+
+  // ── Username / processing — original tile chrome ──
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
@@ -210,59 +219,6 @@ export default function SovereignTile({ slug, onDismiss, onComplete }: Sovereign
           borderRadius: '24px',
         }}
       >
-        {/* Auth — GOOGLE / APPLE / $10 */}
-        {phase === 'auth' && (
-          <>
-            <button
-              onClick={() => handleOAuth('google')}
-              className="touch-manipulation font-mono"
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'rgba(255,255,255,0.4)',
-                fontSize: '10px',
-                letterSpacing: '0.25em',
-                textTransform: 'uppercase' as const,
-                cursor: 'pointer',
-                padding: '16px 32px',
-                transition: 'color 200ms ease',
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.8)' }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.4)' }}
-            >
-              google
-            </button>
-
-            {process.env.NEXT_PUBLIC_APPLE_ENABLED === 'true' && (
-              <button
-                onClick={() => handleOAuth('apple')}
-                className="touch-manipulation font-mono"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'rgba(255,255,255,0.4)',
-                  fontSize: '10px',
-                  letterSpacing: '0.25em',
-                  textTransform: 'uppercase' as const,
-                  cursor: 'pointer',
-                  padding: '16px 32px',
-                  transition: 'color 200ms ease',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.8)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.4)' }}
-              >
-                apple
-              </button>
-            )}
-
-            {seedPhase === false && (
-              <span className="font-mono" style={{ fontSize: '13px', fontWeight: 300, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.06em', marginTop: '8px' }}>
-                $10
-              </span>
-            )}
-          </>
-        )}
-
         {/* Username — fp.onl/________ + (optional $10) + → */}
         {phase === 'username' && (
           <>

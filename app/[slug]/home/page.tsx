@@ -13,7 +13,7 @@ import { snapToPreset } from '@/lib/aspect-ratios'
 import Image from 'next/image'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import GiftModal from '@/components/GiftModal'
-import OAuthButton from '@/components/auth/OAuthButton'
+import AuthModal from '@/components/auth/AuthModal'
 import { humanUsernameReason } from '@/lib/errors'
 import LayoutToggle from '@/components/LayoutToggle'
 import { type RoomLayout, getGridLayout } from '@/lib/grid-layouts'
@@ -1727,13 +1727,7 @@ export default function EditPage() {
               }}
             >
               {claimOverlay === 'auth' ? (
-                <>
-                  <div className="space-y-3 mb-6">
-                    <OAuthButton provider="google" label="google" redirectAfterAuth={`/${slug}/home?claim=1`} />
-                    <OAuthButton provider="apple" label="apple" redirectAfterAuth={`/${slug}/home?claim=1`} />
-                  </div>
-                  <p className="text-center text-white/90 text-[28px] mt-8" style={{ fontWeight: 500 }}>$10</p>
-                </>
+                <AuthModal redirectAfterAuth={`/${slug}/home?claim=1`} showPrice />
               ) : (
                 <>
                   <div>
@@ -2562,16 +2556,7 @@ export default function EditPage() {
           >
             {claimOverlay === 'auth' ? (
               /* ── Phase 1: Sign in ── */
-              <>
-                <div className="space-y-3 mb-6">
-                  <OAuthButton provider="google" label="google" redirectAfterAuth={`/${slug}/home?claim=1`} />
-                  <OAuthButton provider="apple" label="apple" redirectAfterAuth={`/${slug}/home?claim=1`} />
-                </div>
-
-                <p className="text-center text-white/90 text-[28px] mt-8" style={{ fontWeight: 500 }}>
-                  $10
-                </p>
-              </>
+              <AuthModal redirectAfterAuth={`/${slug}/home?claim=1`} showPrice />
             ) : (
               /* ── Phase 2: Claim username ── */
               <>
