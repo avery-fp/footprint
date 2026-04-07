@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { AUTH_ENTRY } from '@/lib/routes'
 
 const DM = "'DM Sans', sans-serif"
 const MONO = "'JetBrains Mono', monospace"
@@ -84,11 +85,16 @@ export default function NotFound() {
     )
   }
 
-  // Build CTA href — auth-aware routing
-  const hasSession = typeof document !== 'undefined' && document.cookie.includes('fp_session')
-  const claimHref = hasSession
-    ? `/claim?username=${displaySlug}`
-    : `/login?redirect=${encodeURIComponent(`/claim?username=${displaySlug}`)}`
+  // CTA always routes through the canonical auth entry. The previous
+  // document.cookie check was structurally broken — fp_session is HttpOnly,
+  // so the check was always false and the CTA always pointed at /login,
+  // which 404'd back here in an infinite loop.
+  //
+  // We deliberately do NOT use authEntryFor(displaySlug) here. displaySlug
+  // is unclaimed by definition (we're rendering the not-found page), so
+  // /{displaySlug}?claim=1 would 404 right back into this same component.
+  // Pre-filling the desired username inside SovereignTile is a PR #2 polish.
+  const claimHref = AUTH_ENTRY
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-[#080808] relative overflow-hidden">
