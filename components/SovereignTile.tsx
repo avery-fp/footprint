@@ -17,11 +17,22 @@ interface SovereignTileProps {
   slug: string
   onDismiss: () => void
   onComplete: (slug: string) => void
+  /**
+   * Stripe session_id captured by the parent (PublicPage) BEFORE it cleans
+   * the URL. Must be passed as a prop because SovereignTile mounts lazily,
+   * after the URL has been wiped. Null when not returning from Stripe.
+   */
+  sessionId?: string | null
+  /**
+   * Username captured from the URL alongside sessionId. Used by the Stripe
+   * finalize flow to know which username was purchased.
+   */
+  returnUsername?: string | null
 }
 
 type Phase = 'init' | 'auth' | 'username' | 'processing' | 'ceremony' | 'done'
 
-export default function SovereignTile({ slug, onDismiss, onComplete }: SovereignTileProps) {
+export default function SovereignTile({ slug, onDismiss, onComplete, sessionId: propSessionId, returnUsername: propReturnUsername }: SovereignTileProps) {
   const [phase, setPhase] = useState<Phase>('init')
   const [username, setUsername] = useState('')
   const [available, setAvailable] = useState<boolean | null>(null)
@@ -34,9 +45,12 @@ export default function SovereignTile({ slug, onDismiss, onComplete }: Sovereign
 
   // ── ONE init effect — replaces 5 racing effects ──
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const sessionId = params.get('session_id')
-    const returnUsername = params.get('username')
+    // sessionId and returnUsername come from props, captured by PublicPage
+    // BEFORE it cleans the URL. Reading window.location.search here would
+    // always return empty because PublicPage's URL-cleanup effect fires
+    // before SovereignTile mounts.
+    const sessionId = propSessionId ?? null
+    const returnUsername = propReturnUsername ?? null
 
     // Fetch seed phase status in parallel — UI uses it to hide $10
     fetch('/api/publish/phase')
@@ -44,7 +58,7 @@ export default function SovereignTile({ slug, onDismiss, onComplete }: Sovereign
       .then(data => setSeedPhase(data.seedPhase === true))
       .catch(() => setSeedPhase(false))
 
-    // URL already cleaned by PublicPage — just check auth and decide phase
+    // Check auth and decide phase
     fetch('/api/user', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
@@ -61,6 +75,7 @@ export default function SovereignTile({ slug, onDismiss, onComplete }: Sovereign
         }
       })
       .catch(() => setPhase('auth'))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // ── Finalize Stripe payment ──

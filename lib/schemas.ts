@@ -33,11 +33,6 @@ export const signupSchema = z.object({
   password: passwordSchema,
 })
 
-export const loginSchema = z.object({
-  email: z.string().min(1, 'Email and password required'),
-  password: z.string().min(1, 'Email and password required'),
-})
-
 export const contentPostSchema = z.object({
   url: z.string().min(1, 'url and footprint_id required'),
   footprint_id: z.string().min(1, 'url and footprint_id required'),

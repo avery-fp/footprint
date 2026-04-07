@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
   signupSchema,
-  loginSchema,
   contentPostSchema,
   contentReorderSchema,
   eventsSchema,
@@ -48,18 +47,6 @@ describe('signupSchema', () => {
   it('rejects username too short', () => {
     expect(signupSchema.safeParse({ username: 'a', email: 'a@b.com', password: 'hunter2' }).success).toBe(false)
     expect(signupSchema.safeParse({ username: 'ab', email: 'a@b.com', password: 'hunter2' }).success).toBe(false)
-  })
-})
-
-describe('loginSchema', () => {
-  it('accepts valid login', () => {
-    const result = loginSchema.safeParse({ email: 'a@b.com', password: 'test123' })
-    expect(result.success).toBe(true)
-  })
-
-  it('rejects empty fields', () => {
-    expect(loginSchema.safeParse({ email: '', password: 'test' }).success).toBe(false)
-    expect(loginSchema.safeParse({ email: 'a@b.com', password: '' }).success).toBe(false)
   })
 })
 

@@ -98,11 +98,23 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
   // ── Integrated Void Transition ──
   const [claimActive, setClaimActive] = useState(false)
+
+  // Capture URL params at construction time, BEFORE the cleanup effect
+  // runs. SovereignTile mounts lazily (after auth check + claim activation),
+  // by which point window.location.search is already empty. Without this
+  // capture, the Stripe finalize flow breaks silently — session_id and
+  // username vanish before SovereignTile can read them.
+  const initialParams = useRef(
+    typeof window !== 'undefined'
+      ? {
+          hasClaim: new URLSearchParams(window.location.search).has('claim'),
+          sessionId: new URLSearchParams(window.location.search).get('session_id'),
+          returnUsername: new URLSearchParams(window.location.search).get('username'),
+        }
+      : { hasClaim: false, sessionId: null as string | null, returnUsername: null as string | null }
+  )
   const wantsClaim = useRef(
-    typeof window !== 'undefined' && (
-      new URLSearchParams(window.location.search).has('claim') ||
-      new URLSearchParams(window.location.search).has('session_id')
-    )
+    initialParams.current.hasClaim || !!initialParams.current.sessionId
   )
 
   // Clean URL for everyone (owners too) so ?claim=1 doesn't linger
@@ -875,6 +887,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           slug={footprint.username}
           onDismiss={() => setClaimActive(false)}
           onComplete={(s) => { window.location.href = `/${s}/home` }}
+          sessionId={initialParams.current.sessionId}
+          returnUsername={initialParams.current.returnUsername}
         />
       )}
     </div>

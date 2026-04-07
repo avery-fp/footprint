@@ -1,5 +1,4 @@
 import { SignJWT, jwtVerify } from 'jose'
-import { createServerSupabaseClient } from './supabase'
 import { AUTH_ENTRY } from './routes'
 import type { NextRequest } from 'next/server'
 
@@ -78,29 +77,6 @@ export async function verifySessionToken(token: string): Promise<{
     console.error('[auth] JWT verify failed:', err instanceof Error ? err.message : err)
     return null
   }
-}
-
-/**
- * Get user from session token
- *
- * Convenience function that verifies token and fetches full user data.
- */
-export async function getUserFromSession(token: string) {
-  const session = await verifySessionToken(token)
-
-  if (!session) {
-    return null
-  }
-
-  const supabase = createServerSupabaseClient()
-
-  const { data: user } = await supabase
-    .from('users')
-    .select('*')
-    .eq('id', session.userId)
-    .single()
-
-  return user
 }
 
 /**
