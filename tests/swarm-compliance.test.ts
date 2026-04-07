@@ -289,3 +289,63 @@ describe('unsubscribe URL routing', () => {
     expect(url.searchParams.get('t')).toBe('test-token')
   })
 })
+
+// ─── Middleware whitelist regression guard ────────────────
+//
+// /aro/u is a two-segment path that the middleware would otherwise treat as
+// auth-required (it doesn't match the single-segment public-profile pattern
+// and isn't under /api/). The fix: explicit entry in publicRoutes. This test
+// reads the middleware source and asserts the entry is still there, so a
+// future edit that accidentally removes it fails CI before it ever ships.
+//
+// This is a *static* test against the source file rather than an end-to-end
+// HTTP test because (a) middleware tests in vitest would require running
+// Next.js, and (b) the verification we already did in the dev preview is
+// sufficient as one-off proof — the regression we want to catch is the line
+// disappearing from the source.
+
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+
+describe('middleware /aro/u whitelist (regression guard)', () => {
+  const middlewareSource = readFileSync(
+    resolve(__dirname, '..', 'middleware.ts'),
+    'utf-8',
+  )
+
+  it('publicRoutes contains /aro/u so the unsubscribe rewrite reaches the API route', () => {
+    // Look for the literal string entry in the publicRoutes array.
+    expect(middlewareSource).toContain("'/aro/u'")
+  })
+
+  it('the publicRoutes array still includes /api/ (so the direct API path also bypasses auth)', () => {
+    expect(middlewareSource).toContain("'/api/'")
+  })
+
+  it('a developer comment explains why /aro/u is whitelisted', () => {
+    // If someone refactors publicRoutes and drops the comment, the next
+    // person to read it will not understand why /aro/u must stay public.
+    // The comment is load-bearing for the CAN-SPAM rationale.
+    expect(middlewareSource.toLowerCase()).toContain('can-spam')
+  })
+})
+
+// ─── next.config.js rewrite regression guard ──────────────
+//
+// The /aro/u short URL only works because next.config.js rewrites it to
+// /api/aro/unsubscribe. If someone removes that rewrite, the middleware
+// whitelist still passes the request through but Next.js returns a 404
+// because there's no app/aro/u route. This test asserts the rewrite is
+// configured.
+
+describe('next.config.js /aro/u rewrite (regression guard)', () => {
+  const nextConfigSource = readFileSync(
+    resolve(__dirname, '..', 'next.config.js'),
+    'utf-8',
+  )
+
+  it('contains a rewrite from /aro/u to /api/aro/unsubscribe', () => {
+    expect(nextConfigSource).toContain("source: '/aro/u'")
+    expect(nextConfigSource).toContain("destination: '/api/aro/unsubscribe'")
+  })
+})

@@ -31,6 +31,10 @@ const publicRoutes = [
   '/claim',
   '/api/',
   '/public',
+  // CAN-SPAM unsubscribe short URL — rewrite target lives in next.config.js
+  // and points at /api/aro/unsubscribe. Must bypass auth so recipients can
+  // opt out without a session, per 15 U.S.C. § 7704(a)(4).
+  '/aro/u',
 ]
 
 /**
