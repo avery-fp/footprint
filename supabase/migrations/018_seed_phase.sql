@@ -1,34 +1,32 @@
 -- Silent pre-monetization phase: first 500 publishes are free.
--- After publish #500, the same flow routes to the paid Stripe path.
+-- After publish #500 (post-seed), the same flow routes to the paid Stripe path.
+--
+-- Production-aware: production has no `serials` table or `payments` table.
+-- Serials are allocated via MAX(serial_number)+1. Audit goes to `purchases`.
+-- The threshold is count-based (number of published footprints) and accounts
+-- for the 24 publishes that already exist before the seed phase opens:
+-- threshold = 24 + 500 = 524 absolute count.
 
--- Audit marker for seed-phase publishes
+-- 1. Audit marker for seed-phase publishes
 ALTER TABLE footprints
   ADD COLUMN IF NOT EXISTS is_seed BOOLEAN DEFAULT FALSE;
 
--- Expand the serial pool from 10k to 100k so the paid phase has runway
-INSERT INTO serials (number)
-SELECT generate_series(17777, 107776)
-ON CONFLICT (number) DO NOTHING;
+-- 2. published_at column (referenced by publish API but missing in production)
+ALTER TABLE footprints
+  ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ;
 
--- Read-only peek: is the NEXT unassigned serial in the seed range?
--- Used by the publish endpoint and the UI phase check.
--- Threshold defaults to 500 — overridable per call.
-CREATE OR REPLACE FUNCTION peek_next_serial_seed(p_threshold INTEGER DEFAULT 500)
+-- 3. Read-only peek: are we still in the seed phase?
+-- Used by /api/publish/phase to hide the $10 in the UI, and by /api/publish
+-- to decide whether the next claim is seed (free, instant) or paid (Stripe).
+-- Default threshold = 524 = the 24 publishes that existed when this migration
+-- ran + 500 seed publishes. After publish #524, function returns false and
+-- the system silently routes to the paid flow with no UI change.
+CREATE OR REPLACE FUNCTION peek_next_serial_seed(p_threshold INTEGER DEFAULT 524)
 RETURNS BOOLEAN AS $$
 DECLARE
-  peeked INTEGER;
+  pub_count INTEGER;
 BEGIN
-  SELECT number INTO peeked
-  FROM serials
-  WHERE is_assigned = FALSE
-  ORDER BY number
-  LIMIT 1;
-
-  IF peeked IS NULL THEN
-    RETURN FALSE;
-  END IF;
-
-  -- Serial 7777 is the 1st publish → seed if (peeked - 7776) <= threshold
-  RETURN (peeked - 7776) <= p_threshold;
+  SELECT COUNT(*) INTO pub_count FROM footprints WHERE published = TRUE;
+  RETURN pub_count < p_threshold;
 END;
 $$ LANGUAGE plpgsql STABLE;

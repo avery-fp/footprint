@@ -219,18 +219,19 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Username taken' }, { status: 409 })
         }
 
-        // Atomic claim — seed status derived from the serial number itself
-        const { data: claimedSerial, error: serialError } = await supabase.rpc('claim_next_serial')
-        if (serialError || !claimedSerial) {
-          log.error({ err: serialError }, 'No serials available')
-          return NextResponse.json({ error: 'No serials available' }, { status: 500 })
-        }
-
-        const serialNumber: number = claimedSerial
-        const isSeed = (serialNumber - 7776) <= 500
+        // Determine seed phase via the count-based check (production-aware)
+        const { data: phaseResult } = await supabase.rpc('peek_next_serial_seed')
+        const isSeed = phaseResult === true
 
         if (isSeed) {
-          // ── SEED PATH: publish immediately, no Stripe ──
+          // ── SEED PATH: claim serial + publish immediately, no Stripe ──
+          const { data: claimedSerial, error: serialError } = await supabase.rpc('claim_next_serial')
+          if (serialError || !claimedSerial) {
+            log.error({ err: serialError }, 'No serials available (seed path)')
+            return NextResponse.json({ error: 'No serials available' }, { status: 500 })
+          }
+          const serialNumber: number = claimedSerial
+
           await supabase
             .from('users')
             .update({ serial_number: serialNumber })
@@ -244,6 +245,7 @@ export async function POST(request: NextRequest) {
               published: true,
               published_at: new Date().toISOString(),
               is_seed: true,
+              payment_type: 'seed',
             })
             .eq('id', footprint.id)
 
@@ -252,16 +254,23 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Failed to publish' }, { status: 500 })
           }
 
-          // Audit (non-critical)
+          // Audit (non-critical) — use 'purchases' table (production schema)
           try {
-            await supabase.from('payments').insert({
-              user_id: userId,
-              stripe_session_id: `seed_${serialNumber}_${Date.now()}`,
-              amount: 0,
-              currency: 'usd',
-              status: 'completed',
-            })
-          } catch (e) { log.error({ err: e }, 'Seed payment record failed') }
+            const { data: u } = await supabase
+              .from('users')
+              .select('email')
+              .eq('id', userId)
+              .single()
+            if (u?.email) {
+              await supabase.from('purchases').insert({
+                email: u.email,
+                serial_number: serialNumber,
+                stripe_session_id: `seed_${serialNumber}_${Date.now()}`,
+                amount_cents: 0,
+                status: 'completed',
+              })
+            }
+          } catch (e) { log.error({ err: e }, 'Seed purchase record failed') }
 
           try {
             await supabase.from('fp_events').insert({
@@ -282,8 +291,9 @@ export async function POST(request: NextRequest) {
           })
         }
 
-        // ── PAID PATH: serial already claimed, hand off to Stripe ──
-        // Reserve the username on the footprint row
+        // ── PAID PATH: reserve username, hand off to Stripe ──
+        // Serial is NOT pre-claimed in production (the existing claim_next_serial
+        // is MAX+1 with no atomic claim, so we let finalize claim it post-payment).
         const { error: reserveError } = await supabase
           .from('footprints')
           .update({ username: cleanUsername })
@@ -307,7 +317,7 @@ export async function POST(request: NextRequest) {
 
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://footprint.onl'
 
-        // Stash the pre-claimed serial in Stripe metadata so finalize uses it
+        // Create Stripe checkout session — finalize will claim the serial post-payment
         const session = await stripe.checkout.sessions.create({
           mode: 'payment',
           payment_method_types: ['card'],
@@ -335,7 +345,6 @@ export async function POST(request: NextRequest) {
             footprint_id: footprint.id,
             user_id: userId,
             username: cleanUsername,
-            pre_claimed_serial: String(serialNumber),
           },
         })
 
@@ -460,31 +469,17 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Username was claimed while you were paying' }, { status: 409 })
         }
 
-        // Use pre-claimed serial from Stripe metadata if present (new 'publish' flow),
-        // else claim a new one (legacy 'publish-paid' flow).
-        let serialNumber: number
-        const preClaimedStr = session.metadata?.pre_claimed_serial
-        if (preClaimedStr) {
-          const parsed = parseInt(preClaimedStr, 10)
-          if (Number.isNaN(parsed)) {
-            return NextResponse.json({ error: 'Invalid pre-claimed serial' }, { status: 500 })
-          }
-          serialNumber = parsed
-        } else {
-          const { data: serialData, error: serialError } = await supabase.rpc('claim_next_serial')
-          if (serialError || !serialData) {
-            return NextResponse.json({ error: 'No serials available' }, { status: 500 })
-          }
-          serialNumber = serialData
+        // Claim serial post-payment
+        const { data: serialData, error: serialError } = await supabase.rpc('claim_next_serial')
+        if (serialError || !serialData) {
+          return NextResponse.json({ error: 'No serials available' }, { status: 500 })
         }
+        const serialNumber: number = serialData
 
         // Update user with serial
         await supabase
           .from('users')
-          .update({
-            serial_number: serialNumber,
-            stripe_customer_id: session.customer as string,
-          })
+          .update({ serial_number: serialNumber })
           .eq('id', userId)
 
         // Publish footprint
@@ -495,6 +490,7 @@ export async function POST(request: NextRequest) {
             serial_number: serialNumber,
             published: true,
             published_at: new Date().toISOString(),
+            payment_type: 'stripe',
           })
           .eq('id', footprint.id)
 
@@ -503,17 +499,23 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Failed to publish' }, { status: 500 })
         }
 
-        // Record payment (non-critical)
+        // Record purchase (non-critical) — production uses 'purchases' table
         try {
-          await supabase.from('payments').insert({
-            user_id: userId,
-            stripe_session_id: session.id,
-            stripe_payment_intent: session.payment_intent as string,
-            amount: session.amount_total,
-            currency: session.currency,
-            status: 'completed',
-          })
-        } catch (e) { log.error({ err: e }, 'Finalize payment record failed') }
+          const { data: u } = await supabase
+            .from('users')
+            .select('email')
+            .eq('id', userId)
+            .single()
+          if (u?.email) {
+            await supabase.from('purchases').insert({
+              email: u.email,
+              serial_number: serialNumber,
+              stripe_session_id: session.id,
+              amount_cents: session.amount_total,
+              status: 'completed',
+            })
+          }
+        } catch (e) { log.error({ err: e }, 'Finalize purchase record failed') }
 
         // Record conversion event (non-critical)
         try {

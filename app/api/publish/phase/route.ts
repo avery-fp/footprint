@@ -15,7 +15,8 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   try {
     const supabase = createServerSupabaseClient()
-    const { data, error } = await supabase.rpc('peek_next_serial_seed', { p_threshold: 500 })
+    // No threshold arg — use the function's default (524 = 24 existing + 500 seed)
+    const { data, error } = await supabase.rpc('peek_next_serial_seed')
     if (error) throw error
     return NextResponse.json({ seedPhase: data === true })
   } catch {
