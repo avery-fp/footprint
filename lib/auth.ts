@@ -128,7 +128,7 @@ async function sendEmail(params: { from: string; to: string; subject: string; ht
  */
 export async function sendWelcomeEmail(email: string, serialNumber: number, username?: string) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.footprint.onl'
-  const loginUrl = `${baseUrl}/login`
+  const loginUrl = `${baseUrl}/ae?claim=1`
 
   if (!process.env.RESEND_API_KEY) {
     console.log(`[DEV] Welcome email for ${email} (FP #${serialNumber}): ${loginUrl}`)

@@ -84,11 +84,11 @@ export default function NotFound() {
     )
   }
 
-  // Build CTA href — auth-aware routing
-  const hasSession = typeof document !== 'undefined' && document.cookie.includes('fp_session')
-  const claimHref = hasSession
-    ? `/claim?username=${displaySlug}`
-    : `/login?redirect=${encodeURIComponent(`/claim?username=${displaySlug}`)}`
+  // CTA → canonical claim entry. The SovereignTile handles auth state itself.
+  // (Previous code sniffed document.cookie for fp_session, which is HttpOnly
+  // and therefore always invisible — that branch sent every user to a dead
+  // /login route, creating an infinite 404 loop.)
+  const claimHref = '/ae?claim=1'
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-[#080808] relative overflow-hidden">

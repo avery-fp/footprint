@@ -79,7 +79,7 @@ export default function LandingPage() {
 
       {/* CTA */}
       <Link
-        href="/login"
+        href="/ae?claim=1"
         style={{
           marginTop: '28px',
           padding: '14px 40px',

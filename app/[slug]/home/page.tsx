@@ -895,7 +895,7 @@ export default function EditPage() {
       } catch (error) {
         console.error('Failed to load footprint:', error)
         // Network error — redirect to login as safest fallback
-        router.push(`/auth/login?redirect=${encodeURIComponent(`/${slug}/home`)}`)
+        router.push('/ae?claim=1')
         return
       }
       setIsLoading(false)
@@ -1795,7 +1795,7 @@ export default function EditPage() {
               <button
                 onClick={async () => {
                   await fetch('/api/auth/signout', { method: 'POST' })
-                  window.location.href = '/login'
+                  window.location.href = '/ae?claim=1'
                 }}
                 className="text-[11px] text-white/25 hover:text-white/50 transition font-mono"
                 style={{ minHeight: '44px', padding: '0 4px' }}
