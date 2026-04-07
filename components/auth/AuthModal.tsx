@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, FormEvent } from 'react'
+import { useState, useCallback, useEffect, FormEvent } from 'react'
 import OAuthButton from './OAuthButton'
 import PasskeyButton from './PasskeyButton'
 
@@ -37,6 +37,16 @@ export default function AuthModal({ redirectAfterAuth, onClose, showPrice }: Aut
   const [emailSent, setEmailSent] = useState(false)
   const [emailError, setEmailError] = useState<string | null>(null)
 
+  // Keyboard: Escape closes when onClose is provided
+  useEffect(() => {
+    if (!onClose) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [onClose])
+
   const handleEmailSubmit = useCallback(async (e?: FormEvent) => {
     e?.preventDefault()
     const trimmed = email.trim()
@@ -64,6 +74,9 @@ export default function AuthModal({ redirectAfterAuth, onClose, showPrice }: Aut
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Sign in or sign up"
       className="claim-overlay-enter relative"
       style={{
         width: 'min(88vw, 380px)',
@@ -84,7 +97,7 @@ export default function AuthModal({ redirectAfterAuth, onClose, showPrice }: Aut
         <button
           type="button"
           onClick={onClose}
-          aria-label="close"
+          aria-label="Close sign-in"
           className="touch-manipulation"
           style={{
             position: 'absolute',
@@ -162,6 +175,7 @@ export default function AuthModal({ redirectAfterAuth, onClose, showPrice }: Aut
               type="email"
               required
               autoComplete="email"
+              aria-label="Email address"
               placeholder="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}

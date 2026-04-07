@@ -22,7 +22,7 @@ import { join } from 'path'
 const ROOT = join(__dirname, '..')
 
 // Directories to walk for source files
-const SCAN_DIRS = ['app', 'components', 'lib', 'middleware.ts']
+const SCAN_DIRS = ['app', 'components', 'lib', 'scripts', 'cli', 'src', 'middleware.ts']
 
 // Files that are ALLOWED to contain the literal references.
 // Everything else must use AUTH_ENTRY or authEntryFor from @/lib/routes.
@@ -36,10 +36,6 @@ const ALLOWLIST = new Set([
   'app/signup/page.tsx',
   'app/welcome/page.tsx',
   'app/claim/page.tsx',
-  // The password-set admin script — separate cleanup scope
-  'scripts/set-password.mjs',
-  // Intentional e2e regression coverage — references /login to test the redirect
-  'e2e/auth-loop.spec.ts',
 ])
 
 // Patterns that MUST NOT appear in non-allowlisted source files
