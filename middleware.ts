@@ -1,18 +1,34 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { AUTH_ENTRY } from '@/lib/routes'
 
 /**
  * Middleware: canonical host redirect + session gate.
  *
  * Rules:
  * 1. Redirect bare "footprint.onl" → "www.footprint.onl" (301)
- * 2. Public routes → pass through
- * 3. Auth-required routes → check fp_session cookie exists
+ * 2. Legacy auth entry points (/login, /signin, /auth/login) → hard 307
+ *    to AUTH_ENTRY. Handled here rather than in server components so the
+ *    redirect is a real HTTP response instead of an RSC-streaming template
+ *    that only fires after JS hydration. Crawlers, email clients, link
+ *    previewers, and curl all follow it correctly.
+ * 3. Public routes → pass through
+ * 4. Auth-required routes → check fp_session cookie exists
  *    - present  → allow through
- *    - missing  → redirect to /ae?claim=1 (the canonical auth entry)
+ *    - missing  → redirect to AUTH_ENTRY
  *
  * Middleware does NOT verify/decode the JWT. API routes handle that.
  */
+
+// Legacy auth entry points — any hit here is redirected at the edge to the
+// canonical AUTH_ENTRY with a proper HTTP 307. Single source of truth:
+// lib/routes.ts. Do not add new entries here without also deleting the
+// corresponding app/**/page.tsx redirect stub.
+const LEGACY_AUTH_ROUTES = new Set<string>([
+  '/login',
+  '/signin',
+  '/auth/login',
+])
 
 // Only multi-segment routes need explicit entries here. Single-segment
 // public routes (/login, /signup, /signin, /welcome, /claim, /build, etc.)
@@ -67,6 +83,20 @@ export function middleware(request: NextRequest) {
     const rewrite = request.nextUrl.clone()
     rewrite.pathname = '/ae'
     return withSecurityHeaders(NextResponse.rewrite(rewrite))
+  }
+
+  // ── 2a. Legacy auth entry points → hard 307 to AUTH_ENTRY ──
+  // Previously these were handled by server-component redirect() stubs in
+  // app/login/page.tsx, app/signin/page.tsx, app/auth/login/page.tsx.
+  // Those worked in real browsers but Next's RSC streaming pipeline emits
+  // a <template data-dgst="NEXT_REDIRECT;...307;"> that only fires after
+  // hydration — crawlers, curl, Slack unfurlers, and email previewers saw
+  // a 200 OK with a blank div and never navigated. That broke welcome-
+  // email link previews and deliverability for any mass-send. Moving the
+  // redirect to the edge gives every client a real HTTP 307.
+  if (LEGACY_AUTH_ROUTES.has(pathname)) {
+    const target = new URL(AUTH_ENTRY, request.url)
+    return withSecurityHeaders(NextResponse.redirect(target, 307))
   }
 
   // ── 3. Public routes ──
