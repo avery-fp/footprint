@@ -566,6 +566,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         isMobile={isMobile}
         activeRoomId={activeRoomId}
         onNavigateToTile={handleTileNavigate}
+        onNavigateToRoom={goToRoom}
       />
 
       {/* Draft banner */}

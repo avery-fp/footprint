@@ -18,6 +18,7 @@ interface CommandLayerProps {
   isMobile: boolean
   activeRoomId: string | null
   onNavigateToTile: (tileId: string, roomId: string) => void
+  onNavigateToRoom: (roomId: string | null) => void
 }
 
 interface SearchResult {
@@ -71,6 +72,7 @@ export default function CommandLayer({
   isMobile,
   activeRoomId,
   onNavigateToTile,
+  onNavigateToRoom,
 }: CommandLayerProps) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -128,6 +130,18 @@ export default function CommandLayer({
 
     return scored.slice(0, 20)
   }, [query, content, roomNameMap])
+
+  const quickRooms = useMemo(
+    () => [
+      { id: null as string | null, name: 'all', count: content.length },
+      ...rooms.map(room => ({
+        id: room.id,
+        name: room.name,
+        count: room.content.length,
+      })),
+    ],
+    [content.length, rooms]
+  )
 
   // Reset on close
   useEffect(() => {
@@ -212,7 +226,7 @@ export default function CommandLayer({
       {/* Trigger — nearly invisible ring on the left */}
       <button
         onClick={() => setOpen(true)}
-        className="fixed left-4 z-30 hidden md:flex items-center justify-center w-8 h-8 rounded-full transition-all duration-500 touch-manipulation group"
+        className="fixed left-4 z-30 hidden md:flex items-center gap-2 rounded-full transition-all duration-500 touch-manipulation group px-3 py-2"
         style={{ top: '45%' }}
         aria-label="Search"
       >
@@ -225,6 +239,12 @@ export default function CommandLayer({
         >
           <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1" />
         </svg>
+        <span className="text-[10px] text-white/[0.22] group-hover:text-white/50 font-mono tracking-[0.18em] uppercase transition-colors duration-500">
+          jump
+        </span>
+        <span className="text-[10px] text-white/[0.12] group-hover:text-white/25 font-mono transition-colors duration-500">
+          /
+        </span>
       </button>
 
       {/* Panel + backdrop */}
@@ -278,7 +298,7 @@ export default function CommandLayer({
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="ask"
+                  placeholder="find rooms, tiles, links"
                   className="w-full bg-white/[0.04] border border-white/10 focus:border-white/20 rounded-xl px-4 py-3.5 text-[14px] text-white/80 placeholder:text-white/20 font-mono outline-none transition-colors duration-200"
                   autoComplete="off"
                   autoCorrect="off"
@@ -373,9 +393,38 @@ export default function CommandLayer({
 
               {/* Hint — only when empty */}
               {!query.trim() && (
-                <div className="px-4 pb-4 pt-1">
-                  <div className="text-[11px] text-white/10 font-mono">
-                    search your space
+                <div className="px-3 pb-4 pt-1">
+                  <div className="px-1 pb-3">
+                    <div className="text-[10px] text-white/20 uppercase tracking-[0.18em] font-mono">
+                      jump
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    {quickRooms.map((room) => {
+                      const isActive = room.id === activeRoomId || (room.id === null && activeRoomId === null)
+                      return (
+                        <button
+                          key={room.id || 'all'}
+                          onClick={() => {
+                            onNavigateToRoom(room.id)
+                            setTimeout(() => setOpen(false), 120)
+                          }}
+                          className={`w-full flex items-center justify-between rounded-lg px-3 py-2 text-left transition-colors ${
+                            isActive ? 'bg-white/[0.08]' : 'bg-white/[0.03] hover:bg-white/[0.05]'
+                          }`}
+                        >
+                          <span className="text-[13px] text-white/72 font-mono truncate">
+                            {room.name}
+                          </span>
+                          <span className="text-[10px] text-white/22 font-mono">
+                            {room.count}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="px-1 pt-4 text-[11px] text-white/10 font-mono">
+                    press <span className="text-white/20">/</span> to search every tile
                   </div>
                 </div>
               )}

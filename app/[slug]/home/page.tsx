@@ -2155,13 +2155,6 @@ export default function EditPage() {
           </div>
           {isArranging ? (
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowStates(true)}
-                className="text-xs text-white/60 hover:text-white/90 transition font-mono px-3 rounded-full bg-white/[0.06] hover:bg-white/[0.12]"
-                style={{ minHeight: '36px' }}
-              >
-                states
-              </button>
               {activeRoomId && (
                 <>
                   <LayoutToggle
@@ -2194,13 +2187,6 @@ export default function EditPage() {
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowStates(true)}
-                className="text-xs text-white/60 hover:text-white/90 transition font-mono px-3 rounded-full bg-white/[0.06] hover:bg-white/[0.12]"
-                style={{ minHeight: '36px' }}
-              >
-                states
-              </button>
               {isPublished ? (
                 <>
                   {/* Published/draft toggle — only for published rooms */}
@@ -2317,10 +2303,19 @@ export default function EditPage() {
         </div>
         {/* URL bar — greyed when unpublished, full white when live */}
         <div className="px-4 pb-2">
-          <p className="font-mono text-[12px] tracking-[0.01em] transition-opacity duration-700 text-center">
-            <span className="text-white/20">footprint.onl/</span>
-            <span className={isPublished ? 'text-white/70' : 'text-white/[0.15]'}>{slug}</span>
-          </p>
+          <div className="relative flex items-center justify-center">
+            <p className="font-mono text-[12px] tracking-[0.01em] transition-opacity duration-700 text-center">
+              <span className="text-white/20">footprint.onl/</span>
+              <span className={isPublished ? 'text-white/70' : 'text-white/[0.15]'}>{slug}</span>
+            </p>
+            <button
+              onClick={() => setShowStates(true)}
+              className="absolute right-0 text-[11px] text-white/28 hover:text-white/55 transition font-mono"
+              style={{ minHeight: '28px', padding: '0 4px' }}
+            >
+              states
+            </button>
+          </div>
         </div>
         {/* Room pills */}
         <div className="flex items-center gap-3 px-4 pb-3 overflow-x-auto hide-scrollbar">
