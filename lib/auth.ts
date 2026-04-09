@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { SignJWT, jwtVerify } from 'jose'
+import { createServerSupabaseClient } from './supabase'
 import { AUTH_ENTRY } from './routes'
 import type { NextRequest } from 'next/server'
 
@@ -182,7 +183,22 @@ export async function getUserIdFromRequest(request: NextRequest): Promise<string
       return null
     }
 
-    return data.user?.id ?? null
+    const email = data.user?.email?.toLowerCase().trim()
+    if (!email) return null
+
+    const db = createServerSupabaseClient()
+    const { data: user, error: userError } = await db
+      .from('users')
+      .select('id')
+      .eq('email', email)
+      .single()
+
+    if (userError) {
+      console.error('[auth] Internal user lookup failed:', userError.message)
+      return null
+    }
+
+    return user?.id ?? null
   } catch (err) {
     console.error('[auth] Supabase session lookup failed:', err instanceof Error ? err.message : err)
     return null

@@ -2308,14 +2308,11 @@ export default function EditPage() {
               className="w-full bg-transparent border-0 px-2 text-center text-white placeholder:text-white/30 outline-none"
               style={{
                 fontSize: resolvedDisplayTitle.length > 18 ? '1.25rem' : resolvedDisplayTitle.length > 10 ? '1.6rem' : '2rem',
-                letterSpacing: resolvedDisplayTitle.length > 12 ? '0.02em' : '0.08em',
+                letterSpacing: resolvedDisplayTitle.length <= 3 ? '0.01em' : resolvedDisplayTitle.length > 12 ? '0.02em' : '0.08em',
                 fontWeight: 300,
                 lineHeight: 1.1,
               }}
             />
-            <p className="mt-1 text-center text-[10px] text-white/20 font-mono">
-              footprint.onl/{slug}
-            </p>
           </div>
         </div>
         {/* URL bar — greyed when unpublished, full white when live */}
