@@ -51,6 +51,7 @@ interface PublicPageProps {
   pageUrl: string
   isDraft?: boolean
   containerMeta?: Record<string, { childCount: number; firstThumb: string | null }>
+  ownerEmail?: string | null
 }
 
 // Room subtitles removed — the rooms speak for themselves
@@ -76,7 +77,7 @@ const ROOM_OVERLAYS = [
 ]
 const DEFAULT_OVERLAY = 'rgba(0,0,0,0.35)'
 
-export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl, isDraft, containerMeta = {} }: PublicPageProps) {
+export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl, isDraft, containerMeta = {}, ownerEmail = null }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
 
   // Default to first room
@@ -217,7 +218,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         if (!r.ok) { setAuthChecked(true); return }
         const data = await r.json()
         setIsLoggedIn(true)
-        if (data.user?.id === footprint.user_id) {
+        const viewerEmail = data.user?.email?.toLowerCase?.().trim?.() || null
+        const ownerEmailNormalized = ownerEmail?.toLowerCase?.().trim?.() || null
+        if (data.user?.id === footprint.user_id || (viewerEmail && ownerEmailNormalized && viewerEmail === ownerEmailNormalized)) {
           setIsOwner(true)
         }
       } catch {
@@ -226,7 +229,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         setAuthChecked(true)
       }
     })()
-  }, [footprint.user_id])
+  }, [footprint.user_id, ownerEmail])
 
   // Navigate to room
   const goToRoom = useCallback((roomId: string | null) => {
@@ -879,7 +882,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       )}
 
       {/* Floating CTA bar — viewers only, hidden for owner and during claim */}
-      {!isDraft && !claimActive && (
+      {!isDraft && !claimActive && authChecked && !isOwner && (
         <FloatingCtaBar isOwner={isOwner} onClaim={activateClaim} />
       )}
 

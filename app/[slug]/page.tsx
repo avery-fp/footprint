@@ -71,6 +71,12 @@ export default async function FootprintPage({ params }: Props) {
 
   if (!footprint) notFound()
 
+  const { data: owner } = await supabase
+    .from('users')
+    .select('email')
+    .eq('id', footprint.user_id)
+    .maybeSingle()
+
   // Fetch tiles + rooms in parallel (single round-trip, no waterfall)
   // Street level only: parent_tile_id IS NULL (children render inside containers)
   const [{ data: images }, { data: links }, { data: roomsData }, { data: childImages }, { data: childLinks }] = await Promise.all([
@@ -168,6 +174,7 @@ export default async function FootprintPage({ params }: Props) {
         serial={serial}
         pageUrl={pageUrl}
         containerMeta={containerMeta}
+        ownerEmail={owner?.email || null}
       />
     </>
   )
