@@ -10,7 +10,7 @@ import AuthModal from '@/components/auth/AuthModal'
  * ONE component, ONE init effect, ONE phase variable.
  * No race conditions. No parent state dependencies.
  *
- * Phase: init → auth → [OAuth] → username → [Stripe] → processing → ceremony → done
+ * Phase: init → username → [auth] → [Stripe] → processing → ceremony → done
  */
 
 interface SovereignTileProps {
@@ -34,6 +34,7 @@ type Phase = 'init' | 'auth' | 'username' | 'processing' | 'ceremony' | 'done'
 
 export default function SovereignTile({ slug, onDismiss, onComplete, sessionId: propSessionId, returnUsername: propReturnUsername }: SovereignTileProps) {
   const [phase, setPhase] = useState<Phase>('init')
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [username, setUsername] = useState('')
   const [available, setAvailable] = useState<boolean | null>(null)
   const [checking, setChecking] = useState(false)
@@ -59,23 +60,29 @@ export default function SovereignTile({ slug, onDismiss, onComplete, sessionId: 
       .then(data => setSeedPhase(data.seedPhase === true))
       .catch(() => setSeedPhase(false))
 
+    if (returnUsername) {
+      setUsername(returnUsername.toLowerCase().replace(/[^a-z0-9._-]/g, ''))
+    }
+
     // Check auth and decide phase
     fetch('/api/user', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         const authed = !!data?.user
+        setIsAuthenticated(authed)
 
         if (sessionId && returnUsername && authed) {
           // Stripe return — finalize immediately
           setPhase('processing')
           finalize(sessionId, returnUsername)
-        } else if (authed) {
-          setPhase('username')
         } else {
-          setPhase('auth')
+          setPhase('username')
         }
       })
-      .catch(() => setPhase('auth'))
+      .catch(() => {
+        setIsAuthenticated(false)
+        setPhase('username')
+      })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -125,11 +132,10 @@ export default function SovereignTile({ slug, onDismiss, onComplete, sessionId: 
     setChecking(true)
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch('/api/publish', {
+        const res = await fetch('/api/check-username', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ action: 'check-username', username }),
+          body: JSON.stringify({ username }),
         })
         if (!res.ok) {
           setAvailable(null)
@@ -154,13 +160,17 @@ export default function SovereignTile({ slug, onDismiss, onComplete, sessionId: 
   }, [phase])
 
   // Google OAuth and email magic-link are handled inside <AuthModal />.
-  // The redirectAfterAuth
-  // path is set as `/${slug}?claim=1` below so users land back on the claim
-  // flow with their session cookie set.
+  // Users type the name first, then authenticate only when they press submit.
+  // The redirectAfterAuth path carries the in-progress username so they land
+  // back in the same claim state with their session cookie set.
 
   // ── Submit username → seed (instant) or paid (Stripe) ──
   const handleSubmit = useCallback(async () => {
     if (!available || loading || !username) return
+    if (!isAuthenticated) {
+      setPhase('auth')
+      return
+    }
     setLoading(true)
     try {
       const res = await fetch('/api/publish', {
@@ -188,7 +198,7 @@ export default function SovereignTile({ slug, onDismiss, onComplete, sessionId: 
     } catch {
       setLoading(false)
     }
-  }, [available, loading, username, slug])
+  }, [available, loading, username, slug, isAuthenticated])
 
   // ── Ceremony phase — full screen ──
   if (phase === 'ceremony' && serial) {
@@ -210,13 +220,13 @@ export default function SovereignTile({ slug, onDismiss, onComplete, sessionId: 
       <div
         className="fixed inset-0 z-50 flex items-center justify-center"
         style={{ pointerEvents: 'auto' }}
-        onClick={onDismiss}
+        onClick={() => setPhase('username')}
       >
         <div onClick={(e) => e.stopPropagation()}>
           <AuthModal
-            redirectAfterAuth={`/${slug}?claim=1`}
+            redirectAfterAuth={`/${slug}?claim=1&username=${encodeURIComponent(username)}`}
             showPrice={seedPhase === false}
-            onClose={onDismiss}
+            onClose={() => setPhase('username')}
           />
         </div>
       </div>

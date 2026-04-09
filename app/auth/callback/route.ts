@@ -94,33 +94,6 @@ export async function GET(request: NextRequest) {
       return applyPendingCookies(response)
     }
 
-    const provisionalUsername = `pending-${authData.user.id.replace(/-/g, '').slice(0, 12)}`
-
-    const { data: existingPrimaryFootprint } = await supabase
-      .from('footprints')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('is_primary', true)
-      .maybeSingle()
-
-    if (!existingPrimaryFootprint) {
-      const { error: footprintError } = await supabase
-        .from('footprints')
-        .insert({
-          user_id: user.id,
-          username: provisionalUsername,
-          name: 'Everything',
-          ...(displayName && { display_name: displayName }),
-          ...(avatarUrl && { avatar_url: avatarUrl }),
-          is_primary: true,
-          published: false,
-        })
-
-      if (footprintError) {
-        console.error('[callback] failed to create placeholder footprint:', footprintError)
-      }
-    }
-
     // Issue session
     const sessionToken = await createSessionToken(user.id, user.email)
 

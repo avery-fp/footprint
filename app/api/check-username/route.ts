@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { RESERVED_SLUGS } from '@/lib/constants'
 
 /**
  * POST /api/check-username
  *
- * Public endpoint to check username availability during signup.
+ * Public endpoint to check username availability during claim.
  * No auth required.
  */
 export async function POST(request: NextRequest) {
@@ -16,21 +17,15 @@ export async function POST(request: NextRequest) {
 
     const clean = username.toLowerCase().trim()
 
-    if (clean.length < 2 || clean.length > 20) {
-      return NextResponse.json({ available: false, reason: '2-20 characters' })
+    if (clean.length < 2 || clean.length > 30) {
+      return NextResponse.json({ available: false, reason: '2-30 characters' })
     }
 
-    if (!/^[a-z0-9_]+$/.test(clean)) {
-      return NextResponse.json({ available: false, reason: 'lowercase letters, numbers, underscores only' })
+    if (!/^[a-z0-9][a-z0-9._-]*[a-z0-9]$/.test(clean) && clean.length > 1) {
+      return NextResponse.json({ available: false, reason: 'letters, numbers, dots, dashes only' })
     }
 
-    // Reserved slugs
-    const reserved = [
-      'admin', 'api', 'auth', 'build', 'checkout', 'signup', 'signin',
-      'publish', 'success', 'docs', 'welcome', 'settings', 'home',
-      'about', 'help', 'support', 'aro', 'example', 'deed', 'remix',
-    ]
-    if (reserved.includes(clean)) {
+    if ((RESERVED_SLUGS as readonly string[]).includes(clean)) {
       return NextResponse.json({ available: false, reason: 'reserved' })
     }
 
