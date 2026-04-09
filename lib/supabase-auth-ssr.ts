@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import type { NextRequest, NextResponse } from 'next/server'
+import type { CookieOptions } from '@supabase/ssr'
 
 type PendingCookie =
   | { type: 'set'; value: string; options?: Record<string, unknown> }
@@ -30,16 +31,16 @@ export function createRouteHandlerSupabaseAuthClient(request: NextRequest) {
     requireEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY'),
     {
       cookies: {
-        get(name) {
+        get(name: string) {
           const pending = pendingCookies.get(name)
           if (pending?.type === 'set') return pending.value
           if (pending?.type === 'remove') return undefined
           return request.cookies.get(name)?.value
         },
-        set(name, value, options) {
+        set(name: string, value: string, options: CookieOptions) {
           pendingCookies.set(name, { type: 'set', value, options })
         },
-        remove(name, options) {
+        remove(name: string, options: CookieOptions) {
           pendingCookies.set(name, { type: 'remove', options })
         },
       },
