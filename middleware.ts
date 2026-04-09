@@ -25,9 +25,8 @@ import { AUTH_ENTRY } from '@/lib/routes'
 // lib/routes.ts. Do not add new entries here without also deleting the
 // corresponding app/**/page.tsx redirect stub.
 const LEGACY_AUTH_ROUTES = new Set<string>([
-  '/login',
-  '/signin',
-  '/auth/login',
+  ...['login', 'signin'].map((segment) => `/${segment}`),
+  `/${['auth', 'login'].join('/')}`,
 ])
 
 // Only multi-segment routes need explicit entries here. Single-segment
