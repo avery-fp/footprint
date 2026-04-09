@@ -151,7 +151,6 @@ const CSV_HEADER = csvRow([
 
 async function searchPeople(params, page = 1) {
   const body = {
-    api_key: APOLLO_API_KEY,
     page,
     per_page: PER_PAGE,
     person_titles: params.titles,
@@ -168,7 +167,10 @@ async function searchPeople(params, page = 1) {
 
   const res = await fetch(`${APOLLO_BASE}/mixed_people/search`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Api-Key': APOLLO_API_KEY,
+    },
     body: JSON.stringify(body),
   })
 
