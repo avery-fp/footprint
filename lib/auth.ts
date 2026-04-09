@@ -168,11 +168,11 @@ export async function getUserIdFromRequest(request: NextRequest): Promise<string
   try {
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
       cookies: {
-        get(name) {
+        get(name: string) {
           return request.cookies.get(name)?.value
         },
-        set() {},
-        remove() {},
+        set(_name: string, _value: string, _options: Record<string, unknown>) {},
+        remove(_name: string, _options: Record<string, unknown>) {},
       },
     })
 
