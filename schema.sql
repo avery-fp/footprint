@@ -83,6 +83,7 @@ CREATE TABLE footprints (
     published BOOLEAN DEFAULT TRUE,
 
     -- Profile data
+    display_title VARCHAR(255),
     display_name VARCHAR(255),
     handle VARCHAR(100),
     bio TEXT,
@@ -136,6 +137,23 @@ CREATE TABLE rooms (
 );
 
 CREATE INDEX idx_rooms_serial ON rooms (serial_number);
+
+
+-- =====================================================
+-- FOOTPRINT STATES
+-- Saved editor snapshots per footprint
+-- =====================================================
+CREATE TABLE footprint_states (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    footprint_id UUID NOT NULL REFERENCES footprints(id) ON DELETE CASCADE,
+    name VARCHAR(120) NOT NULL,
+    snapshot JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_footprint_states_footprint ON footprint_states (footprint_id);
+CREATE INDEX idx_footprint_states_footprint_updated ON footprint_states (footprint_id, updated_at DESC);
 
 
 -- =====================================================
@@ -258,6 +276,7 @@ ALTER TABLE footprints ENABLE ROW LEVEL SECURITY;
 ALTER TABLE library ENABLE ROW LEVEL SECURITY;
 ALTER TABLE links ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rooms ENABLE ROW LEVEL SECURITY;
+ALTER TABLE footprint_states ENABLE ROW LEVEL SECURITY;
 
 -- Users can only see/edit their own data
 CREATE POLICY users_own_data ON users
@@ -301,6 +320,14 @@ CREATE POLICY rooms_public_read ON rooms
         serial_number IN (SELECT serial_number FROM footprints WHERE published = TRUE)
     );
 
+CREATE POLICY footprint_states_owner ON footprint_states
+    FOR ALL USING (
+        footprint_id IN (SELECT id FROM footprints WHERE user_id = auth.uid())
+    )
+    WITH CHECK (
+        footprint_id IN (SELECT id FROM footprints WHERE user_id = auth.uid())
+    );
+
 
 -- =====================================================
 -- HELPER FUNCTIONS
@@ -341,10 +368,23 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by VARCHAR(255);
 
 -- Add missing columns to footprints
 ALTER TABLE footprints ADD COLUMN IF NOT EXISTS serial_number INTEGER UNIQUE REFERENCES serials(number);
+ALTER TABLE footprints ADD COLUMN IF NOT EXISTS display_title TEXT;
 ALTER TABLE footprints ADD COLUMN IF NOT EXISTS background_url TEXT;
 ALTER TABLE footprints ADD COLUMN IF NOT EXISTS background_blur BOOLEAN DEFAULT TRUE;
 ALTER TABLE footprints ADD COLUMN IF NOT EXISTS weather_effect VARCHAR(50);
 ALTER TABLE footprints ADD COLUMN IF NOT EXISTS grid_mode VARCHAR(50) DEFAULT 'breathe';
+
+CREATE TABLE IF NOT EXISTS footprint_states (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    footprint_id UUID NOT NULL REFERENCES footprints(id) ON DELETE CASCADE,
+    name VARCHAR(120) NOT NULL,
+    snapshot JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_footprint_states_footprint ON footprint_states (footprint_id);
+CREATE INDEX IF NOT EXISTS idx_footprint_states_footprint_updated ON footprint_states (footprint_id, updated_at DESC);
 
 -- Rename slug → username if needed (skip if username already exists)
 DO $$ BEGIN
@@ -489,6 +529,14 @@ UPDATE footprints SET published_at = created_at WHERE published = TRUE AND publi
 
 -- Default published to FALSE for new footprints (free signup creates unpublished)
 ALTER TABLE footprints ALTER COLUMN published SET DEFAULT FALSE;
+ALTER TABLE footprint_states ENABLE ROW LEVEL SECURITY;
+
+DROP TRIGGER IF EXISTS footprint_states_updated_at ON footprint_states;
+
+CREATE TRIGGER footprint_states_updated_at
+    BEFORE UPDATE ON footprint_states
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at();
 
 
 -- =====================================================

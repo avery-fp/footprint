@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { getFootprintDisplayTitle } from '@/lib/footprint'
 
 /**
  * GET /api/share?slug=xxx
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
   // Find footprint by username
   const { data: footprint } = await supabase
     .from('footprints')
-    .select('id, username, user_id, display_name, serial_number')
+    .select('id, username, user_id, display_title, display_name, name, serial_number')
     .eq('username', slug)
     .eq('published', true)
     .single()
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
     card_url: cardUrl,
     referral_code: referralCode,
     referral_count: referralCount || 0,
-    display_name: footprint.display_name,
+    display_name: getFootprintDisplayTitle(footprint),
     slug: footprint.username || slug,
   })
 }

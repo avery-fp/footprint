@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { getFootprintDisplayTitle } from '@/lib/footprint'
 
 /**
  * GET /api/v1/footprint/[slug]
@@ -53,6 +54,7 @@ export async function GET(
         username,
         name,
         icon,
+        display_title,
         display_name,
         handle,
         bio,
@@ -112,7 +114,7 @@ export async function GET(
       url: `${baseUrl}/${footprint.username}`,
       
       profile: {
-        name: footprint.display_name,
+        name: getFootprintDisplayTitle(footprint),
         handle: footprint.handle,
         bio: footprint.bio,
         avatar_url: footprint.avatar_url,

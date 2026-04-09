@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { getFootprintDisplayTitle } from '@/lib/footprint'
 
 /**
  * GET /api/embed/badge?slug=xxx
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
   let fp = null
   const { data: bySlug } = await supabase
     .from('footprints')
-    .select('display_name, user_id')
+    .select('display_title, display_name, name, username, user_id')
     .eq('slug', slug)
     .single()
 
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
   } else {
     const { data: byUsername } = await supabase
       .from('footprints')
-      .select('display_name, user_id')
+      .select('display_title, display_name, name, username, user_id')
       .eq('username', slug)
       .single()
     if (byUsername) fp = byUsername
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest) {
     serial = user?.serial_number || 0
   }
 
-  const rawName = fp?.display_name || slug
+  const rawName = getFootprintDisplayTitle(fp) || slug
   // Escape user-controlled data to prevent XSS
   const name = rawName
     .replace(/&/g, '&amp;')

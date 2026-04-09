@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { getFootprintDisplayTitle } from '@/lib/footprint'
 
 /**
  * GET /api/embed?slug=xxx
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
   const { data: footprint, error } = await supabase
     .from('footprints')
     .select(`
-      username, display_name, handle, bio, avatar_url, dimension,
+      username, display_title, display_name, name, handle, bio, avatar_url, dimension,
       serial_number
     `)
     .eq('username', slug)
@@ -63,7 +64,7 @@ export async function GET(request: NextRequest) {
     style,
     theme: theme === 'auto' ? (footprint.dimension || 'midnight') : theme,
     data: {
-      displayName: footprint.display_name || 'Untitled',
+      displayName: getFootprintDisplayTitle(footprint) || 'Untitled',
       handle: footprint.handle || '',
       bio: footprint.bio || '',
       avatarUrl: footprint.avatar_url,

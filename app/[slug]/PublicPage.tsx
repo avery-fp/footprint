@@ -10,6 +10,7 @@ import { RolodexDrawer } from '@/components/RolodexDrawer'
 import FloatingCtaBar from '@/components/FloatingCtaBar'
 import { getGridLayout } from '@/lib/grid-layouts'
 import { getGridClass, resolveAspect, isVideoTile } from '@/lib/media/aspect'
+import { getFootprintDisplayTitle } from '@/lib/footprint'
 import {
   DndContext,
   closestCenter,
@@ -195,6 +196,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [localContent, setLocalContent] = useState<any[]>([])
   useEffect(() => { setLocalContent(content) }, [content])
 
+  const displayTitle = useMemo(
+    () => getFootprintDisplayTitle(footprint) || '\u00e6',
+    [footprint]
+  )
+
   function handleDragStart(event: DragStartEvent) {
     setDraggingTileId(String(event.active.id))
   }
@@ -377,9 +383,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           <header className="pb-4 md:pb-5 flex flex-col items-center px-4">
             <h1
               className={`${
-                (footprint.display_name || '\u00e6').length <= 6
+                displayTitle.length <= 6
                   ? 'text-4xl md:text-6xl tracking-[0.22em] font-normal'
-                  : (footprint.display_name || '\u00e6').length <= 12
+                  : displayTitle.length <= 12
                   ? 'text-3xl md:text-5xl tracking-[0.14em] font-normal'
                   : 'text-2xl md:text-4xl tracking-[0.06em] font-light'
               }`}
@@ -389,7 +395,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 textShadow: footprint.background_url ? '0 2px 20px rgba(0,0,0,0.9)' : 'none',
               }}
             >
-              {footprint.display_name || '\u00e6'}
+              {displayTitle}
             </h1>
           </header>
         </RemoveBubble>

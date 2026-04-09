@@ -216,6 +216,7 @@ export default function BuildPage() {
     if (!authChecked || isAuth) return
     const draft: DraftFootprint = {
       slug: SANDBOX_SLUG,
+      display_title: '',
       display_name: '',
       handle: '',
       bio: '',

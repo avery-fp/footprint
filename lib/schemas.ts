@@ -154,3 +154,32 @@ export const tilesPatchSchema = z.object({
   title: z.string().optional(),
   room_id: z.string().nullable().optional(),
 })
+
+export const footprintStateSnapshotSchema = z.record(z.string(), z.unknown())
+
+export const footprintStatesPostSchema = z.object({
+  name: z.string().trim().min(1, 'name and snapshot required').max(120, 'Keep state names under 120 characters.'),
+  snapshot: footprintStateSnapshotSchema,
+})
+
+export const footprintStatesPutSchema = z.discriminatedUnion('action', [
+  z.object({
+    action: z.literal('load'),
+    state_id: z.string().min(1, 'state_id required'),
+  }),
+  z.object({
+    action: z.literal('replace'),
+    state_id: z.string().min(1, 'state_id required'),
+    name: z.string().trim().min(1, 'name and snapshot required').max(120, 'Keep state names under 120 characters.'),
+    snapshot: footprintStateSnapshotSchema,
+  }),
+])
+
+export const footprintStatesPatchSchema = z.object({
+  state_id: z.string().min(1, 'state_id required'),
+  name: z.string().trim().min(1, 'name required').max(120, 'Keep state names under 120 characters.'),
+})
+
+export const footprintStatesDeleteSchema = z.object({
+  state_id: z.string().min(1, 'state_id required'),
+})

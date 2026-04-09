@@ -1,6 +1,7 @@
 import { ImageResponse } from '@vercel/og'
 import { NextRequest } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { getFootprintDisplayTitle } from '@/lib/footprint'
 
 export const runtime = 'edge'
 
@@ -59,6 +60,7 @@ export async function GET(request: NextRequest) {
 
     const serial = footprint.users?.serial_number || footprint.serial_number || 0
     const wallpaper = footprint.background_url || ''
+    const displayTitle = getFootprintDisplayTitle(footprint) || slug
 
     // Fetch first 6 tile images
     const { data: images } = await supabase
@@ -222,7 +224,7 @@ export async function GET(request: NextRequest) {
             >
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <div style={{ fontSize: 28, fontWeight: 400, letterSpacing: '-0.02em' }}>
-                  {footprint.display_name || footprint.name || slug}
+                  {displayTitle}
                 </div>
                 <div style={{ fontSize: 15, opacity: 0.3 }}>
                   footprint.onl/{slug}
