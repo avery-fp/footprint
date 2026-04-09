@@ -25,6 +25,7 @@ export interface DraftContent {
 
 export interface DraftFootprint {
   slug: string
+  display_title?: string
   display_name: string
   handle: string
   bio: string

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { requireAdminOrMachine } from '@/src/aro/lib/auth'
 import { ImageResponse } from '@vercel/og'
+import { getFootprintDisplayTitle } from '@/lib/footprint'
 
 /**
  * POST /api/aro/screenshot
@@ -199,7 +200,7 @@ function renderRoom({
   width: number
   height: number
 }) {
-  const displayName = footprint.display_name || footprint.username
+  const displayName = getFootprintDisplayTitle(footprint) || footprint.username
   const serial = String(footprint.serial_number).padStart(4, '0')
   const roomName = room?.name || 'everything'
 

@@ -19,6 +19,7 @@ import { humanUsernameReason } from '@/lib/errors'
 import LayoutToggle from '@/components/LayoutToggle'
 import { type RoomLayout, getGridLayout } from '@/lib/grid-layouts'
 import { getLayoutConfig } from '@/lib/layout-engine'
+import { getFootprintDisplayTitle, normalizeFootprintStateSnapshot, type FootprintStateSnapshot } from '@/lib/footprint'
 import {
   resolveAspect as resolveAspectShared,
   isVideoTile as isVideoTileShared,
@@ -39,6 +40,13 @@ import {
 
 interface TileContent extends DraftContent {
   source?: 'library' | 'links'
+}
+
+interface FootprintStateSummary {
+  id: string
+  name: string
+  created_at: string
+  updated_at: string
 }
 
 // ═══════════════════════════════════════════
@@ -438,6 +446,13 @@ export default function EditPage() {
   // Gift state
   const [showGiftModal, setShowGiftModal] = useState(false)
   const [giftsRemaining, setGiftsRemaining] = useState(0)
+  const [showStates, setShowStates] = useState(false)
+  const [savedStates, setSavedStates] = useState<FootprintStateSummary[]>([])
+  const [statesLoading, setStatesLoading] = useState(false)
+  const [stateActionId, setStateActionId] = useState<string | null>(null)
+  const [newStateName, setNewStateName] = useState('')
+  const [renamingStateId, setRenamingStateId] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState('')
 
   // Finalize after Stripe payment redirect
   const finalizeCalledRef = useRef(false)
@@ -649,6 +664,7 @@ export default function EditPage() {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            display_title: draft.display_title || '',
             display_name: draft.display_name,
             handle: draft.handle,
             bio: draft.bio,
@@ -710,6 +726,7 @@ export default function EditPage() {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            display_title: draft.display_title || '',
             display_name: draft.display_name,
             handle: draft.handle,
             bio: draft.bio,
@@ -857,6 +874,7 @@ export default function EditPage() {
 
           setDraft({
             slug,
+            display_title: data.footprint.display_title || '',
             display_name: data.footprint.display_name || '',
             handle: data.footprint.handle || '',
             bio: data.footprint.bio || '',
@@ -883,6 +901,7 @@ export default function EditPage() {
           setIsOwner(true)
           setDraft({
             slug,
+            display_title: '',
             display_name: '',
             handle: '',
             bio: '',
@@ -916,6 +935,7 @@ export default function EditPage() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          display_title: d.display_title || '',
           display_name: d.display_name,
           handle: d.handle,
           bio: d.bio,
@@ -927,6 +947,19 @@ export default function EditPage() {
     }
   }, [isOwner, slug])
 
+  const flushEditorChanges = useCallback(async (nextDraft?: DraftFootprint | null) => {
+    const draftToSave = nextDraft ?? draft
+    if (saveTimeoutRef.current && draftToSave && isOwner) {
+      clearTimeout(saveTimeoutRef.current)
+      saveTimeoutRef.current = null
+      await saveData(draftToSave)
+    }
+
+    if (pendingOpsRef.current.size > 0) {
+      await Promise.allSettled(Array.from(pendingOpsRef.current))
+    }
+  }, [draft, isOwner, saveData])
+
   useEffect(() => {
     if (draft && !isLoading) {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
@@ -936,6 +969,303 @@ export default function EditPage() {
       }
     }
   }, [draft, isLoading, saveData])
+
+  const buildStateSnapshot = useCallback((): FootprintStateSnapshot | null => {
+    if (!draft) return null
+
+    return normalizeFootprintStateSnapshot({
+      active_room_id: activeRoomId,
+      footprint: {
+        display_title: draft.display_title || null,
+        display_name: draft.display_name || null,
+        handle: draft.handle || null,
+        bio: draft.bio || null,
+        theme: draft.theme || 'midnight',
+        grid_mode: draft.grid_mode || 'grid',
+        avatar_url: draft.avatar_url || null,
+        background_url: wallpaperUrl || null,
+        background_blur: backgroundBlur,
+      },
+      rooms: rooms.map((room, index) => ({
+        id: room.id,
+        name: room.name,
+        position: typeof room.position === 'number' ? room.position : index,
+        hidden: room.hidden ?? false,
+        layout: room.layout === 'editorial' ? 'editorial' : 'grid',
+      })),
+      content: draft.content.map((tile, index) => ({
+        id: tile.id,
+        source: tileSources[tile.id] || (tile.type === 'image' || tile.type === 'video' ? 'library' : 'links'),
+        url: tile.url,
+        type: tile.type,
+        title: tile.title ?? null,
+        description: tile.description ?? null,
+        thumbnail_url: tile.thumbnail_url ?? null,
+        embed_html: tile.embed_html ?? null,
+        position: typeof tile.position === 'number' ? tile.position : index,
+        room_id: tile.room_id || null,
+        size: tile.size || 1,
+        aspect: tile.aspect || null,
+        caption: (tile as any).caption || null,
+        render_mode: (tile as any).render_mode || null,
+        artist: (tile as any).artist || null,
+        thumbnail_url_hq: (tile as any).thumbnail_url_hq || null,
+        media_id: (tile as any).media_id || null,
+      })),
+    })
+  }, [activeRoomId, backgroundBlur, draft, rooms, tileSources, wallpaperUrl])
+
+  const hasPendingUploads = draft?.content.some(tile => tile.id.startsWith('temp-')) ?? false
+
+  const applySnapshotToEditor = useCallback((input: unknown) => {
+    const snapshot = normalizeFootprintStateSnapshot(input)
+    const nextRooms = snapshot.rooms
+      .map(room => ({
+        id: room.id || crypto.randomUUID(),
+        name: room.name,
+        position: room.position,
+        hidden: room.hidden ?? false,
+        layout: room.layout === 'editorial' ? 'editorial' : 'grid',
+      }))
+      .sort((a, b) => a.position - b.position)
+
+    const nextTileSources: Record<string, 'library' | 'links'> = {}
+    const nextContent = snapshot.content
+      .map((tile, index) => {
+        const id = tile.id || crypto.randomUUID()
+        nextTileSources[id] = tile.source
+
+        return {
+          id,
+          url: tile.url,
+          type: tile.type,
+          title: tile.title,
+          description: tile.description,
+          thumbnail_url: tile.thumbnail_url,
+          embed_html: tile.embed_html,
+          position: typeof tile.position === 'number' ? tile.position : index,
+          room_id: tile.room_id || null,
+          size: tile.size || 1,
+          aspect: tile.aspect || null,
+          caption: tile.caption || null,
+          render_mode: tile.render_mode || 'embed',
+          artist: tile.artist || null,
+          thumbnail_url_hq: tile.thumbnail_url_hq || null,
+          media_id: tile.media_id || null,
+        }
+      })
+      .sort((a, b) => a.position - b.position)
+
+    setTileSources(nextTileSources)
+    setRooms(nextRooms)
+    setActiveRoomId(
+      snapshot.active_room_id && nextRooms.some(room => room.id === snapshot.active_room_id)
+        ? snapshot.active_room_id
+        : nextRooms[0]?.id || null
+    )
+    setWallpaperUrl(snapshot.footprint.background_url || '')
+    setBackgroundBlur(snapshot.footprint.background_blur ?? true)
+    setDraft({
+      slug,
+      display_title: snapshot.footprint.display_title || '',
+      display_name: snapshot.footprint.display_name || '',
+      handle: snapshot.footprint.handle || '',
+      bio: snapshot.footprint.bio || '',
+      theme: snapshot.footprint.theme || 'midnight',
+      grid_mode: (snapshot.footprint.grid_mode || 'grid') as 'grid',
+      avatar_url: snapshot.footprint.avatar_url || null,
+      content: nextContent,
+      updated_at: Date.now(),
+    })
+    setSwapSourceId(null)
+    setEditingThought(null)
+    setRenamingStateId(null)
+    setRenameValue('')
+    setShowStates(false)
+    setMode({ type: 'viewing' })
+  }, [slug])
+
+  const fetchStates = useCallback(async () => {
+    setStatesLoading(true)
+    try {
+      const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}/states`, {
+        cache: 'no-store',
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch states')
+      setSavedStates(data.states || [])
+    } catch (error) {
+      console.error('Failed to fetch states:', error)
+      setStatusToast('failed to load states')
+      setTimeout(() => setStatusToast(null), 1800)
+    } finally {
+      setStatesLoading(false)
+    }
+  }, [slug])
+
+  useEffect(() => {
+    if (!showStates) return
+    fetchStates()
+  }, [fetchStates, showStates])
+
+  async function handleCreateState() {
+    const snapshot = buildStateSnapshot()
+    if (!snapshot) return
+    if (savedStates.length >= 5) {
+      setStatusToast('replace a state to save another')
+      setTimeout(() => setStatusToast(null), 1800)
+      return
+    }
+    if (hasPendingUploads) {
+      setStatusToast('wait for uploads to finish')
+      setTimeout(() => setStatusToast(null), 1800)
+      return
+    }
+
+    setStateActionId('new')
+    try {
+      await flushEditorChanges(draft)
+      const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}/states`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newStateName.trim() || `State ${savedStates.length + 1}`,
+          snapshot,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to save state')
+      setNewStateName('')
+      await fetchStates()
+      setStatusToast('state saved')
+      setTimeout(() => setStatusToast(null), 1600)
+    } catch (error) {
+      console.error('Failed to save state:', error)
+      setStatusToast(error instanceof Error ? error.message : 'failed to save state')
+      setTimeout(() => setStatusToast(null), 2200)
+    } finally {
+      setStateActionId(null)
+    }
+  }
+
+  async function handleLoadState(stateId: string) {
+    if (!confirm('Load this state into your current draft?')) return
+    if (hasPendingUploads) {
+      setStatusToast('wait for uploads to finish')
+      setTimeout(() => setStatusToast(null), 1800)
+      return
+    }
+
+    setStateActionId(stateId)
+    try {
+      await flushEditorChanges(draft)
+      const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}/states`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'load', state_id: stateId }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to load state')
+      applySnapshotToEditor(data.snapshot)
+      setStatusToast('state loaded')
+      setTimeout(() => setStatusToast(null), 1600)
+    } catch (error) {
+      console.error('Failed to load state:', error)
+      setStatusToast(error instanceof Error ? error.message : 'failed to load state')
+      setTimeout(() => setStatusToast(null), 2200)
+    } finally {
+      setStateActionId(null)
+    }
+  }
+
+  async function handleReplaceState(state: FootprintStateSummary) {
+    const snapshot = buildStateSnapshot()
+    if (!snapshot) return
+    if (!confirm(`Replace "${state.name}" with your current draft?`)) return
+    if (hasPendingUploads) {
+      setStatusToast('wait for uploads to finish')
+      setTimeout(() => setStatusToast(null), 1800)
+      return
+    }
+
+    setStateActionId(state.id)
+    try {
+      await flushEditorChanges(draft)
+      const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}/states`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'replace',
+          state_id: state.id,
+          name: state.name,
+          snapshot,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to replace state')
+      setSavedStates(prev => prev.map(item => item.id === state.id ? data.state : item))
+      setStatusToast('state replaced')
+      setTimeout(() => setStatusToast(null), 1600)
+    } catch (error) {
+      console.error('Failed to replace state:', error)
+      setStatusToast(error instanceof Error ? error.message : 'failed to replace state')
+      setTimeout(() => setStatusToast(null), 2200)
+    } finally {
+      setStateActionId(null)
+    }
+  }
+
+  async function handleRenameState(stateId: string) {
+    if (!renameValue.trim()) return
+    setStateActionId(stateId)
+    try {
+      const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}/states`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          state_id: stateId,
+          name: renameValue.trim(),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to rename state')
+      setSavedStates(prev => prev.map(item => item.id === stateId ? data.state : item))
+      setRenamingStateId(null)
+      setRenameValue('')
+    } catch (error) {
+      console.error('Failed to rename state:', error)
+      setStatusToast(error instanceof Error ? error.message : 'failed to rename state')
+      setTimeout(() => setStatusToast(null), 2200)
+    } finally {
+      setStateActionId(null)
+    }
+  }
+
+  async function handleDeleteState(stateId: string) {
+    if (!confirm('Delete this saved state?')) return
+
+    setStateActionId(stateId)
+    try {
+      const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}/states`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ state_id: stateId }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to delete state')
+      setSavedStates(prev => prev.filter(item => item.id !== stateId))
+      if (renamingStateId === stateId) {
+        setRenamingStateId(null)
+        setRenameValue('')
+      }
+    } catch (error) {
+      console.error('Failed to delete state:', error)
+      setStatusToast(error instanceof Error ? error.message : 'failed to delete state')
+      setTimeout(() => setStatusToast(null), 2200)
+    } finally {
+      setStateActionId(null)
+    }
+  }
 
   // Toggle published/draft
   const togglePublished = useCallback(() => {
@@ -1706,6 +2036,17 @@ export default function EditPage() {
   const selectedTile = selectedTileId ? draft?.content.find(c => c.id === selectedTileId) : null
   const selectedIsImage = selectedTile?.type === 'image' && !selectedTile?.url?.match(/\.(mp4|mov|webm|m4v|3gp|3gpp|mkv)($|\?)/i)
   const selectedHasThumbnail = selectedTile?.thumbnail_url
+  const titlePlaceholder = getFootprintDisplayTitle({
+    display_name: draft?.display_name,
+    username: slug,
+    slug,
+  }) || slug
+  const resolvedDisplayTitle = getFootprintDisplayTitle({
+    display_title: draft?.display_title,
+    display_name: draft?.display_name,
+    username: slug,
+    slug,
+  }) || slug
 
   // ── Render ──
 
@@ -1808,6 +2149,13 @@ export default function EditPage() {
           </div>
           {isArranging ? (
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowStates(true)}
+                className="text-xs text-white/60 hover:text-white/90 transition font-mono px-3 rounded-full bg-white/[0.06] hover:bg-white/[0.12]"
+                style={{ minHeight: '36px' }}
+              >
+                states
+              </button>
               {activeRoomId && (
                 <>
                   <LayoutToggle
@@ -1840,6 +2188,13 @@ export default function EditPage() {
             </div>
           ) : (
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowStates(true)}
+                className="text-xs text-white/60 hover:text-white/90 transition font-mono px-3 rounded-full bg-white/[0.06] hover:bg-white/[0.12]"
+                style={{ minHeight: '36px' }}
+              >
+                states
+              </button>
               {isPublished ? (
                 <>
                   {/* Published/draft toggle — only for published rooms */}
@@ -1920,9 +2275,46 @@ export default function EditPage() {
             </div>
           )}
         </div>
+        <div className="px-4 pb-3">
+          <div className="mx-auto max-w-2xl">
+            <input
+              type="text"
+              value={draft.display_title || ''}
+              onChange={(e) => {
+                const nextValue = e.target.value
+                setDraft(prev => prev ? {
+                  ...prev,
+                  display_title: nextValue,
+                  updated_at: Date.now(),
+                } : null)
+              }}
+              onBlur={(e) => {
+                const trimmedValue = e.target.value.trim()
+                if (trimmedValue === (draft.display_title || '')) return
+                setDraft(prev => prev ? {
+                  ...prev,
+                  display_title: trimmedValue,
+                  updated_at: Date.now(),
+                } : null)
+              }}
+              placeholder={titlePlaceholder}
+              maxLength={120}
+              className="w-full bg-transparent border-0 px-2 text-center text-white placeholder:text-white/30 outline-none"
+              style={{
+                fontSize: resolvedDisplayTitle.length > 18 ? '1.25rem' : resolvedDisplayTitle.length > 10 ? '1.6rem' : '2rem',
+                letterSpacing: resolvedDisplayTitle.length > 12 ? '0.02em' : '0.08em',
+                fontWeight: 300,
+                lineHeight: 1.1,
+              }}
+            />
+            <p className="mt-1 text-center text-[10px] text-white/20 font-mono">
+              footprint.onl/{slug}
+            </p>
+          </div>
+        </div>
         {/* URL bar — greyed when unpublished, full white when live */}
         <div className="px-4 pb-2">
-          <p className="font-mono text-[12px] tracking-[0.01em] transition-opacity duration-700">
+          <p className="font-mono text-[12px] tracking-[0.01em] transition-opacity duration-700 text-center">
             <span className="text-white/20">footprint.onl/</span>
             <span className={isPublished ? 'text-white/70' : 'text-white/[0.15]'}>{slug}</span>
           </p>
@@ -1967,7 +2359,7 @@ export default function EditPage() {
 
 
       {/* ═══ TILE GRID ═══ */}
-      <div className="max-w-7xl mx-auto px-3 md:px-6 pt-28 md:pt-24 pb-32 relative z-10"
+      <div className="max-w-7xl mx-auto px-3 md:px-6 pt-40 md:pt-36 pb-32 relative z-10"
         onClick={(e) => {
           // Tap background to deselect swap
           if (swapSourceId && (e.target as HTMLElement).closest('[data-tile]') === null) {
@@ -2102,6 +2494,161 @@ export default function EditPage() {
         className="hidden"
         onChange={handleBgFileUpload}
       />
+
+      {showStates && (
+        <>
+          <div
+            className="fixed inset-0 z-[75] bg-black/55 backdrop-blur-sm"
+            onClick={() => {
+              if (stateActionId) return
+              setShowStates(false)
+              setRenamingStateId(null)
+              setRenameValue('')
+            }}
+          />
+          <div className="fixed inset-x-4 top-1/2 z-[80] mx-auto w-full max-w-xl -translate-y-1/2 rounded-2xl border border-white/10 bg-[#111214] p-4 shadow-2xl">
+            <div className="flex items-center justify-between gap-4 pb-3">
+              <div>
+                <h2 className="text-sm text-white/85 font-mono">states</h2>
+                <p className="mt-1 text-[11px] text-white/35 font-mono">
+                  save and reload up to five full editor snapshots
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowStates(false)
+                  setRenamingStateId(null)
+                  setRenameValue('')
+                }}
+                className="text-white/35 hover:text-white/60 transition"
+                disabled={Boolean(stateActionId)}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-3">
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <input
+                  type="text"
+                  value={newStateName}
+                  onChange={(e) => setNewStateName(e.target.value)}
+                  placeholder={`State ${savedStates.length + 1}`}
+                  maxLength={120}
+                  className="flex-1 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-white/25 outline-none"
+                />
+                <button
+                  onClick={handleCreateState}
+                  disabled={stateActionId === 'new' || savedStates.length >= 5}
+                  className="rounded-lg bg-white/[0.12] px-4 py-2 text-xs text-white/80 font-mono transition hover:bg-white/[0.18] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {stateActionId === 'new' ? 'saving...' : savedStates.length >= 5 ? 'replace below' : 'save current'}
+                </button>
+              </div>
+              <p className="mt-2 text-[10px] text-white/25 font-mono">
+                {savedStates.length >= 5
+                  ? '5/5 saved. replace one below to save this draft.'
+                  : `${savedStates.length}/5 saved.`}
+              </p>
+            </div>
+
+            <div className="mt-3 max-h-[52vh] overflow-y-auto pr-1">
+              {statesLoading ? (
+                <div className="py-8 text-center text-xs text-white/35 font-mono">loading...</div>
+              ) : savedStates.length === 0 ? (
+                <div className="py-8 text-center text-xs text-white/30 font-mono">no saved states yet.</div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {savedStates.map((state) => {
+                    const isBusy = stateActionId === state.id
+                    const isRenaming = renamingStateId === state.id
+
+                    return (
+                      <div
+                        key={state.id}
+                        className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-3"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            {isRenaming ? (
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={renameValue}
+                                  onChange={(e) => setRenameValue(e.target.value)}
+                                  maxLength={120}
+                                  className="flex-1 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none"
+                                />
+                                <button
+                                  onClick={() => handleRenameState(state.id)}
+                                  className="rounded-lg bg-white/[0.12] px-3 py-2 text-[11px] text-white/80 font-mono"
+                                  disabled={isBusy}
+                                >
+                                  save
+                                </button>
+                              </div>
+                            ) : (
+                              <p className="truncate text-sm text-white/85">{state.name}</p>
+                            )}
+                            <p className="mt-1 text-[10px] text-white/25 font-mono">
+                              {new Date(state.created_at).toLocaleString()}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap justify-end gap-2">
+                            {!isRenaming && (
+                              <>
+                                <button
+                                  onClick={() => handleLoadState(state.id)}
+                                  className="rounded-md bg-white/[0.10] px-2.5 py-1.5 text-[11px] text-white/75 font-mono transition hover:bg-white/[0.16]"
+                                  disabled={isBusy}
+                                >
+                                  {isBusy ? '...' : 'load'}
+                                </button>
+                                <button
+                                  onClick={() => handleReplaceState(state)}
+                                  className="rounded-md bg-white/[0.06] px-2.5 py-1.5 text-[11px] text-white/55 font-mono transition hover:bg-white/[0.12] hover:text-white/75"
+                                  disabled={isBusy}
+                                >
+                                  replace
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setRenamingStateId(state.id)
+                                    setRenameValue(state.name)
+                                  }}
+                                  className="rounded-md bg-white/[0.06] px-2.5 py-1.5 text-[11px] text-white/55 font-mono transition hover:bg-white/[0.12] hover:text-white/75"
+                                  disabled={isBusy}
+                                >
+                                  rename
+                                </button>
+                              </>
+                            )}
+                            <button
+                              onClick={() => {
+                                if (isRenaming) {
+                                  setRenamingStateId(null)
+                                  setRenameValue('')
+                                  return
+                                }
+                                handleDeleteState(state.id)
+                              }}
+                              className="rounded-md bg-white/[0.06] px-2.5 py-1.5 text-[11px] font-mono transition hover:bg-red-500/[0.14]"
+                              style={{ color: isRenaming ? 'rgba(255,255,255,0.55)' : 'rgba(248,113,113,0.8)' }}
+                              disabled={isBusy}
+                            >
+                              {isRenaming ? 'cancel' : 'delete'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* ═══ TILE ACTION SHEET ═══ */}
       {mode.type === 'tile_menu' && selectedTile && (
@@ -2715,4 +3262,3 @@ export default function EditPage() {
     </ErrorBoundary>
   )
 }
-

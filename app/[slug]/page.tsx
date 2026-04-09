@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { Metadata } from 'next'
 import { getTheme } from '@/lib/themes'
 import { transformImageUrl } from '@/lib/image'
+import { getFootprintDisplayTitle } from '@/lib/footprint'
 import AnalyticsTracker from '@/components/AnalyticsTracker'
 import ShareEngine from '@/components/ShareEngine'
 import EventTracker from '@/components/EventTracker'
@@ -25,7 +26,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const supabase = createServerSupabaseClient()
   const { data: footprint } = await supabase
     .from('footprints')
-    .select('display_name, bio, dimension, serial_number')
+    .select('display_title, display_name, name, username, bio, dimension, serial_number')
     .eq('username', params.slug)
     .eq('published', true)
     .single()
@@ -33,8 +34,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!footprint) return { title: 'Footprint' }
 
   const serial = footprint.serial_number || 0
-  const title = footprint.display_name
-    ? `${footprint.display_name} · Footprint #${serial}`
+  const displayTitle = getFootprintDisplayTitle(footprint)
+  const title = displayTitle
+    ? `${displayTitle} · Footprint #${serial}`
     : `Footprint #${serial}`
 
   return {

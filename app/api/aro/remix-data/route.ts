@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getTheme } from '@/lib/themes'
+import { getFootprintDisplayTitle } from '@/lib/footprint'
 
 /**
  * GET /api/aro/remix-data?slug=ae&room=nba-allstar
@@ -86,7 +87,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       footprint: {
         slug: footprint.username,
-        display_name: footprint.display_name,
+        display_name: getFootprintDisplayTitle(footprint),
         bio: footprint.bio,
         serial_number: serialNumber,
         theme_id: footprint.dimension || 'midnight',

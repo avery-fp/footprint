@@ -1,6 +1,7 @@
 import { ImageResponse } from '@vercel/og'
 import { NextRequest } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { getFootprintDisplayTitle } from '@/lib/footprint'
 
 export const runtime = 'edge'
 
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
     .single()).data
 
   const serial = fp?.users?.serial_number || fp?.serial_number || 0
-  const name = fp?.display_name || fp?.name || slug
+  const name = getFootprintDisplayTitle(fp) || slug
   const bioText = fp?.bio || ''
   const wallpaper = fp?.background_url || ''
   const refCode = `FP-${serial}`
