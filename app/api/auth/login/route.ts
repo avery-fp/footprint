@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { createSessionToken, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from '@/lib/auth'
+import { createSessionToken, SESSION_COOKIE_NAME, getSessionCookieOptions } from '@/lib/auth'
 import * as bcrypt from 'bcryptjs'
 import { loginSchema } from '@/lib/schemas'
 import { validateBody } from '@/lib/validate'
@@ -105,9 +105,8 @@ export async function POST(request: NextRequest) {
     }
 
     if (!user.password_hash) {
-      // Legacy user without hash — set it now (migration)
-      const hash = await bcrypt.hash(password, 10)
-      await supabase.from('users').update({ password_hash: hash }).eq('id', user.id)
+      // Never let an unauthenticated request claim a password-less account.
+      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
     } else {
       const valid = await bcrypt.compare(password, user.password_hash)
       if (!valid) {
@@ -134,7 +133,11 @@ export async function POST(request: NextRequest) {
       slug: primaryFp?.username || null,
     })
 
-    response.cookies.set(SESSION_COOKIE_NAME, sessionToken, SESSION_COOKIE_OPTIONS)
+    response.cookies.set(
+      SESSION_COOKIE_NAME,
+      sessionToken,
+      getSessionCookieOptions(new URL(request.url).hostname)
+    )
 
     return response
   } catch (err: any) {

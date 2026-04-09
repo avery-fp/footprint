@@ -14,7 +14,7 @@ export default function FloatingCtaBar({ isOwner = false }: { isOwner?: boolean 
 
   return (
     <a
-      href="/login"
+      href="/build"
       className="touch-manipulation"
       style={{
         position: 'fixed',
@@ -32,9 +32,10 @@ export default function FloatingCtaBar({ isOwner = false }: { isOwner?: boolean 
         borderRadius: '9999px',
         border: '1px solid rgba(255, 255, 255, 0.12)',
         color: 'rgba(255, 255, 255, 0.75)',
-        fontSize: '13px',
+        fontSize: '12px',
         fontWeight: 400,
-        letterSpacing: '0.5px',
+        letterSpacing: '1.2px',
+        textTransform: 'uppercase',
         textDecoration: 'none',
         transition: 'opacity 0.8s ease, background 0.3s ease',
         pointerEvents: visible ? 'auto' : 'none',
@@ -44,7 +45,7 @@ export default function FloatingCtaBar({ isOwner = false }: { isOwner?: boolean 
       onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)' }}
       onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
     >
-      tap in
+      build yours free
     </a>
   )
 }

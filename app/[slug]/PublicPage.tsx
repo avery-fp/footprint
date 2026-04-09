@@ -106,6 +106,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         )
       })), [rooms])
 
+  const artifactLine = useMemo(() => {
+    const bio = typeof footprint.bio === 'string' ? footprint.bio.trim() : ''
+    return bio || 'a permanent room made of tiles.'
+  }, [footprint.bio])
+
   const baseContent = activeRoomId
     ? visibleRooms.find(r => r.id === activeRoomId)?.content || []
     : validContent
@@ -123,9 +128,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     : DEFAULT_OVERLAY
 
   const handleShare = () => {
-    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://footprint.onl'
-    const fpUrl = `${baseUrl}/${footprint.username}`
-    navigator.clipboard.writeText(fpUrl)
+    navigator.clipboard.writeText(pageUrl)
     setShowToast(true)
   }
 
@@ -255,6 +258,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const layoutConfig = getGridLayout(roomLayout)
   const isEditorial = roomLayout === 'editorial'
   const displayContent = isOwner ? localContent : content
+  const gridMaxWidth = displayContent.length <= 1 ? 440 : displayContent.length <= 4 ? 720 : 920
 
   const gridInner = (
     <div
@@ -284,9 +288,17 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
         const tileInner = (
             <div
-              className="relative w-full h-full overflow-hidden rounded-2xl"
-              style={{ background: 'rgba(255,255,255,0.06)' }}
+              className={`group relative w-full h-full overflow-hidden rounded-[22px] border border-white/[0.10] ${
+                isOwner ? '' : 'transition-transform duration-300 md:hover:-translate-y-0.5'
+              }`}
+              style={{
+                background: 'linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 100%)',
+                boxShadow: footprint.background_url
+                  ? '0 18px 50px rgba(0,0,0,0.22)'
+                  : '0 10px 32px rgba(0,0,0,0.12)',
+              }}
             >
+              <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-white/[0.03] via-transparent to-black/[0.08]" />
               <UnifiedTile
                 item={item}
                 index={idx}
@@ -381,6 +393,17 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         {/* Masthead */}
         <RemoveBubble slug={footprint.slug}>
           <header className="pb-4 md:pb-5 flex flex-col items-center px-4">
+            {!isDraft && serial && (
+              <p
+                className="mb-4 font-mono text-[10px] uppercase tracking-[0.32em]"
+                style={{
+                  color: 'rgba(255,255,255,0.42)',
+                  textShadow: footprint.background_url ? '0 2px 18px rgba(0,0,0,0.75)' : 'none',
+                }}
+              >
+                Footprint #{serial}
+              </p>
+            )}
             <h1
               className={`${
                 displayTitle.length <= 6
@@ -397,13 +420,22 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             >
               {displayTitle}
             </h1>
+            <p
+              className="mt-4 max-w-[32rem] px-4 text-center text-[12px] md:text-[13px] leading-relaxed"
+              style={{
+                color: 'rgba(255,255,255,0.56)',
+                textShadow: footprint.background_url ? '0 2px 12px rgba(0,0,0,0.65)' : 'none',
+              }}
+            >
+              {artifactLine}
+            </p>
           </header>
         </RemoveBubble>
 
         {/* Room nav — sticky on scroll */}
         {visibleRooms.length > 1 && (
           <div className="sticky top-0 z-20 flex items-center justify-center mb-4 md:mb-6 px-4 py-2">
-            <div className="flex items-center gap-0 font-mono overflow-x-auto hide-scrollbar">
+            <div className="flex items-center gap-0 font-mono overflow-x-auto hide-scrollbar rounded-full border border-white/[0.08] bg-black/20 px-4 backdrop-blur-md">
               {visibleRooms.map((room, i) => (
                 <span key={room.id} className="flex items-center whitespace-nowrap">
                   {i > 0 && <span className="mx-2.5" style={{ color: 'rgba(255,255,255,0.2)', fontSize: '8px' }}>·</span>}
@@ -435,7 +467,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         {/* Grid */}
         <div
           className="fp-grid-container mx-auto w-full px-3 md:px-4"
-          style={{ maxWidth: '880px' }}
+          style={{ maxWidth: `${gridMaxWidth}px` }}
         >
           <div className="fp-grid-arrive">
             {activeGrid}
@@ -443,29 +475,35 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
 
         {content.length === 0 && (
-          <p className="text-center py-16 text-sm" style={{ color: theme.colors.textMuted }}>
-            nothing here.
-          </p>
+          <div className="mx-auto mt-8 w-full max-w-md px-4">
+            <div className="rounded-[28px] border border-white/[0.08] bg-black/20 px-6 py-7 text-center backdrop-blur-md">
+              <p className="text-sm font-mono uppercase tracking-[0.26em] text-white/30">
+                Room Empty
+              </p>
+              <p className="mt-3 text-[15px] text-white/68">
+                this room is still taking shape.
+              </p>
+              <p className="mt-2 text-[12px] leading-relaxed text-white/36">
+                Footprint turns media, memory, and taste into a single visual artifact.
+              </p>
+            </div>
+          </div>
         )}
 
         {/* Floor */}
         <div style={{ height: '160px' }} />
 
         {/* Footer — copy link with footprint icon */}
-        <div className="py-10 flex items-center justify-center">
+        <div className="py-12 flex flex-col items-center justify-center gap-3 px-4">
+          <p className="text-center font-mono text-[10px] uppercase tracking-[0.28em] text-white/22">
+            one room. yours forever.
+          </p>
           <button
             onClick={handleShare}
-            className="group p-3 text-white/[0.12] hover:text-white/40 transition-colors duration-500 touch-manipulation"
+            className="rounded-full border border-white/[0.1] bg-white/[0.05] px-5 py-2 text-[11px] font-mono uppercase tracking-[0.24em] text-white/46 transition-all duration-300 hover:bg-white/[0.1] hover:text-white/72 touch-manipulation"
             aria-label="Copy link"
           >
-            <span className="relative inline-flex items-end gap-0.5">
-              <svg className="w-3.5 h-3.5 -rotate-6" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C10.5 2 9.5 3.5 9.5 5c0 1 .3 2 .8 2.8L9 9.5C8 10 7.2 11 7 12.2c-.3 1.5.2 3 1.2 4l.5.5c-.3.8-.5 1.8-.5 2.8 0 1.5.5 3 1.5 3.5.5.3 1 .3 1.5 0 1-.5 1.5-2 1.5-3.5 0-1-.2-2-.5-2.8l.5-.5c1-1 1.5-2.5 1.2-4C13.8 11 13 10 12 9.5l-1.3-1.7c.5-.8.8-1.8.8-2.8 0-1.5-1-3-2.5-3h3z"/>
-              </svg>
-              <svg className="w-3.5 h-3.5 rotate-6 -translate-y-1" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C10.5 2 9.5 3.5 9.5 5c0 1 .3 2 .8 2.8L9 9.5C8 10 7.2 11 7 12.2c-.3 1.5.2 3 1.2 4l.5.5c-.3.8-.5 1.8-.5 2.8 0 1.5.5 3 1.5 3.5.5.3 1 .3 1.5 0 1-.5 1.5-2 1.5-3.5 0-1-.2-2-.5-2.8l.5-.5c1-1 1.5-2.5 1.2-4C13.8 11 13 10 12 9.5l-1.3-1.7c.5-.8.8-1.8.8-2.8 0-1.5-1-3-2.5-3h3z"/>
-              </svg>
-            </span>
+            copy address
           </button>
         </div>
       </div>

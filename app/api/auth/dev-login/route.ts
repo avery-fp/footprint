@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createSessionToken } from '@/lib/auth'
+import { createSessionToken, getSessionCookieOptions } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { nanoid } from 'nanoid'
 
@@ -124,17 +124,9 @@ export async function POST(request: NextRequest) {
     const destination = primaryFp ? `/${primaryFp.username}/home` : '/build'
     const response = NextResponse.redirect(new URL(destination, request.url))
 
-    const hostname = new URL(request.url).hostname
-    const cookieDomain = hostname.endsWith('.footprint.onl') || hostname === 'footprint.onl'
-      ? '.footprint.onl'
-      : undefined
     response.cookies.set('fp_session', sessionToken, {
-      httpOnly: true,
+      ...getSessionCookieOptions(new URL(request.url).hostname),
       secure: false, // Dev-only route — production is blocked above
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30,
-      path: '/',
-      ...(cookieDomain && { domain: cookieDomain }),
     })
 
     return response

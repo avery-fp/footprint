@@ -1,3 +1,4 @@
+import { createServerClient } from '@supabase/ssr'
 import { SignJWT, jwtVerify } from 'jose'
 import { createServerSupabaseClient } from './supabase'
 import type { NextRequest } from 'next/server'
@@ -23,14 +24,28 @@ const SESSION_EXPIRY = '30d'     // Session valid for 30 days
 /** Shared cookie name for the session identifier. */
 export const SESSION_COOKIE_NAME = 'fp_session'
 
+export function getSessionCookieDomain(hostname?: string): string | undefined {
+  if (!hostname) {
+    return process.env.NODE_ENV === 'production' ? '.footprint.onl' : undefined
+  }
+
+  return hostname.endsWith('.footprint.onl') || hostname === 'footprint.onl'
+    ? '.footprint.onl'
+    : undefined
+}
+
 /** Shared options so every route sets the cookie identically. */
-export const SESSION_COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax' as const,
-  maxAge: 60 * 60 * 24 * 30, // 30 days
-  path: '/',
-  domain: process.env.NODE_ENV === 'production' ? '.footprint.onl' : undefined,
+export function getSessionCookieOptions(hostname?: string) {
+  const domain = getSessionCookieDomain(hostname)
+
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax' as const,
+    maxAge: 60 * 60 * 24 * 30, // 30 days
+    path: '/',
+    ...(domain ? { domain } : {}),
+  }
 }
 
 /**
@@ -167,7 +182,35 @@ export async function sendWelcomeEmail(email: string, serialNumber: number, user
  */
 export async function getUserIdFromRequest(request: NextRequest): Promise<string | null> {
   const token = request.cookies.get('fp_session')?.value
-  if (!token) return null
-  const session = await verifySessionToken(token)
-  return session?.userId ?? null
+  if (token) {
+    const session = await verifySessionToken(token)
+    if (session?.userId) return session.userId
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!supabaseUrl || !supabaseAnonKey) return null
+
+  try {
+    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value
+        },
+        set() {},
+        remove() {},
+      },
+    })
+
+    const { data, error } = await supabase.auth.getUser()
+    if (error) {
+      console.error('[auth] Supabase session lookup failed:', error.message)
+      return null
+    }
+
+    return data.user?.id ?? null
+  } catch (err) {
+    console.error('[auth] Supabase session lookup failed:', err instanceof Error ? err.message : err)
+    return null
+  }
 }

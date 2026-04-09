@@ -9,19 +9,25 @@ import { createRouteHandlerSupabaseAuthClient, getCanonicalAppBaseUrl } from '@/
  */
 export async function POST(request: NextRequest) {
   try {
-    const { provider } = await request.json()
+    const { provider, redirect } = await request.json()
 
     if (provider !== 'google') {
       return NextResponse.json({ error: 'Invalid provider' }, { status: 400 })
     }
 
     const { supabase, applyPendingCookies } = createRouteHandlerSupabaseAuthClient(request)
-    const redirectTo = `${getCanonicalAppBaseUrl()}/auth/callback`
+    const safeRedirect = typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')
+      ? redirect
+      : ''
+    const callbackUrl = new URL('/auth/callback', getCanonicalAppBaseUrl())
+    if (safeRedirect) {
+      callbackUrl.searchParams.set('redirect', safeRedirect)
+    }
 
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo,
+        redirectTo: callbackUrl.toString(),
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',

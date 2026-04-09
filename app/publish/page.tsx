@@ -173,7 +173,7 @@ export default function PublishPage() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: 'var(--bg-void)' }}>
         <div className="w-12 h-12 rounded-full border-2 border-white/10 border-t-white/50 animate-spin" />
-        <p className="mt-4 text-white/30 text-[13px]">publishing...</p>
+        <p className="mt-4 text-white/30 text-[13px]">claiming...</p>
       </div>
     )
   }
@@ -190,29 +190,33 @@ export default function PublishPage() {
           )}
 
           <p className="text-[22px] font-light tracking-[-0.01em] text-white/90 mb-3">
-            you're live
+            claimed
           </p>
 
           <p className="font-mono text-white/40 text-[13px] mb-8">
-            footprint.onl/{finalSlug}/fp
+            footprint.onl/{finalSlug}
+          </p>
+
+          <p className="text-white/30 text-[13px] leading-relaxed mb-8">
+            the room is real now.
           </p>
 
           <button
-            onClick={() => router.push(`/${finalSlug}/home`)}
+            onClick={() => router.push(`/${finalSlug}`)}
             className="w-full py-3.5 rounded-xl bg-white text-black text-[14px] font-medium hover:bg-white/90 transition-all mb-3"
           >
-            open your room
+            enter your room
           </button>
 
           <button
             onClick={() => {
-              const url = `https://footprint.onl/${finalSlug}/fp`
+              const url = `https://footprint.onl/${finalSlug}`
               navigator.clipboard.writeText(url)
               toast.success('copied')
             }}
             className="w-full py-3 text-white/30 text-[12px] hover:text-white/50 transition-colors"
           >
-            copy link
+            copy address
           </button>
         </div>
       </div>
@@ -224,10 +228,10 @@ export default function PublishPage() {
     <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: 'var(--bg-void)' }}>
       <div className="w-full max-w-xs">
         <p className="text-center text-[22px] font-light tracking-[-0.01em] text-white/90 mb-3">
-          publish
+          claim your address
         </p>
         <p className="text-center text-white/30 text-[13px] leading-relaxed mb-10">
-          choose your Footprint URL. this is permanent.
+          build first. pay once when the room feels permanent.
         </p>
 
         <div className="space-y-4">
@@ -253,7 +257,7 @@ export default function PublishPage() {
                 {checking ? (
                   <p className="text-white/20 text-[11px]">checking...</p>
                 ) : available === true ? (
-                  <p className="text-green-400/70 text-[11px]">available</p>
+                  <p className="text-green-400/70 text-[11px]">open</p>
                 ) : available === false ? (
                   <p className="text-red-400/70 text-[11px]">{availReason ? humanUsernameReason(availReason) : 'That name is already claimed.'}</p>
                 ) : null}
@@ -266,7 +270,7 @@ export default function PublishPage() {
             type="text"
             value={promo}
             onChange={(e) => setPromo(e.target.value)}
-            placeholder="promo code (optional)"
+            placeholder="code (optional)"
             aria-label="Promo code"
             className="w-full rounded-xl px-4 py-3.5 text-white/90 placeholder:text-white/20 focus:outline-none text-[14px]"
             style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}
@@ -278,12 +282,12 @@ export default function PublishPage() {
             disabled={loading || !available || !username.trim()}
             className="w-full py-3.5 rounded-xl bg-white text-black text-[14px] font-medium hover:bg-white/90 transition-all disabled:opacity-40"
           >
-            {loading ? '...' : promo.trim() ? 'publish' : `publish — ${FOOTPRINT_PRICE_DISPLAY}`}
+            {loading ? '...' : promo.trim() ? 'claim now' : `claim for ${FOOTPRINT_PRICE_DISPLAY}`}
           </button>
         </div>
 
         <p className="mt-6 text-center text-white/15 text-[11px]">
-          one-time. no subscription. yours forever.
+          one payment. no subscription. yours forever.
         </p>
       </div>
     </div>

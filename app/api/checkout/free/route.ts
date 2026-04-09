@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { createSessionToken, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from '@/lib/auth'
+import { createSessionToken, SESSION_COOKIE_NAME, getSessionCookieOptions } from '@/lib/auth'
 import { nanoid } from 'nanoid'
 import { checkoutFreeSchema } from '@/lib/schemas'
 import { validateBody } from '@/lib/validate'
@@ -55,7 +55,11 @@ export async function POST(request: NextRequest) {
     if (existingUser) {
       const sessionToken = await createSessionToken(existingUser.id, existingUser.email)
       const response = NextResponse.json({ success: true, serial: existingUser.serial_number })
-      response.cookies.set(SESSION_COOKIE_NAME, sessionToken, SESSION_COOKIE_OPTIONS)
+      response.cookies.set(
+        SESSION_COOKIE_NAME,
+        sessionToken,
+        getSessionCookieOptions(new URL(request.url).hostname)
+      )
       return response
     }
 
@@ -153,7 +157,11 @@ export async function POST(request: NextRequest) {
     const sessionToken = await createSessionToken(user.id, user.email)
     const response = NextResponse.json({ success: true, serial: serialNumber, slug: username })
 
-    response.cookies.set(SESSION_COOKIE_NAME, sessionToken, SESSION_COOKIE_OPTIONS)
+    response.cookies.set(
+      SESSION_COOKIE_NAME,
+      sessionToken,
+      getSessionCookieOptions(new URL(request.url).hostname)
+    )
 
     return response
   } catch (error: any) {

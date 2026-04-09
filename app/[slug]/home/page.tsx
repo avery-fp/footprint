@@ -972,6 +972,7 @@ export default function EditPage() {
     try {
       const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}/states`, {
         cache: 'no-store',
+        credentials: 'include',
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to fetch states')
@@ -1009,6 +1010,7 @@ export default function EditPage() {
       await flushEditorChanges(draft)
       const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}/states`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: newStateName.trim() || `State ${savedStates.length + 1}`,
@@ -1043,6 +1045,7 @@ export default function EditPage() {
       await flushEditorChanges(draft)
       const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}/states`, {
         method: 'PUT',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'load', state_id: stateId }),
       })
@@ -1075,6 +1078,7 @@ export default function EditPage() {
       await flushEditorChanges(draft)
       const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}/states`, {
         method: 'PUT',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'replace',
@@ -1103,6 +1107,7 @@ export default function EditPage() {
     try {
       const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}/states`, {
         method: 'PATCH',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           state_id: stateId,
@@ -1130,6 +1135,7 @@ export default function EditPage() {
     try {
       const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}/states`, {
         method: 'DELETE',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ state_id: stateId }),
       })
@@ -1932,7 +1938,7 @@ export default function EditPage() {
                 className="text-xs text-white/60 hover:text-white/90 transition font-mono px-3 rounded-full bg-white/[0.06] hover:bg-white/[0.12]"
                 style={{ minHeight: '36px' }}
               >
-                states
+                snapshots
               </button>
               {activeRoomId && (
                 <>
@@ -1945,7 +1951,7 @@ export default function EditPage() {
                     className="text-xs text-white/60 hover:text-white/90 transition font-mono px-3 rounded-full bg-white/[0.06] hover:bg-white/[0.12]"
                     style={{ minHeight: '36px' }}
                   >
-                    rename
+                    name
                   </button>
                   <button
                     onClick={() => handleDeleteRoom(activeRoomId)}
@@ -1971,7 +1977,7 @@ export default function EditPage() {
                 className="text-xs text-white/60 hover:text-white/90 transition font-mono px-3 rounded-full bg-white/[0.06] hover:bg-white/[0.12]"
                 style={{ minHeight: '36px' }}
               >
-                states
+                snapshots
               </button>
               {isPublished ? (
                 <>
@@ -2043,7 +2049,7 @@ export default function EditPage() {
                     background: 'rgba(255, 255, 255, 0.04)',
                   }}
                 >
-                  {goLiveLoading ? '...' : 'go live'}
+                  {goLiveLoading ? '...' : 'claim'}
                 </button>
               )}
               {/* Edit button */}
@@ -2052,7 +2058,7 @@ export default function EditPage() {
                 className="text-sm text-white/90 hover:text-white transition font-mono flex items-center justify-center px-5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
                 style={{ minHeight: '44px', minWidth: '44px' }}
               >
-                edit
+                arrange
               </button>
             </div>
           )}
@@ -2091,6 +2097,9 @@ export default function EditPage() {
             />
             <p className="mt-1 text-center text-[10px] text-white/20 font-mono">
               footprint.onl/{slug}
+            </p>
+            <p className="mt-2 text-center text-[11px] text-white/28 font-mono uppercase tracking-[0.18em]">
+              {isPublished ? 'live room' : 'build free. claim once.'}
             </p>
           </div>
         </div>
@@ -2200,22 +2209,28 @@ export default function EditPage() {
           </LayoutGroup>
         ) : (
           <div className="text-center py-32 flex flex-col items-center gap-4">
-            <p className="text-white/30 text-sm font-mono">
-              {activeRoomId ? 'this room is empty.' : 'nothing here yet.'}
+            <p className="text-white/42 text-sm font-mono uppercase tracking-[0.24em]">
+              {activeRoomId ? 'empty room' : 'empty footprint'}
+            </p>
+            <p className="max-w-sm text-white/26 text-[13px] leading-relaxed">
+              start with a tile. the room becomes legible as soon as things begin touching each other.
+            </p>
+            <p className="text-white/16 text-[11px] font-mono uppercase tracking-[0.18em]">
+              build first. claim when it feels like yours.
             </p>
             {isArranging ? (
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="text-xs text-white/50 hover:text-white/80 font-mono px-5 py-2.5 rounded-full bg-white/[0.06] hover:bg-white/[0.10] border border-white/10 transition-all"
               >
-                add something
+                add a tile
               </button>
             ) : (
               <button
                 onClick={enterEdit}
                 className="text-xs text-white/50 hover:text-white/80 font-mono px-5 py-2.5 rounded-full bg-white/[0.06] hover:bg-white/[0.10] border border-white/10 transition-all"
               >
-                tap to start
+                arrange your room
               </button>
             )}
           </div>
@@ -2246,7 +2261,7 @@ export default function EditPage() {
           <div className="fixed inset-x-4 top-1/2 z-[80] mx-auto w-full max-w-xl -translate-y-1/2 rounded-2xl border border-white/10 bg-[#111214] p-4 shadow-2xl">
             <div className="flex items-center justify-between gap-4 pb-3">
               <div>
-                <h2 className="text-sm text-white/85 font-mono">states</h2>
+                <h2 className="text-sm text-white/85 font-mono">snapshots</h2>
                 <p className="mt-1 text-[11px] text-white/35 font-mono">
                   save and reload up to five full editor snapshots
                 </p>
@@ -2750,12 +2765,19 @@ export default function EditPage() {
 
             {/* URL */}
             <p className="font-mono text-white/30 text-[13px] tracking-[0.02em] mb-2">
-              footprint.onl/{slug}/fp
+              footprint.onl/{slug}
+            </p>
+
+            <p className="text-white/72 text-[24px] font-light tracking-[-0.03em] mb-3">
+              claim this room
+            </p>
+            <p className="mx-auto max-w-sm text-white/32 text-[13px] leading-relaxed mb-10">
+              build for free. pay once when the room feels permanent.
             </p>
 
             {/* Price — quiet */}
             <p className="text-white/50 text-[13px] font-mono mb-12">
-              $10
+              $10 once
             </p>
 
             {/* CTA */}
@@ -2788,7 +2810,7 @@ export default function EditPage() {
               disabled={goLiveLoading}
               className="px-8 py-3 rounded-full bg-white text-black text-[13px] font-medium hover:bg-white/90 transition-all disabled:opacity-30"
             >
-              {goLiveLoading ? '...' : 'go live'}
+              {goLiveLoading ? '...' : 'claim for $10'}
             </button>
 
             <div className="mt-6">
@@ -2797,7 +2819,7 @@ export default function EditPage() {
                 className="text-white/10 text-[11px] font-mono hover:text-white/25 transition-colors"
                 disabled={goLiveLoading}
               >
-                back
+                not yet
               </button>
             </div>
           </div>
@@ -2840,20 +2862,20 @@ export default function EditPage() {
                   }}
                   className="px-8 py-3 rounded-full bg-white text-black text-[13px] font-medium hover:bg-white/90 transition-all"
                 >
-                  enter
+                  enter your room
                 </button>
 
                 <div className="mt-6">
                   <button
                     onClick={() => {
-                      const url = `https://footprint.onl/${birthMoment.slug}/fp`
+                      const url = `https://footprint.onl/${birthMoment.slug}`
                       navigator.clipboard.writeText(url)
                       const el = document.getElementById('birth-copied')
                       if (el) { el.style.opacity = '1'; setTimeout(() => { el.style.opacity = '0' }, 1200) }
                     }}
                     className="text-white/15 text-[11px] font-mono hover:text-white/30 transition-colors"
                   >
-                    copy link
+                    copy address
                   </button>
                   <span id="birth-copied" className="ml-2 text-white/30 text-[11px] font-mono transition-opacity duration-300" style={{ opacity: 0 }}>
                     copied

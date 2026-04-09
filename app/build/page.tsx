@@ -17,7 +17,7 @@ import {
   rectSortingStrategy,
   arrayMove,
 } from '@dnd-kit/sortable'
-import { saveDraft, loadDraft, DraftContent, DraftFootprint } from '@/lib/draft-store'
+import { saveDraftAsync, loadDraftAsync, DraftContent, DraftFootprint } from '@/lib/draft-store'
 import { extractYouTubeId } from '@/lib/parseEmbed'
 import { isVideoFile } from '@/lib/upload'
 
@@ -118,10 +118,10 @@ function SignInModal({ onClose }: { onClose: () => void }) {
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-xl font-light text-white/90 mb-3">
-          sign in to save your Footprint
+          save your room
         </h2>
         <p className="text-white/40 text-[13px] mb-8">
-          your tiles are safe here. sign in to keep them forever.
+          keep building for free. sign in when you want this draft to stay with you.
         </p>
         <a
           href={`/login?redirect=${encodeURIComponent('/build')}`}
@@ -143,7 +143,7 @@ function SignInModal({ onClose }: { onClose: () => void }) {
           onClick={onClose}
           className="mt-4 text-white/20 text-[11px] hover:text-white/40 transition-colors"
         >
-          keep building
+          not yet
         </button>
       </div>
     </div>
@@ -184,7 +184,7 @@ export default function BuildPage() {
           const data = await fpRes.json()
           if (data.slug) {
             // Authenticated — transfer any sandbox draft tiles then redirect
-            const sandboxDraft = loadDraft(SANDBOX_SLUG)
+            const sandboxDraft = await loadDraftAsync(SANDBOX_SLUG)
             if (sandboxDraft && sandboxDraft.content.length > 0) {
               // Store sandbox content for restoration after redirect
               try {
@@ -205,13 +205,24 @@ export default function BuildPage() {
   // Load existing sandbox draft from localStorage
   useEffect(() => {
     if (!authChecked) return
-    const draft = loadDraft(SANDBOX_SLUG)
-    if (draft && draft.content.length > 0) {
-      setTiles(draft.content)
+
+    let cancelled = false
+
+    async function loadSandboxDraft() {
+      const draft = await loadDraftAsync(SANDBOX_SLUG)
+      if (!cancelled && draft && draft.content.length > 0) {
+        setTiles(draft.content)
+      }
+    }
+
+    loadSandboxDraft()
+
+    return () => {
+      cancelled = true
     }
   }, [authChecked])
 
-  // Persist tiles to localStorage on change
+  // Persist tiles to draft storage on change
   useEffect(() => {
     if (!authChecked || isAuth) return
     const draft: DraftFootprint = {
@@ -226,7 +237,7 @@ export default function BuildPage() {
       content: tiles,
       updated_at: Date.now(),
     }
-    saveDraft(SANDBOX_SLUG, draft)
+    void saveDraftAsync(SANDBOX_SLUG, draft)
   }, [tiles, authChecked, isAuth])
 
   // Handle file upload — store as data URL
@@ -349,27 +360,39 @@ export default function BuildPage() {
           className="text-[13px] text-white/60 hover:text-white/90 transition font-mono flex items-center justify-center px-5 py-2 rounded-full border border-white/[0.10] hover:border-white/25"
           style={{ background: 'rgba(255, 255, 255, 0.04)' }}
         >
-          save
+          save draft
         </button>
       </div>
 
       {/* Main content */}
       <div className="flex-1 pt-20 pb-32 px-3 md:px-6">
         <div className="mx-auto w-full" style={{ maxWidth: '880px' }}>
+          <div className="mb-10 flex flex-col items-center text-center">
+            <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-white/28">
+              build free
+            </p>
+            <h1 className="mt-3 text-[26px] font-light tracking-[-0.03em] text-white/92 md:text-[34px]">
+              arrange a room that feels like you.
+            </h1>
+            <p className="mt-3 max-w-xl text-[13px] leading-relaxed text-white/40 md:text-[14px]">
+              drop in media, move the tiles until the room clicks, then claim the address when it feels permanent.
+            </p>
+          </div>
+
           {/* Empty state */}
           {tiles.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-24 text-center">
-              <p className="text-white/50 text-[15px] font-light mb-2">
-                start building your footprint
+            <div className="flex flex-col items-center justify-center rounded-[32px] border border-white/[0.08] bg-white/[0.03] px-6 py-24 text-center backdrop-blur-sm">
+              <p className="text-white/58 text-[15px] font-light mb-2">
+                start with a tile
               </p>
-              <p className="text-white/25 text-[13px] mb-8">
-                upload images, videos, or paste a YouTube link
+              <p className="max-w-sm text-white/25 text-[13px] leading-relaxed mb-8">
+                upload images or video, paste a link, and let adjacency do the rest.
               </p>
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="px-8 py-3 rounded-full bg-white text-black text-[13px] font-medium hover:bg-white/90 transition-all"
               >
-                upload
+                add your first tile
               </button>
             </div>
           )}
@@ -409,13 +432,14 @@ export default function BuildPage() {
           {/* URL input */}
           <div className="flex items-center gap-2 bg-black/60 backdrop-blur-sm rounded-full border border-white/10 overflow-hidden px-1">
             <input
+              id="sandbox-url-input"
               type="text"
               value={pasteUrl}
               onChange={(e) => setPasteUrl(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleAddLink()
               }}
-              placeholder="paste YouTube link"
+              placeholder="paste a link"
               className="bg-transparent text-white/80 placeholder:text-white/25 text-[13px] font-mono px-4 py-3 focus:outline-none w-48 md:w-64"
             />
             {pasteUrl.trim() && (

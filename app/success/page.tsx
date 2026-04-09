@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { loadDraft, clearDraft } from '@/lib/draft-store'
+import { loadDraftAsync, clearDraftAsync } from '@/lib/draft-store'
 
 type Step = 'publishing' | 'welcome' | 'password' | 'error'
 
@@ -20,7 +20,7 @@ export default function SuccessPage() {
   const [saving, setSaving] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  const pageUrl = slug ? `https://footprint.onl/${slug}/fp` : ''
+  const pageUrl = slug ? `https://footprint.onl/${slug}` : ''
 
   useEffect(() => {
     async function publishDraft() {
@@ -30,7 +30,7 @@ export default function SuccessPage() {
         return
       }
 
-      const draft = loadDraft(slug)
+      const draft = await loadDraftAsync(slug) || await loadDraftAsync('_sandbox')
       if (!draft) {
         setErrorMessage('No draft found. You may have already published.')
         setStep('error')
@@ -52,7 +52,8 @@ export default function SuccessPage() {
 
         if (res.ok && data.success) {
           setSerialNumber(data.serial_number)
-          clearDraft(slug)
+          await clearDraftAsync(slug)
+          await clearDraftAsync('_sandbox')
           setStep('welcome')
         } else {
           setErrorMessage(data.error || 'Failed to publish')
@@ -161,7 +162,7 @@ export default function SuccessPage() {
         {step === 'welcome' && (
           <>
             <p className="text-[22px] font-light tracking-[-0.01em] text-white/90 mb-2">
-              you&apos;re live
+              claimed
             </p>
 
             {/* URL display */}
@@ -171,7 +172,7 @@ export default function SuccessPage() {
               rel="noopener noreferrer"
               className="inline-block text-white/40 text-[13px] font-mono tracking-wide hover:text-white/60 transition-colors mb-10"
             >
-              footprint.onl/{slug}/fp
+              footprint.onl/{slug}
             </a>
 
             {/* Primary actions */}
@@ -180,7 +181,7 @@ export default function SuccessPage() {
                 onClick={handleCopyLink}
                 className="w-full py-3.5 rounded-xl bg-white text-black text-[14px] font-medium hover:bg-white/90 transition-all active:scale-[0.99]"
               >
-                {copied ? 'copied' : 'copy your link'}
+                {copied ? 'copied' : 'copy your address'}
               </button>
 
               <button
@@ -196,7 +197,7 @@ export default function SuccessPage() {
               </button>
 
               <button
-                onClick={() => router.push(`/${slug}/home`)}
+                onClick={() => router.push(`/${slug}`)}
                 className="w-full py-3.5 rounded-xl text-[14px] font-medium transition-all active:scale-[0.99]"
                 style={{
                   background: 'rgba(255, 255, 255, 0.04)',
@@ -204,7 +205,7 @@ export default function SuccessPage() {
                   color: 'rgba(255, 255, 255, 0.6)',
                 }}
               >
-                start building &rarr;
+                enter your room &rarr;
               </button>
             </div>
 

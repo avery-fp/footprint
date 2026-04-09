@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { createSessionToken, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from '@/lib/auth'
+import { createSessionToken, SESSION_COOKIE_NAME, getSessionCookieOptions } from '@/lib/auth'
 import { RESERVED_SLUGS } from '@/lib/constants'
 import type { DraftFootprint } from '@/lib/draft-store'
 
@@ -226,7 +226,11 @@ export async function POST(request: NextRequest) {
       slug: slug,
     })
 
-    response.cookies.set(SESSION_COOKIE_NAME, sessionToken, SESSION_COOKIE_OPTIONS)
+    response.cookies.set(
+      SESSION_COOKIE_NAME,
+      sessionToken,
+      getSessionCookieOptions(new URL(request.url).hostname)
+    )
 
     return response
   } catch (error) {

@@ -16,6 +16,9 @@ export default function LoginPage() {
   const emailRef = useRef<HTMLInputElement>(null)
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get('redirect')
+  const safeRedirect = redirectTo?.startsWith('/') && !redirectTo.startsWith('//')
+    ? redirectTo
+    : ''
 
   useEffect(() => {
     setTimeout(() => emailRef.current?.focus(), 100)
@@ -39,7 +42,7 @@ export default function LoginPage() {
       const data = await res.json()
 
       if (data.success) {
-        const dest = redirectTo || '/dashboard'
+        const dest = safeRedirect || '/dashboard'
         window.location.href = dest
       } else {
         setError(data.error || 'invalid email or password')
@@ -67,7 +70,7 @@ export default function LoginPage() {
       const res = await fetch('/api/auth/oauth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider: 'google' }),
+        body: JSON.stringify({ provider: 'google', redirect: safeRedirect }),
       })
 
       const data = await res.json()
