@@ -607,7 +607,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             <h1
               className={`${
                 displayTitle.length <= 3
-                  ? 'text-4xl md:text-6xl tracking-[0.01em] font-normal'
+                  ? 'text-4xl md:text-6xl tracking-[0em] font-normal'
                   : displayTitle.length <= 6
                   ? 'text-4xl md:text-6xl tracking-[0.08em] font-normal'
                   : displayTitle.length <= 12
