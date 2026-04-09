@@ -42,6 +42,7 @@ export default function SovereignTile({ slug, onDismiss, onComplete, sessionId: 
   const [finalSlug, setFinalSlug] = useState('')
   const [seedPhase, setSeedPhase] = useState<boolean | null>(null)
   const finalizeCalledRef = useRef(false)
+  const usernameInputRef = useRef<HTMLInputElement>(null)
 
   // ── ONE init effect — replaces 5 racing effects ──
   useEffect(() => {
@@ -139,6 +140,14 @@ export default function SovereignTile({ slug, onDismiss, onComplete, sessionId: 
     }, 400)
     return () => clearTimeout(timer)
   }, [username, phase])
+
+  useEffect(() => {
+    if (phase !== 'username') return
+    const focusTimer = window.setTimeout(() => {
+      usernameInputRef.current?.focus()
+    }, 0)
+    return () => window.clearTimeout(focusTimer)
+  }, [phase])
 
   // OAuth, passkey, and email magic-link are all handled inside <AuthModal />
   // (which delegates to OAuthButton + PasskeyButton). The redirectAfterAuth
@@ -243,11 +252,15 @@ export default function SovereignTile({ slug, onDismiss, onComplete, sessionId: 
                 fp.onl/
               </span>
               <input
+                ref={usernameInputRef}
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ''))}
                 autoFocus
                 maxLength={30}
+                spellCheck={false}
+                autoCapitalize="none"
+                autoCorrect="off"
                 className="font-mono"
                 style={{
                   fontSize: '16px',
