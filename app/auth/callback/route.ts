@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createSessionToken, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from '@/lib/auth'
+import { createRouteHandlerSupabaseAuthClient } from '@/lib/supabase-auth-ssr'
 
 /**
  * GET /auth/callback
@@ -33,18 +34,19 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const { supabase: authClient, applyPendingCookies } = createRouteHandlerSupabaseAuthClient(request)
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
-    const { data: authData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
+    const { data: authData, error: exchangeError } = await authClient.auth.exchangeCodeForSession(code)
 
     if (exchangeError || !authData?.user?.email) {
       const response = NextResponse.redirect(new URL(returnPath, origin))
       if (rawPostAuth) response.cookies.set('post_auth_redirect', '', { path: '/', maxAge: 0 })
-      return response
+      return applyPendingCookies(response)
     }
 
     const email = authData.user.email
@@ -89,7 +91,7 @@ export async function GET(request: NextRequest) {
       // Creation failed — still go back to the slug
       const response = NextResponse.redirect(new URL(returnPath, origin))
       if (rawPostAuth) response.cookies.set('post_auth_redirect', '', { path: '/', maxAge: 0 })
-      return response
+      return applyPendingCookies(response)
     }
 
     // Issue session
@@ -100,7 +102,7 @@ export async function GET(request: NextRequest) {
     response.cookies.set(SESSION_COOKIE_NAME, sessionToken, SESSION_COOKIE_OPTIONS)
     if (rawPostAuth) response.cookies.set('post_auth_redirect', '', { path: '/', maxAge: 0 })
 
-    return response
+    return applyPendingCookies(response)
   } catch (err) {
     console.error('[callback]', err)
     const response = NextResponse.redirect(new URL(returnPath, origin))
