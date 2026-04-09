@@ -161,7 +161,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
 
     // isExpanded: skip facade, render iframe immediately (used in lightbox)
     if (isExpanded) {
-      const ytSrc = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&enablejsapi=1&controls=1&rel=0&iv_load_policy=3&playsinline=1&vq=hd1080&hd=1`
+      const ytSrc = `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=1&enablejsapi=1&controls=0&modestbranding=1&rel=0&iv_load_policy=3&playsinline=1&fs=0&disablekb=1&vq=hd1080&hd=1`
       return (
         <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative bg-black">
           <iframe
@@ -209,7 +209,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       )
     }
     // YouTube activated state — canonical fix
-    const ytSrc = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&enablejsapi=1&controls=1&rel=0&iv_load_policy=3&playsinline=1&vq=hd1080&hd=1`
+    const ytSrc = `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=1&enablejsapi=1&controls=0&modestbranding=1&rel=0&iv_load_policy=3&playsinline=1&fs=0&disablekb=1&vq=hd1080&hd=1`
     return (
       <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative bg-black">
         <iframe
