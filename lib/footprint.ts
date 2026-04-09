@@ -89,7 +89,9 @@ export function getFootprintDisplayTitle(source: FootprintTitleSource | null | u
   for (const candidate of candidates) {
     if (typeof candidate !== 'string') continue
     const trimmed = candidate.trim()
-    if (trimmed) return trimmed
+    if (!trimmed) continue
+    if (trimmed.toLowerCase() === 'ae') return 'æ'
+    return trimmed
   }
 
   return null
