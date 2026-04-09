@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
           .insert({
             user_id: userId,
             username: `pending-${userId.replace(/-/g, '').slice(0, 12)}`,
+            name: 'Everything',
             is_primary: true,
             published: false,
           })

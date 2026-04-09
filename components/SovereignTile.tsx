@@ -131,6 +131,10 @@ export default function SovereignTile({ slug, onDismiss, onComplete, sessionId: 
           credentials: 'include',
           body: JSON.stringify({ action: 'check-username', username }),
         })
+        if (!res.ok) {
+          setAvailable(null)
+          return
+        }
         const data = await res.json()
         setAvailable(data.available === true)
       } catch {
@@ -149,8 +153,8 @@ export default function SovereignTile({ slug, onDismiss, onComplete, sessionId: 
     return () => window.clearTimeout(focusTimer)
   }, [phase])
 
-  // OAuth, passkey, and email magic-link are all handled inside <AuthModal />
-  // (which delegates to OAuthButton + PasskeyButton). The redirectAfterAuth
+  // Google OAuth and email magic-link are handled inside <AuthModal />.
+  // The redirectAfterAuth
   // path is set as `/${slug}?claim=1` below so users land back on the claim
   // flow with their session cookie set.
 
