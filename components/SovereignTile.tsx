@@ -131,6 +131,10 @@ export default function SovereignTile({ slug, onDismiss, onComplete, sessionId: 
           credentials: 'include',
           body: JSON.stringify({ action: 'check-username', username }),
         })
+        if (!res.ok) {
+          setAvailable(null)
+          return
+        }
         const data = await res.json()
         setAvailable(data.available === true)
       } catch {

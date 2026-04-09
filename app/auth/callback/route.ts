@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
     const userMeta = authData.user.user_metadata || {}
     const displayName = userMeta.full_name || userMeta.name || ''
     const avatarUrl = userMeta.avatar_url || userMeta.picture || ''
+    const provisionalUsername = `pending-${authData.user.id.replace(/-/g, '').slice(0, 12)}`
 
     // Look up or create user
     let { data: user } = await supabase
@@ -92,6 +93,31 @@ export async function GET(request: NextRequest) {
       const response = NextResponse.redirect(new URL(returnPath, origin))
       if (rawPostAuth) response.cookies.set('post_auth_redirect', '', { path: '/', maxAge: 0 })
       return applyPendingCookies(response)
+    }
+
+    const { data: existingPrimaryFootprint } = await supabase
+      .from('footprints')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('is_primary', true)
+      .maybeSingle()
+
+    if (!existingPrimaryFootprint) {
+      const { error: footprintError } = await supabase
+        .from('footprints')
+        .insert({
+          user_id: user.id,
+          username: provisionalUsername,
+          name: 'Everything',
+          ...(displayName && { display_name: displayName }),
+          ...(avatarUrl && { avatar_url: avatarUrl }),
+          is_primary: true,
+          published: false,
+        })
+
+      if (footprintError) {
+        console.error('[callback] failed to create placeholder footprint:', footprintError)
+      }
     }
 
     // Issue session
