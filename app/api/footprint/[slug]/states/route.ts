@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { getUserIdFromRequest } from '@/lib/auth'
+import { getUserIdentityFromRequest } from '@/lib/auth'
 import {
   footprintStatesDeleteSchema,
   footprintStatesPatchSchema,
@@ -23,8 +23,8 @@ async function getOwnedFootprint(
       footprint: { id: string; user_id: string; serial_number: number | null; username: string }
     }
 > {
-  const userId = await getUserIdFromRequest(request)
-  if (!userId) {
+  const identity = await getUserIdentityFromRequest(request)
+  if (!identity.userId && !identity.email) {
     return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
   }
 
@@ -35,7 +35,25 @@ async function getOwnedFootprint(
     .eq('username', slug)
     .single()
 
-  if (!footprint || footprint.user_id !== userId) {
+  if (!footprint) {
+    return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
+  }
+
+  const directOwnership = identity.userId && footprint.user_id === identity.userId
+  if (!directOwnership && identity.email) {
+    const { data: owner } = await supabase
+      .from('users')
+      .select('email')
+      .eq('id', footprint.user_id)
+      .maybeSingle()
+
+    const ownerEmail = owner?.email?.toLowerCase().trim()
+    if (ownerEmail && ownerEmail === identity.email.toLowerCase().trim()) {
+      return { supabase, footprint }
+    }
+  }
+
+  if (!directOwnership) {
     return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
   }
 

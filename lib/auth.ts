@@ -156,6 +156,11 @@ export async function sendWelcomeEmail(email: string, serialNumber: number, user
  * Returns null if cookie is missing or JWT is invalid/expired.
  */
 export async function getUserIdFromRequest(request: NextRequest): Promise<string | null> {
+  const identity = await getUserIdentityFromRequest(request)
+  return identity.userId
+}
+
+export async function getUserIdentityFromRequest(request: NextRequest): Promise<{ userId: string | null; email: string | null }> {
   async function resolveInternalUserIdByEmail(email: string): Promise<string | null> {
     const normalizedEmail = email.toLowerCase().trim()
     if (!normalizedEmail) return null
@@ -180,9 +185,9 @@ export async function getUserIdFromRequest(request: NextRequest): Promise<string
     const session = await verifySessionToken(token)
     if (session?.email) {
       const canonicalUserId = await resolveInternalUserIdByEmail(session.email)
-      if (canonicalUserId) return canonicalUserId
+      if (canonicalUserId) return { userId: canonicalUserId, email: session.email.toLowerCase().trim() }
     }
-    if (!session?.email && session?.userId) return session.userId
+    if (!session?.email && session?.userId) return { userId: session.userId, email: null }
   }
 
   try {
@@ -190,14 +195,15 @@ export async function getUserIdFromRequest(request: NextRequest): Promise<string
     const { data, error } = await supabase.auth.getUser()
     if (error) {
       console.error('[auth] Supabase session lookup failed:', error.message)
-      return null
+      return { userId: null, email: null }
     }
 
     const email = data.user?.email?.toLowerCase().trim()
-    if (!email) return null
-    return await resolveInternalUserIdByEmail(email)
+    if (!email) return { userId: null, email: null }
+    const userId = await resolveInternalUserIdByEmail(email)
+    return { userId, email }
   } catch (err) {
     console.error('[auth] Supabase session lookup failed:', err instanceof Error ? err.message : err)
-    return null
+    return { userId: null, email: null }
   }
 }
