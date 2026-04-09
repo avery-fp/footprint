@@ -1090,6 +1090,7 @@ export default function EditPage() {
     try {
       const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}/states`, {
         cache: 'no-store',
+        credentials: 'include',
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to fetch states')
@@ -1127,6 +1128,7 @@ export default function EditPage() {
       await flushEditorChanges(draft)
       const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}/states`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: newStateName.trim() || `State ${savedStates.length + 1}`,
@@ -1161,6 +1163,7 @@ export default function EditPage() {
       await flushEditorChanges(draft)
       const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}/states`, {
         method: 'PUT',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'load', state_id: stateId }),
       })
@@ -1193,6 +1196,7 @@ export default function EditPage() {
       await flushEditorChanges(draft)
       const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}/states`, {
         method: 'PUT',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'replace',
@@ -1221,6 +1225,7 @@ export default function EditPage() {
     try {
       const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}/states`, {
         method: 'PATCH',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           state_id: stateId,
@@ -1248,6 +1253,7 @@ export default function EditPage() {
     try {
       const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}/states`, {
         method: 'DELETE',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ state_id: stateId }),
       })

@@ -1,3 +1,4 @@
+import { createServerClient } from '@supabase/ssr'
 import { SignJWT, jwtVerify } from 'jose'
 import { AUTH_ENTRY } from './routes'
 import type { NextRequest } from 'next/server'
@@ -155,7 +156,35 @@ export async function sendWelcomeEmail(email: string, serialNumber: number, user
  */
 export async function getUserIdFromRequest(request: NextRequest): Promise<string | null> {
   const token = request.cookies.get('fp_session')?.value
-  if (!token) return null
-  const session = await verifySessionToken(token)
-  return session?.userId ?? null
+  if (token) {
+    const session = await verifySessionToken(token)
+    if (session?.userId) return session.userId
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!supabaseUrl || !supabaseAnonKey) return null
+
+  try {
+    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+      cookies: {
+        get(name) {
+          return request.cookies.get(name)?.value
+        },
+        set() {},
+        remove() {},
+      },
+    })
+
+    const { data, error } = await supabase.auth.getUser()
+    if (error) {
+      console.error('[auth] Supabase session lookup failed:', error.message)
+      return null
+    }
+
+    return data.user?.id ?? null
+  } catch (err) {
+    console.error('[auth] Supabase session lookup failed:', err instanceof Error ? err.message : err)
+    return null
+  }
 }
