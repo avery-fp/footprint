@@ -952,7 +952,7 @@ export default function EditPage() {
       handle: snapshot.footprint.handle || '',
       bio: snapshot.footprint.bio || '',
       theme: snapshot.footprint.theme || 'midnight',
-      grid_mode: snapshot.footprint.grid_mode || 'grid',
+      grid_mode: (snapshot.footprint.grid_mode || 'grid') as 'grid',
       avatar_url: snapshot.footprint.avatar_url || null,
       content: nextContent,
       updated_at: Date.now(),
@@ -2068,6 +2068,15 @@ export default function EditPage() {
                   updated_at: Date.now(),
                 } : null)
               }}
+              onBlur={(e) => {
+                const trimmedValue = e.target.value.trim()
+                if (trimmedValue === (draft.display_title || '')) return
+                setDraft(prev => prev ? {
+                  ...prev,
+                  display_title: trimmedValue,
+                  updated_at: Date.now(),
+                } : null)
+              }}
               placeholder={titlePlaceholder}
               maxLength={120}
               className="w-full bg-transparent border-0 px-2 text-center text-white placeholder:text-white/30 outline-none"
@@ -2268,12 +2277,12 @@ export default function EditPage() {
                   disabled={stateActionId === 'new' || savedStates.length >= 5}
                   className="rounded-lg bg-white/[0.12] px-4 py-2 text-xs text-white/80 font-mono transition hover:bg-white/[0.18] disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  {stateActionId === 'new' ? 'saving...' : 'save current'}
+                  {stateActionId === 'new' ? 'saving...' : savedStates.length >= 5 ? 'replace below' : 'save current'}
                 </button>
               </div>
               <p className="mt-2 text-[10px] text-white/25 font-mono">
                 {savedStates.length >= 5
-                  ? '5/5 saved. replace one below to keep going.'
+                  ? '5/5 saved. replace one below to save this draft.'
                   : `${savedStates.length}/5 saved.`}
               </p>
             </div>

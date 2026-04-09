@@ -101,7 +101,7 @@ async function restoreFootprintSnapshot(params: {
       position: tile.position ?? index,
       size: tile.size ?? 1,
       aspect: tile.aspect ?? null,
-      room_id: tile.room_id ? roomIdMap.get(tile.room_id) || tile.room_id : null,
+      room_id: tile.room_id ? roomIdMap.get(tile.room_id) ?? null : null,
     }))
 
   const linkRows = snapshot.content
@@ -120,7 +120,7 @@ async function restoreFootprintSnapshot(params: {
       position: tile.position ?? index,
       size: tile.size ?? 1,
       aspect: tile.aspect ?? null,
-      room_id: tile.room_id ? roomIdMap.get(tile.room_id) || tile.room_id : null,
+      room_id: tile.room_id ? roomIdMap.get(tile.room_id) ?? null : null,
       render_mode: tile.render_mode || 'embed',
       artist: tile.artist ?? null,
       thumbnail_url_hq: tile.thumbnail_url_hq ?? null,
