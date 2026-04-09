@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createSessionToken } from '@/lib/auth'
+import { createRouteHandlerSupabaseAuthClient } from '@/lib/supabase-auth-ssr'
 
 export async function GET(request: NextRequest) {
-  const { searchParams, hash, origin } = new URL(request.url)
+  const { searchParams, origin } = new URL(request.url)
   
   const code = searchParams.get('code')
   const error = searchParams.get('error')
@@ -14,7 +15,7 @@ export async function GET(request: NextRequest) {
 
   // Handle errors
   if (error) {
-    const loginUrl = new URL('/auth/login', origin)
+    const loginUrl = new URL('/login', origin)
     loginUrl.searchParams.set('error', errorDescription || 'Link expired')
     return NextResponse.redirect(loginUrl)
   }
@@ -22,16 +23,17 @@ export async function GET(request: NextRequest) {
   // Exchange code for session + bridge to custom JWT
   if (code) {
     try {
+      const { supabase: authClient, applyPendingCookies } = createRouteHandlerSupabaseAuthClient(request)
       const supabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!,
         { auth: { autoRefreshToken: false, persistSession: false } }
       )
 
-      const { data: authData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
+      const { data: authData, error: exchangeError } = await authClient.auth.exchangeCodeForSession(code)
       
       if (exchangeError || !authData?.user?.email) {
-        const loginUrl = new URL('/auth/login', origin)
+        const loginUrl = new URL('/login', origin)
         loginUrl.searchParams.set('error', 'Link expired. Try again.')
         return NextResponse.redirect(loginUrl)
       }
@@ -46,7 +48,7 @@ export async function GET(request: NextRequest) {
         .single()
 
       if (!user) {
-        const loginUrl = new URL('/auth/login', origin)
+        const loginUrl = new URL('/login', origin)
         loginUrl.searchParams.set('error', 'No account found.')
         return NextResponse.redirect(loginUrl)
       }
@@ -72,15 +74,15 @@ export async function GET(request: NextRequest) {
         ...(cookieDomain && { domain: cookieDomain }),
       })
 
-      return response
+      return applyPendingCookies(response)
     } catch (err) {
       console.error('Callback error:', err)
-      const loginUrl = new URL('/auth/login', origin)
+      const loginUrl = new URL('/login', origin)
       loginUrl.searchParams.set('error', 'Something went wrong. Try again.')
       return NextResponse.redirect(loginUrl)
     }
   }
 
   // No code — redirect to login
-  return NextResponse.redirect(new URL('/auth/login', origin))
+  return NextResponse.redirect(new URL('/login', origin))
 }
