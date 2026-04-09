@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
       type: link.platform,
       url: link.url,
       title: link.title,
-      thumbnail_url: transformImageUrl(link.thumbnail),
+      thumbnail_url: transformImageUrl(link.thumbnail_url_hq || link.thumbnail),
       embed_html: link.metadata?.embed_html,
       description: link.metadata?.description,
       position: link.position,

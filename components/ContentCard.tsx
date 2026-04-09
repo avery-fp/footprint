@@ -4,10 +4,11 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import type { ContentType } from '@/lib/parser'
 import { audioManager } from '@/lib/audio-manager'
-import { parseEmbed, getYouTubeThumbnail, extractYouTubeId } from '@/lib/parseEmbed'
+import { parseEmbed, extractYouTubeId } from '@/lib/parseEmbed'
 import type { EmbedResult } from '@/lib/parseEmbed'
 import GlassEmbedFrameExtracted, { GLASS_STYLE as GLASS_STYLE_IMPORTED, GlassPlaceholder as GlassPlaceholderExtracted } from '@/components/GlassEmbedFrame'
 import { transformImageUrl } from '@/lib/image'
+import { applyNextThumbnailFallback, getBestThumbnailUrl, getYouTubeThumbnailCandidates } from '@/lib/media/thumbnails'
 
 // ════════════════════════════════════════
 // Glass Embed Frame — imported from extracted component
@@ -135,6 +136,14 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // YOUTUBE — FACADE: thumbnail first, iframe on tap
   // ════════════════════════════════════════
   const youtubeId = content.type === 'youtube' ? extractYouTubeId(content.url) : null
+  const youtubeThumbCandidates = youtubeId
+    ? getYouTubeThumbnailCandidates({
+        url: content.url,
+        media_id: youtubeId,
+        thumbnail_url: content.thumbnail_url,
+        thumbnail_url_hq: content.thumbnail_url_hq,
+      })
+    : []
   if (content.type === 'youtube' && youtubeId && !iframeFailed) {
     // postMessage unmute — mobile Safari enforces mute on iframe autoplay
     // even after user gesture. enablejsapi=1 + postMessage bypasses this.
@@ -171,7 +180,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     }
     // Facade — always shows a thumbnail, never collapses
     if (!isActivated) {
-      const thumbSrc = `https://i.ytimg.com/vi/${youtubeId}/maxresdefault.jpg`
+      const thumbSrc = youtubeThumbCandidates[0]
       return (
         <div
           ref={containerRef}
@@ -186,11 +195,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             loading="lazy"
             decoding="async"
             onError={(e) => {
-              const img = e.currentTarget as HTMLImageElement
-              const hqFallback = content.thumbnail_url_hq || content.thumbnail_url || `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg`
-              if (!img.src.includes('hqdefault') && img.src !== hqFallback) {
-                img.src = hqFallback
-              }
+              applyNextThumbnailFallback(e.currentTarget, youtubeThumbCandidates)
             }}
           />
           <div className="absolute inset-0 flex items-center justify-center">
@@ -227,7 +232,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // Album art full bleed + title/artist overlay. Tap opens Spotify.
   // ════════════════════════════════════════
   if (content.type === 'spotify') {
-    const thumbSrc = content.thumbnail_url_hq || content.thumbnail_url
+    const thumbSrc = getBestThumbnailUrl(content)
 
     return (
       <a
@@ -529,7 +534,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // TIKTOK — content facade (thumbnail), tap opens post
   // ════════════════════════════════════════
   if (content.type === 'tiktok') {
-    const thumbSrc = content.thumbnail_url_hq || content.thumbnail_url
+    const thumbSrc = getBestThumbnailUrl(content)
     return (
       <a
         href={content.url}
@@ -567,7 +572,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // INSTAGRAM — content facade (og:image), tap opens post
   // ════════════════════════════════════════
   if (content.type === 'instagram') {
-    const thumbSrc = content.thumbnail_url_hq || content.thumbnail_url
+    const thumbSrc = getBestThumbnailUrl(content)
     return (
       <a
         href={content.url}
@@ -611,7 +616,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   // LINK CARD — clean fallback for everything else
   // ════════════════════════════════════════
-  if (content.thumbnail_url) {
+  const fallbackThumbSrc = getBestThumbnailUrl(content)
+  if (fallbackThumbSrc) {
     return (
       <a
         href={content.url}
@@ -621,7 +627,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         className={`block w-full ${aspectClass} fp-tile overflow-hidden relative`}
       >
         <Image
-          src={transformImageUrl(content.thumbnail_url)}
+          src={transformImageUrl(fallbackThumbSrc)}
           alt={content.title || ''}
           fill
           sizes={tileSize >= 2 ? '(max-width: 768px) 100vw, 50vw' : '(max-width: 768px) 50vw, 25vw'}

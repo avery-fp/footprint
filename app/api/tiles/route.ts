@@ -173,6 +173,10 @@ export async function POST(request: NextRequest) {
         } catch {
           // Metadata fetch failed — proceed without metadata, not a blocker
         }
+
+        if (parsed.type === 'youtube') {
+          ghostThumbnailHq = parsed.thumbnail_url || ghostThumbnailHq
+        }
       }
 
       // Insert into links table for everything else

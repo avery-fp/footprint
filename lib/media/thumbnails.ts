@@ -1,0 +1,72 @@
+import { extractYouTubeId } from '@/lib/parseEmbed'
+
+type ThumbnailLike = {
+  type?: string | null
+  url?: string | null
+  media_id?: string | null
+  thumbnail_url_hq?: string | null
+  thumbnail_url?: string | null
+  thumbnail?: string | null
+  image_url?: string | null
+}
+
+function dedupe(urls: Array<string | null | undefined>): string[] {
+  const seen = new Set<string>()
+  const result: string[] = []
+
+  for (const url of urls) {
+    if (!url) continue
+    if (seen.has(url)) continue
+    seen.add(url)
+    result.push(url)
+  }
+
+  return result
+}
+
+export function getYouTubeThumbnailCandidates(input: { url?: string | null; media_id?: string | null; thumbnail_url?: string | null; thumbnail_url_hq?: string | null }): string[] {
+  const id = input.media_id || (input.url ? extractYouTubeId(input.url) : null)
+  if (!id) {
+    return dedupe([input.thumbnail_url, input.thumbnail_url_hq])
+  }
+
+  return dedupe([
+    `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`,
+    `https://i.ytimg.com/vi/${id}/sddefault.jpg`,
+    `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+    `https://i.ytimg.com/vi/${id}/mqdefault.jpg`,
+    `https://i.ytimg.com/vi/${id}/default.jpg`,
+    input.thumbnail_url,
+    input.thumbnail_url_hq,
+  ])
+}
+
+export function getThumbnailCandidates(input: ThumbnailLike): string[] {
+  const hasYouTubeId = Boolean(input.url && extractYouTubeId(input.url))
+  if (input.type === 'youtube' || hasYouTubeId) {
+    return getYouTubeThumbnailCandidates({
+      ...input,
+      media_id: input.type === 'youtube' ? input.media_id : null,
+    })
+  }
+
+  if (input.type === 'image') {
+    return dedupe([input.url, input.image_url, input.thumbnail_url_hq, input.thumbnail_url, input.thumbnail])
+  }
+
+  return dedupe([input.thumbnail_url_hq, input.thumbnail_url, input.thumbnail, input.image_url])
+}
+
+export function getBestThumbnailUrl(input: ThumbnailLike): string | null {
+  return getThumbnailCandidates(input)[0] || null
+}
+
+export function applyNextThumbnailFallback(img: HTMLImageElement, candidates: string[]): boolean {
+  const current = img.currentSrc || img.src
+  const currentIndex = candidates.findIndex(candidate => current.includes(candidate))
+  const next = candidates[currentIndex + 1] || candidates.find(candidate => candidate !== current) || null
+
+  if (!next || next === current) return false
+  img.src = next
+  return true
+}

@@ -37,6 +37,7 @@ import {
   detectImageAspect as detectImageAspectShared,
   detectVideoAspect as detectVideoAspectShared,
 } from '@/lib/upload'
+import { applyNextThumbnailFallback, getBestThumbnailUrl, getThumbnailCandidates } from '@/lib/media/thumbnails'
 
 interface TileContent extends DraftContent {
   source?: 'library' | 'links'
@@ -122,6 +123,8 @@ function SortableTile({
   }
 
   const isVideo = content.type === 'video' || (content.type === 'image' && /\.(mp4|mov|webm|m4v|3gp|3gpp|mkv)($|\?)/i.test(content.url || ''))
+  const thumbnailCandidates = getThumbnailCandidates(content)
+  const preferredThumbnailUrl = thumbnailCandidates[0] || null
 
   // Video visibility — only play when on-screen, pause when off
   useEffect(() => {
@@ -352,9 +355,14 @@ function SortableTile({
           )
         ) : (
           <div className={`${aspect === 'auto' ? 'w-full min-h-[80px]' : 'absolute inset-0'} flex flex-col items-center justify-center bg-white/[0.05] p-2`}>
-            {content.thumbnail_url ? (
-              <Image src={content.thumbnail_url} alt="" width={200} height={200} sizes="(max-width: 640px) 50vw, 25vw" className={`${aspect === 'auto' ? 'w-full h-auto' : 'absolute inset-0 w-full h-full'} ${getObjectFit(aspect)}`} loading="lazy" decoding="async" quality={75}
-                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+            {preferredThumbnailUrl ? (
+              <Image src={preferredThumbnailUrl} alt="" width={200} height={200} sizes="(max-width: 640px) 50vw, 25vw" className={`${aspect === 'auto' ? 'w-full h-auto' : 'absolute inset-0 w-full h-full'} ${getObjectFit(aspect)}`} loading="lazy" decoding="async" quality={90}
+                onError={(e) => {
+                  const img = e.target as HTMLImageElement
+                  if (!applyNextThumbnailFallback(img, thumbnailCandidates)) {
+                    img.style.display = 'none'
+                  }
+                }} />
             ) : (
               content.type === 'thought' ? (
                 <p className={`text-white text-center line-clamp-4 px-2 ${
@@ -1552,7 +1560,7 @@ export default function EditPage() {
     const tile = draft.content.find(c => c.id === tileId)
     if (!tile) return
 
-    const imageUrl = tile.type === 'image' ? tile.url : tile.thumbnail_url
+    const imageUrl = tile.type === 'image' ? tile.url : getBestThumbnailUrl(tile)
     if (!imageUrl) return
 
     try {
@@ -2041,7 +2049,9 @@ export default function EditPage() {
 
   const selectedTile = selectedTileId ? draft?.content.find(c => c.id === selectedTileId) : null
   const selectedIsImage = selectedTile?.type === 'image' && !selectedTile?.url?.match(/\.(mp4|mov|webm|m4v|3gp|3gpp|mkv)($|\?)/i)
-  const selectedHasThumbnail = selectedTile?.thumbnail_url
+  const selectedThumbnailCandidates = selectedTile ? getThumbnailCandidates(selectedTile) : []
+  const selectedThumbnailUrl = selectedTile ? getBestThumbnailUrl(selectedTile) : null
+  const selectedHasThumbnail = Boolean(selectedThumbnailUrl)
   const titlePlaceholder = getFootprintDisplayTitle({
     display_name: draft?.display_name,
     username: slug,
@@ -2698,8 +2708,15 @@ export default function EditPage() {
                 <div className="w-10 h-10 rounded-lg overflow-hidden bg-white/[0.06] flex-shrink-0">
                   {selectedTile.type === 'image' && selectedTile.url && !selectedTile.url.match(/\.(mp4|mov|webm|m4v|3gp|3gpp|mkv)($|\?)/i) ? (
                     <img src={selectedTile.url} alt="" className="w-full h-full object-cover" />
-                  ) : selectedTile.thumbnail_url ? (
-                    <img src={selectedTile.thumbnail_url} alt="" className="w-full h-full object-cover" />
+                  ) : selectedThumbnailUrl ? (
+                    <img
+                      src={selectedThumbnailUrl}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        applyNextThumbnailFallback(e.currentTarget, selectedThumbnailCandidates)
+                      }}
+                    />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-white/30 text-xs">
                       {selectedTile.type === 'thought' ? 'Aa' : '?'}

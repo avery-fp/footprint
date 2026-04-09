@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { MOTION } from '@/lib/motion'
+import { applyNextThumbnailFallback, getThumbnailCandidates } from '@/lib/media/thumbnails'
 
 interface Room {
   id: string
@@ -38,15 +39,6 @@ function getDisplayTitle(item: any): string {
     catch { return 'link' }
   }
   return 'untitled'
-}
-
-function getThumbnail(item: any): string | null {
-  if (item.thumbnail_url_hq) return item.thumbnail_url_hq
-  if (item.thumbnail) return item.thumbnail
-  if (item.thumbnail_url) return item.thumbnail_url
-  if (item.type === 'image' && item.url) return item.url
-  if (item.type === 'image' && item.image_url) return item.image_url
-  return null
 }
 
 function getTypeLabel(item: any): string {
@@ -333,7 +325,8 @@ export default function CommandLayer({
                         {group.items.map((entry) => {
                           const { result, flatIndex } = entry
                           const isSelected = flatIndex === selectedIndex
-                          const thumb = getThumbnail(result.item)
+                          const thumbCandidates = getThumbnailCandidates(result.item)
+                          const thumb = thumbCandidates[0] || null
 
                           return (
                             <motion.button
@@ -361,6 +354,9 @@ export default function CommandLayer({
                                   alt=""
                                   className="w-8 h-8 rounded-lg object-cover flex-shrink-0"
                                   style={{ background: 'rgba(255,255,255,0.04)' }}
+                                  onError={(e) => {
+                                    applyNextThumbnailFallback(e.currentTarget, thumbCandidates)
+                                  }}
                                 />
                               ) : (
                                 <div

@@ -79,7 +79,7 @@ export default async function FootprintPage({ params }: Props) {
     supabase.from('rooms').select('*').eq('serial_number', footprint.serial_number).neq('hidden', true).order('position'),
     // Lightweight child queries for container facade metadata (count + first thumbnail)
     supabase.from('library').select('id, parent_tile_id, image_url, position').eq('serial_number', footprint.serial_number).not('parent_tile_id', 'is', null).order('position'),
-    supabase.from('links').select('id, parent_tile_id, thumbnail, position').eq('serial_number', footprint.serial_number).not('parent_tile_id', 'is', null).order('position'),
+    supabase.from('links').select('id, parent_tile_id, thumbnail, thumbnail_url_hq, position').eq('serial_number', footprint.serial_number).not('parent_tile_id', 'is', null).order('position'),
   ])
 
   // Canonical type from URL — library has no type column, so derive once here
@@ -144,8 +144,9 @@ export default async function FootprintPage({ params }: Props) {
     if (!link.parent_tile_id) continue
     if (!containerMeta[link.parent_tile_id]) containerMeta[link.parent_tile_id] = { childCount: 0, firstThumb: null }
     containerMeta[link.parent_tile_id].childCount++
-    if (!containerMeta[link.parent_tile_id].firstThumb && link.thumbnail) {
-      containerMeta[link.parent_tile_id].firstThumb = transformImageUrl(link.thumbnail)
+    const linkThumb = link.thumbnail_url_hq || link.thumbnail
+    if (!containerMeta[link.parent_tile_id].firstThumb && linkThumb) {
+      containerMeta[link.parent_tile_id].firstThumb = transformImageUrl(linkThumb)
     }
   }
 

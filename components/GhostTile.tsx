@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { audioManager } from '@/lib/audio-manager'
 import { parseEmbed } from '@/lib/parseEmbed'
+import { applyNextThumbnailFallback, getThumbnailCandidates } from '@/lib/media/thumbnails'
 
 // ════════════════════════════════════════
 // GHOST TILE — de-branded media renderer
@@ -91,9 +92,13 @@ export default function GhostTile({
   }, [isPlaying, handlePlay])
 
   // Thumbnail URL
-  const thumbUrl = platform === 'youtube'
-    ? `https://i.ytimg.com/vi/${media_id}/maxresdefault.jpg`
-    : thumbnail_url || null
+  const thumbCandidates = getThumbnailCandidates({
+    type: platform,
+    url,
+    media_id,
+    thumbnail_url,
+  })
+  const thumbUrl = thumbCandidates[0] || null
 
   // ════════════════════════════════════════
   // SPOTIFY — share card. No iframe. No embed.
@@ -145,7 +150,7 @@ export default function GhostTile({
   if (archetype === 'audio') {
     return (
       <div className="w-full h-full relative overflow-hidden fp-tile" style={{ borderRadius: 'inherit' }}>
-        <ThumbnailBg src={thumbUrl} />
+        <ThumbnailBg src={thumbUrl} candidates={thumbCandidates} />
         <div
           className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer"
           style={{ zIndex: 2 }}
@@ -191,7 +196,7 @@ export default function GhostTile({
         clipPath: 'inset(0 round var(--fp-tile-radius, 0px))',
       }}
     >
-      <ThumbnailBg src={thumbUrl} />
+      <ThumbnailBg src={thumbUrl} candidates={thumbCandidates} />
 
       <div
         className="absolute inset-0 flex items-center justify-center cursor-pointer"
@@ -260,7 +265,7 @@ export default function GhostTile({
 // SUB-COMPONENTS
 // ════════════════════════════════════════
 
-function ThumbnailBg({ src }: { src: string | null }) {
+function ThumbnailBg({ src, candidates }: { src: string | null; candidates: string[] }) {
   if (!src) return (
     <div className="absolute inset-0" style={{ background: 'rgba(0, 0, 0, 0.6)' }} />
   )
@@ -275,10 +280,7 @@ function ThumbnailBg({ src }: { src: string | null }) {
         loading="lazy"
         decoding="async"
         onError={(e) => {
-          const img = e.currentTarget
-          if (img.src.includes('/maxresdefault.jpg')) {
-            img.src = img.src.replace('/maxresdefault.jpg', '/hqdefault.jpg')
-          }
+          applyNextThumbnailFallback(e.currentTarget, candidates)
         }}
       />
     </>
