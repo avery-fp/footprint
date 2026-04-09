@@ -1,7 +1,7 @@
-import { createServerClient } from '@supabase/ssr'
 import { SignJWT, jwtVerify } from 'jose'
 import { createServerSupabaseClient } from './supabase'
 import { AUTH_ENTRY } from './routes'
+import { createRouteHandlerSupabaseAuthClient } from './supabase-auth-ssr'
 import type { NextRequest } from 'next/server'
 
 // Secret key for JWT signing — MUST be set via JWT_SECRET env var in production
@@ -156,41 +156,15 @@ export async function sendWelcomeEmail(email: string, serialNumber: number, user
  * Returns null if cookie is missing or JWT is invalid/expired.
  */
 export async function getUserIdFromRequest(request: NextRequest): Promise<string | null> {
-  const token = request.cookies.get('fp_session')?.value
-  if (token) {
-    const session = await verifySessionToken(token)
-    if (session?.userId) return session.userId
-  }
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  if (!supabaseUrl || !supabaseAnonKey) return null
-
-  try {
-    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-      cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value
-        },
-        set(_name: string, _value: string, _options: Record<string, unknown>) {},
-        remove(_name: string, _options: Record<string, unknown>) {},
-      },
-    })
-
-    const { data, error } = await supabase.auth.getUser()
-    if (error) {
-      console.error('[auth] Supabase session lookup failed:', error.message)
-      return null
-    }
-
-    const email = data.user?.email?.toLowerCase().trim()
-    if (!email) return null
+  async function resolveInternalUserIdByEmail(email: string): Promise<string | null> {
+    const normalizedEmail = email.toLowerCase().trim()
+    if (!normalizedEmail) return null
 
     const db = createServerSupabaseClient()
     const { data: user, error: userError } = await db
       .from('users')
       .select('id')
-      .eq('email', email)
+      .eq('email', normalizedEmail)
       .single()
 
     if (userError) {
@@ -199,6 +173,29 @@ export async function getUserIdFromRequest(request: NextRequest): Promise<string
     }
 
     return user?.id ?? null
+  }
+
+  const token = request.cookies.get('fp_session')?.value
+  if (token) {
+    const session = await verifySessionToken(token)
+    if (session?.email) {
+      const canonicalUserId = await resolveInternalUserIdByEmail(session.email)
+      if (canonicalUserId) return canonicalUserId
+    }
+    if (session?.userId) return session.userId
+  }
+
+  try {
+    const { supabase } = createRouteHandlerSupabaseAuthClient(request)
+    const { data, error } = await supabase.auth.getUser()
+    if (error) {
+      console.error('[auth] Supabase session lookup failed:', error.message)
+      return null
+    }
+
+    const email = data.user?.email?.toLowerCase().trim()
+    if (!email) return null
+    return await resolveInternalUserIdByEmail(email)
   } catch (err) {
     console.error('[auth] Supabase session lookup failed:', err instanceof Error ? err.message : err)
     return null
