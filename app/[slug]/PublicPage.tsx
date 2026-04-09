@@ -606,8 +606,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           <header className="pb-4 md:pb-5 flex flex-col items-center px-4">
             <h1
               className={`${
-                displayTitle.length <= 6
-                  ? 'text-4xl md:text-6xl tracking-[0.22em] font-normal'
+                displayTitle.length <= 3
+                  ? 'text-4xl md:text-6xl tracking-[0.04em] font-normal'
+                  : displayTitle.length <= 6
+                  ? 'text-4xl md:text-6xl tracking-[0.14em] font-normal'
                   : displayTitle.length <= 12
                   ? 'text-3xl md:text-5xl tracking-[0.14em] font-normal'
                   : 'text-2xl md:text-4xl tracking-[0.06em] font-light'
