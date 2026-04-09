@@ -144,13 +144,15 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         try {
           iframe.contentWindow?.postMessage('{"event":"command","func":"unMute","args":""}', '*')
           iframe.contentWindow?.postMessage('{"event":"command","func":"setVolume","args":[100]}', '*')
+          iframe.contentWindow?.postMessage('{"event":"command","func":"setPlaybackQuality","args":["highres"]}', '*')
+          iframe.contentWindow?.postMessage('{"event":"command","func":"setPlaybackQuality","args":["hd1080"]}', '*')
         } catch {}
       }, 800)
     }
 
     // isExpanded: skip facade, render iframe immediately (used in lightbox)
     if (isExpanded) {
-      const ytSrc = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&enablejsapi=1&controls=1&rel=0&iv_load_policy=3&playsinline=1`
+      const ytSrc = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&enablejsapi=1&controls=1&rel=0&iv_load_policy=3&playsinline=1&vq=hd1080&hd=1`
       return (
         <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative bg-black">
           <iframe
@@ -169,7 +171,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     }
     // Facade — always shows a thumbnail, never collapses
     if (!isActivated) {
-      const thumbSrc = content.thumbnail_url || `https://i.ytimg.com/vi/${youtubeId}/maxresdefault.jpg`
+      const thumbSrc = `https://i.ytimg.com/vi/${youtubeId}/maxresdefault.jpg`
       return (
         <div
           ref={containerRef}
@@ -185,8 +187,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             decoding="async"
             onError={(e) => {
               const img = e.currentTarget as HTMLImageElement
-              const hqFallback = `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg`
-              if (!img.src.includes('hqdefault')) {
+              const hqFallback = content.thumbnail_url_hq || content.thumbnail_url || `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg`
+              if (!img.src.includes('hqdefault') && img.src !== hqFallback) {
                 img.src = hqFallback
               }
             }}
@@ -202,7 +204,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       )
     }
     // YouTube activated state — canonical fix
-    const ytSrc = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&enablejsapi=1&controls=1&rel=0&iv_load_policy=3&playsinline=1`
+    const ytSrc = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&enablejsapi=1&controls=1&rel=0&iv_load_policy=3&playsinline=1&vq=hd1080&hd=1`
     return (
       <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative bg-black">
         <iframe

@@ -91,9 +91,9 @@ export default function GhostTile({
   }, [isPlaying, handlePlay])
 
   // Thumbnail URL
-  const thumbUrl = thumbnail_url || (
-    platform === 'youtube' ? `https://i.ytimg.com/vi/${media_id}/maxresdefault.jpg` : null
-  )
+  const thumbUrl = platform === 'youtube'
+    ? `https://i.ytimg.com/vi/${media_id}/maxresdefault.jpg`
+    : thumbnail_url || null
 
   // ════════════════════════════════════════
   // SPOTIFY — share card. No iframe. No embed.
@@ -162,7 +162,7 @@ export default function GhostTile({
   // Blurred thumbnail bg + iframe reveal on play
   // ════════════════════════════════════════
   const iframeSrc = platform === 'youtube'
-    ? `https://www.youtube.com/embed/${media_id}?autoplay=1&enablejsapi=1&controls=1&rel=0&iv_load_policy=3&playsinline=1`
+    ? `https://www.youtube.com/embed/${media_id}?autoplay=1&enablejsapi=1&controls=1&rel=0&iv_load_policy=3&playsinline=1&vq=hd1080&hd=1`
     : platform === 'vimeo'
     ? `https://player.vimeo.com/video/${media_id}?title=0&byline=0&portrait=0&badge=0&dnt=1&autoplay=1`
     : undefined
@@ -175,6 +175,8 @@ export default function GhostTile({
       try {
         iframe.contentWindow?.postMessage('{"event":"command","func":"unMute","args":""}', '*')
         iframe.contentWindow?.postMessage('{"event":"command","func":"setVolume","args":[100]}', '*')
+        iframe.contentWindow?.postMessage('{"event":"command","func":"setPlaybackQuality","args":["highres"]}', '*')
+        iframe.contentWindow?.postMessage('{"event":"command","func":"setPlaybackQuality","args":["hd1080"]}', '*')
       } catch {}
     }, 800)
   }, [platform])
@@ -272,6 +274,12 @@ function ThumbnailBg({ src }: { src: string | null }) {
         style={{}}
         loading="lazy"
         decoding="async"
+        onError={(e) => {
+          const img = e.currentTarget
+          if (img.src.includes('/maxresdefault.jpg')) {
+            img.src = img.src.replace('/maxresdefault.jpg', '/hqdefault.jpg')
+          }
+        }}
       />
     </>
   )
