@@ -118,7 +118,6 @@ export default function UnifiedTile({
 
   const canonicalType = resolveCanonicalType(item.type, item.url || '')
   const isAuto = aspect === 'auto'
-  const publicYouTubeId = mode === 'public' ? extractYouTubeId(item.url || '') : null
 
   // ── Thought ──
   if (canonicalType === 'thought') {
@@ -200,46 +199,17 @@ export default function UnifiedTile({
     )
   }
 
-  // ── Public YouTube — thumbnail only, never inline player ──
-  if (mode === 'public' && publicYouTubeId) {
-    const thumbnailSrc =
-      item.thumbnail_url_hq ||
-      item.thumbnail_url ||
-      `https://i.ytimg.com/vi/${publicYouTubeId}/maxresdefault.jpg`
-
-    return (
-      <a
-        href={item.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block w-full h-full"
-        data-tile-id={item.id}
-        data-tile-type="youtube-thumbnail"
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={thumbnailSrc}
-          alt={item.title || 'YouTube video'}
-          className="w-full h-full object-cover"
-          loading="lazy"
-          decoding="async"
-          onError={(e) => {
-            const img = e.currentTarget as HTMLImageElement
-            const hqFallback = `https://i.ytimg.com/vi/${publicYouTubeId}/hqdefault.jpg`
-            if (!img.src.includes('hqdefault')) {
-              img.src = hqFallback
-            }
-          }}
-        />
-      </a>
-    )
-  }
-
   // ── Ghost tile — de-branded media render ──
   // In the sound room, force ghost rendering for audio platforms even without render_mode
   const AUDIO_PLATFORMS = ['spotify', 'soundcloud', 'youtube', 'vimeo']
   const forceGhost = isSoundRoom && AUDIO_PLATFORMS.includes(item.type)
-  const ghostMediaId = item.media_id || item.id // fallback to tile id for legacy tiles
+  const derivedGhostMediaId =
+    item.type === 'youtube'
+      ? extractYouTubeId(item.url || '')
+      : item.type === 'vimeo'
+      ? item.url.match(/vimeo\.com\/(\d+)/)?.[1] || null
+      : null
+  const ghostMediaId = item.media_id || derivedGhostMediaId || (item.type === 'spotify' ? item.id : null)
   if ((item.render_mode === 'ghost' || forceGhost) && ghostMediaId) {
     return (
       <div className="w-full h-full" data-tile-id={item.id} data-tile-type={`ghost-${item.type}`}>
