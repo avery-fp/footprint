@@ -1,2 +1,6 @@
 import { redirect } from 'next/navigation'
-export default function SignupPage() { redirect('/ae?claim=1') }
+import { AUTH_ENTRY } from '@/lib/routes'
+
+export default function SignupPage() {
+  redirect(AUTH_ENTRY)
+}

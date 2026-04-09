@@ -2,10 +2,9 @@
 
 import { useState, useCallback, useEffect, FormEvent } from 'react'
 import OAuthButton from './OAuthButton'
-import PasskeyButton from './PasskeyButton'
 
 interface AuthModalProps {
-  /** Where to send the user after auth succeeds. Used by OAuthButton + PasskeyButton. */
+  /** Where to send the user after auth succeeds. Used by OAuthButton. */
   redirectAfterAuth?: string
   /** If provided, shows an X close button in the top right that calls this. */
   onClose?: () => void
@@ -23,8 +22,6 @@ interface AuthModalProps {
  * Layout (top to bottom):
  *   - X close (optional)
  *   - Continue with Google
- *   - Continue with Apple   (env-gated inside OAuthButton)
- *   - Continue with passkey (browser-gated inside PasskeyButton)
  *   - "or" divider
  *   - Email input + → submit  (POST /api/auth/magic-link)
  *   - $10 price line (optional)
@@ -126,8 +123,6 @@ export default function AuthModal({ redirectAfterAuth, onClose, showPrice }: Aut
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
         <OAuthButton provider="google" label="google" redirectAfterAuth={redirectAfterAuth} />
-        <OAuthButton provider="apple" label="apple" redirectAfterAuth={redirectAfterAuth} />
-        <PasskeyButton redirectAfterAuth={redirectAfterAuth} />
       </div>
 
       <div aria-hidden style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%' }}>
