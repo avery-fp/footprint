@@ -897,6 +897,8 @@ export default function EditPage() {
     })
   }, [activeRoomId, backgroundBlur, draft, rooms, tileSources, wallpaperUrl])
 
+  const hasPendingUploads = draft?.content.some(tile => tile.id.startsWith('temp-')) ?? false
+
   const applySnapshotToEditor = useCallback((input: unknown) => {
     const snapshot = normalizeFootprintStateSnapshot(input)
     const nextRooms = snapshot.rooms
@@ -996,7 +998,7 @@ export default function EditPage() {
       setTimeout(() => setStatusToast(null), 1800)
       return
     }
-    if (draft.content.some(tile => tile.id.startsWith('temp-'))) {
+    if (hasPendingUploads) {
       setStatusToast('wait for uploads to finish')
       setTimeout(() => setStatusToast(null), 1800)
       return
@@ -1030,7 +1032,7 @@ export default function EditPage() {
 
   async function handleLoadState(stateId: string) {
     if (!confirm('Load this state into your current draft?')) return
-    if (draft.content.some(tile => tile.id.startsWith('temp-'))) {
+    if (hasPendingUploads) {
       setStatusToast('wait for uploads to finish')
       setTimeout(() => setStatusToast(null), 1800)
       return
@@ -1062,7 +1064,7 @@ export default function EditPage() {
     const snapshot = buildStateSnapshot()
     if (!snapshot) return
     if (!confirm(`Replace "${state.name}" with your current draft?`)) return
-    if (draft.content.some(tile => tile.id.startsWith('temp-'))) {
+    if (hasPendingUploads) {
       setStatusToast('wait for uploads to finish')
       setTimeout(() => setStatusToast(null), 1800)
       return
