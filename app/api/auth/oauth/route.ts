@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createRouteHandlerSupabaseAuthClient, getCanonicalAppBaseUrl } from '@/lib/supabase-auth-ssr'
 
 /**
  * POST /api/auth/oauth
@@ -15,16 +15,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid provider' }, { status: 400 })
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-    if (!supabaseUrl || !supabaseAnonKey) {
-      return NextResponse.json({ error: 'OAuth not configured' }, { status: 500 })
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseAnonKey)
-
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin
+    const { supabase, applyPendingCookies } = createRouteHandlerSupabaseAuthClient(request)
+    const baseUrl = getCanonicalAppBaseUrl(request)
     const callbackUrl = new URL('/auth/callback', baseUrl)
     // Pass post-auth redirect through the OAuth flow as a query param
     // so it survives even if the cookie doesn't make it through cross-origin redirects
@@ -49,7 +41,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to start sign-in' }, { status: 500 })
     }
 
-    return NextResponse.json({ url: data.url })
+    return applyPendingCookies(NextResponse.json({ url: data.url }))
   } catch (err) {
     console.error('[oauth] unexpected error:', err)
     return NextResponse.json({ error: 'Something went wrong' }, { status: 500 })
