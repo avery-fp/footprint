@@ -164,7 +164,7 @@ export async function getUserIdFromRequest(request: NextRequest): Promise<string
     const { data: user, error: userError } = await db
       .from('users')
       .select('id')
-      .eq('email', normalizedEmail)
+      .ilike('email', normalizedEmail)
       .single()
 
     if (userError) {
@@ -182,7 +182,7 @@ export async function getUserIdFromRequest(request: NextRequest): Promise<string
       const canonicalUserId = await resolveInternalUserIdByEmail(session.email)
       if (canonicalUserId) return canonicalUserId
     }
-    if (session?.userId) return session.userId
+    if (!session?.email && session?.userId) return session.userId
   }
 
   try {
