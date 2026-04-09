@@ -8,6 +8,7 @@ import TileImage from '@/components/TileImage'
 import ZoomableImage from '@/components/ZoomableImage'
 import ContainerTileBase from '@/components/ContainerTile'
 import { getImageSizes } from '@/lib/media/aspect'
+import { extractYouTubeId } from '@/lib/parseEmbed'
 
 const ContainerTile = memo(ContainerTileBase)
 
@@ -117,6 +118,7 @@ export default function UnifiedTile({
 
   const canonicalType = resolveCanonicalType(item.type, item.url || '')
   const isAuto = aspect === 'auto'
+  const publicYouTubeId = mode === 'public' ? extractYouTubeId(item.url || '') : null
 
   // ── Thought ──
   if (canonicalType === 'thought') {
@@ -195,6 +197,41 @@ export default function UnifiedTile({
           index={index}
         />
       </div>
+    )
+  }
+
+  // ── Public YouTube — thumbnail only, never inline player ──
+  if (mode === 'public' && publicYouTubeId) {
+    const thumbnailSrc =
+      item.thumbnail_url_hq ||
+      item.thumbnail_url ||
+      `https://i.ytimg.com/vi/${publicYouTubeId}/maxresdefault.jpg`
+
+    return (
+      <a
+        href={item.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block w-full h-full"
+        data-tile-id={item.id}
+        data-tile-type="youtube-thumbnail"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={thumbnailSrc}
+          alt={item.title || 'YouTube video'}
+          className="w-full h-full object-cover"
+          loading="lazy"
+          decoding="async"
+          onError={(e) => {
+            const img = e.currentTarget as HTMLImageElement
+            const hqFallback = `https://i.ytimg.com/vi/${publicYouTubeId}/hqdefault.jpg`
+            if (!img.src.includes('hqdefault')) {
+              img.src = hqFallback
+            }
+          }}
+        />
+      </a>
     )
   }
 
