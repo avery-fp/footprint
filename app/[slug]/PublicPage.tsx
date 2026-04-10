@@ -533,7 +533,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   ) : gridInner
 
   return (
-    <div className="min-h-[100dvh] relative flex flex-col" style={{ background: theme.colors.background, color: theme.colors.text, '--fp-glass': theme.colors.glass, '--fp-text-muted': theme.colors.textMuted } as React.CSSProperties}>
+    <div className="relative flex min-h-[100dvh] w-full flex-col overflow-x-hidden" style={{ background: theme.colors.background, color: theme.colors.text, '--fp-glass': theme.colors.glass, '--fp-text-muted': theme.colors.textMuted } as React.CSSProperties}>
       {/* Wallpaper layer — GPU composited for 60fps scroll */}
       {footprint.background_url && (
         <div className="fixed inset-0 z-0 fp-wallpaper-gpu">
@@ -811,14 +811,16 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       {/* Rolodex drawer */}
       {isLoggedIn && (
         <>
-          <button
-            onClick={() => setDrawerOpen(true)}
-            aria-label="Open saved footprints"
-            className="fixed bottom-3 left-1/2 -translate-x-1/2 z-50 flex items-center justify-center w-14 h-8 touch-manipulation"
-            style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
-          >
-            <span className="block w-10 h-[3px] rounded-full bg-white/[0.10] hover:bg-white/[0.20] transition-all duration-300 hover:w-12" />
-          </button>
+          <div className="fixed inset-x-0 bottom-3 z-50 flex justify-center px-4 pointer-events-none">
+            <button
+              onClick={() => setDrawerOpen(true)}
+              aria-label="Open saved footprints"
+              className="pointer-events-auto flex items-center justify-center w-14 h-8 touch-manipulation"
+              style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+            >
+              <span className="block w-10 h-[3px] rounded-full bg-white/[0.10] hover:bg-white/[0.20] transition-all duration-300 hover:w-12" />
+            </button>
+          </div>
           <RolodexDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
         </>
       )}
