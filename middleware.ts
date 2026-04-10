@@ -84,7 +84,24 @@ export function middleware(request: NextRequest) {
     return withSecurityHeaders(NextResponse.rewrite(rewrite))
   }
 
-  // ── 2a. Legacy auth entry points → hard 307 to AUTH_ENTRY ──
+  // ── 2a. /home resolver — edge redirect, not RSC redirect ──
+  // Authenticated users resolve their slug server-side in app/home/page.tsx.
+  // Unauthenticated users must land on /ae?claim=1. Next's RSC redirect()
+  // can strip query params in some builds, so gate it here at the edge
+  // where the URL is constructed explicitly.
+  if (pathname === '/home') {
+    const session = request.cookies.get('fp_session')
+    if (!session?.value) {
+      const target = request.nextUrl.clone()
+      target.pathname = '/ae'
+      target.searchParams.set('claim', '1')
+      return withSecurityHeaders(NextResponse.redirect(target, 307))
+    }
+    // Authenticated → fall through to app/home/page.tsx which resolves the slug
+    return withSecurityHeaders(NextResponse.next())
+  }
+
+  // ── 2b. Legacy auth entry points → hard 307 to AUTH_ENTRY ──
   // Previously these were handled by server-component redirect() stubs in
   // app/login/page.tsx, app/signin/page.tsx, app/auth/login/page.tsx.
   // Those worked in real browsers but Next's RSC streaming pipeline emits

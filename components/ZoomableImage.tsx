@@ -13,6 +13,9 @@ export default function ZoomableImage({ children }: ZoomableImageProps) {
   const lastTapRef = useRef(0)
   const containerRef = useRef<HTMLDivElement>(null)
   const panStartRef = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null)
+  // Guard: on mobile, both onTouchEnd and onClick fire per tap. Without this,
+  // the near-zero delta between them falsely triggers double-tap detection.
+  const touchHandledRef = useRef(false)
 
   const getRelativePosition = useCallback((clientX: number, clientY: number) => {
     const el = containerRef.current
@@ -49,13 +52,21 @@ export default function ZoomableImage({ children }: ZoomableImageProps) {
   }, [zoomed, getRelativePosition])
 
   const handleClick = useCallback((e: React.MouseEvent) => {
+    // If touch already handled this tap, skip the redundant click event
+    if (touchHandledRef.current) {
+      touchHandledRef.current = false
+      return
+    }
     handleTap(e.clientX, e.clientY)
   }, [handleTap])
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     if (e.touches.length > 0) return
     const touch = e.changedTouches[0]
-    if (touch) handleTap(touch.clientX, touch.clientY)
+    if (touch) {
+      touchHandledRef.current = true
+      handleTap(touch.clientX, touch.clientY)
+    }
   }, [handleTap])
 
   // Pan while zoomed

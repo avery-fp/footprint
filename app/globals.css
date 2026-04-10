@@ -500,10 +500,10 @@ input:-webkit-autofill:focus {
 
 /* Desktop tile hover — subtle brightness on pointer devices */
 @media (hover: hover) {
-  .fp-tile {
+  .fp-tile-hover {
     transition: filter 0.15s ease, border-radius 350ms ease-out;
   }
-  .tile-container:not(.tile-arranging):hover .fp-tile {
+  .fp-tile-hover:not(.tile-arranging):hover {
     filter: brightness(1.06);
   }
 }
