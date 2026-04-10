@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import ClaimCeremony from '@/components/ClaimCeremony'
-import AuthModal from '@/components/auth/AuthModal'
 
 /**
  * SovereignTile — self-contained claim flow.
@@ -10,7 +9,7 @@ import AuthModal from '@/components/auth/AuthModal'
  * ONE component, ONE init effect, ONE phase variable.
  * No race conditions. No parent state dependencies.
  *
- * Phase: init → username → [auth] → [Stripe] → processing → ceremony → done
+ * Phase: init → username → [OAuth] → [Stripe] → processing → ceremony → done
  */
 
 interface SovereignTileProps {
@@ -30,7 +29,7 @@ interface SovereignTileProps {
   returnUsername?: string | null
 }
 
-type Phase = 'init' | 'auth' | 'username' | 'processing' | 'ceremony' | 'done'
+type Phase = 'init' | 'username' | 'processing' | 'ceremony' | 'done'
 type SlugState = 'idle' | 'checking' | 'available' | 'open' | 'invalid'
 
 function getInvalidMessage(username: string) {
@@ -194,10 +193,32 @@ export default function SovereignTile({ slug, onDismiss, onComplete, sessionId: 
     return () => window.clearTimeout(focusTimer)
   }, [phase])
 
-  // Google OAuth and email magic-link are handled inside <AuthModal />.
-  // Users type the name first, then authenticate only when they press submit.
-  // The redirectAfterAuth path carries the in-progress username so they land
-  // back in the same claim state with their session cookie set.
+  const startClaimOAuth = useCallback(async () => {
+    setLoading(true)
+    try {
+      const redirectAfterAuth = `/${slug}?claim=1&username=${encodeURIComponent(username)}`
+      const res = await fetch('/api/auth/oauth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: 'google', redirect: redirectAfterAuth }),
+      })
+
+      const data: { url?: string; error?: string } = await res.json().catch(() => ({}))
+      if (!res.ok || !data.url) {
+        setStatusText(data.error || 'Sign in failed')
+        setSlugState('idle')
+        setLoading(false)
+        return
+      }
+
+      document.cookie = `post_auth_redirect=${redirectAfterAuth};path=/;max-age=600;SameSite=Lax`
+      window.location.href = data.url
+    } catch {
+      setStatusText('Sign in failed')
+      setSlugState('idle')
+      setLoading(false)
+    }
+  }, [slug, username])
 
   // ── Submit username → seed (instant) or paid (Stripe) ──
   const handleSubmit = useCallback(async () => {
@@ -208,7 +229,7 @@ export default function SovereignTile({ slug, onDismiss, onComplete, sessionId: 
     }
     if (slugState !== 'available') return
     if (!isAuthenticated) {
-      setPhase('auth')
+      await startClaimOAuth()
       return
     }
     setLoading(true)
@@ -238,7 +259,7 @@ export default function SovereignTile({ slug, onDismiss, onComplete, sessionId: 
     } catch {
       setLoading(false)
     }
-  }, [slugState, loading, username, slug, isAuthenticated])
+  }, [slugState, loading, username, slug, isAuthenticated, startClaimOAuth])
 
   // ── Ceremony phase — full screen ──
   if (phase === 'ceremony' && serial) {
@@ -253,25 +274,6 @@ export default function SovereignTile({ slug, onDismiss, onComplete, sessionId: 
 
   // ── Init phase — invisible ──
   if (phase === 'init') return null
-
-  // ── Auth phase — render the unified AuthModal ──
-  if (phase === 'auth') {
-    return (
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center"
-        style={{ pointerEvents: 'auto' }}
-        onClick={() => setPhase('username')}
-      >
-        <div onClick={(e) => e.stopPropagation()}>
-          <AuthModal
-            redirectAfterAuth={`/${slug}?claim=1&username=${encodeURIComponent(username)}`}
-            showPrice={seedPhase === false}
-            onClose={() => setPhase('username')}
-          />
-        </div>
-      </div>
-    )
-  }
 
   // ── Username / processing — original tile chrome ──
   const canContinue = (slugState === 'available' || slugState === 'open') && !loading
