@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import ClaimCeremony from '@/components/ClaimCeremony'
-import AuthModal from '@/components/auth/AuthModal'
 
 /**
  * SovereignTile — self-contained claim flow.
@@ -10,7 +9,7 @@ import AuthModal from '@/components/auth/AuthModal'
  * ONE component, ONE init effect, ONE phase variable.
  * No race conditions. No parent state dependencies.
  *
- * Phase: init → username → [auth] → [Stripe] → processing → ceremony → done
+ * Phase: init → username → [OAuth] → [Stripe] → processing → ceremony → done
  */
 
 interface SovereignTileProps {
@@ -30,13 +29,21 @@ interface SovereignTileProps {
   returnUsername?: string | null
 }
 
-type Phase = 'init' | 'auth' | 'username' | 'processing' | 'ceremony' | 'done'
+type Phase = 'init' | 'username' | 'processing' | 'ceremony' | 'done'
+type SlugState = 'idle' | 'checking' | 'available' | 'open' | 'invalid'
+
+function getInvalidMessage(username: string) {
+  if (username.length < 2) return 'Too short'
+  if (username.length > 30) return 'Too long'
+  return 'Use letters, numbers, dots, or dashes'
+}
 
 export default function SovereignTile({ slug, onDismiss, onComplete, sessionId: propSessionId, returnUsername: propReturnUsername }: SovereignTileProps) {
   const [phase, setPhase] = useState<Phase>('init')
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [username, setUsername] = useState('')
-  const [available, setAvailable] = useState<boolean | null>(null)
+  const [slugState, setSlugState] = useState<SlugState>('idle')
+  const [statusText, setStatusText] = useState('Type a name')
   const [checking, setChecking] = useState(false)
   const [loading, setLoading] = useState(false)
   const [serial, setSerial] = useState<number | null>(null)
@@ -119,17 +126,30 @@ export default function SovereignTile({ slug, onDismiss, onComplete, sessionId: 
 
   // ── Username availability check (debounced) ──
   useEffect(() => {
-    if (phase !== 'username' || !username || username.length < 2) {
-      setAvailable(null)
+    if (phase !== 'username') {
+      setSlugState('idle')
+      setStatusText('Type a name')
       setChecking(false)
       return
     }
-    if (!/^[a-z0-9][a-z0-9._-]*$/i.test(username) || username.length > 30) {
-      setAvailable(false)
+
+    if (!username) {
+      setSlugState('idle')
+      setStatusText('Type a name')
       setChecking(false)
       return
     }
+
+    if (username.length < 2 || !/^[a-z0-9][a-z0-9._-]*[a-z0-9]$/i.test(username) || username.length > 30) {
+      setSlugState('invalid')
+      setStatusText(getInvalidMessage(username))
+      setChecking(false)
+      return
+    }
+
     setChecking(true)
+    setSlugState('checking')
+    setStatusText('Checking')
     const timer = setTimeout(async () => {
       try {
         const res = await fetch('/api/check-username', {
@@ -138,13 +158,27 @@ export default function SovereignTile({ slug, onDismiss, onComplete, sessionId: 
           body: JSON.stringify({ username }),
         })
         if (!res.ok) {
-          setAvailable(null)
+          setSlugState('idle')
+          setStatusText('Try again')
           return
         }
         const data = await res.json()
-        setAvailable(data.available === true)
+        if (data.available === true) {
+          setSlugState('available')
+          setStatusText('Available')
+        } else if (data.reason === 'taken') {
+          setSlugState('open')
+          setStatusText('Open')
+        } else if (data.reason === 'reserved') {
+          setSlugState('invalid')
+          setStatusText('Reserved')
+        } else {
+          setSlugState('invalid')
+          setStatusText(typeof data.reason === 'string' ? data.reason : 'Invalid')
+        }
       } catch {
-        setAvailable(null)
+        setSlugState('idle')
+        setStatusText('Try again')
       }
       setChecking(false)
     }, 400)
@@ -159,16 +193,43 @@ export default function SovereignTile({ slug, onDismiss, onComplete, sessionId: 
     return () => window.clearTimeout(focusTimer)
   }, [phase])
 
-  // Google OAuth and email magic-link are handled inside <AuthModal />.
-  // Users type the name first, then authenticate only when they press submit.
-  // The redirectAfterAuth path carries the in-progress username so they land
-  // back in the same claim state with their session cookie set.
+  const startClaimOAuth = useCallback(async () => {
+    setLoading(true)
+    try {
+      const redirectAfterAuth = `/${slug}?claim=1&username=${encodeURIComponent(username)}`
+      const res = await fetch('/api/auth/oauth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: 'google', redirect: redirectAfterAuth }),
+      })
+
+      const data: { url?: string; error?: string } = await res.json().catch(() => ({}))
+      if (!res.ok || !data.url) {
+        setStatusText(data.error || 'Sign in failed')
+        setSlugState('idle')
+        setLoading(false)
+        return
+      }
+
+      document.cookie = `post_auth_redirect=${redirectAfterAuth};path=/;max-age=600;SameSite=Lax`
+      window.location.href = data.url
+    } catch {
+      setStatusText('Sign in failed')
+      setSlugState('idle')
+      setLoading(false)
+    }
+  }, [slug, username])
 
   // ── Submit username → seed (instant) or paid (Stripe) ──
   const handleSubmit = useCallback(async () => {
-    if (!available || loading || !username) return
+    if (loading || !username) return
+    if (slugState === 'open') {
+      window.location.href = `/${username}`
+      return
+    }
+    if (slugState !== 'available') return
     if (!isAuthenticated) {
-      setPhase('auth')
+      await startClaimOAuth()
       return
     }
     setLoading(true)
@@ -198,7 +259,7 @@ export default function SovereignTile({ slug, onDismiss, onComplete, sessionId: 
     } catch {
       setLoading(false)
     }
-  }, [available, loading, username, slug, isAuthenticated])
+  }, [slugState, loading, username, slug, isAuthenticated, startClaimOAuth])
 
   // ── Ceremony phase — full screen ──
   if (phase === 'ceremony' && serial) {
@@ -214,26 +275,25 @@ export default function SovereignTile({ slug, onDismiss, onComplete, sessionId: 
   // ── Init phase — invisible ──
   if (phase === 'init') return null
 
-  // ── Auth phase — render the unified AuthModal ──
-  if (phase === 'auth') {
-    return (
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center"
-        style={{ pointerEvents: 'auto' }}
-        onClick={() => setPhase('username')}
-      >
-        <div onClick={(e) => e.stopPropagation()}>
-          <AuthModal
-            redirectAfterAuth={`/${slug}?claim=1&username=${encodeURIComponent(username)}`}
-            showPrice={seedPhase === false}
-            onClose={() => setPhase('username')}
-          />
-        </div>
-      </div>
-    )
-  }
-
   // ── Username / processing — original tile chrome ──
+  const canContinue = (slugState === 'available' || slugState === 'open') && !loading
+  const statusColor =
+    slugState === 'available'
+      ? 'rgba(130,255,180,0.7)'
+      : slugState === 'open'
+      ? 'rgba(160,210,255,0.72)'
+      : slugState === 'invalid'
+      ? 'rgba(255,110,110,0.75)'
+      : 'rgba(255,255,255,0.32)'
+  const usernameColor =
+    slugState === 'available'
+      ? 'rgba(130,255,180,0.68)'
+      : slugState === 'open'
+      ? 'rgba(190,225,255,0.78)'
+      : slugState === 'invalid'
+      ? 'rgba(255,100,100,0.68)'
+      : 'rgba(255,255,255,0.72)'
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
@@ -258,12 +318,12 @@ export default function SovereignTile({ slug, onDismiss, onComplete, sessionId: 
           borderRadius: '24px',
         }}
       >
-        {/* Username — fp.onl/________ + (optional $10) + → */}
+        {/* Username — footprint.onl/________ + state + → */}
         {phase === 'username' && (
           <>
             <div className="flex items-baseline gap-0">
               <span className="font-mono" style={{ fontSize: '16px', fontWeight: 300, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.02em' }}>
-                fp.onl/
+                footprint.onl/
               </span>
               <input
                 ref={usernameInputRef}
@@ -279,7 +339,7 @@ export default function SovereignTile({ slug, onDismiss, onComplete, sessionId: 
                 style={{
                   fontSize: '16px',
                   fontWeight: 300,
-                  color: available === true ? 'rgba(130,255,180,0.6)' : available === false ? 'rgba(255,100,100,0.6)' : 'rgba(255,255,255,0.6)',
+                  color: usernameColor,
                   background: 'none',
                   border: 'none',
                   borderBottom: '0.5px solid rgba(255,255,255,0.08)',
@@ -297,27 +357,40 @@ export default function SovereignTile({ slug, onDismiss, onComplete, sessionId: 
               )}
             </div>
 
-            {seedPhase === false && (
-              <span className="font-mono" style={{ fontSize: '13px', fontWeight: 300, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.06em' }}>
-                $10
-              </span>
-            )}
+            <span
+              className="font-mono"
+              style={{
+                minHeight: '16px',
+                fontSize: '11px',
+                fontWeight: 400,
+                color: statusColor,
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+              }}
+            >
+              {checking ? 'Checking' : statusText}
+            </span>
+
+            <span className="font-mono" style={{ fontSize: '13px', fontWeight: 300, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.06em' }}>
+              {slugState === 'open' ? 'Enter room' : seedPhase === false ? '$10' : 'Claim free'}
+            </span>
 
             <button
               onClick={handleSubmit}
-              disabled={!available || loading}
+              disabled={!canContinue}
               className="touch-manipulation font-mono"
+              aria-label={slugState === 'open' ? 'Open room' : 'Continue'}
               style={{
                 background: 'none',
                 border: 'none',
-                color: available && !loading ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.1)',
+                color: canContinue ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.1)',
                 fontSize: '18px',
-                cursor: available && !loading ? 'pointer' : 'default',
+                cursor: canContinue ? 'pointer' : 'default',
                 padding: '12px',
                 transition: 'color 200ms ease',
               }}
-              onMouseEnter={(e) => { if (available && !loading) e.currentTarget.style.color = 'rgba(255,255,255,0.7)' }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = available && !loading ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.1)' }}
+              onMouseEnter={(e) => { if (canContinue) e.currentTarget.style.color = 'rgba(255,255,255,0.7)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = canContinue ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.1)' }}
             >
               {loading ? '...' : '\u2192'}
             </button>
