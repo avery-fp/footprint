@@ -13,8 +13,6 @@ import json
 import os
 import subprocess
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Optional
 
 
 @dataclass
@@ -23,7 +21,6 @@ class ClipInfo:
     index: int
     source: str
     start_time: float
-    end_time: float
     duration: float
     output_path: str
 
@@ -211,7 +208,6 @@ def slice_video(
     # Get cut points
     if method == "scene":
         # Adjust threshold based on target clip count
-        estimated_interval = total_duration / target_clips
         threshold = max(0.1, min(0.5, 1.0 - (target_clips / (total_duration / 2))))
         timestamps = detect_scenes(input_path, threshold, min_clip, ffmpeg)
     elif method == "silence":
@@ -262,7 +258,6 @@ def slice_video(
                 index=i,
                 source=input_path,
                 start_time=start,
-                end_time=end,
                 duration=end - start,
                 output_path=output_path,
             )

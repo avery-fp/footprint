@@ -12,14 +12,9 @@ Includes progress tracking, error collection, and graceful shutdown.
 
 import multiprocessing as mp
 import os
-import signal
-import sys
 import time
 from dataclasses import dataclass
-from typing import Any, Callable, TypeVar
-
-T = TypeVar("T")
-R = TypeVar("R")
+from typing import Any, Callable
 
 
 @dataclass
@@ -31,51 +26,6 @@ class WorkerStats:
     elapsed_seconds: float
     items_per_second: float
     errors: list[str]
-
-
-# ─── Progress tracker ───────────────────────────────────
-
-class ProgressTracker:
-    """Thread-safe progress tracking for worker pools."""
-
-    def __init__(self, total: int, label: str = ""):
-        self.total = total
-        self.label = label
-        self._completed = mp.Value("i", 0)
-        self._failed = mp.Value("i", 0)
-        self._start = time.time()
-
-    def tick(self, success: bool = True):
-        if success:
-            with self._completed.get_lock():
-                self._completed.value += 1
-        else:
-            with self._failed.get_lock():
-                self._failed.value += 1
-
-    @property
-    def completed(self) -> int:
-        return self._completed.value
-
-    @property
-    def failed(self) -> int:
-        return self._failed.value
-
-    def summary(self) -> str:
-        elapsed = time.time() - self._start
-        rate = self.completed / elapsed if elapsed > 0 else 0
-        return (
-            f"  [{self.label}] {self.completed}/{self.total} done "
-            f"({self.failed} failed) "
-            f"[{elapsed:.1f}s, {rate:.1f}/s]"
-        )
-
-
-# ─── Chunker ────────────────────────────────────────────
-
-def chunk_items(items: list, chunk_size: int) -> list[list]:
-    """Split a list into chunks of specified size."""
-    return [items[i:i + chunk_size] for i in range(0, len(items), chunk_size)]
 
 
 # ─── Worker wrapper (handles errors gracefully) ─────────
@@ -178,36 +128,3 @@ def run_pool(
                 print(f"    ... and {len(errors)-5} more")
 
     return stats
-
-
-# ─── Sequential runner (fallback / debugging) ───────────
-
-def run_sequential(
-    fn: Callable,
-    items: list,
-    label: str = "seq",
-    show_progress: bool = True,
-) -> WorkerStats:
-    """
-    Run items sequentially (single process).
-    Useful for debugging or when multiprocessing isn't available.
-    """
-    total = len(items)
-    start_time = time.time()
-    completed = 0
-    failed = 0
-    errors: list[str] = []
-
-    for i, item in enumerate(items):
-        try:
-            fn(item)
-            completed += 1
-        except Exception as e:
-            failed += 1
-            errors.append(f"{type(e).__name__}: {str(e)[:200]}")
-
-        if show_progress and ((i + 1) % max(1, total // 10) == 0 or (i + 1) == total):
-            print(f"  [{label}] {i+1}/{total}")
-
-    elapsed = time.time() - start_time
-    return WorkerStats(total, completed, failed, elapsed, completed / elapsed if elapsed > 0 else 0, errors)

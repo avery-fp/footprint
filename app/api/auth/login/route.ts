@@ -5,6 +5,7 @@ import * as bcrypt from 'bcryptjs'
 import { loginSchema } from '@/lib/schemas'
 import { validateBody } from '@/lib/validate'
 import { routeLogger } from '@/lib/logger'
+import { ensurePrimaryFootprintForUser } from '@/lib/primary-footprint'
 
 const log = routeLogger('POST', '/api/auth/login')
 
@@ -120,17 +121,11 @@ export async function POST(request: NextRequest) {
 
     const sessionToken = await createSessionToken(user.id, user.email)
 
-    // Find user's primary footprint slug for direct redirect to editor
-    const { data: primaryFp } = await supabase
-      .from('footprints')
-      .select('username')
-      .eq('user_id', user.id)
-      .eq('is_primary', true)
-      .single()
+    const primaryFp = await ensurePrimaryFootprintForUser(user.id)
 
     const response = NextResponse.json({
       success: true,
-      slug: primaryFp?.username || null,
+      slug: primaryFp?.slug || null,
     })
 
     response.cookies.set(

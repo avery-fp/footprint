@@ -14,7 +14,6 @@ import csv
 import os
 import random
 from dataclasses import dataclass
-from typing import Optional
 
 from .config import COLOR_GRADES
 from .variants import VariantSpec
@@ -49,7 +48,6 @@ class PerformanceRecord:
 @dataclass
 class MutationPlan:
     """Plan for generating mutations of a winning variant."""
-    source_record: PerformanceRecord
     source_path: str
     mutations: list[VariantSpec]
 
@@ -123,7 +121,7 @@ def identify_winners(
 
 # ─── Generate mutation specs ────────────────────────────
 
-def mutate_spec(base_tag: str, mutation_index: int) -> VariantSpec:
+def mutate_spec(mutation_index: int) -> VariantSpec:
     """
     Create a mutated VariantSpec that's similar but different from the winner.
     Mutations are small perturbations — the winner worked, so stay close.
@@ -179,12 +177,11 @@ def build_mutation_plans(
             continue
 
         mutations = [
-            mutate_spec(winner.filename, i)
+            mutate_spec(i)
             for i in range(mutations_per_winner)
         ]
 
         plans.append(MutationPlan(
-            source_record=winner,
             source_path=source_path,
             mutations=mutations,
         ))
@@ -209,7 +206,7 @@ def run_mutation_cycle(
       3. Build mutation plans
       4. Return plans (caller executes via variants engine)
     """
-    print(f"\n  [mutation] ─── MUTATION CYCLE ───")
+    print("\n  [mutation] ─── MUTATION CYCLE ───")
     records = load_performance_csv(performance_csv)
     winners = identify_winners(records, threshold, min_views)
 

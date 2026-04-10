@@ -141,11 +141,11 @@ export default function DeedClient({
           {/* CTA for unclaimed */}
           {!claimed && (
             <a
-              href="/checkout"
+              href="/home"
               className="block w-full py-3.5 rounded-xl text-sm font-medium transition-all bg-white text-black/90 hover:bg-white/90 text-center mt-6"
               style={{ fontFamily: DM }}
             >
-              get yours
+              home
             </a>
           )}
         </div>

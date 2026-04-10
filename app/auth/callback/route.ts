@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { createSessionToken, getSessionCookieOptions } from '@/lib/auth'
+import { createSessionToken, getSessionCookieOptions, SESSION_COOKIE_NAME } from '@/lib/auth'
 import { createRouteHandlerSupabaseAuthClient } from '@/lib/supabase-auth-ssr'
+import { ensurePrimaryFootprintForUser, findOrCreateUserByEmail } from '@/lib/primary-footprint'
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
@@ -24,11 +24,6 @@ export async function GET(request: NextRequest) {
   if (code) {
     try {
       const { supabase: authClient, applyPendingCookies } = createRouteHandlerSupabaseAuthClient(request)
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,
-        { auth: { autoRefreshToken: false, persistSession: false } }
-      )
 
       const { data: authData, error: exchangeError } = await authClient.auth.exchangeCodeForSession(code)
       
@@ -40,28 +35,28 @@ export async function GET(request: NextRequest) {
 
       const email = authData.user.email
 
-      // Find the user in our DB
-      const { data: user } = await supabase
-        .from('users')
-        .select('id, email')
-        .eq('email', email)
-        .single()
-
+      const user = await findOrCreateUserByEmail(email)
       if (!user) {
         const loginUrl = new URL('/login', origin)
-        loginUrl.searchParams.set('error', 'No account found.')
+        loginUrl.searchParams.set('error', 'Could not open your footprint.')
         return NextResponse.redirect(loginUrl)
       }
 
-      // Create custom JWT session token — bridges supabase auth to our system
-      const sessionToken = await createSessionToken(user.id, user.email)
+      const footprint = await ensurePrimaryFootprintForUser(user.id)
+      if (!footprint) {
+        const loginUrl = new URL('/login', origin)
+        loginUrl.searchParams.set('error', 'Could not open your footprint.')
+        return NextResponse.redirect(loginUrl)
+      }
 
-      // Redirect to /dashboard which handles routing to the user's primary footprint
-      const destination = customRedirect || '/dashboard'
+      const sessionToken = await createSessionToken(user.id, user.email)
+      const destination = customRedirect && customRedirect !== '/home'
+        ? customRedirect
+        : `/${footprint.slug}/home`
 
       const response = NextResponse.redirect(new URL(destination, origin))
       response.cookies.set(
-        'fp_session',
+        SESSION_COOKIE_NAME,
         sessionToken,
         getSessionCookieOptions(new URL(request.url).hostname)
       )

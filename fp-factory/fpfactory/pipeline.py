@@ -11,7 +11,6 @@ import json
 import os
 import time
 from datetime import datetime
-from pathlib import Path
 from typing import Optional
 
 from .config import FactoryConfig, PLATFORM_SPECS
@@ -19,7 +18,6 @@ from .slicer import slice_video, probe_video_info, ClipInfo
 from .variants import (
     build_variant_matrix,
     generate_variant,
-    generate_all_variants,
     VariantSpec,
     VariantResult,
 )
@@ -30,7 +28,7 @@ from .metadata import (
     export_manifest,
     ClipMetadata,
 )
-from .mutation import run_mutation_cycle, MutationPlan
+from .mutation import run_mutation_cycle
 from .workers import run_pool
 from .packager import package
 
@@ -44,7 +42,7 @@ def _make_batch_id() -> str:
 def stage_slice(cfg: FactoryConfig) -> list[ClipInfo]:
     """Slice source video into micro-clips."""
     print(f"\n{'='*50}")
-    print(f"  STAGE 1: SLICE")
+    print("  STAGE 1: SLICE")
     print(f"{'='*50}")
 
     clips_dir = os.path.join(cfg.output_dir, "clips")
@@ -89,7 +87,7 @@ def stage_variants(
 ) -> list[VariantResult]:
     """Generate all variants for all clips."""
     print(f"\n{'='*50}")
-    print(f"  STAGE 2: VARIANTS")
+    print("  STAGE 2: VARIANTS")
     print(f"{'='*50}")
 
     # Build variant matrix
@@ -150,6 +148,11 @@ def stage_variants(
             chunk_size=cfg.chunk_size,
             label="variants",
         )
+        print(
+            "  [variants] pool summary: "
+            f"{stats.completed}/{stats.total_items} in {stats.elapsed_seconds:.1f}s "
+            f"({stats.items_per_second:.1f}/s)"
+        )
         # Collect results from files on disk
         results = []
         for job in jobs:
@@ -185,7 +188,7 @@ def stage_metadata(
 ) -> list[ClipMetadata]:
     """Generate metadata for all successful variants."""
     print(f"\n{'='*50}")
-    print(f"  STAGE 3: METADATA")
+    print("  STAGE 3: METADATA")
     print(f"{'='*50}")
 
     successful = [r for r in variant_results if r.success]
@@ -260,7 +263,7 @@ def stage_mutation(
         return []
 
     print(f"\n{'='*50}")
-    print(f"  STAGE 4: MUTATION")
+    print("  STAGE 4: MUTATION")
     print(f"{'='*50}")
 
     variants_dir = os.path.join(cfg.output_dir, "variants")
@@ -306,7 +309,7 @@ def stage_package(
 ):
     """Package everything for distribution."""
     print(f"\n{'='*50}")
-    print(f"  STAGE 5: PACKAGE")
+    print("  STAGE 5: PACKAGE")
     print(f"{'='*50}")
 
     results = package(

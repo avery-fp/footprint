@@ -46,6 +46,7 @@ export default function GhostTile({
   const [iframeLoaded, setIframeLoaded] = useState(false)
   const tileId = useRef(`ghost-${media_id}-${Math.random().toString(36).slice(2, 6)}`)
   const iframeRef = useRef<HTMLIFrameElement>(null)
+  const isYouTube = platform === 'youtube'
 
   const archetype = getArchetype(platform, url)
 
@@ -170,7 +171,7 @@ export default function GhostTile({
   // On tap: load iframe, fade in
   // ════════════════════════════════════════
   const iframeSrc = platform === 'youtube'
-    ? `https://www.youtube-nocookie.com/embed/${media_id}?autoplay=1&controls=0&modestbranding=1&playsinline=1&rel=0`
+    ? `https://www.youtube-nocookie.com/embed/${media_id}?autoplay=1&controls=0&modestbranding=1&playsinline=1&rel=0&iv_load_policy=3&fs=0&disablekb=1`
     : platform === 'vimeo'
     ? `https://player.vimeo.com/video/${media_id}?title=0&byline=0&portrait=0&autoplay=1`
     : undefined
@@ -222,6 +223,36 @@ export default function GhostTile({
           />
         </div>
       )}
+
+      {isPlaying && isYouTube && (
+        <button
+          type="button"
+          className="absolute inset-0 z-[3] flex items-start justify-end p-3"
+          style={{
+            background: 'linear-gradient(to bottom, rgba(0,0,0,0.12), transparent 28%)',
+          }}
+          onClick={handleToggle}
+          aria-label="Pause video"
+        >
+          <span
+            className="inline-flex items-center gap-1.5 rounded-full px-2 py-1"
+            style={{
+              background: 'rgba(0, 0, 0, 0.36)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              color: 'rgba(255,255,255,0.72)',
+              fontSize: '10px',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              pointerEvents: 'none',
+            }}
+          >
+            <PauseIcon />
+            Hide YouTube
+          </span>
+        </button>
+      )}
     </div>
   )
 }
@@ -263,6 +294,14 @@ function PlayIcon() {
         <path d="M8 5v14l11-7z" />
       </svg>
     </div>
+  )
+}
+
+function PauseIcon() {
+  return (
+    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M7 5h3v14H7zm7 0h3v14h-3z" />
+    </svg>
   )
 }
 

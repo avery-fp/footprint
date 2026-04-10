@@ -2,10 +2,7 @@
 Configuration and presets for the content factory.
 """
 
-import json
-import os
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Optional
 
 # ─── Aspect ratios ───────────────────────────────────────
@@ -124,7 +121,6 @@ class FactoryConfig:
     variant_matrix: dict = field(default_factory=lambda: DEFAULT_VARIANT_MATRIX.copy())
 
     # Metadata
-    metadata_preset: str = "default"
     hashtag_categories: list = field(default_factory=lambda: ["core", "growth"])
     cta_index: int = 0
     slug_prefix: str = "fp"
@@ -147,12 +143,6 @@ class FactoryConfig:
     # FFmpeg
     ffmpeg_path: str = "ffmpeg"
     ffprobe_path: str = "ffprobe"
-
-    @classmethod
-    def from_file(cls, path: str) -> "FactoryConfig":
-        with open(path) as f:
-            data = json.load(f)
-        return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
 
     def to_dict(self) -> dict:
         return {k: getattr(self, k) for k in self.__dataclass_fields__}

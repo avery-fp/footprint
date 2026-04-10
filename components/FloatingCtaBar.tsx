@@ -2,7 +2,13 @@
 
 import { useState, useEffect } from 'react'
 
-export default function FloatingCtaBar({ isOwner = false }: { isOwner?: boolean }) {
+export default function FloatingCtaBar({
+  isLoggedIn = false,
+  isOwner = false,
+}: {
+  isLoggedIn?: boolean
+  isOwner?: boolean
+}) {
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
@@ -14,13 +20,16 @@ export default function FloatingCtaBar({ isOwner = false }: { isOwner?: boolean 
 
   return (
     <a
-      href="/build"
+      href={isLoggedIn ? '/home' : '/login?redirect=%2Fhome'}
       className="touch-manipulation"
       style={{
         position: 'fixed',
         bottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
-        left: '50%',
-        transform: 'translateX(-50%)',
+        left: 'max(12px, env(safe-area-inset-left, 0px))',
+        right: 'max(12px, env(safe-area-inset-right, 0px))',
+        marginInline: 'auto',
+        width: 'fit-content',
+        maxWidth: 'calc(100vw - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))',
         opacity: visible ? 1 : 0.06,
         zIndex: 40,
         display: 'inline-flex',
@@ -41,11 +50,12 @@ export default function FloatingCtaBar({ isOwner = false }: { isOwner?: boolean 
         pointerEvents: visible ? 'auto' : 'none',
         cursor: 'pointer',
         whiteSpace: 'nowrap',
+        boxSizing: 'border-box',
       }}
       onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)' }}
       onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
     >
-      build yours free
+      {isLoggedIn ? 'home' : 'connect with google'}
     </a>
   )
 }

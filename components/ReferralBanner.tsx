@@ -33,10 +33,12 @@ export default function ReferralBanner({ serial }: ReferralBannerProps) {
 
   return (
     <div
-      className="fixed top-4 left-1/2 -translate-x-1/2 z-40 animate-fade-up cursor-pointer"
-      onClick={() => setVisible(false)}
+      className="fixed inset-x-0 top-4 z-40 flex justify-center px-4 pointer-events-none"
     >
-      <div className="bg-white/[0.06] backdrop-blur-md border border-white/[0.08] rounded-full px-5 py-2 flex items-center gap-2">
+      <div
+        className="pointer-events-auto animate-fade-up cursor-pointer bg-white/[0.06] backdrop-blur-md border border-white/[0.08] rounded-full px-5 py-2 flex items-center gap-2 max-w-full"
+        onClick={() => setVisible(false)}
+      >
         <span className="text-white/30 text-xs" style={{ fontFamily: "'DM Sans', sans-serif" }}>
           invited by
         </span>
@@ -45,12 +47,12 @@ export default function ReferralBanner({ serial }: ReferralBannerProps) {
         </span>
         <span className="text-white/15 text-[10px]">·</span>
         <a
-          href={`/checkout?ref=FP-${refSerial}`}
+          href={`/home?ref=FP-${refSerial}`}
           className="text-white/40 hover:text-white/60 text-xs transition-colors"
           style={{ fontFamily: "'DM Sans', sans-serif" }}
           onClick={(e) => e.stopPropagation()}
         >
-          make yours
+          home
         </a>
       </div>
     </div>

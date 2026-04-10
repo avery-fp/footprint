@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase'
 import { getUserIdFromRequest } from '@/lib/auth'
+import { ensurePrimaryFootprintForUser } from '@/lib/primary-footprint'
 
 /**
  * GET /api/footprint-for-user
  *
  * Returns the current authenticated user's primary footprint slug.
- * Used by /build to redirect users to their editor.
+ * Creates a blank primary footprint when identity exists but authorship does not yet.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -15,21 +15,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const supabase = createServerSupabaseClient()
-
-    const { data: footprint } = await supabase
-      .from('footprints')
-      .select('username, published')
-      .eq('user_id', userId)
-      .eq('is_primary', true)
-      .single()
-
+    const footprint = await ensurePrimaryFootprintForUser(userId)
     if (!footprint) {
       return NextResponse.json({ error: 'No footprint' }, { status: 404 })
     }
 
     return NextResponse.json({
-      slug: footprint.username,
+      slug: footprint.slug,
       published: footprint.published,
     })
   } catch (error) {

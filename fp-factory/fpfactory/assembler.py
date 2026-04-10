@@ -25,8 +25,6 @@ import json
 import os
 import random
 from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Optional
 
 from .content_bank import (
     get_hook,
@@ -35,7 +33,6 @@ from .content_bank import (
     get_cluster_tags,
     get_comment_prompt,
     get_all_schedule_slots,
-    get_cluster_names,
 )
 
 

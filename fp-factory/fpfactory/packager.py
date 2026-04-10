@@ -17,10 +17,8 @@ import shutil
 import subprocess
 import zipfile
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Optional
 
-from .config import PLATFORM_SPECS
 from .metadata import ClipMetadata
 
 
@@ -154,7 +152,7 @@ def create_zip_bundle(
     os.makedirs(os.path.dirname(zip_path), exist_ok=True)
 
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-        for root, dirs, files in os.walk(folder):
+        for root, _, files in os.walk(folder):
             for file in files:
                 if not include_metadata and file.endswith(".json"):
                     continue
@@ -172,7 +170,7 @@ def create_zip_bundle(
 def folder_size_mb(folder: str) -> float:
     """Get total size of a folder in MB."""
     total = 0
-    for root, dirs, files in os.walk(folder):
+    for root, _, files in os.walk(folder):
         for f in files:
             total += os.path.getsize(os.path.join(root, f))
     return total / (1024 * 1024)
@@ -231,15 +229,16 @@ def package(
             zip_path = os.path.join(output_base, "zips", f"{platform}.zip")
             create_zip_bundle(platform_dir, zip_path)
 
-        results.append(PackageResult(
+        result = PackageResult(
             platform=platform,
             folder=platform_dir,
             file_count=len(group),
             zip_path=zip_path,
             thumbnail_count=thumbnail_count * len(group) if gen_thumbnails else 0,
             total_size_mb=folder_size_mb(platform_dir),
-        ))
+        )
+        results.append(result)
 
-        print(f"  [packager] {platform}: {len(group)} files ({results[-1].total_size_mb:.1f} MB)")
+        print(f"  [packager] {platform}: {result.file_count} files ({result.total_size_mb:.1f} MB)")
 
     return results

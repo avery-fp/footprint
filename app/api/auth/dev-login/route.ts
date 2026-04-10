@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
       .eq('is_primary', true)
       .single()
 
-    const destination = primaryFp ? `/${primaryFp.username}/home` : '/build'
+    const destination = primaryFp ? `/${primaryFp.username}/home` : '/home'
     const response = NextResponse.redirect(new URL(destination, request.url))
 
     response.cookies.set('fp_session', sessionToken, {

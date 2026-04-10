@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import AeInput from '@/components/auth/AeInput'
 import AeArrow from '@/components/auth/AeArrow'
-import AeQuietLink from '@/components/auth/AeQuietLink'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -19,10 +18,32 @@ export default function LoginPage() {
   const safeRedirect = redirectTo?.startsWith('/') && !redirectTo.startsWith('//')
     ? redirectTo
     : ''
+  const postAuthDestination = (slug?: string | null) => {
+    if (safeRedirect && safeRedirect !== '/home') return safeRedirect
+    return slug ? `/${slug}/home` : '/home'
+  }
 
   useEffect(() => {
     setTimeout(() => emailRef.current?.focus(), 100)
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function resolveExistingSession() {
+      try {
+        const res = await fetch('/api/footprint-for-user', { credentials: 'include' })
+        if (!res.ok || cancelled) return
+        const data = await res.json()
+        if (!cancelled && data.slug) {
+          window.location.href = postAuthDestination(data.slug)
+        }
+      } catch {}
+    }
+
+    resolveExistingSession()
+    return () => { cancelled = true }
+  }, [safeRedirect])
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
   const formValid = emailValid && password.length >= 6
@@ -42,8 +63,7 @@ export default function LoginPage() {
       const data = await res.json()
 
       if (data.success) {
-        const dest = safeRedirect || '/dashboard'
-        window.location.href = dest
+        window.location.href = postAuthDestination(data.slug)
       } else {
         setError(data.error || 'invalid email or password')
         doShake()
@@ -128,7 +148,7 @@ export default function LoginPage() {
             <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.997 8.997 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332Z" fill="#FBBC05"/>
             <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58Z" fill="#EA4335"/>
           </svg>
-          <span>Continue with Google</span>
+          <span>Connect with Google</span>
         </button>
 
         <form
@@ -179,10 +199,6 @@ export default function LoginPage() {
             />
           </div>
         </form>
-
-        <div style={{ marginTop: '48px', textAlign: 'center' }}>
-          <AeQuietLink text="new here?" onClick={() => { window.location.href = '/signup' }} />
-        </div>
       </div>
     </div>
   )

@@ -7,6 +7,7 @@ import GhostTileBase from '@/components/GhostTile'
 import TileImage from '@/components/TileImage'
 import ZoomableImage from '@/components/ZoomableImage'
 import { getImageSizes } from '@/lib/media/aspect'
+import { extractYouTubeId } from '@/lib/parseEmbed'
 
 const ContentCard = memo(ContentCardBase)
 const VideoTile = memo(VideoTileBase)
@@ -168,6 +169,26 @@ export default function UnifiedTile({
           alt={item.title || ''}
           sizes={getImageSizes(size)}
           index={index}
+        />
+      </div>
+    )
+  }
+
+  const youtubeMediaId = item.type === 'youtube'
+    ? (item.media_id || extractYouTubeId(item.url))
+    : null
+
+  if (mode === 'public' && !isExpanded && item.type === 'youtube' && youtubeMediaId) {
+    return (
+      <div className="w-full h-full" data-tile-id={item.id} data-tile-type="ghost-youtube">
+        <GhostTile
+          url={item.url}
+          platform="youtube"
+          media_id={youtubeMediaId}
+          title={item.title || undefined}
+          artist={item.artist || undefined}
+          thumbnail_url={item.thumbnail_url_hq || item.thumbnail_url || undefined}
+          size={size}
         />
       </div>
     )

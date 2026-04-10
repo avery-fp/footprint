@@ -15,8 +15,7 @@ import json
 import os
 import random
 from dataclasses import dataclass, asdict
-from datetime import datetime, timedelta
-from pathlib import Path
+from datetime import datetime
 from typing import Optional
 
 from .config import HASHTAG_POOLS, CTA_TEMPLATES
@@ -54,7 +53,6 @@ class ClipMetadata:
     # Taxonomy
     batch_id: str = ""
     category: str = ""
-    tier: str = ""
 
     # File refs
     video_path: str = ""
@@ -126,19 +124,6 @@ def get_cta(index: int = 0) -> str:
     if _HAS_BANK:
         return _bank.get_cta(index)
     return CTA_TEMPLATES[index % len(CTA_TEMPLATES)]
-
-
-# ─── Filename generation ────────────────────────────────
-
-def generate_filename(
-    clip_index: int,
-    variant_tag: str,
-    platform: str,
-    batch_id: str,
-    ext: str = "mp4",
-) -> str:
-    """Generate a deterministic, sort-friendly filename."""
-    return f"{batch_id}_{clip_index:04d}_{variant_tag}_{platform}.{ext}"
 
 
 # ─── Build full metadata for one variant ────────────────
@@ -284,6 +269,7 @@ def export_manifest(
         "batch_id": batch_id,
         "generated_at": datetime.now().isoformat(),
         "total_pieces": len(metadata_list),
+        "total_duration_seconds": round(sum(m.duration_seconds for m in metadata_list), 2),
         "platforms": list(set(m.platform for m in metadata_list)),
         "aspect_ratios": list(set(m.aspect_ratio for m in metadata_list)),
         "content": [asdict(m) for m in metadata_list],

@@ -233,27 +233,3 @@ def generate_variant(
         output_path=output_path,
         success=True,
     )
-
-
-# ─── Batch: generate all variants for a clip ────────────
-
-def generate_all_variants(
-    clip_path: str,
-    output_dir: str,
-    specs: list[VariantSpec],
-    src_w: int = 1920,
-    src_h: int = 1080,
-    ffmpeg: str = "ffmpeg",
-) -> list[VariantResult]:
-    """Generate all variant specs for a single source clip."""
-    clip_name = os.path.splitext(os.path.basename(clip_path))[0]
-    results = []
-
-    for i, spec in enumerate(specs):
-        filename = f"{clip_name}_{spec.suffix}_{i:03d}.mp4"
-        output_path = os.path.join(output_dir, filename)
-
-        result = generate_variant(clip_path, output_path, spec, src_w, src_h, ffmpeg)
-        results.append(result)
-
-    return results

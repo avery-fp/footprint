@@ -12,9 +12,8 @@ import argparse
 import os
 import sys
 
-from .config import FactoryConfig, DEFAULT_VARIANT_MATRIX
-from .pipeline import run_factory, stage_slice, stage_mutation
-from .mutation import run_mutation_cycle
+from .config import FactoryConfig
+from .pipeline import run_factory
 from .assembler import assemble_schedule
 from .aro_bridge import bridge_perf_to_events, bridge_perf_to_targets
 
@@ -78,9 +77,6 @@ examples:
     run_parser.add_argument("--ratios", default="9:16,1:1",
                             help="Aspect ratios, comma-separated (default: 9:16,1:1)")
 
-    # Metadata
-    run_parser.add_argument("--preset", default="default",
-                            help="Metadata preset name (default: default)")
     run_parser.add_argument("--hashtags", default="core,growth",
                             help="Hashtag categories, comma-separated (default: core,growth)")
     run_parser.add_argument("--cta", type=int, default=0,
@@ -207,7 +203,6 @@ def cmd_run(args):
             "color_grades": [x.strip() for x in args.grades.split(",")],
             "aspect_ratios": [x.strip() for x in args.ratios.split(",")],
         },
-        metadata_preset=args.preset,
         hashtag_categories=[x.strip() for x in args.hashtags.split(",")],
         cta_index=args.cta,
         performance_csv=args.perf_csv,
@@ -482,7 +477,7 @@ def cmd_bridge(args):
     targets_path = os.path.join(output_dir, f"{base}_aro_targets.csv")
     bridge_perf_to_targets(args.csv, targets_path)
 
-    print(f"\nBridge complete. To ingest into ARO:")
+    print("\nBridge complete. To ingest into ARO:")
     print(f"  npx tsx cli/aro.ts ingest-events {events_path}")
     print(f"  npx tsx cli/aro.ts ingest-targets {targets_path}")
 

@@ -7,12 +7,13 @@ interface ZoomableImageProps {
 }
 
 export default function ZoomableImage({ children }: ZoomableImageProps) {
-  const [zoomed, setZoomed] = useState(false)
+  const [scale, setScale] = useState(1)
   const [origin, setOrigin] = useState({ x: 50, y: 50 })
   const [translate, setTranslate] = useState({ x: 0, y: 0 })
-  const lastTapRef = useRef(0)
   const containerRef = useRef<HTMLDivElement>(null)
   const panStartRef = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null)
+  const pinchStartRef = useRef<{ distance: number; scale: number } | null>(null)
+  const zoomed = scale > 1.01
 
   const getRelativePosition = useCallback((clientX: number, clientY: number) => {
     const el = containerRef.current
@@ -24,79 +25,118 @@ export default function ZoomableImage({ children }: ZoomableImageProps) {
     }
   }, [])
 
-  const handleTap = useCallback((clientX: number, clientY: number) => {
-    const now = Date.now()
-    const delta = now - lastTapRef.current
-    lastTapRef.current = now
-
-    if (delta < 300) {
-      // Double-tap
-      if (zoomed) {
-        setZoomed(false)
-        setTranslate({ x: 0, y: 0 })
-      } else {
-        const pos = getRelativePosition(clientX, clientY)
-        setOrigin(pos)
-        setTranslate({ x: 0, y: 0 })
-        setZoomed(true)
-      }
-      lastTapRef.current = 0 // Reset to prevent triple-tap
-    } else if (zoomed) {
-      // Single tap while zoomed → dismiss
-      setZoomed(false)
-      setTranslate({ x: 0, y: 0 })
+  const clampTranslate = useCallback((x: number, y: number, nextScale: number) => {
+    const el = containerRef.current
+    if (!el || nextScale <= 1) return { x: 0, y: 0 }
+    const rect = el.getBoundingClientRect()
+    const maxX = Math.max(0, (rect.width * (nextScale - 1)) / 2)
+    const maxY = Math.max(0, (rect.height * (nextScale - 1)) / 2)
+    return {
+      x: Math.max(-maxX, Math.min(maxX, x)),
+      y: Math.max(-maxY, Math.min(maxY, y)),
     }
-  }, [zoomed, getRelativePosition])
+  }, [])
 
-  const handleClick = useCallback((e: React.MouseEvent) => {
-    handleTap(e.clientX, e.clientY)
-  }, [handleTap])
+  const resetZoom = useCallback(() => {
+    setScale(1)
+    setTranslate({ x: 0, y: 0 })
+    panStartRef.current = null
+    pinchStartRef.current = null
+  }, [])
 
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length > 0) return
-    const touch = e.changedTouches[0]
-    if (touch) handleTap(touch.clientX, touch.clientY)
-  }, [handleTap])
+  const zoomAtPoint = useCallback((clientX: number, clientY: number, nextScale: number) => {
+    const pos = getRelativePosition(clientX, clientY)
+    setOrigin(pos)
+    setScale(nextScale)
+    setTranslate({ x: 0, y: 0 })
+  }, [getRelativePosition])
+
+  const getTouchDistance = (touches: React.TouchList) => {
+    const dx = touches[0].clientX - touches[1].clientX
+    const dy = touches[0].clientY - touches[1].clientY
+    return Math.hypot(dx, dy)
+  }
+
+  const getTouchMidpoint = (touches: React.TouchList) => ({
+    x: (touches[0].clientX + touches[1].clientX) / 2,
+    y: (touches[0].clientY + touches[1].clientY) / 2,
+  })
+
+  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
+    if (zoomed) {
+      resetZoom()
+      return
+    }
+    zoomAtPoint(e.clientX, e.clientY, 2)
+  }, [zoomAtPoint, zoomed, resetZoom])
 
   // Pan while zoomed
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const midpoint = getTouchMidpoint(e.touches)
+      setOrigin(getRelativePosition(midpoint.x, midpoint.y))
+      pinchStartRef.current = {
+        distance: getTouchDistance(e.touches),
+        scale,
+      }
+      panStartRef.current = null
+      return
+    }
     if (!zoomed || e.touches.length !== 1) return
     const t = e.touches[0]
     panStartRef.current = { x: t.clientX, y: t.clientY, tx: translate.x, ty: translate.y }
-  }, [zoomed, translate])
+  }, [getRelativePosition, scale, translate, zoomed])
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2 && pinchStartRef.current) {
+      e.preventDefault()
+      const distance = getTouchDistance(e.touches)
+      const nextScale = Math.max(1, Math.min(3, pinchStartRef.current.scale * (distance / pinchStartRef.current.distance)))
+      setScale(nextScale)
+      setTranslate(prev => clampTranslate(prev.x, prev.y, nextScale))
+      return
+    }
     if (!zoomed || !panStartRef.current || e.touches.length !== 1) return
     e.preventDefault()
     const t = e.touches[0]
     const dx = t.clientX - panStartRef.current.x
     const dy = t.clientY - panStartRef.current.y
-    // Clamp to prevent panning beyond image edges (at 2x scale, max 50% of container in each dir)
-    const el = containerRef.current
-    if (!el) return
-    const rect = el.getBoundingClientRect()
-    const maxX = rect.width * 0.5
-    const maxY = rect.height * 0.5
-    setTranslate({
-      x: Math.max(-maxX, Math.min(maxX, panStartRef.current.tx + dx)),
-      y: Math.max(-maxY, Math.min(maxY, panStartRef.current.ty + dy)),
-    })
-  }, [zoomed])
+    setTranslate(
+      clampTranslate(
+        panStartRef.current.tx + dx,
+        panStartRef.current.ty + dy,
+        scale
+      )
+    )
+  }, [clampTranslate, scale, zoomed])
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length < 2) {
+      pinchStartRef.current = null
+    }
+    if (e.touches.length === 1 && zoomed) {
+      const t = e.touches[0]
+      panStartRef.current = { x: t.clientX, y: t.clientY, tx: translate.x, ty: translate.y }
+      return
+    }
+    if (e.touches.length === 0) {
+      panStartRef.current = null
+      if (scale <= 1.01) resetZoom()
+    }
+  }, [resetZoom, scale, translate.x, translate.y, zoomed])
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (!zoomed) return
     panStartRef.current = { x: e.clientX, y: e.clientY, tx: translate.x, ty: translate.y }
     const handleMouseMove = (ev: MouseEvent) => {
       if (!panStartRef.current) return
-      const el = containerRef.current
-      if (!el) return
-      const rect = el.getBoundingClientRect()
-      const maxX = rect.width * 0.5
-      const maxY = rect.height * 0.5
-      setTranslate({
-        x: Math.max(-maxX, Math.min(maxX, panStartRef.current.tx + (ev.clientX - panStartRef.current.x))),
-        y: Math.max(-maxY, Math.min(maxY, panStartRef.current.ty + (ev.clientY - panStartRef.current.y))),
-      })
+      setTranslate(
+        clampTranslate(
+          panStartRef.current.tx + (ev.clientX - panStartRef.current.x),
+          panStartRef.current.ty + (ev.clientY - panStartRef.current.y),
+          scale
+        )
+      )
     }
     const handleMouseUp = () => {
       panStartRef.current = null
@@ -105,27 +145,27 @@ export default function ZoomableImage({ children }: ZoomableImageProps) {
     }
     window.addEventListener('mousemove', handleMouseMove)
     window.addEventListener('mouseup', handleMouseUp)
-  }, [zoomed, translate])
+  }, [clampTranslate, scale, translate, zoomed])
 
   return (
     <div
       ref={containerRef}
       className="w-full h-full overflow-hidden touch-manipulation"
-      style={{ cursor: zoomed ? 'grab' : undefined }}
-      onClick={handleClick}
-      onTouchEnd={handleTouchEnd}
+      style={{ cursor: zoomed ? 'grab' : 'zoom-in', touchAction: zoomed ? 'none' : 'manipulation' }}
+      onDoubleClick={handleDoubleClick}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
       onMouseDown={zoomed ? handleMouseDown : undefined}
     >
       <div
         className="w-full h-full"
         style={{
           transform: zoomed
-            ? `scale(2) translate(${translate.x / 2}px, ${translate.y / 2}px)`
+            ? `scale(${scale}) translate(${translate.x / scale}px, ${translate.y / scale}px)`
             : 'scale(1)',
           transformOrigin: `${origin.x}% ${origin.y}%`,
-          transition: panStartRef.current ? 'none' : 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)',
+          transition: panStartRef.current || pinchStartRef.current ? 'none' : 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)',
           willChange: zoomed ? 'transform' : 'auto',
         }}
       >

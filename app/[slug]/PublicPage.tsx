@@ -372,16 +372,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
       )}
 
-      {/* Top-right — owner home button */}
-      {isOwner && (
+      {/* Top-right — same footprint, different permission states */}
+      {(isOwner || isLoggedIn || !isDraft) && (
         <div className="fixed top-5 right-4 md:right-6 z-30">
           <a
-            href={`/${footprint.username}/home`}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/[0.06] hover:bg-white/[0.12] transition touch-manipulation"
+            href={isOwner ? `/${footprint.username}/home` : isLoggedIn ? '/home' : '/login?redirect=%2Fhome'}
+            className="inline-flex min-h-[40px] items-center justify-center rounded-full bg-white/[0.06] px-4 text-[11px] uppercase tracking-[0.18em] text-white/55 hover:bg-white/[0.12] hover:text-white/85 transition touch-manipulation"
           >
-            <svg className="w-3.5 h-3.5 text-white/40" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-            </svg>
+            {isOwner ? 'Edit' : isLoggedIn ? 'Home' : 'Connect'}
           </a>
         </div>
       )}
@@ -542,13 +540,15 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
       {/* Floating CTA bar — viewers only, hidden for owner */}
       {!isDraft && (
-        <FloatingCtaBar isOwner={isOwner} />
+        <FloatingCtaBar isLoggedIn={isLoggedIn} isOwner={isOwner} />
       )}
 
       {/* Copied toast */}
       {showToast && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-white/[0.08] backdrop-blur-sm rounded-md px-5 py-2 text-white/60 text-sm materialize">
-          copied.
+        <div className="fixed inset-x-0 bottom-20 z-50 flex justify-center px-4 pointer-events-none">
+          <div className="pointer-events-auto max-w-full bg-white/[0.08] backdrop-blur-sm rounded-md px-5 py-2 text-white/60 text-sm materialize">
+            copied.
+          </div>
         </div>
       )}
     </div>

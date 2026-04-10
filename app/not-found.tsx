@@ -5,8 +5,6 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const DM = "'DM Sans', sans-serif"
-const paymentLink = 'https://buy.stripe.com/9B6cN40Ef0sG2z98b214400'
-
 /**
  * NOT FOUND PAGE — with auth guard
  *
@@ -101,11 +99,11 @@ export default function NotFound() {
 
         <div className="flex items-center justify-center gap-5">
           <a
-            href={paymentLink}
+            href="/home"
             className="rounded-full px-8 py-3 bg-white text-black/90 hover:bg-white/90 transition-all duration-200 text-sm font-medium"
             style={{ fontFamily: DM }}
           >
-            get yours
+            home
           </a>
 
           <Link

@@ -2,16 +2,16 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 /**
- * Middleware: canonical host redirect + session gate.
+ * Middleware: canonical host redirect + lightweight session gate.
  *
  * Rules:
  * 1. Redirect bare "footprint.onl" → "www.footprint.onl" (301)
  * 2. Public routes → pass through
  * 3. Auth-required routes → check fp_session cookie exists
  *    - present  → allow through
- *    - missing  → redirect to /auth/login
+ *    - missing  → redirect to /login with the original destination
  *
- * Middleware does NOT verify/decode the JWT. API routes handle that.
+ * Middleware keeps routing simple. Product decisions happen in /home and the page routes.
  */
 
 const publicRoutes = [
@@ -98,9 +98,11 @@ export function middleware(request: NextRequest) {
     return withSecurityHeaders(NextResponse.next())
   }
 
-  // No session → redirect to login
+  // No session → redirect to login and preserve the intended destination
   const loginUrl = request.nextUrl.clone()
   loginUrl.pathname = '/login'
+  loginUrl.search = ''
+  loginUrl.searchParams.set('redirect', `${pathname}${search}`)
   return NextResponse.redirect(loginUrl)
 }
 

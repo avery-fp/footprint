@@ -1,5 +1,16 @@
 import { redirect } from 'next/navigation'
 
-export default function SigninPage() {
-  redirect('/login')
+interface SigninPageProps {
+  searchParams?: {
+    redirect?: string
+  }
+}
+
+export default function SigninPage({ searchParams }: SigninPageProps) {
+  const next = searchParams?.redirect
+  const safeRedirect = typeof next === 'string' && next.startsWith('/') && !next.startsWith('//')
+    ? `?redirect=${encodeURIComponent(next)}`
+    : ''
+
+  redirect(`/login${safeRedirect}`)
 }

@@ -710,16 +710,12 @@ export default function EditPage() {
 
         // Auth/ownership failure → redirect to login or show error
         if (res.status === 401) {
-          router.push(`/signin?redirect=${encodeURIComponent(`/${slug}/home`)}`)
-          return
-        }
-        if (res.status === 401) {
           router.push(`/login?redirect=${encodeURIComponent(`/${slug}/home`)}`)
           return
         }
         if (res.status === 403) {
           // Logged in but wrong user
-          router.push('/build')
+          router.push('/home')
           return
         }
 
@@ -801,7 +797,7 @@ export default function EditPage() {
       } catch (error) {
         console.error('Failed to load footprint:', error)
         // Network error — redirect to login as safest fallback
-        router.push(`/auth/login?redirect=${encodeURIComponent(`/${slug}/home`)}`)
+        router.push(`/login?redirect=${encodeURIComponent(`/${slug}/home`)}`)
         return
       }
       setIsLoading(false)
@@ -1926,7 +1922,7 @@ export default function EditPage() {
               <button
                 onClick={async () => {
                   await fetch('/api/auth/signout', { method: 'POST' })
-                  window.location.href = '/login'
+                  window.location.href = `/${slug}`
                 }}
                 className="text-[11px] text-white/25 hover:text-white/50 transition font-mono"
                 style={{ minHeight: '44px', padding: '0 4px' }}

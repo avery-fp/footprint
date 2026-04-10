@@ -22,6 +22,22 @@ const GLASS_STYLE = GLASS_STYLE_IMPORTED
 const GlassEmbedFrame = GlassEmbedFrameExtracted
 const GlassPlaceholder = GlassPlaceholderExtracted
 
+function getYouTubeEmbedSrc(youtubeId: string, autoplay: boolean) {
+  const params = new URLSearchParams({
+    autoplay: autoplay ? '1' : '0',
+    controls: '0',
+    modestbranding: '1',
+    playsinline: '1',
+    rel: '0',
+    color: 'white',
+    iv_load_policy: '3',
+    fs: '0',
+    disablekb: '1',
+  })
+
+  return `https://www.youtube-nocookie.com/embed/${youtubeId}?${params.toString()}`
+}
+
 // ════════════════════════════════════════
 // AE Embed Heights — stable per-provider defaults
 // ════════════════════════════════════════
@@ -141,7 +157,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   if (content.type === 'youtube' && youtubeId && !iframeFailed) {
     // isExpanded: skip facade, render iframe immediately (used in lightbox)
     if (isExpanded) {
-      const ytSrc = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0&color=white`
+      const ytSrc = getYouTubeEmbedSrc(youtubeId, true)
       return (
         <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative bg-black">
           <iframe
@@ -190,7 +206,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       )
     }
     // YouTube activated state — canonical fix
-    const ytSrc = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0&color=white`
+    const ytSrc = getYouTubeEmbedSrc(youtubeId, true)
     return (
       <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative bg-black">
         <iframe

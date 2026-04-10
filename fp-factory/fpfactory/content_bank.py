@@ -9,7 +9,6 @@ get the same hook, caption, CTA, or hashtag cluster.
 import json
 import os
 import random
-from pathlib import Path
 from typing import Optional
 
 # ─── Paths ──────────────────────────────────────────────────
@@ -194,63 +193,6 @@ def get_cluster_tags(index: int, platform: str = "reels") -> str:
     tags = tags[:cap]
 
     return " ".join(tags)
-
-
-# ─── Full post assembly ────────────────────────────────────
-
-def assemble_post(
-    variant_index: int,
-    platform: str = "tiktok",
-) -> dict:
-    """
-    Assemble a complete post package:
-    hook + caption + hashtags + CTA + comment prompt.
-
-    Returns dict with all components for metadata injection.
-    """
-    hook = get_hook(variant_index)
-    hook_cat = get_hook_category(variant_index)
-
-    # Offset caption by 7 to decouple from hook index
-    caption = get_caption((variant_index * 7) % 40, hook)
-
-    # Offset CTA by 13 to decouple from both
-    cta = get_cta((variant_index * 13) % 40)
-
-    # Cluster rotation follows schedule pattern
-    hashtags = get_cluster_tags(variant_index, platform)
-
-    # Comment prompt (cycle through 12)
-    comment = get_comment_prompt(variant_index % 12)
-
-    full_caption = f"{caption}\n\n{hashtags}\n\n{cta}"
-
-    return {
-        "hook": hook,
-        "hook_category": hook_cat,
-        "caption": caption,
-        "cta": cta,
-        "hashtags": hashtags,
-        "full_caption": full_caption,
-        "comment_prompt": comment,
-        "cluster_index": variant_index % len(get_cluster_names()) if get_cluster_names() else 0,
-    }
-
-
-# ─── Schedule lookup ────────────────────────────────────────
-
-def get_schedule_slot(day: int, slot_index: int) -> Optional[dict]:
-    """
-    Get a specific schedule slot from the 72hr grid.
-    day: 1, 2, or 3.
-    slot_index: 0-17.
-    """
-    schedule = _schedule()
-    day_key = f"day{day}"
-    slots = schedule.get(day_key, [])
-    if slot_index < len(slots):
-        return slots[slot_index]
-    return None
 
 
 def get_all_schedule_slots(day: int) -> list[dict]:
