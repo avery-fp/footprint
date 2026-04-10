@@ -19,7 +19,7 @@ export default function DashboardPage() {
           router.replace(`/${primary.slug}/home`)
         } else {
           // No rooms yet — send to build/onboarding
-          router.replace('/build')
+          router.replace('/home')
         }
       } catch {
         setError('Failed to load. Try refreshing.')
