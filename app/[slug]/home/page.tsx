@@ -372,7 +372,8 @@ export default function EditPage() {
   const params = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const slug = params.slug as string
+  const slugParam = params?.slug
+  const slug = Array.isArray(slugParam) ? (slugParam[0] ?? '') : (slugParam ?? '')
 
   // Single state machine
   const [mode, setMode] = useState<PageMode>({ type: 'viewing' })
