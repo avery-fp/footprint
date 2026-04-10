@@ -185,8 +185,11 @@ export default function AddToHomeScreen() {
         className="fixed z-50 touch-manipulation"
         style={{
           bottom: 'calc(env(safe-area-inset-bottom, 8px) + 12px)',
-          left: '50%',
-          transform: 'translateX(-50%)',
+          left: 'max(12px, env(safe-area-inset-left, 0px))',
+          right: 'max(12px, env(safe-area-inset-right, 0px))',
+          marginInline: 'auto',
+          width: 'fit-content',
+          maxWidth: 'calc(100vw - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))',
           background: 'rgba(255, 255, 255, 0.08)',
           border: '1px solid rgba(255, 255, 255, 0.1)',
           borderRadius: '20px',
@@ -199,6 +202,7 @@ export default function AddToHomeScreen() {
           whiteSpace: 'nowrap',
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',
+          boxSizing: 'border-box',
         }}
       >
         <ShareIcon /> Add to Home Screen

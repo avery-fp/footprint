@@ -1,10 +1,11 @@
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { Toaster } from 'sonner'
 
 // Force dynamic rendering for all routes
 export const dynamic = 'force-dynamic'
 
-export const metadata = {
+export const metadata: Metadata = {
   title: 'footprint',
   description: 'one page for everything.',
   openGraph: {
@@ -22,6 +23,12 @@ export const metadata = {
   },
 }
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+}
+
 export default function RootLayout({
   children,
 }: {
@@ -30,7 +37,6 @@ export default function RootLayout({
   return (
     <html lang="en" style={{ backgroundColor: '#080808' }}>
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <link rel="apple-touch-icon" href="/icon-transparent.png" />
       </head>
       <body className="font-sans" style={{ backgroundColor: '#080808' }}>

@@ -33,6 +33,11 @@
 html {
   /* No smooth scroll — causes jank on heavy pages */
   -webkit-overflow-scrolling: touch;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 body {
@@ -40,6 +45,31 @@ body {
   color: var(--paper);
   /* Eliminate 300ms tap delay on all touch targets */
   touch-action: manipulation;
+  width: 100%;
+  max-width: 100%;
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+img,
+video,
+canvas,
+iframe {
+  max-width: 100%;
+}
+
+canvas,
+iframe {
+  display: block;
+}
+
+@media (pointer: coarse) {
+  input,
+  textarea,
+  select,
+  [contenteditable='true'] {
+    font-size: 16px !important;
+  }
 }
 
 ::selection {

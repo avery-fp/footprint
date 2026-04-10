@@ -1893,15 +1893,19 @@ export default function EditPage() {
 
   return (
     <ErrorBoundary context="editor">
-    <div className="min-h-screen pb-32 relative overflow-x-hidden max-w-[100vw]" style={{ background: theme.colors.background, color: theme.colors.text }}>
+    <div className="relative min-h-[100dvh] w-full overflow-x-hidden pb-32" style={{ background: theme.colors.background, color: theme.colors.text }}>
       {/* Wallpaper layer */}
       {wallpaperUrl && (
         <div
           className="fixed inset-0 z-0 bg-cover bg-center"
           style={{
             backgroundImage: `url(${wallpaperUrl})`,
+            top: backgroundBlur ? '-24px' : '0',
+            right: backgroundBlur ? '-24px' : '0',
+            bottom: backgroundBlur ? '-24px' : '0',
+            left: backgroundBlur ? '-24px' : '0',
             filter: backgroundBlur ? 'blur(12px) brightness(0.7)' : 'none',
-            transform: backgroundBlur ? 'scale(1.05)' : 'none',
+            pointerEvents: 'none',
           }}
         />
       )}
@@ -2619,17 +2623,21 @@ export default function EditPage() {
 
       {/* Swap hint — shown when a tile is selected for swap on mobile */}
       {isMobile && isArranging && swapSourceId && mode.type !== 'tile_menu' && (
-        <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-black/70 backdrop-blur-sm rounded-full border border-white/10 animate-overlay-fade">
-          <span className="text-xs text-white/70 font-mono">tap another to swap</span>
+        <div className="fixed inset-x-0 bottom-28 z-50 flex justify-center px-4 pointer-events-none">
+          <div className="pointer-events-auto max-w-full px-4 py-2 bg-black/70 backdrop-blur-sm rounded-full border border-white/10 animate-overlay-fade">
+            <span className="text-xs text-white/70 font-mono">tap another to swap</span>
+          </div>
         </div>
       )}
 
       {/* ═══ BOTTOM BAR — only in arranging/adding ═══ */}
-      <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-3 pb-[env(safe-area-inset-bottom)] transition-all duration-300 ${isArranging && mode.type !== 'tile_menu' ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
+      <div className="fixed inset-x-0 bottom-8 z-50 flex justify-center px-3 pointer-events-none">
+        <div className={`pointer-events-auto flex flex-col items-center gap-3 pb-[env(safe-area-inset-bottom)] transition-all duration-300 ${isArranging && mode.type !== 'tile_menu' ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
 
         {/* URL input */}
         {pillMode === 'url' && (
-          <div className="w-80 bg-black/60 backdrop-blur-sm border border-white/20 rounded-2xl p-3 materialize">
+          <div className="bg-black/60 backdrop-blur-sm border border-white/20 rounded-2xl p-3 materialize"
+            style={{ width: 'min(20rem, calc(100vw - 24px))' }}>
             <input
               ref={urlInputRef}
               type="text"
@@ -2670,7 +2678,8 @@ export default function EditPage() {
 
         {/* Thought input */}
         {pillMode === 'thought' && (
-          <div className="w-80 bg-black/60 backdrop-blur-sm border border-white/20 rounded-2xl p-3 materialize">
+          <div className="bg-black/60 backdrop-blur-sm border border-white/20 rounded-2xl p-3 materialize"
+            style={{ width: 'min(20rem, calc(100vw - 24px))' }}>
             <textarea
               ref={thoughtInputRef}
               placeholder="write something"
@@ -2745,6 +2754,7 @@ export default function EditPage() {
             </div>
           </div>
         )}
+        </div>
       </div>
 
       {/* ═══ GO LIVE — full page takeover ═══ */}
@@ -2890,15 +2900,19 @@ export default function EditPage() {
 
       {/* Upload indicator */}
       {isAdding && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[80] px-5 py-2 bg-black/70 backdrop-blur-sm rounded-full border border-white/10 flex items-center gap-2">
-          <div className="w-3 h-3 border border-white/30 border-t-white/70 rounded-full animate-spin" />
-          <span className="text-xs text-white/70 font-mono">uploading</span>
+        <div className="fixed inset-x-0 top-20 z-[80] flex justify-center px-4 pointer-events-none">
+          <div className="pointer-events-auto max-w-full px-5 py-2 bg-black/70 backdrop-blur-sm rounded-full border border-white/10 flex items-center gap-2">
+            <div className="w-3 h-3 border border-white/30 border-t-white/70 rounded-full animate-spin" />
+            <span className="text-xs text-white/70 font-mono">uploading</span>
+          </div>
         </div>
       )}
       {/* Status toast */}
       {!isAdding && statusToast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[80] px-5 py-2 bg-black/70 backdrop-blur-sm rounded-full border border-white/10 materialize">
-          <span className="text-xs text-white/70 font-mono">{statusToast}</span>
+        <div className="fixed inset-x-0 top-20 z-[80] flex justify-center px-4 pointer-events-none">
+          <div className="pointer-events-auto max-w-full px-5 py-2 bg-black/70 backdrop-blur-sm rounded-full border border-white/10 materialize">
+            <span className="text-xs text-white/70 font-mono">{statusToast}</span>
+          </div>
         </div>
       )}
 
