@@ -1,12 +1,20 @@
 'use client'
 
-import { useRef, useState, useCallback, type ReactNode } from 'react'
+import { useRef, useState, useCallback, useEffect, type ReactNode } from 'react'
 
 interface ZoomableImageProps {
   children: ReactNode
+  className?: string
+  maxScale?: number
+  onZoomChange?: (zoomed: boolean) => void
 }
 
-export default function ZoomableImage({ children }: ZoomableImageProps) {
+export default function ZoomableImage({
+  children,
+  className,
+  maxScale = 3,
+  onZoomChange,
+}: ZoomableImageProps) {
   const [scale, setScale] = useState(1)
   const [origin, setOrigin] = useState({ x: 50, y: 50 })
   const [translate, setTranslate] = useState({ x: 0, y: 0 })
@@ -14,6 +22,10 @@ export default function ZoomableImage({ children }: ZoomableImageProps) {
   const panStartRef = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null)
   const pinchStartRef = useRef<{ distance: number; scale: number } | null>(null)
   const zoomed = scale > 1.01
+
+  useEffect(() => {
+    onZoomChange?.(zoomed)
+  }, [onZoomChange, zoomed])
 
   const getRelativePosition = useCallback((clientX: number, clientY: number) => {
     const el = containerRef.current
@@ -91,7 +103,7 @@ export default function ZoomableImage({ children }: ZoomableImageProps) {
     if (e.touches.length === 2 && pinchStartRef.current) {
       e.preventDefault()
       const distance = getTouchDistance(e.touches)
-      const nextScale = Math.max(1, Math.min(3, pinchStartRef.current.scale * (distance / pinchStartRef.current.distance)))
+      const nextScale = Math.max(1, Math.min(maxScale, pinchStartRef.current.scale * (distance / pinchStartRef.current.distance)))
       setScale(nextScale)
       setTranslate(prev => clampTranslate(prev.x, prev.y, nextScale))
       return
@@ -108,7 +120,7 @@ export default function ZoomableImage({ children }: ZoomableImageProps) {
         scale
       )
     )
-  }, [clampTranslate, scale, zoomed])
+  }, [clampTranslate, maxScale, scale, zoomed])
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     if (e.touches.length < 2) {
@@ -150,8 +162,14 @@ export default function ZoomableImage({ children }: ZoomableImageProps) {
   return (
     <div
       ref={containerRef}
-      className="w-full h-full overflow-hidden touch-manipulation"
-      style={{ cursor: zoomed ? 'grab' : 'zoom-in', touchAction: zoomed ? 'none' : 'manipulation' }}
+      className={`w-full h-full overflow-hidden touch-manipulation ${className || ''}`}
+      style={{
+        width: '100%',
+        height: '100%',
+        overflow: 'hidden',
+        cursor: zoomed ? 'grab' : 'zoom-in',
+        touchAction: zoomed ? 'none' : 'manipulation',
+      }}
       onDoubleClick={handleDoubleClick}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
@@ -161,6 +179,8 @@ export default function ZoomableImage({ children }: ZoomableImageProps) {
       <div
         className="w-full h-full"
         style={{
+          width: '100%',
+          height: '100%',
           transform: zoomed
             ? `scale(${scale}) translate(${translate.x / scale}px, ${translate.y / scale}px)`
             : 'scale(1)',

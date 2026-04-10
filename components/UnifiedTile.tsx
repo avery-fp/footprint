@@ -5,7 +5,6 @@ import ContentCardBase from '@/components/ContentCard'
 import VideoTileBase from '@/components/VideoTile'
 import GhostTileBase from '@/components/GhostTile'
 import TileImage from '@/components/TileImage'
-import ZoomableImage from '@/components/ZoomableImage'
 import { getImageSizes } from '@/lib/media/aspect'
 import { extractYouTubeId } from '@/lib/parseEmbed'
 
@@ -39,20 +38,22 @@ function resolveCanonicalType(type: string, url: string): 'video' | 'image' | 't
 
 export type TileMode = 'public' | 'editor' | 'sandbox'
 
+type UnifiedTileItem = {
+  id: string
+  url: string
+  type: string
+  title: string | null
+  description: string | null
+  thumbnail_url: string | null
+  embed_html: string | null
+  render_mode?: string
+  artist?: string | null
+  thumbnail_url_hq?: string | null
+  media_id?: string | null
+}
+
 interface UnifiedTileProps {
-  item: {
-    id: string
-    url: string
-    type: string
-    title: string | null
-    description: string | null
-    thumbnail_url: string | null
-    embed_html: string | null
-    render_mode?: string
-    artist?: string | null
-    thumbnail_url_hq?: string | null
-    media_id?: string | null
-  }
+  item: UnifiedTileItem
   index: number
   size: number
   aspect: string
@@ -60,6 +61,7 @@ interface UnifiedTileProps {
   layout?: string
   isMobile?: boolean
   isExpanded?: boolean
+  onOpenArtifact?: ((item: UnifiedTileItem) => void) | undefined
 }
 
 // ── Recovery Tile — renders when type is unknown or media fails ──
@@ -90,6 +92,7 @@ export default function UnifiedTile({
   layout,
   isMobile = false,
   isExpanded = false,
+  onOpenArtifact,
 }: UnifiedTileProps) {
   const canonicalType = resolveCanonicalType(item.type, item.url || '')
   const isAuto = aspect === 'auto'
@@ -144,12 +147,15 @@ export default function UnifiedTile({
   if (canonicalType === 'image') {
     if (mode === 'public') {
       return (
-        <div
-          className={isAuto && layout === 'editorial' ? 'w-full' : 'w-full h-full'}
+        <button
+          type="button"
+          className={`${isAuto && layout === 'editorial' ? 'w-full' : 'w-full h-full'} block border-0 bg-transparent p-0 text-left`}
           data-tile-id={item.id}
           data-tile-type="image"
+          onClick={() => onOpenArtifact?.(item)}
+          aria-label={item.title ? `Open ${item.title}` : 'Open image artifact'}
         >
-          <ZoomableImage>
+          <div className="relative h-full w-full overflow-hidden">
             <TileImage
               src={item.url}
               alt={item.title || ''}
@@ -158,8 +164,8 @@ export default function UnifiedTile({
               aspect={aspect}
               layout={layout}
             />
-          </ZoomableImage>
-        </div>
+          </div>
+        </button>
       )
     }
     return (

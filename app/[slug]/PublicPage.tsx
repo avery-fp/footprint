@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import Image from 'next/image'
 import UnifiedTile from '@/components/UnifiedTile'
+import ArtifactImageViewer from '@/components/ArtifactImageViewer'
 
 import WeatherEffect from '@/components/WeatherEffect'
 import { RemoveBubble } from '@/components/RemoveBubble'
@@ -71,6 +72,7 @@ const DEFAULT_OVERLAY = 'rgba(0,0,0,0.35)'
 
 export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl, isDraft }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
+  const [activeArtifact, setActiveArtifact] = useState<any | null>(null)
 
   // Default to first room
   useEffect(() => {
@@ -307,6 +309,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 mode="public"
                 layout={roomLayout}
                 isMobile={isMobile}
+                onOpenArtifact={isOwner ? undefined : (artifactItem) => setActiveArtifact(artifactItem)}
               />
             </div>
         )
@@ -551,6 +554,12 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </div>
         </div>
       )}
+
+      <ArtifactImageViewer
+        item={activeArtifact}
+        open={!!activeArtifact}
+        onClose={() => setActiveArtifact(null)}
+      />
     </div>
   )
 }

@@ -16,6 +16,7 @@ import type { NextRequest } from 'next/server'
 
 const publicRoutes = [
   '/',
+  '/ae',
   '/auth',
   '/auth/login',
   '/auth/callback',
