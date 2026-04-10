@@ -125,7 +125,12 @@ export default function ZoomableImage({ children }: ZoomableImageProps) {
             ? `scale(2) translate(${translate.x / 2}px, ${translate.y / 2}px)`
             : 'scale(1)',
           transformOrigin: `${origin.x}% ${origin.y}%`,
-          transition: panStartRef.current ? 'none' : 'transform 0.3s cubic-bezier(0.25, 1, 0.5, 1)',
+          transition: panStartRef.current
+            ? 'none'
+            : zoomed
+              ? 'transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), filter 0.5s ease'
+              : 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), filter 0.3s ease',
+          filter: zoomed ? 'brightness(1.04)' : 'brightness(1)',
           willChange: zoomed ? 'transform' : 'auto',
         }}
       >
