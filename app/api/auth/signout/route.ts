@@ -27,9 +27,14 @@ export async function POST(request: NextRequest) {
     ...(cookieDomain && { domain: cookieDomain }),
   })
 
-  // 2. Clear Supabase SSR auth cookies
-  const { supabase, applyPendingCookies } = createRouteHandlerSupabaseAuthClient(request)
-  await supabase.auth.signOut()
-
-  return applyPendingCookies(res)
+  // 2. Clear Supabase SSR auth cookies (best-effort — fp_session is already gone)
+  try {
+    const { supabase, applyPendingCookies } = createRouteHandlerSupabaseAuthClient(request)
+    await supabase.auth.signOut()
+    return applyPendingCookies(res)
+  } catch {
+    // Supabase cleanup failed (missing env, network, etc.) — session cookie is
+    // already cleared so the user is effectively signed out regardless.
+    return res
+  }
 }
