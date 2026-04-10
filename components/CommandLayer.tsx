@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { MOTION } from '@/lib/motion'
-import { applyNextThumbnailFallback, getThumbnailCandidates } from '@/lib/media/thumbnails'
+import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getThumbnailCandidates } from '@/lib/media/thumbnails'
 
 interface Room {
   id: string
@@ -354,6 +354,9 @@ export default function CommandLayer({
                                   alt=""
                                   className="w-8 h-8 rounded-lg object-cover flex-shrink-0"
                                   style={{ background: 'rgba(255,255,255,0.04)' }}
+                                  onLoad={(e) => {
+                                    applyThumbnailLoadGuard(e.currentTarget, thumbCandidates)
+                                  }}
                                   onError={(e) => {
                                     applyNextThumbnailFallback(e.currentTarget, thumbCandidates)
                                   }}

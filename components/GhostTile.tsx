@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { audioManager } from '@/lib/audio-manager'
 import { parseEmbed } from '@/lib/parseEmbed'
-import { applyNextThumbnailFallback, getThumbnailCandidates } from '@/lib/media/thumbnails'
+import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getThumbnailCandidates } from '@/lib/media/thumbnails'
 
 // ════════════════════════════════════════
 // GHOST TILE — de-branded media renderer
@@ -279,6 +279,9 @@ function ThumbnailBg({ src, candidates }: { src: string | null; candidates: stri
         style={{}}
         loading="lazy"
         decoding="async"
+        onLoad={(e) => {
+          applyThumbnailLoadGuard(e.currentTarget, candidates)
+        }}
         onError={(e) => {
           applyNextThumbnailFallback(e.currentTarget, candidates)
         }}

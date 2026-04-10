@@ -70,3 +70,21 @@ export function applyNextThumbnailFallback(img: HTMLImageElement, candidates: st
   img.src = next
   return true
 }
+
+function isInsufficientYouTubeThumbnail(img: HTMLImageElement): boolean {
+  const current = img.currentSrc || img.src
+  const width = img.naturalWidth || 0
+
+  if (!/ytimg\.com\/vi\//.test(current)) return false
+  if (current.includes('/maxresdefault.') && width > 0 && width < 1280) return true
+  if (current.includes('/sddefault.') && width > 0 && width < 640) return true
+  if (current.includes('/hqdefault.') && width > 0 && width < 480) return true
+  if (current.includes('/mqdefault.') && width > 0 && width < 320) return true
+
+  return false
+}
+
+export function applyThumbnailLoadGuard(img: HTMLImageElement, candidates: string[]): boolean {
+  if (!isInsufficientYouTubeThumbnail(img)) return false
+  return applyNextThumbnailFallback(img, candidates)
+}

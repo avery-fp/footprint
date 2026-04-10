@@ -8,7 +8,7 @@ import { parseEmbed, extractYouTubeId } from '@/lib/parseEmbed'
 import type { EmbedResult } from '@/lib/parseEmbed'
 import GlassEmbedFrameExtracted, { GLASS_STYLE as GLASS_STYLE_IMPORTED, GlassPlaceholder as GlassPlaceholderExtracted } from '@/components/GlassEmbedFrame'
 import { transformImageUrl } from '@/lib/image'
-import { applyNextThumbnailFallback, getBestThumbnailUrl, getYouTubeThumbnailCandidates } from '@/lib/media/thumbnails'
+import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getBestThumbnailUrl, getYouTubeThumbnailCandidates } from '@/lib/media/thumbnails'
 
 // ════════════════════════════════════════
 // Glass Embed Frame — imported from extracted component
@@ -194,6 +194,9 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             className="w-full h-full object-cover"
             loading="lazy"
             decoding="async"
+            onLoad={(e) => {
+              applyThumbnailLoadGuard(e.currentTarget, youtubeThumbCandidates)
+            }}
             onError={(e) => {
               applyNextThumbnailFallback(e.currentTarget, youtubeThumbCandidates)
             }}
