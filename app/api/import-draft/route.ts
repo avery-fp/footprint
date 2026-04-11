@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { stripe } from '@/lib/stripe'
+import { getStripe } from '@/lib/stripe'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { createSessionToken, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from '@/lib/auth'
 import { RESERVED_SLUGS } from '@/lib/constants'
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     // 1. Validate Stripe session
     let session
     try {
-      session = await stripe.checkout.sessions.retrieve(session_id)
+      session = await getStripe().checkout.sessions.retrieve(session_id)
     } catch {
       return NextResponse.json({ error: 'Invalid session_id' }, { status: 400 })
     }

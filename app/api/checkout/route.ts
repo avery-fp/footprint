@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { stripe } from '@/lib/stripe'
+import { getStripe } from '@/lib/stripe'
 import { getPriceForCountry } from '@/lib/pricing'
 import { checkoutSchema } from '@/lib/schemas'
 import { validateBody } from '@/lib/validate'
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       ? `${baseUrl}/${encodeURIComponent(slug)}/home`
       : `${baseUrl}/checkout`
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
       customer_email: email,

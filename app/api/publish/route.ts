@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getUserIdFromRequest } from '@/lib/auth'
-import { stripe, FOOTPRINT_PRICE, FOOTPRINT_CURRENCY } from '@/lib/stripe'
+import { getStripe, FOOTPRINT_PRICE, FOOTPRINT_CURRENCY } from '@/lib/stripe'
 import { RESERVED_SLUGS } from '@/lib/constants'
 import { publishSchema } from '@/lib/schemas'
 import { validateBody } from '@/lib/validate'
@@ -319,7 +319,7 @@ export async function POST(request: NextRequest) {
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://footprint.onl'
 
         // Create Stripe checkout session — finalize will claim the serial post-payment
-        const session = await stripe.checkout.sessions.create({
+        const session = await getStripe().checkout.sessions.create({
           mode: 'payment',
           payment_method_types: ['card'],
           customer_email: user.email,
@@ -395,7 +395,7 @@ export async function POST(request: NextRequest) {
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://footprint.onl'
 
         // Create Stripe Checkout session
-        const session = await stripe.checkout.sessions.create({
+        const session = await getStripe().checkout.sessions.create({
           mode: 'payment',
           payment_method_types: ['card'],
           customer_email: user.email,
@@ -443,7 +443,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Verify Stripe payment
-        const session = await stripe.checkout.sessions.retrieve(session_id)
+        const session = await getStripe().checkout.sessions.retrieve(session_id)
         if (!session || session.payment_status !== 'paid') {
           return NextResponse.json({ error: 'Payment not confirmed' }, { status: 400 })
         }

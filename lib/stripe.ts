@@ -1,8 +1,19 @@
 import Stripe from 'stripe'
 import { FOOTPRINT_PRICE_CENTS } from './constants'
 
-// Initialize Stripe with secret key
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+// Lazy-initialized Stripe client — avoids build-time env var evaluation
+let _stripe: Stripe | null = null
+
+export function getStripe(): Stripe {
+  if (!_stripe) {
+    const key = process.env.STRIPE_SECRET_KEY
+    if (!key) {
+      throw new Error('Missing required env var: STRIPE_SECRET_KEY')
+    }
+    _stripe = new Stripe(key)
+  }
+  return _stripe
+}
 
 // Product config - $10 one-time
 export const FOOTPRINT_PRICE = FOOTPRINT_PRICE_CENTS
@@ -19,7 +30,7 @@ export async function createCheckoutSession(params: {
   successUrl: string
   cancelUrl: string
 }) {
-  const session = await stripe.checkout.sessions.create({
+  const session = await getStripe().checkout.sessions.create({
     mode: 'payment',
     payment_method_types: ['card'],
     customer_email: params.email,
@@ -67,18 +78,18 @@ export function constructWebhookEvent(
   payload: string | Buffer,
   signature: string
 ) {
-  return stripe.webhooks.constructEvent(
-    payload,
-    signature,
-    process.env.STRIPE_WEBHOOK_SECRET!
-  )
+  const secret = process.env.STRIPE_WEBHOOK_SECRET
+  if (!secret) {
+    throw new Error('Missing required env var: STRIPE_WEBHOOK_SECRET')
+  }
+  return getStripe().webhooks.constructEvent(payload, signature, secret)
 }
 
 /**
  * Retrieve a checkout session
  */
 export async function getCheckoutSession(sessionId: string) {
-  return stripe.checkout.sessions.retrieve(sessionId, {
+  return getStripe().checkout.sessions.retrieve(sessionId, {
     expand: ['customer', 'payment_intent'],
   })
 }

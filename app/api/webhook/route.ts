@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { constructWebhookEvent, stripe } from '@/lib/stripe'
+import { constructWebhookEvent } from '@/lib/stripe'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { sendWelcomeEmail } from '@/lib/auth'
 import { nanoid } from 'nanoid'

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { stripe } from '@/lib/stripe'
+import { getStripe } from '@/lib/stripe'
 
 export async function GET() {
   const result: Record<string, any> = {
@@ -31,7 +31,7 @@ export async function GET() {
 
     // Check Stripe connectivity
     try {
-      await stripe.products.list({ limit: 1 })
+      await getStripe().products.list({ limit: 1 })
       result.stripe = true
     } catch {
       result.stripe = false
