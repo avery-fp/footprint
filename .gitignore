@@ -46,6 +46,7 @@ output/messages.csv
 output/distribution_plan.json
 output/lift.json
 output/snapshots/
+output/logs/
 supabase/.temp/
 .claude/
 
@@ -54,3 +55,9 @@ provider-configs.json
 ses-configs.json
 sent-log.csv
 lists/
+send-state.json
+
+# Runtime data and staging
+email-targets/
+input/
+accounts.db
