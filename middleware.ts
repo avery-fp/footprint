@@ -142,7 +142,7 @@ export function middleware(request: NextRequest) {
   const homeUrl = request.nextUrl.clone()
   homeUrl.pathname = '/home'
   homeUrl.search = ''
-  return NextResponse.redirect(homeUrl)
+  return withSecurityHeaders(NextResponse.redirect(homeUrl))
 }
 
 export const config = {
