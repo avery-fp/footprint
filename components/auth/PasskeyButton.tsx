@@ -19,7 +19,7 @@ interface PasskeyButtonProps {
  *   1. POST /api/auth/passkey/authenticate { action: 'options' } -> challenge + options
  *   2. startAuthentication(options) -> browser prompts Touch ID / Face ID
  *   3. POST /api/auth/passkey/authenticate { action: 'verify', response, challenge } -> session cookie set
- *   4. window.location.href = redirectAfterAuth || '/ae?claim=1'
+ *   4. window.location.href = redirectAfterAuth || '/home'
  */
 export default function PasskeyButton({ redirectAfterAuth }: PasskeyButtonProps) {
   const [supported, setSupported] = useState(false)
@@ -53,7 +53,7 @@ export default function PasskeyButton({ redirectAfterAuth }: PasskeyButtonProps)
       })
       if (!verifyRes.ok) throw new Error('verification failed')
 
-      window.location.href = redirectAfterAuth || '/ae?claim=1'
+      window.location.href = redirectAfterAuth || '/home'
     } catch (err) {
       // User cancelling the WebAuthn prompt is the most common case — keep silent
       const msg = err instanceof Error ? err.message : ''

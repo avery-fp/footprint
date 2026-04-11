@@ -97,7 +97,7 @@ export default function LandingPage() {
         onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.9)' }}
         onMouseLeave={(e) => { e.currentTarget.style.background = 'white' }}
       >
-        make yours →
+        Home
       </Link>
 
       {/* See example */}

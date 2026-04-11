@@ -37,7 +37,7 @@ describe('parseURL', () => {
       const result = await parseURL('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
       expect(result.type).toBe('youtube')
       expect(result.external_id).toBe('dQw4w9WgXcQ')
-      expect(result.embed_html).toContain('youtube.com/embed/dQw4w9WgXcQ')
+      expect(result.embed_html).toContain('youtube-nocookie.com/embed/dQw4w9WgXcQ')
     })
 
     it('parses youtu.be short URL', async () => {
