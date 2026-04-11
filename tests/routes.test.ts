@@ -10,8 +10,8 @@ import { AUTH_ENTRY, authEntryFor, withParams } from '@/lib/routes'
  */
 
 describe('AUTH_ENTRY', () => {
-  it('points at /ae?claim=1, the canonical unauthenticated entry', () => {
-    expect(AUTH_ENTRY).toBe('/ae?claim=1')
+  it('points at /home, the canonical unauthenticated entry', () => {
+    expect(AUTH_ENTRY).toBe('/home')
   })
 })
 
@@ -28,11 +28,11 @@ describe('authEntryFor', () => {
     expect(authEntryFor('')).toBe(AUTH_ENTRY)
   })
 
-  it('returns slug-aware claim entry for a valid slug', () => {
-    expect(authEntryFor('john')).toBe('/john?claim=1')
-    expect(authEntryFor('ae')).toBe('/ae?claim=1')
-    expect(authEntryFor('user_42')).toBe('/user_42?claim=1')
-    expect(authEntryFor('a-b-c')).toBe('/a-b-c?claim=1')
+  it('returns slug-aware home entry for a valid slug', () => {
+    expect(authEntryFor('john')).toBe('/john/home')
+    expect(authEntryFor('ae')).toBe('/ae/home')
+    expect(authEntryFor('user_42')).toBe('/user_42/home')
+    expect(authEntryFor('a-b-c')).toBe('/a-b-c/home')
   })
 
   it('falls back to AUTH_ENTRY for slugs containing path traversal', () => {
@@ -70,7 +70,7 @@ describe('withParams', () => {
   })
 
   it('preserves existing query when appending multiple new params with unicode', () => {
-    expect(withParams('/ae?claim=1', { ref: 'preview', name: 'João' })).toBe('/ae?claim=1&ref=preview&name=Jo%C3%A3o')
+    expect(withParams('/home', { ref: 'preview', name: 'João' })).toBe('/home?ref=preview&name=Jo%C3%A3o')
   })
 
   it('accepts numeric values and stringifies them', () => {

@@ -1,11 +1,11 @@
 'use client'
 
-export default function FloatingCtaBar({ isOwner = false, onClaim }: { isOwner?: boolean; onClaim?: () => void }) {
+export default function FloatingCtaBar({ isOwner = false }: { isOwner?: boolean; onClaim?: () => void }) {
   if (isOwner) return null
 
   return (
-    <button
-      onClick={onClaim}
+    <a
+      href="/home"
       className="touch-manipulation animate-cta-fade-in"
       style={{
         position: 'fixed',
@@ -28,9 +28,10 @@ export default function FloatingCtaBar({ isOwner = false, onClaim }: { isOwner?:
         cursor: 'pointer',
         whiteSpace: 'nowrap',
         fontFamily: 'inherit',
+        textDecoration: 'none',
       }}
     >
-      yours {'\u2192'}
-    </button>
+      Home
+    </a>
   )
 }

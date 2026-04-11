@@ -84,20 +84,10 @@ export function middleware(request: NextRequest) {
     return withSecurityHeaders(NextResponse.rewrite(rewrite))
   }
 
-  // ── 2a. /home resolver — edge redirect, not RSC redirect ──
-  // Authenticated users resolve their slug server-side in app/home/page.tsx.
-  // Unauthenticated users must land on /ae?claim=1. Next's RSC redirect()
-  // can strip query params in some builds, so gate it here at the edge
-  // where the URL is constructed explicitly.
+  // ── 2a. /home — always pass through to the server component ──
+  // Authenticated → resolves slug → redirects to /{slug}/home
+  // Unauthenticated → renders minimal Google auth entry page
   if (pathname === '/home') {
-    const session = request.cookies.get('fp_session')
-    if (!session?.value) {
-      const target = request.nextUrl.clone()
-      target.pathname = '/ae'
-      target.searchParams.set('claim', '1')
-      return withSecurityHeaders(NextResponse.redirect(target, 307))
-    }
-    // Authenticated → fall through to app/home/page.tsx which resolves the slug
     return withSecurityHeaders(NextResponse.next())
   }
 
@@ -148,11 +138,11 @@ export function middleware(request: NextRequest) {
     return withSecurityHeaders(NextResponse.next())
   }
 
-  // No session → redirect to /ae?claim=1 (the Sovereign Tile handles auth)
-  const claimUrl = request.nextUrl.clone()
-  claimUrl.pathname = '/ae'
-  claimUrl.searchParams.set('claim', '1')
-  return NextResponse.redirect(claimUrl)
+  // No session → redirect to /home (the single auth entry point)
+  const homeUrl = request.nextUrl.clone()
+  homeUrl.pathname = '/home'
+  homeUrl.search = ''
+  return NextResponse.redirect(homeUrl)
 }
 
 export const config = {

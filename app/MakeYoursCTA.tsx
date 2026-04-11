@@ -26,7 +26,7 @@ export default function MakeYoursCTA({ isLoggedIn }: { isLoggedIn: boolean }) {
         pointerEvents: visible ? 'auto' : 'none',
       }}
     >
-      make yours
+      Home
     </Link>
   )
 }

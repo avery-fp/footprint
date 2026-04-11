@@ -6,11 +6,12 @@ import { createRouteHandlerSupabaseAuthClient } from '@/lib/supabase-auth-ssr'
 /**
  * GET /auth/callback
  *
- * ONE JOB: exchange the OAuth code, issue a session, and return
- * to the slug with ?claim=1. Never redirect to /login, /welcome,
+ * ONE JOB: exchange the OAuth code, issue a session, and send the
+ * user to their own HOME. Never redirect to /login, /welcome,
  * /dashboard, or any other SaaS slop page.
  *
- * The Sovereign Tile on PublicPage handles everything from there.
+ * If the user has no footprint yet, create a draft one immediately
+ * so they always land in their own space.
  */
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
     ? rawPostAuth
     : (redirectParam.startsWith('/') && !redirectParam.startsWith('//'))
     ? redirectParam
-    : '/ae?claim=1' // absolute fallback — always a slug, never a SaaS page
+    : '/home' // absolute fallback — resolve to user's own home
 
   if (error || !code) {
     // Even on error, go back to the slug — the Sovereign Tile handles state
@@ -88,17 +89,56 @@ export async function GET(request: NextRequest) {
     }
 
     if (!user) {
-      // Creation failed — still go back to the slug
+      // Creation failed — still go back
       const response = NextResponse.redirect(new URL(returnPath, origin))
       if (rawPostAuth) response.cookies.set('post_auth_redirect', '', { path: '/', maxAge: 0 })
       return applyPendingCookies(response)
     }
 
+    // ── Look up or create draft footprint ──
+    // Every authenticated user must have a footprint so they always land
+    // in their own HOME, never on someone else's page.
+    let { data: footprint } = await supabase
+      .from('footprints')
+      .select('username')
+      .eq('user_id', user.id)
+      .limit(1)
+      .single()
+
+    if (!footprint) {
+      const draftSlug = `draft-${user.id.replace(/-/g, '').slice(0, 12)}`
+      const { data: newFp } = await supabase
+        .from('footprints')
+        .insert({
+          user_id: user.id,
+          username: draftSlug,
+          name: 'Everything',
+          is_primary: true,
+          published: false,
+          display_name: displayName || '',
+          avatar_url: avatarUrl || '',
+        })
+        .select('username')
+        .single()
+
+      footprint = newFp
+    }
+
     // Issue session
     const sessionToken = await createSessionToken(user.id, user.email)
 
-    // Always return to the slug with ?claim=1
-    const response = NextResponse.redirect(new URL(returnPath, origin))
+    // Determine where to send the user.
+    // If an explicit post_auth_redirect was set (e.g. SovereignTile publish
+    // flow with ?claim=1&username=...), honour it so the publish ceremony
+    // can complete. Otherwise, send them to their own HOME.
+    const isExplicitRedirect = rawPostAuth.startsWith('/') && rawPostAuth !== '/home'
+    const finalPath = isExplicitRedirect
+      ? returnPath
+      : footprint?.username
+        ? `/${footprint.username}/home`
+        : '/home'
+
+    const response = NextResponse.redirect(new URL(finalPath, origin))
     response.cookies.set(SESSION_COOKIE_NAME, sessionToken, SESSION_COOKIE_OPTIONS)
     if (rawPostAuth) response.cookies.set('post_auth_redirect', '', { path: '/', maxAge: 0 })
 

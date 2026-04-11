@@ -50,7 +50,7 @@ export default function ReferralBanner({ serial }: ReferralBannerProps) {
           style={{ fontFamily: "'DM Sans', sans-serif" }}
           onClick={(e) => e.stopPropagation()}
         >
-          make yours
+          Home
         </a>
       </div>
     </div>

@@ -7,7 +7,7 @@
  */
 
 /** The one true unauthenticated entry point. */
-export const AUTH_ENTRY = '/ae?claim=1'
+export const AUTH_ENTRY = '/home'
 
 /**
  * Build a slug-aware claim entry that returns the user to a specific page.
@@ -18,7 +18,7 @@ export const AUTH_ENTRY = '/ae?claim=1'
  */
 export function authEntryFor(slug?: string | null): string {
   if (!slug || !/^[a-zA-Z0-9_-]+$/.test(slug)) return AUTH_ENTRY
-  return `/${slug}?claim=1`
+  return `/${slug}/home`
 }
 
 /**
