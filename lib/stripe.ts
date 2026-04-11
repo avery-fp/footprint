@@ -1,8 +1,14 @@
 import Stripe from 'stripe'
 import { FOOTPRINT_PRICE_CENTS } from './constants'
 
+function requireEnv(name: string): string {
+  const value = process.env[name]
+  if (!value) throw new Error(`Missing required env var: ${name}`)
+  return value
+}
+
 // Initialize Stripe with secret key
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+export const stripe = new Stripe(requireEnv('STRIPE_SECRET_KEY'))
 
 // Product config - $10 one-time
 export const FOOTPRINT_PRICE = FOOTPRINT_PRICE_CENTS
@@ -70,7 +76,7 @@ export function constructWebhookEvent(
   return stripe.webhooks.constructEvent(
     payload,
     signature,
-    process.env.STRIPE_WEBHOOK_SECRET!
+    requireEnv('STRIPE_WEBHOOK_SECRET')
   )
 }
 
