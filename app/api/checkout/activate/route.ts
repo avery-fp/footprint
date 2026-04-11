@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { createSessionToken, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from '@/lib/auth'
-import { stripe } from '@/lib/stripe'
+import { getStripe } from '@/lib/stripe'
 import { checkoutActivateSchema } from '@/lib/schemas'
 import { validateBody } from '@/lib/validate'
 import { routeLogger } from '@/lib/logger'
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     const { session_id } = v.data
 
     // Verify with Stripe
-    const session = await stripe.checkout.sessions.retrieve(session_id)
+    const session = await getStripe().checkout.sessions.retrieve(session_id)
 
     if (!session || session.payment_status !== 'paid') {
       return NextResponse.json({ error: 'Payment not confirmed' }, { status: 400 })
