@@ -42,6 +42,12 @@ export const MOTION = {
     threshold: 450,           // ms
     moveCancel: 10,           // px — cancel if finger moves beyond this
   },
+
+  // ZoomableImage — double-tap zoom cycling (1x → 2x → 3x → 1x)
+  zoom: {
+    in:  '0.4s cubic-bezier(0.16, 1, 0.3, 1)',   // spring in
+    out: '0.3s cubic-bezier(0.4, 0, 0.2, 1)',     // ease out
+  },
 } as const
 
 export type MotionConfig = typeof MOTION

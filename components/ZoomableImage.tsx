@@ -1,13 +1,18 @@
 'use client'
 
 import { useRef, useState, useCallback, type ReactNode } from 'react'
+import { MOTION } from '@/lib/motion'
+import { haptic } from '@/lib/haptics'
+import { useReducedMotion } from '@/hooks/useReducedMotion'
 
 interface ZoomableImageProps {
   children: ReactNode
 }
 
+type ZoomLevel = 1 | 2 | 3
+
 export default function ZoomableImage({ children }: ZoomableImageProps) {
-  const [zoomed, setZoomed] = useState(false)
+  const [zoomLevel, setZoomLevel] = useState<ZoomLevel>(1)
   const [origin, setOrigin] = useState({ x: 50, y: 50 })
   const [translate, setTranslate] = useState({ x: 0, y: 0 })
   const lastTapRef = useRef(0)
@@ -16,6 +21,9 @@ export default function ZoomableImage({ children }: ZoomableImageProps) {
   // Guard: on mobile, both onTouchEnd and onClick fire per tap. Without this,
   // the near-zero delta between them falsely triggers double-tap detection.
   const touchHandledRef = useRef(false)
+  const reducedMotion = useReducedMotion()
+
+  const isZoomed = zoomLevel > 1
 
   const getRelativePosition = useCallback((clientX: number, clientY: number) => {
     const el = containerRef.current
@@ -33,26 +41,29 @@ export default function ZoomableImage({ children }: ZoomableImageProps) {
     lastTapRef.current = now
 
     if (delta < 300) {
-      // Double-tap
-      if (zoomed) {
-        setZoomed(false)
-        setTranslate({ x: 0, y: 0 })
-      } else {
-        const pos = getRelativePosition(clientX, clientY)
-        setOrigin(pos)
-        setTranslate({ x: 0, y: 0 })
-        setZoomed(true)
-      }
+      // Double-tap: cycle 1 → 2 → 3 → 1
       lastTapRef.current = 0 // Reset to prevent triple-tap
-    } else if (zoomed) {
+
+      if (zoomLevel === 1) {
+        setOrigin(getRelativePosition(clientX, clientY))
+        setTranslate({ x: 0, y: 0 })
+        haptic('light')
+        setZoomLevel(2)
+      } else if (zoomLevel === 2) {
+        haptic('medium')
+        setZoomLevel(3)
+      } else {
+        setTranslate({ x: 0, y: 0 })
+        setZoomLevel(1)
+      }
+    } else if (isZoomed) {
       // Single tap while zoomed → dismiss
-      setZoomed(false)
       setTranslate({ x: 0, y: 0 })
+      setZoomLevel(1)
     }
-  }, [zoomed, getRelativePosition])
+  }, [zoomLevel, isZoomed, getRelativePosition])
 
   const handleClick = useCallback((e: React.MouseEvent) => {
-    // If touch already handled this tap, skip the redundant click event
     if (touchHandledRef.current) {
       touchHandledRef.current = false
       return
@@ -71,39 +82,41 @@ export default function ZoomableImage({ children }: ZoomableImageProps) {
 
   // Pan while zoomed
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (!zoomed || e.touches.length !== 1) return
+    if (!isZoomed || e.touches.length !== 1) return
     const t = e.touches[0]
     panStartRef.current = { x: t.clientX, y: t.clientY, tx: translate.x, ty: translate.y }
-  }, [zoomed, translate])
+  }, [isZoomed, translate])
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!zoomed || !panStartRef.current || e.touches.length !== 1) return
+    if (!isZoomed || !panStartRef.current || e.touches.length !== 1) return
     e.preventDefault()
     const t = e.touches[0]
     const dx = t.clientX - panStartRef.current.x
     const dy = t.clientY - panStartRef.current.y
-    // Clamp to prevent panning beyond image edges (at 2x scale, max 50% of container in each dir)
     const el = containerRef.current
     if (!el) return
     const rect = el.getBoundingClientRect()
-    const maxX = rect.width * 0.5
-    const maxY = rect.height * 0.5
+    const frac = (zoomLevel - 1) / zoomLevel
+    const maxX = rect.width * frac
+    const maxY = rect.height * frac
     setTranslate({
       x: Math.max(-maxX, Math.min(maxX, panStartRef.current.tx + dx)),
       y: Math.max(-maxY, Math.min(maxY, panStartRef.current.ty + dy)),
     })
-  }, [zoomed])
+  }, [isZoomed, zoomLevel])
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (!zoomed) return
+    if (!isZoomed) return
+    const currentZoom = zoomLevel
     panStartRef.current = { x: e.clientX, y: e.clientY, tx: translate.x, ty: translate.y }
     const handleMouseMove = (ev: MouseEvent) => {
       if (!panStartRef.current) return
       const el = containerRef.current
       if (!el) return
       const rect = el.getBoundingClientRect()
-      const maxX = rect.width * 0.5
-      const maxY = rect.height * 0.5
+      const frac = (currentZoom - 1) / currentZoom
+      const maxX = rect.width * frac
+      const maxY = rect.height * frac
       setTranslate({
         x: Math.max(-maxX, Math.min(maxX, panStartRef.current.tx + (ev.clientX - panStartRef.current.x))),
         y: Math.max(-maxY, Math.min(maxY, panStartRef.current.ty + (ev.clientY - panStartRef.current.y))),
@@ -116,33 +129,36 @@ export default function ZoomableImage({ children }: ZoomableImageProps) {
     }
     window.addEventListener('mousemove', handleMouseMove)
     window.addEventListener('mouseup', handleMouseUp)
-  }, [zoomed, translate])
+  }, [isZoomed, translate, zoomLevel])
+
+  const { zoom } = MOTION
+  const transition = panStartRef.current || reducedMotion
+    ? 'none'
+    : isZoomed
+      ? `transform ${zoom.in}, filter 0.3s ease`
+      : `transform ${zoom.out}, filter 0.3s ease`
 
   return (
     <div
       ref={containerRef}
       className="w-full h-full overflow-hidden touch-manipulation"
-      style={{ cursor: zoomed ? 'grab' : undefined }}
+      style={{ cursor: isZoomed ? 'grab' : 'zoom-in' }}
       onClick={handleClick}
       onTouchEnd={handleTouchEnd}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
-      onMouseDown={zoomed ? handleMouseDown : undefined}
+      onMouseDown={isZoomed ? handleMouseDown : undefined}
     >
       <div
         className="w-full h-full"
         style={{
-          transform: zoomed
-            ? `scale(2) translate(${translate.x / 2}px, ${translate.y / 2}px)`
+          transform: isZoomed
+            ? `scale(${zoomLevel}) translate(${translate.x / zoomLevel}px, ${translate.y / zoomLevel}px)`
             : 'scale(1)',
           transformOrigin: `${origin.x}% ${origin.y}%`,
-          transition: panStartRef.current
-            ? 'none'
-            : zoomed
-              ? 'transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), filter 0.5s ease'
-              : 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), filter 0.3s ease',
-          filter: zoomed ? 'brightness(1.04)' : 'brightness(1)',
-          willChange: zoomed ? 'transform' : 'auto',
+          transition,
+          filter: isZoomed ? 'brightness(1.04)' : 'brightness(1)',
+          willChange: isZoomed ? 'transform' : 'auto',
         }}
       >
         {children}
