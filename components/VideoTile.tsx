@@ -2,8 +2,17 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { audioManager } from '@/lib/audio-manager'
+import Hls from 'hls.js'
 
-export default function VideoTile({ src, onWidescreen }: { src: string; onWidescreen?: () => void }) {
+interface VideoTileProps {
+  src: string
+  playbackUrl?: string | null
+  posterUrl?: string | null
+  status?: string | null
+  onWidescreen?: () => void
+}
+
+export default function VideoTile({ src, playbackUrl, posterUrl, status, onWidescreen }: VideoTileProps) {
   const [isMuted, setIsMuted] = useState(true)
   const [isNear, setIsNear] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
@@ -12,19 +21,21 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
   const [showTapFeedback, setShowTapFeedback] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
+  const hlsRef = useRef<Hls | null>(null)
   const videoId = useRef(`video-${src}-${Math.random()}`).current
+
+  // The actual source to play — prefer HLS playback URL when ready
+  const effectiveSrc = (status === 'ready' && playbackUrl) ? playbackUrl : src
 
   // Two observers: one for "near" (load metadata), one for "visible" (play)
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
 
-    // Near viewport — mount the video element
     const nearObs = new IntersectionObserver(
       ([entry]) => { if (entry.isIntersecting) setIsNear(true) },
       { rootMargin: '200px' }
     )
-    // Actually visible — play/pause
     const visObs = new IntersectionObserver(
       ([entry]) => setIsVisible(entry.isIntersecting),
       { rootMargin: '0px' }
@@ -34,9 +45,34 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
     return () => { nearObs.disconnect(); visObs.disconnect() }
   }, [])
 
+  // HLS setup — attach hls.js for non-Safari browsers when we have an HLS URL
+  useEffect(() => {
+    const v = videoRef.current
+    if (!v || !effectiveSrc) return
+
+    const isHls = effectiveSrc.includes('.m3u8')
+
+    if (isHls) {
+      // Safari handles HLS natively
+      if (v.canPlayType('application/vnd.apple.mpegurl')) {
+        v.src = effectiveSrc
+      } else if (Hls.isSupported()) {
+        const hls = new Hls({ enableWorker: true, startLevel: -1 })
+        hls.loadSource(effectiveSrc)
+        hls.attachMedia(v)
+        hlsRef.current = hls
+        return () => {
+          hls.destroy()
+          hlsRef.current = null
+        }
+      }
+    } else {
+      // Raw src — legacy path
+      v.src = effectiveSrc
+    }
+  }, [effectiveSrc])
+
   // Play only when visible, pause when off-screen.
-  // Auto-unmute once playing — browsers require muted for autoplay,
-  // but we can unmute immediately after a user gesture has occurred.
   useEffect(() => {
     const v = videoRef.current
     if (!v) return
@@ -74,12 +110,12 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
 
   // Timeout — if video doesn't load in 8s, show fallback
   useEffect(() => {
-    if (!isNear) return
+    if (!isNear || status === 'processing') return
     const timer = setTimeout(() => {
       if (!isReady) setHasFailed(true)
     }, 8000)
     return () => clearTimeout(timer)
-  }, [isNear, isReady])
+  }, [isNear, isReady, status])
 
   // Register with audio manager
   useEffect(() => {
@@ -95,7 +131,6 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
 
   const handleClick = () => {
     if (videoRef.current) {
-      // Show brief tap feedback
       setShowTapFeedback(true)
       setTimeout(() => setShowTapFeedback(false), 400)
 
@@ -111,8 +146,33 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
     }
   }
 
+  // ── Processing state — poster frame + shimmer ──
+  if (status === 'processing' || status === 'uploading') {
+    return (
+      <div
+        ref={containerRef}
+        className="relative w-full h-full aspect-video overflow-hidden"
+      >
+        {posterUrl ? (
+          <img src={posterUrl} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full" style={{ background: 'rgba(0,0,0,0.3)' }} />
+        )}
+        {/* Shimmer overlay */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%)',
+            backgroundSize: '200% 100%',
+            animation: 'shimmer 2s ease-in-out infinite',
+          }}
+        />
+        <style>{`@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }`}</style>
+      </div>
+    )
+  }
+
   if (hasFailed) {
-    // Dark placeholder instead of empty gap
     return (
       <div
         ref={containerRef}
@@ -128,13 +188,13 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
         <>
           <video
             ref={videoRef}
-            src={src}
             className="w-full h-full object-cover cursor-pointer"
             autoPlay
             muted
             loop
             playsInline
             preload="auto"
+            poster={posterUrl || undefined}
             onClick={handleClick}
             onError={() => setHasFailed(true)}
             onLoadedData={() => setIsReady(true)}
@@ -145,7 +205,7 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
               }
             }}
           />
-          {/* Brief play/pause tap feedback — flashes then disappears */}
+          {/* Brief play/pause tap feedback */}
           {showTapFeedback && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ animation: 'fadeIn 400ms ease-out forwards' }}>
               <div className="w-10 h-10 rounded-full bg-black/30 flex items-center justify-center backdrop-blur-sm">
@@ -159,13 +219,12 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
               </div>
             </div>
           )}
-          {/* Unmuted indicator dot — subtle */}
+          {/* Unmuted indicator dot */}
           {!isMuted && isReady && (
             <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60" />
           )}
         </>
       ) : (
-        // Placeholder while not near viewport
         <div
           className="w-full h-full"
           style={{ background: 'rgba(0,0,0,0.3)', minHeight: '200px' }}

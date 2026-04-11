@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getUserIdFromRequest } from '@/lib/auth'
+import { mediaTypeFromUrl } from '@/lib/media'
 
 export const dynamic = 'force-dynamic'
 
@@ -56,23 +57,29 @@ export async function GET(
           .order('position', { ascending: true }),
       ])
 
-      const VIDEO_EXT = /\.(mp4|mov|webm|m4v)($|\?)/i
-      const libraryTiles = (libraryResult.data || []).map(item => ({
-        id: item.id,
-        url: item.image_url,
-        type: VIDEO_EXT.test(item.image_url || '') ? 'video' : 'image',
-        title: item.title || null,
-        description: null,
-        thumbnail_url: null,
-        embed_html: null,
-        position: item.position,
-        source: 'library' as const,
-        room_id: item.room_id || null,
-        size: item.size || 1,
-        aspect: item.aspect || null,
-        caption: item.caption || null,
-        parent_tile_id: item.parent_tile_id || null,
-      }))
+      const libraryTiles = (libraryResult.data || []).map(item => {
+        const type = mediaTypeFromUrl(item.image_url || '', item.media_kind)
+        return {
+          id: item.id,
+          url: item.image_url,
+          type,
+          title: item.title || null,
+          description: null,
+          thumbnail_url: null,
+          embed_html: null,
+          position: item.position,
+          source: 'library' as const,
+          room_id: item.room_id || null,
+          size: item.size || 1,
+          aspect: item.aspect || null,
+          caption: item.caption || null,
+          parent_tile_id: item.parent_tile_id || null,
+          playback_url: item.playback_url || null,
+          poster_url: item.poster_url || null,
+          status: item.status || null,
+          asset_id: item.asset_id || null,
+        }
+      })
       const linkTiles = (linksResult.data || []).map(item => ({
         id: item.id,
         url: item.url,

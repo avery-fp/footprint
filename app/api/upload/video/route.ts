@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getUserIdFromRequest } from '@/lib/auth'
-import { mediaTypeFromUrl } from '@/lib/media'
+import { getVideoProvider } from '@/lib/video-providers'
 
-// Lightweight endpoint: register a file already uploaded to Supabase Storage
-// Used by client-side video uploads that bypass Vercel's body limit
+/**
+ * POST /api/upload/video
+ *
+ * Creates a direct upload session with the video provider (Mux).
+ * Client uploads the raw file directly to the provider URL —
+ * the file never passes through our server.
+ *
+ * Body: { slug, aspect?, room_id? }
+ * Returns: { uploadUrl, tileId, assetId }
+ */
 export async function POST(request: NextRequest) {
   try {
     const userId = await getUserIdFromRequest(request)
@@ -13,15 +20,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { slug, url, room_id, aspect, content_type } = await request.json()
+    const { slug, aspect, room_id } = await request.json()
 
-    if (!slug || !url) {
-      return NextResponse.json({ error: 'slug and url required' }, { status: 400 })
+    if (!slug) {
+      return NextResponse.json({ error: 'slug required' }, { status: 400 })
     }
 
     const supabase = createServerSupabaseClient()
 
-    // Get footprint and verify ownership
+    // Verify ownership
     const { data: footprint } = await supabase
       .from('footprints')
       .select('serial_number, user_id')
@@ -38,6 +45,10 @@ export async function POST(request: NextRequest) {
 
     const serialNumber = footprint.serial_number
 
+    // Create provider upload session
+    const provider = getVideoProvider()
+    const session = await provider.createUploadSession()
+
     // Get next position
     const { data: maxPos } = await supabase
       .from('library')
@@ -49,44 +60,35 @@ export async function POST(request: NextRequest) {
 
     const nextPosition = (maxPos?.position ?? -1) + 1
 
+    // Insert library row immediately (status='uploading')
     const { data: tile, error: insertError } = await supabase
       .from('library')
       .insert({
         serial_number: serialNumber,
-        image_url: url,
+        image_url: '',
+        media_kind: 'video',
+        provider: process.env.VIDEO_PROVIDER || 'mux',
+        asset_id: session.assetId,
+        status: 'uploading',
         position: nextPosition,
         room_id: room_id || null,
         ...(aspect ? { aspect } : {}),
       })
-      .select()
+      .select('id')
       .single()
 
     if (insertError) {
-      return NextResponse.json({ error: 'Failed to register upload' }, { status: 500 })
+      console.error('Video tile insert error:', insertError)
+      return NextResponse.json({ error: 'Failed to create video tile' }, { status: 500 })
     }
 
-    revalidatePath(`/${slug}`)
-
-    // MIME-type contract: media_kind from DB first, then URL extension
-    const canonicalType = mediaTypeFromUrl(url || '', tile.media_kind)
-
     return NextResponse.json({
-      tile: {
-        id: tile.id,
-        url: tile.image_url,
-        type: canonicalType,
-        title: null,
-        description: null,
-        thumbnail_url: null,
-        embed_html: null,
-        position: tile.position,
-        source: 'library',
-        room_id: tile.room_id || null,
-        aspect: tile.aspect || aspect || null,
-      }
+      uploadUrl: session.uploadUrl,
+      tileId: tile.id,
+      assetId: session.assetId,
     })
   } catch (error) {
-    console.error('Register upload error:', error)
-    return NextResponse.json({ error: 'Registration failed' }, { status: 500 })
+    console.error('Video upload session error:', error)
+    return NextResponse.json({ error: 'Failed to create upload session' }, { status: 500 })
   }
 }

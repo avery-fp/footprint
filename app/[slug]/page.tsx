@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { Metadata } from 'next'
 import { getTheme } from '@/lib/themes'
 import { transformImageUrl } from '@/lib/image'
+import { mediaTypeFromUrl } from '@/lib/media'
 import { getFootprintDisplayTitle } from '@/lib/footprint'
 import AnalyticsTracker from '@/components/AnalyticsTracker'
 import ShareEngine from '@/components/ShareEngine'
@@ -88,22 +89,23 @@ export default async function FootprintPage({ params }: Props) {
     supabase.from('links').select('id, parent_tile_id, thumbnail, thumbnail_url_hq, position').eq('serial_number', footprint.serial_number).not('parent_tile_id', 'is', null).order('position'),
   ])
 
-  // Canonical type from URL — library has no type column, so derive once here
-  const VIDEO_EXT = /\.(mp4|mov|webm|m4v|3gp|3gpp|mkv)($|\?)/i
-
   // Merge and sort by position
   const content = [
     ...(images || []).map((img: any) => {
-      const isVideo = VIDEO_EXT.test(img.image_url || '')
+      const isVideo = mediaTypeFromUrl(img.image_url || '', img.media_kind) === 'video'
+      const usePlaybackUrl = isVideo && img.playback_url && img.status === 'ready'
       return {
         id: img.id,
         type: isVideo ? 'video' : 'image',
-        url: isVideo ? img.image_url : transformImageUrl(img.image_url),
+        url: usePlaybackUrl ? img.playback_url : (isVideo ? img.image_url : transformImageUrl(img.image_url)),
         position: img.position,
         room_id: img.room_id,
         size: img.size || 1,
         aspect: img.aspect || null,
         caption: img.caption || null,
+        playback_url: img.playback_url || null,
+        poster_url: img.poster_url || null,
+        status: img.status || null,
       }
     }),
     ...(links || []).map((link: any) => ({

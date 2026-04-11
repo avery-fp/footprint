@@ -8,6 +8,7 @@ import { validateBody } from '@/lib/validate'
 import { routeLogger } from '@/lib/logger'
 import { detectProvider } from '@/lib/media/detectProvider'
 import { PROVIDER_RENDER_DEFAULTS, contentTypeToKind, contentTypeToProvider } from '@/lib/media/types'
+import { getVideoProvider } from '@/lib/video-providers'
 
 const log = routeLogger('MULTI', '/api/tiles')
 
@@ -284,12 +285,18 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized or not found' }, { status: 403 })
     }
 
-    // First, verify the tile exists
-    const { data: existing } = await supabase
-      .from(source)
-      .select('id, serial_number')
-      .eq('id', id)
-      .single()
+    // If deleting from library, clean up provider video asset
+    if (source === 'library') {
+      const { data: tile } = await supabase
+        .from('library')
+        .select('asset_id, provider')
+        .eq('id', id)
+        .single()
+
+      if (tile?.asset_id && tile?.provider) {
+        getVideoProvider().deleteAsset(tile.asset_id).catch(() => {})
+      }
+    }
 
     // Delete from the correct table, ensuring serial_number matches
     const { error, count } = await supabase

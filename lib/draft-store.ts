@@ -21,6 +21,14 @@ export interface DraftContent {
   container_label?: string | null
   container_cover_url?: string | null
   parent_tile_id?: string | null
+  // Processed video fields
+  media_kind?: string | null
+  provider?: string | null
+  playback_url?: string | null
+  poster_url?: string | null
+  asset_id?: string | null
+  status?: string | null
+  duration_ms?: number | null
 }
 
 export interface DraftFootprint {

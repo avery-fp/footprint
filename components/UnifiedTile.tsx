@@ -9,6 +9,7 @@ import ZoomableImage from '@/components/ZoomableImage'
 import ContainerTileBase from '@/components/ContainerTile'
 import PreviewCardTileBase from '@/components/PreviewCardTile'
 import { getImageSizes } from '@/lib/media/aspect'
+import { mediaTypeFromUrl } from '@/lib/media'
 import { extractYouTubeId } from '@/lib/parseEmbed'
 import { isNewStyleRenderMode } from '@/lib/media/types'
 import type { RenderMode } from '@/lib/media/types'
@@ -30,13 +31,15 @@ const GhostTile = memo(GhostTileBase)
  *   Unknown/failed → Recovery Tile (gray glass, never invisible)
  */
 
-// Canonical type resolution — URL extension overrides stored type
-const VIDEO_EXT = /\.(mp4|mov|webm|m4v|3gp|3gpp|mkv)($|\?)/i
+// Canonical type resolution — media_kind column first, then URL extension, then stored type
 const IMAGE_EXT = /\.(jpg|jpeg|png|gif|webp|heic|avif|svg)($|\?)/i
 
-function resolveCanonicalType(type: string, url: string): 'video' | 'image' | 'thought' | 'content' {
+function resolveCanonicalType(type: string, url: string, mediaKind?: string | null): 'video' | 'image' | 'thought' | 'content' {
   if (type === 'thought') return 'thought'
-  if (VIDEO_EXT.test(url)) return 'video'
+  // Delegate video/image detection to the shared helper (checks media_kind, then URL extension)
+  const detected = mediaTypeFromUrl(url, mediaKind)
+  if (detected === 'video') return 'video'
+  if (detected === 'image') return 'image'
   if (type === 'video') return 'video'
   if (IMAGE_EXT.test(url)) return 'image'
   if (type === 'image') return 'image'
@@ -60,6 +63,10 @@ interface UnifiedTileProps {
     media_id?: string | null
     container_label?: string | null
     container_cover_url?: string | null
+    playback_url?: string | null
+    poster_url?: string | null
+    status?: string | null
+    media_kind?: string | null
   }
   index: number
   size: number
@@ -198,7 +205,7 @@ export default function UnifiedTile({
     }
   }
 
-  const canonicalType = resolveCanonicalType(item.type, item.url || '')
+  const canonicalType = resolveCanonicalType(item.type, item.url || '', item.media_kind)
   const isAuto = aspect === 'auto'
 
   // ── Thought ──
@@ -229,19 +236,23 @@ export default function UnifiedTile({
     if (mode === 'public') {
       return (
         <div className="w-full h-full" data-tile-id={item.id} data-tile-type="video">
-          <VideoTile src={item.url} onWidescreen={() => {}} />
+          <VideoTile
+            src={item.url}
+            playbackUrl={item.playback_url}
+            posterUrl={item.poster_url}
+            status={item.status}
+            onWidescreen={() => {}}
+          />
         </div>
       )
     }
     return (
       <div className="w-full h-full" data-tile-id={item.id} data-tile-type="video">
-        <video
+        <VideoTile
           src={item.url}
-          className="w-full h-full object-cover"
-          muted
-          loop
-          playsInline
-          preload="metadata"
+          playbackUrl={item.playback_url}
+          posterUrl={item.poster_url}
+          status={item.status}
         />
       </div>
     )

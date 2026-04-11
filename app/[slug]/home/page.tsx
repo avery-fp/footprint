@@ -32,6 +32,7 @@ import {
   isVideoFile,
   isHEIC,
   uploadWithProgress as uploadWithProgressShared,
+  uploadToProvider as uploadToProviderShared,
   getVideoThumbnail as getVideoThumbnailShared,
   resizeImage as resizeImageShared,
   detectImageAspect as detectImageAspectShared,
@@ -1849,6 +1850,7 @@ export default function EditPage() {
   // ── File upload — utilities imported from @/lib/upload ──
   const VIDEO_MIME = VIDEO_MIME_SHARED
   const uploadWithProgress = uploadWithProgressShared
+  const uploadToProvider = uploadToProviderShared
   const getVideoThumbnail = getVideoThumbnailShared
   const resizeImage = resizeImageShared
   const detectImageAspect = detectImageAspectShared
@@ -1925,31 +1927,77 @@ export default function EditPage() {
           detectedAspect = 'square'
         }
 
+        // ── VIDEO LANE: upload directly to provider ──
+        if (isVideo) {
+          // 1. Create upload session with provider
+          const sessionRes = await fetch('/api/upload/video', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ slug, aspect: detectedAspect, room_id: activeRoomId }),
+          })
+          if (!sessionRes.ok) throw new Error(`Video session failed: ${sessionRes.status}`)
+          const { uploadUrl, tileId, assetId } = await sessionRes.json()
+
+          // 2. Upload raw file directly to provider
+          await uploadToProvider(file, uploadUrl, (pct) => {
+            setDraft(prev => prev ? {
+              ...prev,
+              content: prev.content.map(c => c.id === tempId ? { ...c, _progress: pct } : c),
+            } : null)
+          })
+
+          // 3. Extract local thumbnail for immediate display
+          let localPoster: string | null = null
+          try {
+            localPoster = await getVideoThumbnail(file)
+          } catch { /* placeholder is fine */ }
+
+          // 4. Replace temp tile with real tile (processing state)
+          setTileSources(prev => ({ ...prev, [tileId]: 'library' }))
+          setDraft(prev => prev ? {
+            ...prev,
+            content: prev.content.map(c => c.id === tempId ? {
+              id: tileId,
+              url: localPoster || '',
+              type: 'video',
+              title: null,
+              description: null,
+              thumbnail_url: localPoster,
+              embed_html: null,
+              position: c.position,
+              room_id: activeRoomId || null,
+              size: (c as any).size || 1,
+              aspect: detectedAspect,
+              status: 'processing',
+              playback_url: null,
+              poster_url: localPoster,
+              asset_id: assetId,
+              media_kind: 'video',
+            } : c),
+            updated_at: Date.now(),
+          } : null)
+
+          return // Done — webhook will update DB when transcode finishes
+        }
+
+        // ── IMAGE LANE: existing Supabase Storage flow (unchanged) ──
         let uploadFile: File
-        if (!isVideo && (file.type === 'image/heic' || file.type === 'image/heif' || /\.heic$/i.test(file.name))) {
+        if (file.type === 'image/heic' || file.type === 'image/heif' || /\.heic$/i.test(file.name)) {
           try {
             uploadFile = await resizeImage(new File([file], file.name.replace(/\.heic$/i, '.jpg'), { type: 'image/jpeg' }), 2400)
           } catch {
             uploadFile = file
           }
-        } else if (!isVideo) {
+        } else {
           try {
             uploadFile = await resizeImage(file)
           } catch {
             uploadFile = file
           }
-        } else {
-          uploadFile = file
         }
 
-        const ext = isVideo
-          ? (file.name.split('.').pop() || 'mp4').toLowerCase()
-          : 'jpg'
-        const filename = `${serialNumber}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
-
-        const contentType = isVideo
-          ? (file.type === 'video/quicktime' ? 'video/mp4' : file.type || 'video/mp4')
-          : (uploadFile.type || 'image/jpeg')
+        const filename = `${serialNumber}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`
+        const contentType = uploadFile.type || 'image/jpeg'
 
         const publicUrl = await uploadWithProgress(
           new File([uploadFile], uploadFile.name, { type: contentType }),
@@ -2013,10 +2061,8 @@ export default function EditPage() {
           } : null)
         }
 
-        if (!isVideo) {
-          const thumb = tempTiles[idx]?.url
-          if (thumb?.startsWith('blob:')) URL.revokeObjectURL(thumb)
-        }
+        const thumb = tempTiles[idx]?.url
+        if (thumb?.startsWith('blob:')) URL.revokeObjectURL(thumb)
       } catch (err: any) {
         // Mark tile as failed — tile persists with FAILED state, no ghost tiles
         setDraft(prev => prev ? {

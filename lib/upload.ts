@@ -302,3 +302,45 @@ export function detectVideoAspect(file: File): Promise<string> {
     video.src = URL.createObjectURL(file)
   })
 }
+
+// ── Provider Upload ────────────────────────────────────
+
+/**
+ * Upload a file directly to a video provider (Mux, Cloudflare Stream).
+ * Same XHR progress pattern as uploadWithProgress, but targets the
+ * provider's direct upload URL instead of Supabase Storage.
+ */
+export async function uploadToProvider(
+  file: File,
+  uploadUrl: string,
+  onProgress: (pct: number) => void
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.timeout = 10 * 60 * 1000 // 10 minutes for large videos
+
+    let lastPct = -1
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        const pct = Math.round((e.loaded / e.total) * 100)
+        if (pct !== lastPct) { lastPct = pct; onProgress(pct) }
+      }
+    }
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve()
+      } else {
+        reject(new Error(`Provider upload failed (${xhr.status})`))
+      }
+    }
+
+    xhr.onerror = () => reject(new Error('Network error during provider upload'))
+    xhr.ontimeout = () => reject(new Error('Provider upload timed out'))
+
+    xhr.open('PUT', uploadUrl)
+    xhr.setRequestHeader('Content-Type', file.type || 'video/mp4')
+    xhr.send(file)
+  })
+}
+
