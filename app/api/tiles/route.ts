@@ -6,6 +6,8 @@ import { getUserIdFromRequest } from '@/lib/auth'
 import { tilesPostSchema, tilesDeleteSchema, tilesPutSchema, tilesPatchSchema, containerPostSchema } from '@/lib/schemas'
 import { validateBody } from '@/lib/validate'
 import { routeLogger } from '@/lib/logger'
+import { detectProvider } from '@/lib/media/detectProvider'
+import { PROVIDER_RENDER_DEFAULTS, contentTypeToKind, contentTypeToProvider } from '@/lib/media/types'
 
 const log = routeLogger('MULTI', '/api/tiles')
 
@@ -179,6 +181,11 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // Compute identity layer fields
+      const identityProvider = detectProvider(parsed.url)
+      const identityKind = contentTypeToKind(parsed.type)
+      const identityRenderMode = PROVIDER_RENDER_DEFAULTS[identityProvider]?.preferredMode || 'link_only'
+
       // Insert into links table for everything else
       const result = await supabase
         .from('links')
@@ -190,6 +197,8 @@ export async function POST(request: NextRequest) {
           metadata: {
             description: parsed.description,
             embed_html: parsed.embed_html,
+            kind: identityKind,
+            provider: identityProvider,
           },
           thumbnail: parsed.thumbnail_url,
           position: nextPosition,
@@ -200,7 +209,9 @@ export async function POST(request: NextRequest) {
             artist: ghostArtist,
             thumbnail_url_hq: ghostThumbnailHq,
             media_id: ghostMediaId,
-          } : {}),
+          } : {
+            render_mode: identityRenderMode,
+          }),
         })
         .select()
         .single()

@@ -3,11 +3,19 @@
  *
  * Re-exports everything from the media subsystem for clean imports:
  *   import { resolveMedia, resolveAspect, getGridClass } from '@/lib/media'
+ *   import { identifyMedia, detectProvider } from '@/lib/media'
  */
 
-// Unified resolver
+// Legacy resolver (still used by existing consumers)
 export { resolveMedia, resolveMediaSync } from './resolveMedia'
 export type { ResolvedMedia, MediaType } from './resolveMedia'
+
+// Identity intake layer (new system)
+export { identifyMedia, identifyMediaSync } from './identify'
+export type { IdentifiedMedia, MediaKind, MediaProvider, RenderMode } from './types'
+export { detectProvider } from './detectProvider'
+export { canonicalizeUrl } from './canonicalize'
+export { isNewStyleRenderMode, PROVIDER_RENDER_DEFAULTS, contentTypeToKind, contentTypeToProvider } from './types'
 
 // Aspect + grid helpers
 export {
