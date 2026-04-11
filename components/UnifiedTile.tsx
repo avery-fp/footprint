@@ -7,8 +7,11 @@ import GhostTileBase from '@/components/GhostTile'
 import TileImage from '@/components/TileImage'
 import ZoomableImage from '@/components/ZoomableImage'
 import ContainerTileBase from '@/components/ContainerTile'
+import PreviewCardTileBase from '@/components/PreviewCardTile'
 import { getImageSizes } from '@/lib/media/aspect'
 import { extractYouTubeId } from '@/lib/parseEmbed'
+import { isNewStyleRenderMode } from '@/lib/media/types'
+import type { RenderMode } from '@/lib/media/types'
 
 const ContainerTile = memo(ContainerTileBase)
 
@@ -114,6 +117,85 @@ export default function UnifiedTile({
         />
       </div>
     )
+  }
+
+  // ── RenderMode-driven dispatch (new-style tiles) ──
+  // Only fires for renderMode values produced by the identity intake layer.
+  // Legacy tiles with render_mode 'ghost' or 'embed' skip this entirely.
+  if (isNewStyleRenderMode(item.render_mode)) {
+    const rm = item.render_mode as RenderMode
+    switch (rm) {
+      case 'native_video':
+        if (mode === 'public') {
+          return (
+            <div className="w-full h-full" data-tile-id={item.id} data-tile-type="native-video">
+              <VideoTile src={item.url} onWidescreen={() => {}} />
+            </div>
+          )
+        }
+        return (
+          <div className="w-full h-full" data-tile-id={item.id} data-tile-type="native-video">
+            <video src={item.url} className="w-full h-full object-cover" muted loop playsInline preload="metadata" />
+          </div>
+        )
+      case 'embed':
+        return (
+          <div className="w-full h-full" data-tile-id={item.id} data-tile-type="embed">
+            <ContentCard
+              content={{
+                id: item.id,
+                url: item.url,
+                type: item.type,
+                title: item.title,
+                description: item.description,
+                thumbnail_url: item.thumbnail_url,
+                embed_html: item.embed_html,
+                artist: item.artist,
+                thumbnail_url_hq: item.thumbnail_url_hq,
+              }}
+              tileSize={size}
+              aspect={aspect}
+              isPublicView={mode === 'public'}
+              isExpanded={isExpanded}
+              isMobile={isMobile}
+            />
+          </div>
+        )
+      case 'preview_card':
+        return (
+          <div className="w-full h-full" data-tile-id={item.id} data-tile-type="preview-card">
+            <PreviewCardTileBase
+              url={item.url}
+              thumbnailUrl={item.thumbnail_url_hq || item.thumbnail_url}
+              title={item.title}
+              subtitle={item.artist || null}
+            />
+          </div>
+        )
+      case 'native_music':
+        // Future: native music player. For now, preview card.
+        return (
+          <div className="w-full h-full" data-tile-id={item.id} data-tile-type="native-music">
+            <PreviewCardTileBase
+              url={item.url}
+              thumbnailUrl={item.thumbnail_url_hq || item.thumbnail_url}
+              title={item.title}
+              subtitle={item.artist || null}
+            />
+          </div>
+        )
+      case 'link_only':
+        return (
+          <div className="w-full h-full" data-tile-id={item.id} data-tile-type="link-only">
+            <PreviewCardTileBase
+              url={item.url}
+              thumbnailUrl={null}
+              title={item.title}
+              subtitle={null}
+            />
+          </div>
+        )
+    }
   }
 
   const canonicalType = resolveCanonicalType(item.type, item.url || '')
