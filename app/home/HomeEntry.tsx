@@ -1,5 +1,6 @@
 'use client'
 
+import { useSearchParams } from 'next/navigation'
 import OAuthButton from '@/components/auth/OAuthButton'
 
 /**
@@ -9,6 +10,9 @@ import OAuthButton from '@/components/auth/OAuthButton'
  * Continue with Google → account sheet → boom, you are in.
  */
 export default function HomeEntry() {
+  const searchParams = useSearchParams()
+  const authError = searchParams.get('auth_error')
+
   return (
     <div
       style={{
@@ -29,6 +33,19 @@ export default function HomeEntry() {
           label="continue with google"
           redirectAfterAuth="/home"
         />
+        {authError && (
+          <p style={{
+            marginTop: 14,
+            fontFamily: 'monospace',
+            fontSize: 11,
+            color: '#ff6b6b',
+            textAlign: 'center',
+            opacity: 0.7,
+            letterSpacing: '0.05em',
+          }}>
+            auth failed at: {authError}
+          </p>
+        )}
       </div>
     </div>
   )

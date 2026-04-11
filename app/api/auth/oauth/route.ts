@@ -31,7 +31,6 @@ export async function POST(request: NextRequest) {
         redirectTo,
         queryParams: provider === 'google' ? {
           access_type: 'offline',
-          prompt: 'consent',
         } : undefined,
       },
     })

@@ -29,13 +29,22 @@ export async function GET(request: NextRequest) {
 
   if (error || !code) {
     // Even on error, go back to the slug — the Sovereign Tile handles state
-    const response = NextResponse.redirect(new URL(returnPath, origin))
+    const errUrl = new URL(returnPath, origin)
+    errUrl.searchParams.set('auth_error', 'oauth')
+    const response = NextResponse.redirect(errUrl)
     if (rawPostAuth) response.cookies.set('post_auth_redirect', '', { path: '/', maxAge: 0 })
     return response
   }
 
+  let stage = 'init'
+  let applyPendingCookies: ((r: NextResponse) => NextResponse) = (r) => r
+
   try {
-    const { supabase: authClient, applyPendingCookies } = createRouteHandlerSupabaseAuthClient(request)
+    stage = 'exchange'
+    const authSsr = createRouteHandlerSupabaseAuthClient(request)
+    applyPendingCookies = authSsr.applyPendingCookies
+    const authClient = authSsr.supabase
+
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -45,7 +54,10 @@ export async function GET(request: NextRequest) {
     const { data: authData, error: exchangeError } = await authClient.auth.exchangeCodeForSession(code)
 
     if (exchangeError || !authData?.user?.email) {
-      const response = NextResponse.redirect(new URL(returnPath, origin))
+      console.error('[callback:exchange]', exchangeError)
+      const errUrl = new URL(returnPath, origin)
+      errUrl.searchParams.set('auth_error', 'exchange')
+      const response = NextResponse.redirect(errUrl)
       if (rawPostAuth) response.cookies.set('post_auth_redirect', '', { path: '/', maxAge: 0 })
       return applyPendingCookies(response)
     }
@@ -56,6 +68,7 @@ export async function GET(request: NextRequest) {
     const displayName = userMeta.full_name || userMeta.name || ''
     const avatarUrl = userMeta.avatar_url || userMeta.picture || ''
 
+    stage = 'user'
     // Look up or create user
     let { data: user } = await supabase
       .from('users')
@@ -90,11 +103,15 @@ export async function GET(request: NextRequest) {
 
     if (!user) {
       // Creation failed — still go back
-      const response = NextResponse.redirect(new URL(returnPath, origin))
+      console.error('[callback:user] user insert returned null')
+      const errUrl = new URL(returnPath, origin)
+      errUrl.searchParams.set('auth_error', 'user')
+      const response = NextResponse.redirect(errUrl)
       if (rawPostAuth) response.cookies.set('post_auth_redirect', '', { path: '/', maxAge: 0 })
       return applyPendingCookies(response)
     }
 
+    stage = 'footprint'
     // ── Look up or create draft footprint ──
     // Every authenticated user must have a footprint so they always land
     // in their own HOME, never on someone else's page.
@@ -124,6 +141,7 @@ export async function GET(request: NextRequest) {
       footprint = newFp
     }
 
+    stage = 'session'
     // Issue session
     const sessionToken = await createSessionToken(user.id, user.email)
 
@@ -144,9 +162,11 @@ export async function GET(request: NextRequest) {
 
     return applyPendingCookies(response)
   } catch (err) {
-    console.error('[callback]', err)
-    const response = NextResponse.redirect(new URL(returnPath, origin))
+    console.error(`[callback:${stage}]`, err)
+    const errUrl = new URL(returnPath, origin)
+    errUrl.searchParams.set('auth_error', stage)
+    const response = NextResponse.redirect(errUrl)
     if (rawPostAuth) response.cookies.set('post_auth_redirect', '', { path: '/', maxAge: 0 })
-    return response
+    return applyPendingCookies(response)
   }
 }
