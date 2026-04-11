@@ -28,6 +28,11 @@ interface SearchResult {
   score: number
 }
 
+interface PersonResult {
+  username: string
+  display_name: string | null
+}
+
 function getDisplayTitle(item: any): string {
   if (item.title) return item.title
   if (item.caption) return item.caption
@@ -72,6 +77,32 @@ export default function CommandLayer({
   const inputRef = useRef<HTMLInputElement>(null)
   const reducedMotion = useReducedMotion()
   const { command } = MOTION
+
+  // People search
+  const [peopleQuery, setPeopleQuery] = useState('')
+  const [peopleResults, setPeopleResults] = useState<PersonResult[]>([])
+  const peopleDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    const q = peopleQuery.trim()
+    if (!q) {
+      setPeopleResults([])
+      return
+    }
+    if (peopleDebounceRef.current) clearTimeout(peopleDebounceRef.current)
+    peopleDebounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/search/footprints?q=${encodeURIComponent(q)}`)
+        if (res.ok) {
+          const data = await res.json()
+          setPeopleResults(data.results || [])
+        }
+      } catch {}
+    }, 220)
+    return () => {
+      if (peopleDebounceRef.current) clearTimeout(peopleDebounceRef.current)
+    }
+  }, [peopleQuery])
 
   // Room name lookup
   const roomNameMap = useMemo(() => {
@@ -215,29 +246,48 @@ export default function CommandLayer({
 
   return (
     <>
-      {/* Trigger — nearly invisible ring on the left */}
-      <button
-        onClick={() => setOpen(true)}
-        className="fixed left-4 z-30 hidden md:flex items-center gap-2 rounded-full transition-all duration-500 touch-manipulation group px-3 py-2"
-        style={{ top: '45%' }}
-        aria-label="Search"
+      {/* People search — left side */}
+      <div
+        className="fixed left-4 z-30 hidden md:flex flex-col"
+        style={{ top: '45%', transform: 'translateY(-50%)' }}
       >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 16 16"
-          fill="none"
-          className="text-white/[0.15] group-hover:text-white/40 transition-colors duration-500"
-        >
-          <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1" />
-        </svg>
-        <span className="text-[10px] text-white/[0.22] group-hover:text-white/50 font-mono tracking-[0.18em] uppercase transition-colors duration-500">
-          jump
-        </span>
-        <span className="text-[10px] text-white/[0.12] group-hover:text-white/25 font-mono transition-colors duration-500">
-          /
-        </span>
-      </button>
+        <input
+          type="text"
+          value={peopleQuery}
+          onChange={e => setPeopleQuery(e.target.value)}
+          placeholder="find people"
+          className="bg-transparent border-b border-white/[0.10] text-[11px] text-white/35 placeholder:text-white/15 font-mono outline-none py-1 focus:border-white/30 focus:text-white/60 transition-all duration-300"
+          style={{ width: '120px', letterSpacing: '0.06em' }}
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
+        />
+        {peopleResults.length > 0 && (
+          <div className="flex flex-col gap-1 mt-2">
+            {peopleResults.map(r => (
+              <a
+                key={r.username}
+                href={`/${r.username}`}
+                className="group flex flex-col"
+                style={{ textDecoration: 'none' }}
+              >
+                <span
+                  className="text-[11px] font-mono text-white/40 group-hover:text-white/70 transition-colors duration-200 truncate"
+                  style={{ letterSpacing: '0.04em', maxWidth: '140px' }}
+                >
+                  {r.display_name || r.username}
+                </span>
+                <span
+                  className="text-[10px] font-mono text-white/15 group-hover:text-white/30 transition-colors duration-200"
+                  style={{ letterSpacing: '0.03em' }}
+                >
+                  /{r.username}
+                </span>
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Panel + backdrop */}
       <AnimatePresence>
