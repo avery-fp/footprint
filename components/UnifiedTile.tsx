@@ -32,8 +32,12 @@ const GhostTile = memo(GhostTileBase)
 // Canonical type resolution — media_kind column first, then URL extension, then stored type
 const IMAGE_EXT = /\.(jpg|jpeg|png|gif|webp|heic|avif|svg)($|\?)/i
 
+const EMBED_URL = /(?:youtube\.com|youtu\.be|vimeo\.com|soundcloud\.com|open\.spotify\.com)/i
+
 function resolveCanonicalType(type: string, url: string, mediaKind?: string | null): 'video' | 'image' | 'thought' | 'content' {
   if (type === 'thought') return 'thought'
+  // Embed URLs are always 'content' — they must reach ContentCard, never TileImage
+  if (EMBED_URL.test(url)) return 'content'
   // Delegate video/image detection to the shared helper (checks media_kind, then URL extension)
   const detected = mediaTypeFromUrl(url, mediaKind)
   if (detected === 'video') return 'video'
