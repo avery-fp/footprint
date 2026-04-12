@@ -665,8 +665,7 @@ export default function EditPage() {
     if (pendingOpsRef.current.size > 0) {
       await Promise.allSettled(Array.from(pendingOpsRef.current))
     }
-    // Full page load — bypasses Next.js Router Cache, guarantees fresh server render
-    window.location.href = `/${slug}`
+    router.push(`/${slug}`)
   }, [slug, draft, isOwner])
 
   // Mode transition helpers
