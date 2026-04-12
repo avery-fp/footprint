@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, FormEvent } from 'react'
 import OAuthButton from './OAuthButton'
+import PasskeyButton from './PasskeyButton'
 
 interface AuthModalProps {
   /** Where to send the user after auth succeeds. Used by OAuthButton. */
@@ -10,6 +11,8 @@ interface AuthModalProps {
   onClose?: () => void
   /** Show the $10 price line under the buttons (gated by seed phase upstream). */
   showPrice?: boolean
+  /** Optional auth error message (e.g. from failed OAuth callback). */
+  authError?: string | null
 }
 
 /**
@@ -28,7 +31,7 @@ interface AuthModalProps {
  *
  * No title, no subtitle. Footprint's wordless mono aesthetic.
  */
-export default function AuthModal({ redirectAfterAuth, onClose, showPrice }: AuthModalProps) {
+export default function AuthModal({ redirectAfterAuth, onClose, showPrice, authError }: AuthModalProps) {
   const [email, setEmail] = useState('')
   const [emailLoading, setEmailLoading] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
@@ -94,7 +97,7 @@ export default function AuthModal({ redirectAfterAuth, onClose, showPrice }: Aut
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close sign-in"
+          aria-label="Close"
           className="touch-manipulation"
           style={{
             position: 'absolute',
@@ -121,8 +124,10 @@ export default function AuthModal({ redirectAfterAuth, onClose, showPrice }: Aut
         </button>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
-        <OAuthButton provider="google" label="google" redirectAfterAuth={redirectAfterAuth} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 0, width: '100%' }}>
+        <OAuthButton provider="google" label="continue with google" redirectAfterAuth={redirectAfterAuth} />
+        <OAuthButton provider="apple" label="continue with apple" redirectAfterAuth={redirectAfterAuth} />
+        <PasskeyButton redirectAfterAuth={redirectAfterAuth} />
       </div>
 
       <div aria-hidden style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%' }}>
@@ -238,6 +243,22 @@ export default function AuthModal({ redirectAfterAuth, onClose, showPrice }: Aut
         >
           $10
         </span>
+      )}
+
+      {authError && (
+        <p
+          className="font-mono"
+          style={{
+            fontSize: '11px',
+            color: '#ff6b6b',
+            textAlign: 'center',
+            opacity: 0.7,
+            letterSpacing: '0.05em',
+            margin: 0,
+          }}
+        >
+          auth failed at: {authError}
+        </p>
       )}
     </div>
   )

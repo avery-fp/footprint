@@ -2,7 +2,6 @@
 
 import { memo } from 'react'
 import ContentCardBase from '@/components/ContentCard'
-import VideoTileBase from '@/components/VideoTile'
 import GhostTileBase from '@/components/GhostTile'
 import TileImage from '@/components/TileImage'
 import ZoomableImage from '@/components/ZoomableImage'
@@ -17,7 +16,6 @@ import type { RenderMode } from '@/lib/media/types'
 const ContainerTile = memo(ContainerTileBase)
 
 const ContentCard = memo(ContentCardBase)
-const VideoTile = memo(VideoTileBase)
 const GhostTile = memo(GhostTileBase)
 
 /**
@@ -133,13 +131,6 @@ export default function UnifiedTile({
     const rm = item.render_mode as RenderMode
     switch (rm) {
       case 'native_video':
-        if (mode === 'public') {
-          return (
-            <div className="w-full h-full" data-tile-id={item.id} data-tile-type="native-video">
-              <VideoTile src={item.url} onWidescreen={() => {}} />
-            </div>
-          )
-        }
         return (
           <div className="w-full h-full" data-tile-id={item.id} data-tile-type="native-video">
             <video src={item.url} className="w-full h-full object-cover" muted loop playsInline preload="metadata" />
@@ -227,33 +218,6 @@ export default function UnifiedTile({
         >
           {text}
         </p>
-      </div>
-    )
-  }
-
-  // ── Video ──
-  if (canonicalType === 'video') {
-    if (mode === 'public') {
-      return (
-        <div className="w-full h-full" data-tile-id={item.id} data-tile-type="video">
-          <VideoTile
-            src={item.url}
-            playbackUrl={item.playback_url}
-            posterUrl={item.poster_url}
-            status={item.status}
-            onWidescreen={() => {}}
-          />
-        </div>
-      )
-    }
-    return (
-      <div className="w-full h-full" data-tile-id={item.id} data-tile-type="video">
-        <VideoTile
-          src={item.url}
-          playbackUrl={item.playback_url}
-          posterUrl={item.poster_url}
-          status={item.status}
-        />
       </div>
     )
   }

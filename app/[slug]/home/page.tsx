@@ -22,21 +22,15 @@ import { getLayoutConfig } from '@/lib/layout-engine'
 import { getFootprintDisplayTitle } from '@/lib/footprint'
 import {
   resolveAspect as resolveAspectShared,
-  isVideoTile as isVideoTileShared,
   getGridClass as getGridClassShared,
   getAspectClass as getAspectClassShared,
   getObjectFit as getObjectFitShared,
 } from '@/lib/media/aspect'
 import {
-  VIDEO_MIME as VIDEO_MIME_SHARED,
-  isVideoFile,
   isHEIC,
   uploadWithProgress as uploadWithProgressShared,
-  uploadToProvider as uploadToProviderShared,
-  getVideoThumbnail as getVideoThumbnailShared,
   resizeImage as resizeImageShared,
   detectImageAspect as detectImageAspectShared,
-  detectVideoAspect as detectVideoAspectShared,
 } from '@/lib/upload'
 import { applyNextThumbnailFallback, getBestThumbnailUrl, getThumbnailCandidates } from '@/lib/media/thumbnails'
 
@@ -62,7 +56,6 @@ type PageMode =
 
 // Aspect / grid helpers — imported from @/lib/media/aspect
 const resolveAspect = resolveAspectShared
-const isVideoTileFn = isVideoTileShared
 const getGridClass = getGridClassShared
 const getAspectClass = getAspectClassShared
 const getObjectFit = getObjectFitShared
@@ -1535,37 +1528,17 @@ export default function EditPage() {
   }
 
   // ── File upload — utilities imported from @/lib/upload ──
-  const VIDEO_MIME = VIDEO_MIME_SHARED
   const uploadWithProgress = uploadWithProgressShared
-  const uploadToProvider = uploadToProviderShared
-  const getVideoThumbnail = getVideoThumbnailShared
   const resizeImage = resizeImageShared
   const detectImageAspect = detectImageAspectShared
-  const detectVideoAspect = detectVideoAspectShared
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || [])
     if (files.length === 0 || !draft || !serialNumber) return
 
-    // Size limits: 10MB images, 50MB videos
-    const isVid = (f: File) => VIDEO_MIME.includes(f.type) || /\.(mp4|mov|webm|m4v|3gp|3gpp|mkv)$/i.test(f.name)
-    const oversizedImages = files.filter(f => !isVid(f) && f.size > 10 * 1024 * 1024)
-    const oversizedVideos = files.filter(f => isVid(f) && f.size > 50 * 1024 * 1024)
-    if (oversizedImages.length > 0 || oversizedVideos.length > 0) {
-      setTooLarge(true)
-      setTimeout(() => setTooLarge(false), 3000)
-      if (fileInputRef.current) fileInputRef.current.value = ''
-      return
-    }
-
-    // 8 uploaded-video cap (YouTube/Vimeo/embed tiles are free — only count direct uploads)
-    const isUploadedVideo = (c: DraftContent) =>
-      c.type === 'image' && c.url?.match(/\.(mp4|mov|webm|m4v|3gp|3gpp|mkv)($|\?)/i)
-    const existingVideos = draft.content.filter(isUploadedVideo).length
-    const incomingVideos = files.filter(f =>
-      VIDEO_MIME.includes(f.type) || /\.(mp4|mov|webm|m4v|3gp|3gpp|mkv)$/i.test(f.name)
-    ).length
-    if (existingVideos + incomingVideos > 8) {
+    // Size limit: 10MB images
+    const oversizedImages = files.filter(f => f.size > 10 * 1024 * 1024)
+    if (oversizedImages.length > 0) {
       setTooLarge(true)
       setTimeout(() => setTooLarge(false), 3000)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -1576,23 +1549,20 @@ export default function EditPage() {
 
     const tempIds = files.map((_, i) => `temp-${Date.now()}-${i}`)
 
-    const tempTiles = files.map((file, i) => {
-      const isVideo = VIDEO_MIME.includes(file.type) || /\.(mp4|mov|webm|m4v|3gp|3gpp|mkv)$/i.test(file.name)
-      return {
-        id: tempIds[i],
-        url: URL.createObjectURL(file) + (isVideo ? '#.mp4' : ''),
-        type: (isVideo ? 'video' : 'image') as any,
-        title: null,
-        description: null,
-        thumbnail_url: null,
-        embed_html: null,
-        position: (draft?.content.length || 0) + i,
-        room_id: activeRoomId || null,
-        aspect: null,
-        _temp: true,
-        _progress: 0,
-      }
-    })
+    const tempTiles = files.map((file, i) => ({
+      id: tempIds[i],
+      url: URL.createObjectURL(file),
+      type: 'image' as any,
+      title: null,
+      description: null,
+      thumbnail_url: null,
+      embed_html: null,
+      position: (draft?.content.length || 0) + i,
+      room_id: activeRoomId || null,
+      aspect: null,
+      _temp: true,
+      _progress: 0,
+    }))
 
     setDraft(prev => prev ? {
       ...prev,
@@ -1602,72 +1572,18 @@ export default function EditPage() {
 
 
     const uploadOne = async (file: File, idx: number) => {
-      const isVideo = VIDEO_MIME.includes(file.type) || /\.(mp4|mov|webm|m4v|3gp|3gpp|mkv)$/i.test(file.name)
       const tempId = tempIds[idx]
 
       try {
         // Detect aspect ratio before resize (preserves original ratio)
         let detectedAspect: string
         try {
-          detectedAspect = isVideo ? await detectVideoAspect(file) : await detectImageAspect(file)
+          detectedAspect = await detectImageAspect(file)
         } catch {
           detectedAspect = 'square'
         }
 
-        // ── VIDEO LANE: upload directly to provider ──
-        if (isVideo) {
-          // 1. Create upload session with provider
-          const sessionRes = await fetch('/api/upload/video', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ slug, aspect: detectedAspect, room_id: activeRoomId }),
-          })
-          if (!sessionRes.ok) throw new Error(`Video session failed: ${sessionRes.status}`)
-          const { uploadUrl, tileId, assetId } = await sessionRes.json()
-
-          // 2. Upload raw file directly to provider
-          await uploadToProvider(file, uploadUrl, (pct) => {
-            setDraft(prev => prev ? {
-              ...prev,
-              content: prev.content.map(c => c.id === tempId ? { ...c, _progress: pct } : c),
-            } : null)
-          })
-
-          // 3. Extract local thumbnail for immediate display
-          let localPoster: string | null = null
-          try {
-            localPoster = await getVideoThumbnail(file)
-          } catch { /* placeholder is fine */ }
-
-          // 4. Replace temp tile with real tile (processing state)
-          setTileSources(prev => ({ ...prev, [tileId]: 'library' }))
-          setDraft(prev => prev ? {
-            ...prev,
-            content: prev.content.map(c => c.id === tempId ? {
-              id: tileId,
-              url: localPoster || '',
-              type: 'video',
-              title: null,
-              description: null,
-              thumbnail_url: localPoster,
-              embed_html: null,
-              position: c.position,
-              room_id: activeRoomId || null,
-              size: (c as any).size || 1,
-              aspect: detectedAspect,
-              status: 'processing',
-              playback_url: null,
-              poster_url: localPoster,
-              asset_id: assetId,
-              media_kind: 'video',
-            } : c),
-            updated_at: Date.now(),
-          } : null)
-
-          return // Done — webhook will update DB when transcode finishes
-        }
-
-        // ── IMAGE LANE: existing Supabase Storage flow (unchanged) ──
+        // ── IMAGE LANE: Supabase Storage ──
         let uploadFile: File
         if (file.type === 'image/heic' || file.type === 'image/heif' || /\.heic$/i.test(file.name)) {
           try {
@@ -2221,7 +2137,7 @@ export default function EditPage() {
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*,video/*"
+        accept="image/*"
         multiple
         className="hidden"
         onChange={handleFileUpload}
