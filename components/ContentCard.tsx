@@ -153,15 +153,13 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         try {
           iframe.contentWindow?.postMessage('{"event":"command","func":"unMute","args":""}', '*')
           iframe.contentWindow?.postMessage('{"event":"command","func":"setVolume","args":[100]}', '*')
-          iframe.contentWindow?.postMessage('{"event":"command","func":"setPlaybackQuality","args":["highres"]}', '*')
-          iframe.contentWindow?.postMessage('{"event":"command","func":"setPlaybackQuality","args":["hd1080"]}', '*')
         } catch {}
       }, 800)
     }
 
     // isExpanded: skip facade, render iframe immediately (used in lightbox)
     if (isExpanded) {
-      const ytSrc = `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=1&enablejsapi=1&controls=0&modestbranding=1&rel=0&iv_load_policy=3&playsinline=1&fs=0&disablekb=1&vq=hd1080&hd=1`
+      const ytSrc = `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=1&enablejsapi=1&rel=0&iv_load_policy=3&playsinline=1`
       return (
         <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative bg-black">
           <iframe
@@ -173,8 +171,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             referrerPolicy="strict-origin-when-cross-origin"
             onLoad={handleYTLoad}
           />
-          {/* Block clicks on YouTube watermark area */}
-          <div style={{ position: 'absolute', bottom: 0, right: 0, width: 50, height: 40, zIndex: 2, pointerEvents: 'auto' }} />
         </div>
       )
     }
@@ -211,8 +207,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         </div>
       )
     }
-    // YouTube activated state — canonical fix
-    const ytSrc = `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=1&enablejsapi=1&controls=0&modestbranding=1&rel=0&iv_load_policy=3&playsinline=1&fs=0&disablekb=1&vq=hd1080&hd=1`
+    // YouTube activated state — user clicked facade, so we have a gesture (no mute needed)
+    const ytSrc = `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&enablejsapi=1&rel=0&iv_load_policy=3&playsinline=1`
     return (
       <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative bg-black">
         <iframe
@@ -224,8 +220,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           referrerPolicy="strict-origin-when-cross-origin"
           onLoad={handleYTLoad}
         />
-        {/* Block clicks on YouTube watermark area */}
-        <div style={{ position: 'absolute', bottom: 0, right: 0, width: 50, height: 40, zIndex: 2, pointerEvents: 'auto' }} />
       </div>
     )
   }
