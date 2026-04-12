@@ -10,6 +10,7 @@ import type {
   AuthenticatorTransportFuture,
 } from '@simplewebauthn/types'
 import { createServerSupabaseClient } from './supabase'
+import { normalizeEmail } from './auth'
 
 // ── RP (Relying Party) config ──
 const RP_NAME = 'Footprint'
@@ -141,7 +142,7 @@ export async function createAuthenticationOptions(email?: string) {
     const { data: user } = await supabase
       .from('users')
       .select('id')
-      .eq('email', email.toLowerCase().trim())
+      .ilike('email', normalizeEmail(email))
       .single()
 
     if (user) {

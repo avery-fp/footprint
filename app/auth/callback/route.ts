@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { createSessionToken, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from '@/lib/auth'
+import { createSessionToken, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS, normalizeEmail } from '@/lib/auth'
 import { createRouteHandlerSupabaseAuthClient } from '@/lib/supabase-auth-ssr'
 
 /**
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
       return applyPendingCookies(response)
     }
 
-    const email = authData.user.email
+    const email = normalizeEmail(authData.user.email)
     const providerName = authData.user.app_metadata?.provider || 'oauth'
     const userMeta = authData.user.user_metadata || {}
     const displayName = userMeta.full_name || userMeta.name || ''
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
     let { data: user } = await supabase
       .from('users')
       .select('id, email')
-      .eq('email', email)
+      .ilike('email', email)
       .single()
 
     if (!user) {
@@ -145,18 +145,35 @@ export async function GET(request: NextRequest) {
     // Issue session
     const sessionToken = await createSessionToken(user.id, user.email)
 
-    // Determine where to send the user.
-    // If an explicit post_auth_redirect was set (e.g. SovereignTile publish
-    // flow with ?claim=1&username=...), honour it so the publish ceremony
-    // can complete. Otherwise, send them to their own HOME.
-    const isExplicitRedirect = rawPostAuth.startsWith('/') && rawPostAuth !== '/home'
-    const finalPath = isExplicitRedirect
-      ? returnPath
-      : footprint?.username
-        ? `/${footprint.username}/home`
-        : '/home'
+    // Default: always send to user's own footprint home.
+    // Only exception: a claim-flow redirect for a slug the user is actively
+    // claiming/publishing. Parsed explicitly, not string-matched.
+    let finalPath = footprint?.username
+      ? `/${footprint.username}/home`
+      : '/home'
 
-    const response = NextResponse.redirect(new URL(finalPath, origin))
+    if (rawPostAuth.startsWith('/') && rawPostAuth !== '/home') {
+      try {
+        const parsed = new URL(rawPostAuth, origin)
+        const isClaim = parsed.searchParams.get('claim') === '1'
+        const isInternal = parsed.pathname.startsWith('/') && !parsed.pathname.startsWith('//')
+        if (isClaim && isInternal) {
+          finalPath = returnPath
+        }
+      } catch {
+        // Malformed — ignore, use default
+      }
+    }
+
+    // Use client-side location.replace() instead of a 302 redirect so the
+    // OAuth callback URL is replaced in browser history rather than pushed.
+    // This way pressing "back" from the editor skips the stale callback.
+    const safeUrl = finalPath.replace(/"/g, '&quot;')
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body><script>window.location.replace("${safeUrl}")</script></body></html>`
+    const response = new NextResponse(html, {
+      status: 200,
+      headers: { 'Content-Type': 'text/html' },
+    })
     response.cookies.set(SESSION_COOKIE_NAME, sessionToken, SESSION_COOKIE_OPTIONS)
     if (rawPostAuth) response.cookies.set('post_auth_redirect', '', { path: '/', maxAge: 0 })
 

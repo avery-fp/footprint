@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { createSessionToken, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from '@/lib/auth'
+import { createSessionToken, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS, normalizeEmail } from '@/lib/auth'
 import { RESERVED_SLUGS } from '@/lib/constants'
 import * as bcrypt from 'bcryptjs'
 
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     const { data: existingUser, error: emailCheckErr } = await supabase
       .from('users')
       .select('id, email')
-      .eq('email', cleanEmail)
+      .ilike('email', cleanEmail)
       .maybeSingle()
 
     if (emailCheckErr) {

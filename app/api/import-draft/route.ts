@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getStripe } from '@/lib/stripe'
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { createSessionToken, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from '@/lib/auth'
+import { createSessionToken, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS, normalizeEmail } from '@/lib/auth'
 import { RESERVED_SLUGS } from '@/lib/constants'
 import type { DraftFootprint } from '@/lib/draft-store'
 
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
       const { data: existingUser } = await supabase
         .from('users')
         .select('serial_number, id')
-        .eq('email', email.toLowerCase())
+        .ilike('email', normalizeEmail(email))
         .single()
 
       if (existingUser && existingUser.serial_number) {
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
         const { data: newUser, error: userError } = await supabase
           .from('users')
           .insert({
-            email: email.toLowerCase(),
+            email: normalizeEmail(email),
             serial_number: serialNumber,
             stripe_customer_id: session.customer || null,
           })
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
           const { data: raceUser } = await supabase
             .from('users')
             .select('serial_number, id')
-            .eq('email', email.toLowerCase())
+            .ilike('email', normalizeEmail(email))
             .single()
 
           if (raceUser && raceUser.serial_number) {
@@ -218,7 +218,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Auto-sign in the user by setting session cookie
-    const sessionToken = await createSessionToken(userId, email.toLowerCase())
+    const sessionToken = await createSessionToken(userId, normalizeEmail(email))
 
     const response = NextResponse.json({
       success: true,

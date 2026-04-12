@@ -22,6 +22,11 @@ function JWT_SECRET_KEY() {
 
 const SESSION_EXPIRY = '30d'     // Session valid for 30 days
 
+/** Normalize email at system boundaries — single source of truth. */
+export function normalizeEmail(raw: string): string {
+  return raw.toLowerCase().trim()
+}
+
 /** Shared cookie name for the session identifier. */
 export const SESSION_COOKIE_NAME = 'fp_session'
 
@@ -162,14 +167,14 @@ export async function getUserIdFromRequest(request: NextRequest): Promise<string
 
 export async function getUserIdentityFromRequest(request: NextRequest): Promise<{ userId: string | null; email: string | null }> {
   async function resolveInternalUserIdByEmail(email: string): Promise<string | null> {
-    const normalizedEmail = email.toLowerCase().trim()
-    if (!normalizedEmail) return null
+    const normalized = normalizeEmail(email)
+    if (!normalized) return null
 
     const db = createServerSupabaseClient()
     const { data: user, error: userError } = await db
       .from('users')
       .select('id')
-      .ilike('email', normalizedEmail)
+      .ilike('email', normalized)
       .single()
 
     if (userError) {
