@@ -7,6 +7,10 @@ import * as bcrypt from 'bcryptjs'
 /**
  * POST /api/signup
  *
+ * @deprecated No UI calls this endpoint and no corresponding password login
+ * route exists. OAuth and magic link handle both sign-in and sign-up
+ * automatically. Flagged for removal.
+ *
  * Dead-simple signup: username + email + password.
  * Creates user + unpublished footprint, sets session cookie.
  */
