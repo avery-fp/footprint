@@ -640,33 +640,28 @@ export default function EditPage() {
     p.finally(() => pendingOpsRef.current.delete(p))
   }, [])
 
-  // Flush debounced profile save + pending tile ops, then full-page navigate
-  const navigateToPublic = useCallback(async () => {
-    // Flush debounced profile save immediately
+  // Flush debounced profile save (fire-and-forget), then navigate
+  const navigateToPublic = useCallback(() => {
+    // Flush debounced profile save immediately (background, non-blocking)
     if (saveTimeoutRef.current && draft && isOwner) {
       clearTimeout(saveTimeoutRef.current)
       saveTimeoutRef.current = null
-      try {
-        await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            display_title: draft.display_title || '',
-            display_name: draft.display_name,
-            handle: draft.handle,
-            bio: draft.bio,
-            theme: draft.theme,
-            grid_mode: draft.grid_mode,
-          }),
-        })
-      } catch {}
+      fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          display_title: draft.display_title || '',
+          display_name: draft.display_name,
+          handle: draft.handle,
+          bio: draft.bio,
+          theme: draft.theme,
+          grid_mode: draft.grid_mode,
+        }),
+      }).catch(() => {})
     }
-    // Wait for any in-flight tile saves (reorder, resize, etc.)
-    if (pendingOpsRef.current.size > 0) {
-      await Promise.allSettled(Array.from(pendingOpsRef.current))
-    }
+    // Navigate immediately — saves complete in background
     router.push(`/${slug}`)
-  }, [slug, draft, isOwner])
+  }, [slug, draft, isOwner, router])
 
   // Mode transition helpers
   const enterEdit = () => setMode({ type: 'arranging' })
