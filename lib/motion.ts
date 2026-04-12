@@ -48,6 +48,13 @@ export const MOTION = {
     in:  '0.4s cubic-bezier(0.16, 1, 0.3, 1)',   // spring in
     out: '0.3s cubic-bezier(0.4, 0, 0.2, 1)',     // ease out
   },
+
+  // VideoTile — theatre / fullscreen expansion
+  theatre: {
+    enter:    '0.4s cubic-bezier(0.16, 1, 0.3, 1)',  // spring in (matches zoom)
+    exit:     '0.3s cubic-bezier(0.4, 0, 0.2, 1)',   // ease out
+    backdrop: '0.3s ease',
+  },
 } as const
 
 export type MotionConfig = typeof MOTION
