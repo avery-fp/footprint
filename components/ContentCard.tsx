@@ -135,7 +135,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   // YOUTUBE — FACADE: thumbnail first, iframe on tap
   // ════════════════════════════════════════
-  const youtubeId = content.type === 'youtube' ? extractYouTubeId(content.url) : null
+  // Detect YouTube by URL, not just stored type — catches mistyped tiles
+  const youtubeId = extractYouTubeId(content.url)
   const youtubeThumbCandidates = youtubeId
     ? getYouTubeThumbnailCandidates({
         url: content.url,
@@ -144,7 +145,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         thumbnail_url_hq: content.thumbnail_url_hq,
       })
     : []
-  if (content.type === 'youtube' && youtubeId && !iframeFailed) {
+  if (youtubeId && !iframeFailed) {
     // postMessage unmute — mobile Safari enforces mute on iframe autoplay
     // even after user gesture. enablejsapi=1 + postMessage bypasses this.
     const handleYTLoad = (e: React.SyntheticEvent<HTMLIFrameElement>) => {
@@ -207,8 +208,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         </div>
       )
     }
-    // YouTube activated state — user clicked facade, so we have a gesture (no mute needed)
-    const ytSrc = `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&enablejsapi=1&rel=0&iv_load_policy=3&playsinline=1`
+    // YouTube activated state — mute=1 for reliable autoplay, postMessage unmutes after load
+    const ytSrc = `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=1&enablejsapi=1&rel=0&iv_load_policy=3&playsinline=1`
     return (
       <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative bg-black">
         <iframe
