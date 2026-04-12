@@ -142,7 +142,7 @@ export default function ZoomableImage({ children }: ZoomableImageProps) {
     <div
       ref={containerRef}
       className="w-full h-full overflow-hidden touch-manipulation"
-      style={{ cursor: isZoomed ? 'grab' : 'zoom-in' }}
+      style={{ cursor: isZoomed ? 'grab' : 'default' }}
       onClick={handleClick}
       onTouchEnd={handleTouchEnd}
       onTouchStart={handleTouchStart}
