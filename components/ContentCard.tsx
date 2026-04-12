@@ -481,55 +481,65 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }
 
   // ════════════════════════════════════════
-  // TWITTER / X — native text tile
+  // TWITTER / X — thumbnail first, text fallback
   // ════════════════════════════════════════
   if (content.type === 'twitter') {
+    const thumbSrc = getBestThumbnailUrl(content)
     const tweetMatch = content.url.match(/(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]+)\/status\//)
     const handle = tweetMatch?.[1] ? `@${tweetMatch[1]}` : null
-    // Title holds enriched tweet text (from oEmbed) or fallback "Tweet by @user"
+
+    // If we have a thumbnail, render full-bleed like every other social tile
+    if (thumbSrc) {
+      return (
+        <a
+          href={content.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          ref={containerRef as any}
+          className={`block w-full h-full fp-tile overflow-hidden relative bg-black ${aspectClass}`}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={thumbSrc}
+            alt={content.title || ''}
+            className="w-full h-full object-cover"
+            loading="lazy"
+            decoding="async"
+          />
+        </a>
+      )
+    }
+
+    // Text-only tweet — filled dark tile with text, no empty border
     const tweetText = content.title || (handle ? `Tweet by ${handle}` : 'Tweet')
     const isFallback = !content.title || content.title.startsWith('Tweet by ')
     const len = tweetText.length
-    const typo = isFallback
-      ? 'text-[14px] font-light tracking-[-0.01em] leading-snug'
-      : len <= 60
+    const typo = len <= 60
       ? 'text-[14px] font-light tracking-[-0.01em] leading-snug'
       : len <= 140
       ? 'text-[12px] font-light tracking-[-0.005em] leading-relaxed'
       : 'text-[11px] font-light tracking-normal leading-relaxed'
-
-    const glassStyle = {
-      background: 'rgba(255, 255, 255, 0.06)',
-      backdropFilter: 'blur(20px) saturate(120%)',
-      WebkitBackdropFilter: 'blur(20px) saturate(120%)',
-      border: '1px solid rgba(255, 255, 255, 0.08)',
-      fontFamily: "'DM Sans', sans-serif",
-    } as React.CSSProperties
 
     return (
       <a
         href={content.url}
         target="_blank"
         rel="noopener noreferrer"
-        className={`block w-full h-full fp-tile overflow-hidden relative flex flex-col items-center justify-center p-4 ${aspectClass}`}
-        style={glassStyle}
+        className={`block w-full h-full fp-tile overflow-hidden relative flex flex-col items-center justify-center p-4 bg-[#0a0a0a] ${aspectClass}`}
       >
-        {/* 𝕏 glyph — top right */}
-        <span className="absolute top-2.5 right-3 text-[13px] text-white/[0.15] font-light select-none">𝕏</span>
-        {/* Tweet text */}
-        <p className={`whitespace-pre-wrap text-center text-white/80 ${typo} line-clamp-6`}>
+        <span className="absolute top-2.5 right-3 text-[13px] text-white/[0.12] font-light select-none">𝕏</span>
+        <p className={`whitespace-pre-wrap text-center text-white/70 ${typo} line-clamp-6`} style={{ fontFamily: "'DM Sans', sans-serif" }}>
           {tweetText}
         </p>
-        {/* Handle attribution */}
         {handle && !isFallback && (
-          <span className="mt-2 text-[9px] text-white/30 uppercase tracking-[0.08em]">{handle}</span>
+          <span className="mt-2 text-[9px] text-white/25 uppercase tracking-[0.08em]">{handle}</span>
         )}
       </a>
     )
   }
 
   // ════════════════════════════════════════
-  // TIKTOK — content facade (thumbnail), tap opens post
+  // TIKTOK — pristine thumbnail, no platform chrome
   // ════════════════════════════════════════
   if (content.type === 'tiktok') {
     const thumbSrc = getBestThumbnailUrl(content)
@@ -542,32 +552,25 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         className={`block w-full h-full fp-tile overflow-hidden relative bg-black ${aspectClass}`}
       >
         {thumbSrc ? (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={thumbSrc}
-              alt={content.title || ''}
-              className="w-full h-full object-cover"
-              loading="lazy"
-              decoding="async"
-            />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center opacity-60">
-                <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M8 5v14l11-7z"/>
-                </svg>
-              </div>
-            </div>
-          </>
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={thumbSrc}
+            alt={content.title || ''}
+            className="w-full h-full object-cover"
+            loading="lazy"
+            decoding="async"
+          />
         ) : (
-          <GlassPlaceholder aspectClass={aspectClass} />
+          <div className={`w-full h-full bg-[#0a0a0a] flex items-center justify-center ${aspectClass}`}>
+            <span className="text-[11px] text-white/20 uppercase tracking-[0.1em]">TikTok</span>
+          </div>
         )}
       </a>
     )
   }
 
   // ════════════════════════════════════════
-  // INSTAGRAM — content facade (og:image), tap opens post
+  // INSTAGRAM — pristine thumbnail, no platform chrome
   // ════════════════════════════════════════
   if (content.type === 'instagram') {
     const thumbSrc = getBestThumbnailUrl(content)
@@ -589,7 +592,9 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             decoding="async"
           />
         ) : (
-          <GlassPlaceholder aspectClass={aspectClass} />
+          <div className={`w-full h-full bg-[#0a0a0a] flex items-center justify-center ${aspectClass}`}>
+            <span className="text-[11px] text-white/20 uppercase tracking-[0.1em]">Instagram</span>
+          </div>
         )}
       </a>
     )

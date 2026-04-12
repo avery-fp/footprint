@@ -117,15 +117,19 @@ export async function POST(request: NextRequest) {
 
       if (needsEnrich) {
         try {
+          const browserHeaders = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+          }
+
           // Instagram: scrape og:image directly (no public oEmbed)
           if (parsed.type === 'instagram') {
+            // Strategy 1: Direct OG scrape
             try {
               const res = await fetch(parsed.url, {
                 signal: AbortSignal.timeout(5000),
-                headers: {
-                  'User-Agent': 'Mozilla/5.0 (compatible; Footprint/1.0; +https://footprint.onl)',
-                  'Accept': 'text/html,application/xhtml+xml',
-                },
+                headers: browserHeaders,
                 redirect: 'follow',
               })
               if (res.ok) {
@@ -138,6 +142,25 @@ export async function POST(request: NextRequest) {
                 if (ogTitle) enrichedTitle = ogTitle.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
               }
             } catch { /* silent fallback */ }
+
+            // Strategy 2: Embed page scrape if OG failed
+            if (!ghostThumbnailHq && parsed.external_id) {
+              try {
+                const embedRes = await fetch(`https://www.instagram.com/p/${parsed.external_id}/embed/`, {
+                  signal: AbortSignal.timeout(5000),
+                  headers: browserHeaders,
+                  redirect: 'follow',
+                })
+                if (embedRes.ok) {
+                  const embedHtml = await embedRes.text()
+                  const imgMatch = embedHtml.match(/"display_url"\s*:\s*"([^"]+)"/)?.[1]
+                    || embedHtml.match(/<img[^>]*src="(https:\/\/[^"]*instagram[^"]*\.jpg[^"]*)"/i)?.[1]
+                  if (imgMatch) {
+                    ghostThumbnailHq = imgMatch.replace(/\\u0026/g, '&').replace(/\\/g, '')
+                  }
+                }
+              } catch { /* silent */ }
+            }
           } else {
             // oEmbed for YouTube, Spotify, Twitter, TikTok
             const oembedEndpoints: Record<string, string> = {
@@ -170,6 +193,27 @@ export async function POST(request: NextRequest) {
                   }
                 }
               } catch { /* silent fallback — tile still creates without metadata */ }
+            }
+
+            // Twitter: oEmbed has no thumbnail — fetch OG image from tweet page
+            if (parsed.type === 'twitter' && !ghostThumbnailHq) {
+              try {
+                const pageRes = await fetch(parsed.url, {
+                  signal: AbortSignal.timeout(5000),
+                  headers: browserHeaders,
+                  redirect: 'follow',
+                })
+                if (pageRes.ok) {
+                  const html = await pageRes.text()
+                  const ogImage = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i)?.[1]
+                    || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i)?.[1]
+                    || html.match(/<meta[^>]*name=["']twitter:image(?::src)?["'][^>]*content=["']([^"']+)["']/i)?.[1]
+                    || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']twitter:image(?::src)?["']/i)?.[1]
+                  if (ogImage && !ogImage.includes('profile_images')) {
+                    ghostThumbnailHq = ogImage
+                  }
+                }
+              } catch { /* silent */ }
             }
           }
         } catch {
