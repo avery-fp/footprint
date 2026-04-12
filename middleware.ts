@@ -77,7 +77,14 @@ export function middleware(request: NextRequest) {
     return withSecurityHeaders(NextResponse.redirect(canonical, 301))
   }
 
-  // ── 2. /home — always pass through to the server component ──
+  // ── 2. Homepage → ae's footprint ──
+  if (pathname === '/') {
+    const rewrite = request.nextUrl.clone()
+    rewrite.pathname = '/ae'
+    return withSecurityHeaders(NextResponse.rewrite(rewrite))
+  }
+
+  // ── 2a. /home — always pass through to the server component ──
   // Authenticated → resolves slug → redirects to /{slug}/home
   // Unauthenticated → renders minimal Google auth entry page
   if (pathname === '/home') {
