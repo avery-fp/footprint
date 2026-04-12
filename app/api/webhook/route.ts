@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { constructWebhookEvent } from '@/lib/stripe'
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { sendWelcomeEmail } from '@/lib/auth'
+import { sendWelcomeEmail, normalizeEmail } from '@/lib/auth'
 import { nanoid } from 'nanoid'
 import { routeLogger } from '@/lib/logger'
 
@@ -68,7 +68,7 @@ async function handleCheckoutComplete(session: any) {
   const { data: existingUser } = await supabase
     .from('users')
     .select('id, serial_number')
-    .eq('email', email)
+    .ilike('email', normalizeEmail(email))
     .single()
 
   if (existingUser) {
@@ -95,7 +95,7 @@ async function handleCheckoutComplete(session: any) {
   const { data: raceCheckUser } = await supabase
     .from('users')
     .select('id, serial_number')
-    .eq('email', email)
+    .ilike('email', normalizeEmail(email))
     .single()
 
   if (raceCheckUser) {

@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
     const { data: existingUser } = await supabase
       .from('users')
       .select('id, serial_number')
-      .eq('email', aroEmail)
+      .ilike('email', aroEmail)
       .single()
 
     let effectiveSerial = serialNumber

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { createSessionToken } from '@/lib/auth'
+import { createSessionToken, normalizeEmail } from '@/lib/auth'
 import bcrypt from 'bcryptjs'
 
 // Rate limiting: max 10 claim attempts per IP per 15 minutes
@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
     const { data: existingUser } = await supabase
       .from('users')
       .select('id')
-      .eq('email', gift.recipient_email)
+      .ilike('email', normalizeEmail(gift.recipient_email))
       .single()
 
     if (existingUser) {

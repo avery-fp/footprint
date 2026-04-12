@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { createSessionToken, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from '@/lib/auth'
+import { createSessionToken, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS, normalizeEmail } from '@/lib/auth'
 import { getStripe } from '@/lib/stripe'
 import { checkoutActivateSchema } from '@/lib/schemas'
 import { validateBody } from '@/lib/validate'
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       const { data } = await supabase
         .from('users')
         .select('id, email, serial_number')
-        .eq('email', email)
+        .ilike('email', normalizeEmail(email))
         .single()
 
       if (data) {
