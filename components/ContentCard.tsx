@@ -491,7 +491,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     const tweetMatch = content.url.match(/(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]+)\/status\//)
     const handle = tweetMatch?.[1] ? `@${tweetMatch[1]}` : null
 
-    // If we have a thumbnail, render full-bleed like every other social tile
+    // If we have a thumbnail, render full-bleed — hide on error so text fallback shows
     if (thumbSrc) {
       return (
         <a
@@ -499,16 +499,25 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           target="_blank"
           rel="noopener noreferrer"
           ref={containerRef as any}
-          className={`block w-full h-full fp-tile overflow-hidden relative bg-black ${aspectClass}`}
+          className={`block w-full h-full fp-tile overflow-hidden relative ${aspectClass}`}
+          style={{ background: 'rgba(255,255,255,0.04)' }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={thumbSrc}
-            alt={content.title || ''}
-            className="w-full h-full object-cover"
+            alt=""
+            className="w-full h-full object-cover absolute inset-0 z-[1]"
             loading="lazy"
             decoding="async"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
           />
+          {/* Text fallback — visible when thumbnail fails */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-5">
+            <span className="absolute top-2.5 right-3 text-[13px] text-white/20 select-none" style={{ fontWeight: 300 }}>𝕏</span>
+            <p className="whitespace-pre-wrap text-center text-white/80 fp-text-shadow text-[14px] leading-snug line-clamp-6" style={{ fontWeight: 500 }}>
+              {content.title || (handle ? `Tweet by ${handle}` : 'Tweet')}
+            </p>
+          </div>
         </a>
       )
     }
@@ -546,63 +555,93 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }
 
   // ════════════════════════════════════════
-  // TIKTOK — pristine thumbnail, no platform chrome
+  // TIKTOK — thumbnail with text fallback on failure
   // ════════════════════════════════════════
   if (content.type === 'tiktok') {
     const thumbSrc = getBestThumbnailUrl(content)
+    const tiktokText = content.title || 'TikTok'
+    const len = tiktokText.length
+    const typo = len <= 60
+      ? 'text-[14px] tracking-[-0.01em] leading-snug'
+      : len <= 140
+      ? 'text-[12px] tracking-[-0.005em] leading-relaxed'
+      : 'text-[11px] tracking-normal leading-relaxed'
+
     return (
       <a
         href={content.url}
         target="_blank"
         rel="noopener noreferrer"
         ref={containerRef as any}
-        className={`block w-full h-full fp-tile overflow-hidden relative bg-black ${aspectClass}`}
+        className={`block w-full h-full fp-tile overflow-hidden relative ${aspectClass}`}
+        style={{ background: 'rgba(255,255,255,0.04)' }}
       >
-        {thumbSrc ? (
+        {thumbSrc && (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
             src={thumbSrc}
-            alt={content.title || ''}
-            className="w-full h-full object-cover"
+            alt=""
+            className="w-full h-full object-cover absolute inset-0 z-[1]"
             loading="lazy"
             decoding="async"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
           />
-        ) : (
-          <div className={`w-full h-full bg-[#0a0a0a] flex items-center justify-center ${aspectClass}`}>
-            <span className="text-[11px] text-white/20 uppercase tracking-[0.1em]">TikTok</span>
-          </div>
         )}
+        {/* Text fallback — visible when no thumbnail or image fails */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center p-5">
+          <p
+            className={`whitespace-pre-wrap text-center text-white/80 fp-text-shadow ${typo} line-clamp-6`}
+            style={{ fontWeight: 500 }}
+          >
+            {tiktokText}
+          </p>
+        </div>
       </a>
     )
   }
 
   // ════════════════════════════════════════
-  // INSTAGRAM — pristine thumbnail, no platform chrome
+  // INSTAGRAM — thumbnail with text fallback on failure
   // ════════════════════════════════════════
   if (content.type === 'instagram') {
     const thumbSrc = getBestThumbnailUrl(content)
+    const igText = content.title || 'Instagram'
+    const len = igText.length
+    const typo = len <= 60
+      ? 'text-[14px] tracking-[-0.01em] leading-snug'
+      : len <= 140
+      ? 'text-[12px] tracking-[-0.005em] leading-relaxed'
+      : 'text-[11px] tracking-normal leading-relaxed'
+
     return (
       <a
         href={content.url}
         target="_blank"
         rel="noopener noreferrer"
         ref={containerRef as any}
-        className={`block w-full h-full fp-tile overflow-hidden relative bg-black ${aspectClass}`}
+        className={`block w-full h-full fp-tile overflow-hidden relative ${aspectClass}`}
+        style={{ background: 'rgba(255,255,255,0.04)' }}
       >
-        {thumbSrc ? (
+        {thumbSrc && (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
             src={thumbSrc}
-            alt={content.title || ''}
-            className="w-full h-full object-cover"
+            alt=""
+            className="w-full h-full object-cover absolute inset-0 z-[1]"
             loading="lazy"
             decoding="async"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
           />
-        ) : (
-          <div className={`w-full h-full bg-[#0a0a0a] flex items-center justify-center ${aspectClass}`}>
-            <span className="text-[11px] text-white/20 uppercase tracking-[0.1em]">Instagram</span>
-          </div>
         )}
+        {/* Text fallback — visible when no thumbnail or image fails */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center p-5">
+          <p
+            className={`whitespace-pre-wrap text-center text-white/80 fp-text-shadow ${typo} line-clamp-6`}
+            style={{ fontWeight: 500 }}
+          >
+            {igText}
+          </p>
+        </div>
       </a>
     )
   }
