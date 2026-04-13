@@ -7,6 +7,7 @@ import AuthModal from '@/components/auth/AuthModal'
 function HomeEntryInner() {
   const searchParams = useSearchParams()
   const authError = searchParams.get('auth_error')
+  const initialEmail = searchParams.get('email') || undefined
 
   return (
     <div
@@ -19,10 +20,10 @@ function HomeEntryInner() {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        fontFamily: '"Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        fontFamily: 'inherit',
       }}
     >
-      <AuthModal redirectAfterAuth="/home" authError={authError} />
+      <AuthModal redirectAfterAuth="/home" authError={authError} initialEmail={initialEmail} />
     </div>
   )
 }
