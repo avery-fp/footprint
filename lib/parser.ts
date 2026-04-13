@@ -1,10 +1,13 @@
 /**
  * FOOTPRINT URL PARSER
- * 
+ *
  * The core magic: paste any URL, get a beautiful embed.
- * 
+ *
  * This detects URL types and returns structured data for rendering.
  * The goal is zero-friction: paste → magic → beautiful.
+ *
+ * FIDELIO: Omni-parser — auto-detects posts, profiles, timelines,
+ * repos, and everything else. No UI choices. Paste → detect → route.
  */
 
 // Supported content types
@@ -16,15 +19,22 @@ export type ContentType =
   | 'tiktok'
   | 'vimeo'
   | 'soundcloud'
+  | 'bandcamp'
+  | 'github'
+  | 'letterboxd'
   | 'video'
   | 'image'
   | 'thought'
   | 'payment'
   | 'link'
 
+// Content variant — post-level vs profile/timeline
+export type ContentVariant = 'post' | 'profile' | 'repo' | null
+
 // What we return after parsing
 export interface ParsedContent {
   type: ContentType
+  variant: ContentVariant
   url: string
   external_id: string | null
   title: string
@@ -33,7 +43,9 @@ export interface ParsedContent {
   embed_html: string | null
 }
 
-// Detection patterns for each platform
+// ============================================
+// POST-LEVEL PATTERNS (checked first — most specific)
+// ============================================
 const PATTERNS: Record<string, { regex: RegExp; type: ContentType }[]> = {
   youtube: [
     { regex: /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/, type: 'youtube' },
@@ -49,7 +61,7 @@ const PATTERNS: Record<string, { regex: RegExp; type: ContentType }[]> = {
   twitter: [
     { regex: /(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]+)\/status\/(\d+)/, type: 'twitter' },
   ],
-  instagram: [
+  instagram_post: [
     { regex: /instagram\.com\/(?:p|reel)\/([a-zA-Z0-9_-]+)/, type: 'instagram' },
   ],
   tiktok: [
@@ -61,6 +73,9 @@ const PATTERNS: Record<string, { regex: RegExp; type: ContentType }[]> = {
   ],
   soundcloud: [
     { regex: /soundcloud\.com\/([a-zA-Z0-9-]+)\/([a-zA-Z0-9-]+)/, type: 'soundcloud' },
+  ],
+  bandcamp: [
+    { regex: /([a-zA-Z0-9-]+)\.bandcamp\.com\/(track|album)\/([a-zA-Z0-9-]+)/, type: 'bandcamp' },
   ],
   payment: [
     { regex: /buy\.stripe\.com\//, type: 'payment' },
@@ -74,11 +89,65 @@ const PATTERNS: Record<string, { regex: RegExp; type: ContentType }[]> = {
   ],
 }
 
+// ============================================
+// PROFILE / TIMELINE PATTERNS (checked after post patterns)
+// Broader — match when no post-level pattern hit
+// ============================================
+const PROFILE_PATTERNS: {
+  regex: RegExp
+  type: ContentType
+  variant: ContentVariant
+  titleFn: (match: RegExpMatchArray) => string
+}[] = [
+  // TikTok profile: tiktok.com/@user (no /video/)
+  {
+    regex: /tiktok\.com\/@([a-zA-Z0-9_.]{1,24})\/?(?:\?.*)?$/,
+    type: 'tiktok',
+    variant: 'profile',
+    titleFn: (m) => `@${m[1]} on TikTok`,
+  },
+  // Instagram profile: instagram.com/username (no /p/ or /reel/)
+  {
+    regex: /instagram\.com\/(?!p\/|reel\/|explore|accounts|about|developer|legal|privacy|direct|stories|reels|live|tags|locations)([a-zA-Z0-9_.]{1,30})\/?(?:\?.*)?$/,
+    type: 'instagram',
+    variant: 'profile',
+    titleFn: (m) => `@${m[1]} on Instagram`,
+  },
+  // Twitter/X profile: twitter.com/user (no /status/)
+  {
+    regex: /(?:twitter\.com|x\.com)\/(?!search|explore|settings|home|notifications|messages|compose|hashtag|lists|i\/)([a-zA-Z0-9_]{1,15})\/?(?:\?.*)?$/,
+    type: 'twitter',
+    variant: 'profile',
+    titleFn: (m) => `@${m[1]}`,
+  },
+  // GitHub repo: github.com/user/repo
+  {
+    regex: /github\.com\/(?!features|about|pricing|enterprise|sponsors|settings|marketplace|explore|topics|trending|collections|events|pulls|issues|codespaces|organizations|login|signup|new)([a-zA-Z0-9_-]+)\/([a-zA-Z0-9_.-]+)\/?(?:\?.*)?$/,
+    type: 'github',
+    variant: 'repo',
+    titleFn: (m) => `${m[1]}/${m[2]}`,
+  },
+  // GitHub profile: github.com/user
+  {
+    regex: /github\.com\/(?!features|about|pricing|enterprise|sponsors|settings|marketplace|explore|topics|trending|collections|events|pulls|issues|codespaces|organizations|login|signup|new)([a-zA-Z0-9_-]+)\/?(?:\?.*)?$/,
+    type: 'github',
+    variant: 'profile',
+    titleFn: (m) => `${m[1]} on GitHub`,
+  },
+  // Letterboxd: letterboxd.com/user or /film/
+  {
+    regex: /letterboxd\.com\/(?!about|pro|podcast|welcome|films|lists|members|journal|year-in-review)([a-zA-Z0-9_]+)(?:\/film\/([a-zA-Z0-9_-]+))?\/?(?:\?.*)?$/,
+    type: 'letterboxd',
+    variant: 'profile',
+    titleFn: (m) => m[2] ? `${m[2].replace(/-/g, ' ')}` : `${m[1]} on Letterboxd`,
+  },
+]
+
 /**
  * Main parser function
- * 
+ *
  * Takes any URL, figures out what it is, returns structured data.
- * This is where the magic happens.
+ * Two-pass detection: post patterns first, profile patterns second.
  */
 export async function parseURL(rawUrl: string): Promise<ParsedContent> {
   // Normalize URL
@@ -97,7 +166,7 @@ export async function parseURL(rawUrl: string): Promise<ParsedContent> {
     return parseGenericLink(url)
   }
 
-  // Try each pattern
+  // Pass 1: Post-level patterns (most specific)
   for (const [platform, patterns] of Object.entries(PATTERNS)) {
     for (const { regex, type } of patterns) {
       const match = url.match(regex)
@@ -107,8 +176,51 @@ export async function parseURL(rawUrl: string): Promise<ParsedContent> {
     }
   }
 
+  // Pass 2: Profile / timeline / repo patterns (broader)
+  for (const pattern of PROFILE_PATTERNS) {
+    const match = url.match(pattern.regex)
+    if (match) {
+      return {
+        type: pattern.type,
+        variant: pattern.variant,
+        url,
+        external_id: match[1] || null,
+        title: pattern.titleFn(match),
+        description: null,
+        thumbnail_url: null,
+        embed_html: null,
+      }
+    }
+  }
+
   // Fallback to generic link
   return parseGenericLink(url)
+}
+
+/**
+ * Detect variant from URL at render time
+ * (for content already stored without variant field)
+ */
+export function detectVariant(type: string, url: string): ContentVariant {
+  if (!url) return null
+  switch (type) {
+    case 'twitter':
+      return /\/status\/\d+/.test(url) ? 'post' : 'profile'
+    case 'tiktok':
+      return /\/video\/\d+/.test(url) ? 'post' : 'profile'
+    case 'instagram':
+      return /\/(p|reel)\//.test(url) ? 'post' : 'profile'
+    case 'github': {
+      try {
+        const segments = new URL(url).pathname.split('/').filter(Boolean)
+        if (segments.length >= 2) return 'repo'
+        if (segments.length === 1) return 'profile'
+      } catch {}
+      return null
+    }
+    default:
+      return null
+  }
 }
 
 /**
@@ -123,6 +235,7 @@ async function parseByType(type: ContentType, url: string, match: RegExpMatchArr
     case 'tiktok': return parseTikTok(url, match)
     case 'vimeo': return parseVimeo(url, match)
     case 'soundcloud': return parseSoundCloud(url, match)
+    case 'bandcamp': return parseBandcamp(url, match)
     case 'video': return parseVideo(url)
     case 'image': return parseImage(url)
     case 'payment': return parsePaymentLink(url)
@@ -138,6 +251,7 @@ function parseYouTube(url: string, match: RegExpMatchArray): ParsedContent {
 
   return {
     type: 'youtube',
+    variant: null,
     url,
     external_id: videoId,
     title: 'YouTube Video',
@@ -173,6 +287,7 @@ async function parseSpotify(url: string, match: RegExpMatchArray): Promise<Parse
 
   return {
     type: 'spotify',
+    variant: null,
     url,
     external_id: spotifyId,
     title,
@@ -204,6 +319,7 @@ function parseAppleMusic(url: string, match: RegExpMatchArray): ParsedContent {
   // Apple Music embeds can't render cleanly — treat as a plain link tile
   return {
     type: 'link',
+    variant: null,
     url,
     external_id: null,
     title,
@@ -219,9 +335,10 @@ function parseAppleMusic(url: string, match: RegExpMatchArray): ParsedContent {
 function parseTwitter(url: string, match: RegExpMatchArray): ParsedContent {
   const username = match[1]
   const tweetId = match[2]
-  
+
   return {
     type: 'twitter',
+    variant: 'post',
     url,
     external_id: tweetId,
     title: `Tweet by @${username}`,
@@ -236,9 +353,10 @@ function parseTwitter(url: string, match: RegExpMatchArray): ParsedContent {
 // ============================================
 function parseInstagram(url: string, match: RegExpMatchArray): ParsedContent {
   const postId = match[1]
-  
+
   return {
     type: 'instagram',
+    variant: 'post',
     url,
     external_id: postId,
     title: 'Instagram Post',
@@ -253,9 +371,10 @@ function parseInstagram(url: string, match: RegExpMatchArray): ParsedContent {
 // ============================================
 function parseTikTok(url: string, match: RegExpMatchArray): ParsedContent {
   const videoId = match[2] || match[1]
-  
+
   return {
     type: 'tiktok',
+    variant: 'post',
     url,
     external_id: videoId,
     title: 'TikTok Video',
@@ -270,9 +389,10 @@ function parseTikTok(url: string, match: RegExpMatchArray): ParsedContent {
 // ============================================
 function parseVimeo(url: string, match: RegExpMatchArray): ParsedContent {
   const videoId = match[1]
-  
+
   return {
     type: 'vimeo',
+    variant: null,
     url,
     external_id: videoId,
     title: 'Vimeo Video',
@@ -288,12 +408,33 @@ function parseVimeo(url: string, match: RegExpMatchArray): ParsedContent {
 function parseSoundCloud(url: string, match: RegExpMatchArray): ParsedContent {
   return {
     type: 'soundcloud',
+    variant: null,
     url,
     external_id: null,
     title: 'SoundCloud Track',
     description: null,
     thumbnail_url: null,
     embed_html: `<iframe src="https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23ffffff&auto_play=false&hide_related=true&show_comments=false&show_user=false&show_reposts=false&show_teaser=false&visual=true" frameborder="0" allow="autoplay" loading="lazy" class="w-full h-[166px] "></iframe>`,
+  }
+}
+
+// ============================================
+// BANDCAMP
+// ============================================
+function parseBandcamp(url: string, match: RegExpMatchArray): ParsedContent {
+  const artist = match[1]
+  const contentType = match[2] // track or album
+  const slug = match[3]
+
+  return {
+    type: 'bandcamp',
+    variant: null,
+    url,
+    external_id: null,
+    title: `${slug.replace(/-/g, ' ')} — ${artist}`,
+    description: `Bandcamp ${contentType}`,
+    thumbnail_url: null,
+    embed_html: null, // Handled by parseEmbed tier 2
   }
 }
 
@@ -305,6 +446,7 @@ function parseVideo(url: string): ParsedContent {
 
   return {
     type: 'video',
+    variant: null,
     url,
     external_id: null,
     title: filename,
@@ -325,6 +467,7 @@ function parseImage(url: string): ParsedContent {
 
   return {
     type: 'image',
+    variant: null,
     url,
     external_id: null,
     title: filename,
@@ -340,6 +483,7 @@ function parseImage(url: string): ParsedContent {
 function parsePaymentLink(url: string): ParsedContent {
   return {
     type: 'payment',
+    variant: null,
     url,
     external_id: null,
     title: 'Pay',
@@ -357,9 +501,10 @@ function parseGenericLink(url: string): ParsedContent {
   try {
     hostname = new URL(url).hostname.replace('www.', '')
   } catch {}
-  
+
   return {
     type: 'link',
+    variant: null,
     url,
     external_id: null,
     title: hostname,
@@ -381,6 +526,9 @@ export function getContentIcon(type: ContentType): string {
     tiktok: '♪',
     vimeo: '▶',
     soundcloud: '♫',
+    bandcamp: '♫',
+    github: '◈',
+    letterboxd: '◎',
     video: '▶',
     image: '▣',
     thought: '◈',
