@@ -34,7 +34,6 @@ const LEGACY_AUTH_ROUTES = new Set<string>([
 // are caught by the isPublicProfile regex below. /api/ is caught by
 // isApiRoute. /auth covers both /auth/login and /auth/callback via prefix.
 const publicRoutes = [
-  '/',
   '/auth',
   '/deed',
   '/gift',
@@ -77,7 +76,16 @@ export function middleware(request: NextRequest) {
     return withSecurityHeaders(NextResponse.redirect(canonical, 301))
   }
 
-  // ── 2. /home — always pass through to the server component ──
+  // ── 2. Root → /home redirect ──
+  // The landing page is retired. Send every `/` hit straight to /home,
+  // which either resolves the user's slug or renders the auth entry page.
+  if (pathname === '/') {
+    const homeUrl = request.nextUrl.clone()
+    homeUrl.pathname = '/home'
+    return withSecurityHeaders(NextResponse.redirect(homeUrl, 307))
+  }
+
+  // ── 2b. /home — always pass through to the server component ──
   // Authenticated → resolves slug → redirects to /{slug}/home
   // Unauthenticated → renders minimal Google auth entry page
   if (pathname === '/home') {
