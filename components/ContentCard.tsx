@@ -7,7 +7,6 @@ import { audioManager } from '@/lib/audio-manager'
 import { parseEmbed, extractYouTubeId } from '@/lib/parseEmbed'
 import type { EmbedResult } from '@/lib/parseEmbed'
 import GlassEmbedFrameExtracted, { GLASS_STYLE as GLASS_STYLE_IMPORTED, GlassPlaceholder as GlassPlaceholderExtracted } from '@/components/GlassEmbedFrame'
-import FieldBackground from '@/components/FieldBackground'
 import { transformImageUrl } from '@/lib/image'
 import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getBestThumbnailUrl, getYouTubeThumbnailCandidates } from '@/lib/media/thumbnails'
 
@@ -161,15 +160,13 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
 
     // isExpanded: skip facade, render iframe immediately (used in lightbox)
     if (isExpanded) {
-      const thumbSrc = youtubeThumbCandidates[0]
       const ytSrc = `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=1&enablejsapi=1&rel=0&iv_load_policy=3&playsinline=1`
       return (
-        <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative" style={{ background: '#000' }}>
-          <FieldBackground imageUrl={thumbSrc} intensity="embed" />
+        <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative bg-black">
           <iframe
             src={ytSrc}
-            className="w-full h-full relative"
-            style={{ border: 'none', zIndex: 1 }}
+            className="w-full h-full"
+            style={{ border: 'none' }}
             allow="autoplay; encrypted-media; fullscreen"
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
@@ -212,14 +209,13 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       )
     }
     // YouTube activated state — mute=1 for reliable autoplay, postMessage unmutes after load
-    const ytActivatedSrc = `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=1&enablejsapi=1&rel=0&iv_load_policy=3&playsinline=1`
+    const ytSrc = `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=1&enablejsapi=1&rel=0&iv_load_policy=3&playsinline=1`
     return (
-      <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative" style={{ background: '#000' }}>
-        <FieldBackground imageUrl={youtubeThumbCandidates[0]} intensity="embed" />
+      <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative bg-black">
         <iframe
-          src={ytActivatedSrc}
-          className="w-full h-full relative"
-          style={{ border: 'none', zIndex: 1 }}
+          src={ytSrc}
+          className="w-full h-full"
+          style={{ border: 'none' }}
           allow="autoplay; encrypted-media; fullscreen"
           allowFullScreen
           referrerPolicy="strict-origin-when-cross-origin"

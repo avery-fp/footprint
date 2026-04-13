@@ -297,10 +297,17 @@ export default function VideoTile({ src, playbackUrl, posterUrl, status, onWides
                 transition: reducedMotion ? 'none' : `all ${isExpanded ? theatre.enter : theatre.exit}`,
               }}
             >
+              {/* Field background — blurred poster fills letterbox regions */}
+              {isExpanded && <FieldBackground imageUrl={posterUrl} intensity="theatre" />}
+
               <video
                 ref={videoRef}
-                className="w-full h-full cursor-pointer"
-                style={{ objectFit: isExpanded ? 'contain' : 'cover' }}
+                className="w-full h-full cursor-pointer relative"
+                style={{
+                  objectFit: isExpanded ? 'contain' : 'cover',
+                  background: isExpanded ? 'transparent' : undefined,
+                  zIndex: isExpanded ? 1 : undefined,
+                }}
                 autoPlay
                 muted
                 loop
