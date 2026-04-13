@@ -7,6 +7,7 @@ import { MOTION } from '@/lib/motion'
 import { useVideoExpansion } from '@/hooks/useVideoExpansion'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import VideoScrubBar from '@/components/VideoScrubBar'
+import FieldBackground from '@/components/FieldBackground'
 import Hls from 'hls.js'
 
 interface VideoTileProps {
@@ -233,17 +234,23 @@ export default function VideoTile({ src, playbackUrl, posterUrl, status, onWides
   // ── Theatre/fullscreen overlay (portal to body) ──
   const theatreOverlay = isExpanded && typeof document !== 'undefined' ? createPortal(
     <>
-      {/* Backdrop */}
+      {/* Field backdrop — blurred poster aura behind the video */}
       <div
         className="fixed inset-0"
         style={{
           zIndex: 40,
-          background: 'rgba(0,0,0,0.65)',
           transition: reducedMotion ? 'none' : `opacity ${theatre.backdrop}`,
           opacity: 1,
         }}
         onClick={collapse}
-      />
+      >
+        <FieldBackground imageUrl={posterUrl} intensity="theatre" />
+        {/* Fallback scrim — darker when no poster available */}
+        <div
+          className="absolute inset-0"
+          style={{ background: posterUrl ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.65)' }}
+        />
+      </div>
       {/* Theatre container — video gets DOM-moved here */}
       <div
         ref={theatreContainerRef}

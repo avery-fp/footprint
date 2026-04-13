@@ -656,3 +656,10 @@ input:-webkit-autofill:focus {
     background-image: none !important;
   }
 }
+
+/* Field Mode — graceful degradation for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .field-bg img {
+    filter: brightness(0.3) !important;
+  }
+}
