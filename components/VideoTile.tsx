@@ -25,6 +25,7 @@ export default function VideoTile({ src, playbackUrl, posterUrl, status, onWides
   const [isReady, setIsReady] = useState(false)
   const [hasFailed, setHasFailed] = useState(false)
   const [showTapFeedback, setShowTapFeedback] = useState(false)
+  const [videoDims, setVideoDims] = useState<{ w: number; h: number } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const videoWrapperRef = useRef<HTMLDivElement>(null)
@@ -234,23 +235,17 @@ export default function VideoTile({ src, playbackUrl, posterUrl, status, onWides
   // ── Theatre/fullscreen overlay (portal to body) ──
   const theatreOverlay = isExpanded && typeof document !== 'undefined' ? createPortal(
     <>
-      {/* Field backdrop — blurred poster aura behind the video */}
+      {/* Backdrop — click to dismiss */}
       <div
         className="fixed inset-0"
         style={{
           zIndex: 40,
+          background: 'rgba(0,0,0,0.65)',
           transition: reducedMotion ? 'none' : `opacity ${theatre.backdrop}`,
           opacity: 1,
         }}
         onClick={collapse}
-      >
-        <FieldBackground imageUrl={posterUrl} intensity="theatre" />
-        {/* Fallback scrim — darker when no poster available */}
-        <div
-          className="absolute inset-0"
-          style={{ background: posterUrl ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.65)' }}
-        />
-      </div>
+      />
       {/* Theatre container — video gets DOM-moved here */}
       <div
         ref={theatreContainerRef}
@@ -293,20 +288,32 @@ export default function VideoTile({ src, playbackUrl, posterUrl, status, onWides
                   height: '82vh',
                   borderRadius: '16px',
                   overflow: 'hidden',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 } : {}),
                 transition: reducedMotion ? 'none' : `all ${isExpanded ? theatre.enter : theatre.exit}`,
               }}
             >
-              {/* Field background — blurred poster fills letterbox regions */}
+              {/* Field background — blurred poster fills the wrapper,
+                  visible in the gaps around the auto-sized video */}
               {isExpanded && <FieldBackground imageUrl={posterUrl} intensity="theatre" />}
 
               <video
                 ref={videoRef}
-                className="w-full h-full cursor-pointer relative"
-                style={{
+                className={isExpanded ? 'cursor-pointer' : 'w-full h-full cursor-pointer'}
+                style={isExpanded && videoDims ? {
+                  // Auto-size to natural aspect ratio — no letterboxing.
+                  // The video element IS the content size; flex centers it.
+                  // FieldBackground fills the wrapper behind it.
+                  width: 'auto',
+                  height: 'auto',
+                  maxWidth: '100%',
+                  maxHeight: '100%',
+                  position: 'relative',
+                  zIndex: 1,
+                } : {
                   objectFit: isExpanded ? 'contain' : 'cover',
-                  background: isExpanded ? 'transparent' : undefined,
-                  zIndex: isExpanded ? 1 : undefined,
                 }}
                 autoPlay
                 muted
@@ -319,6 +326,7 @@ export default function VideoTile({ src, playbackUrl, posterUrl, status, onWides
                 onLoadedData={() => setIsReady(true)}
                 onLoadedMetadata={(e) => {
                   const v = e.currentTarget
+                  setVideoDims({ w: v.videoWidth, h: v.videoHeight })
                   if (v.videoWidth > v.videoHeight * 1.3) {
                     onWidescreen?.()
                   }
