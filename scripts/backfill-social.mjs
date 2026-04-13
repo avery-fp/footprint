@@ -13,6 +13,7 @@
  *   node --env-file=.env.local scripts/backfill-social.mjs --limit 50       # cap at 50 rows
  */
 import { createClient } from '@supabase/supabase-js'
+import { createHash } from 'crypto'
 
 const args = process.argv.slice(2)
 const DRY_RUN = args.includes('--dry-run')
@@ -26,6 +27,62 @@ const supabase = createClient(
 )
 
 const BROWSER_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+const SUPABASE_STORAGE_MARKER = 'supabase.co/storage/v1/object/public/'
+const CACHE_BUCKET = 'content'
+const CACHE_MAX_SIZE = 5 * 1024 * 1024 // 5MB
+const CACHE_TIMEOUT = 5000
+const EXT_MAP = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/avif': 'avif',
+  'image/gif': 'gif',
+}
+
+/** True if URL already points to our Supabase Storage bucket. */
+function isCachedThumbnail(url) {
+  return !!url && url.includes(SUPABASE_STORAGE_MARKER)
+}
+
+/**
+ * Download a remote thumbnail and upload to Supabase Storage.
+ * Returns permanent public URL, or null on any failure. Never throws.
+ */
+async function cacheThumbnail(remoteUrl, contentUrl, serialNumber) {
+  if (isCachedThumbnail(remoteUrl)) return remoteUrl
+  try {
+    const res = await fetch(remoteUrl, {
+      signal: AbortSignal.timeout(CACHE_TIMEOUT),
+      headers: { 'User-Agent': BROWSER_UA, 'Accept': 'image/*' },
+      redirect: 'follow',
+    })
+    if (!res.ok) return null
+
+    const contentType = (res.headers.get('content-type') || '').split(';')[0].trim()
+    const ext = EXT_MAP[contentType]
+    if (!ext) return null
+
+    const buffer = Buffer.from(await res.arrayBuffer())
+    if (buffer.length === 0 || buffer.length > CACHE_MAX_SIZE) return null
+
+    const urlHash = createHash('sha256').update(contentUrl).digest('hex').slice(0, 12)
+    const storagePath = `thumbnails/${serialNumber}/${urlHash}.${ext}`
+
+    const { error } = await supabase.storage
+      .from(CACHE_BUCKET)
+      .upload(storagePath, buffer, { contentType, upsert: true })
+    if (error) {
+      console.log(`    [cache] upload failed: ${error.message}`)
+      return null
+    }
+
+    const { data } = supabase.storage.from(CACHE_BUCKET).getPublicUrl(storagePath)
+    return data.publicUrl.replace(/[\n\r]/g, '')
+  } catch (e) {
+    console.log(`    [cache] failed: ${e.message || e}`)
+    return null
+  }
+}
 
 // ── Enrichment functions ────────────────────────────────────
 
@@ -102,7 +159,7 @@ async function main() {
   // Find tiles that need enrichment: no thumbnail AND default title
   const { data: rows, error } = await supabase
     .from('links')
-    .select('id, url, platform, title, artist, thumbnail_url_hq')
+    .select('id, url, platform, title, artist, thumbnail_url_hq, serial_number')
     .in('platform', ['twitter', 'instagram', 'tiktok'])
     .is('thumbnail_url_hq', null)
     .order('created_at', { ascending: false })
@@ -116,7 +173,7 @@ async function main() {
   // Also grab rows with default titles (even if thumbnail_url_hq is set for some reason)
   const { data: defaultTitleRows, error: err2 } = await supabase
     .from('links')
-    .select('id, url, platform, title, artist, thumbnail_url_hq')
+    .select('id, url, platform, title, artist, thumbnail_url_hq, serial_number')
     .in('platform', ['twitter', 'instagram', 'tiktok'])
     .or('title.like.Tweet by %,title.eq.Instagram Post,title.eq.TikTok Video')
     .limit(LIMIT)
@@ -125,10 +182,23 @@ async function main() {
     console.error('DB query (default titles) failed:', err2.message)
   }
 
+  // Also grab tiles with expiring (non-Supabase) thumbnail URLs — re-cache them
+  const { data: expiringRows, error: err3 } = await supabase
+    .from('links')
+    .select('id, url, platform, title, artist, thumbnail_url_hq, serial_number')
+    .in('platform', ['twitter', 'instagram', 'tiktok'])
+    .not('thumbnail_url_hq', 'is', null)
+    .not('thumbnail_url_hq', 'like', `%${SUPABASE_STORAGE_MARKER}%`)
+    .limit(LIMIT)
+
+  if (err3) {
+    console.error('DB query (expiring thumbs) failed:', err3.message)
+  }
+
   // Merge and deduplicate
   const allRows = [...(rows || [])]
   const seenIds = new Set(allRows.map(r => r.id))
-  for (const r of (defaultTitleRows || [])) {
+  for (const r of [...(defaultTitleRows || []), ...(expiringRows || [])]) {
     if (!seenIds.has(r.id)) {
       allRows.push(r)
       seenIds.add(r.id)
@@ -170,9 +240,23 @@ async function main() {
       if (result.artist && !row.artist) {
         updates.artist = result.artist
       }
-      if (result.thumbnail_url_hq && !row.thumbnail_url_hq) {
+
+      // Determine the best thumbnail: new from enrichment, or existing from DB
+      let thumbToCache = result.thumbnail_url_hq || row.thumbnail_url_hq
+      if (thumbToCache && !isCachedThumbnail(thumbToCache) && row.serial_number && !DRY_RUN) {
+        console.log(`    [cache] caching thumbnail...`)
+        const cached = await cacheThumbnail(thumbToCache, row.url, row.serial_number)
+        if (cached) {
+          updates.thumbnail_url_hq = cached
+          console.log(`    [cache] ✓ stored in Supabase Storage`)
+        } else if (result.thumbnail_url_hq && !row.thumbnail_url_hq) {
+          // Cache failed but we have a new URL — store the raw URL anyway (better than null)
+          updates.thumbnail_url_hq = result.thumbnail_url_hq
+        }
+      } else if (result.thumbnail_url_hq && !row.thumbnail_url_hq) {
         updates.thumbnail_url_hq = result.thumbnail_url_hq
       }
+
       // Always ensure render_mode is ghost for enriched tiles
       updates.render_mode = 'ghost'
 

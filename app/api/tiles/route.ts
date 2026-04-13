@@ -223,6 +223,13 @@ export async function POST(request: NextRequest) {
         if (parsed.type === 'youtube') {
           ghostThumbnailHq = parsed.thumbnail_url || ghostThumbnailHq
         }
+
+        // Cache social thumbnails to permanent Supabase Storage
+        if (ghostThumbnailHq && ['twitter', 'instagram', 'tiktok'].includes(parsed.type)) {
+          const { cacheThumbnail } = await import('@/lib/media/cache-thumbnail')
+          const cached = await cacheThumbnail(ghostThumbnailHq, parsed.url, serialNumber)
+          if (cached) ghostThumbnailHq = cached
+        }
       }
 
       // Compute identity layer fields
