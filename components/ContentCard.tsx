@@ -256,23 +256,23 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         {/* Bottom gradient — text readability */}
         <div
           className="absolute inset-x-0 bottom-0"
-          style={{ height: '50%', background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)' }}
+          style={{ height: '55%', background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)' }}
         />
 
         {/* Title + artist */}
-        <div className="absolute inset-x-0 bottom-0 z-10 p-4 flex flex-col items-center gap-1">
+        <div className="absolute inset-x-0 bottom-0 z-10 p-4 flex flex-col items-center gap-0.5">
           {content.title && (
             <span
-              className="text-white/70 truncate max-w-full text-center"
-              style={{ fontSize: '13px', fontFamily: "'DM Sans', sans-serif" }}
+              className="text-white/80 line-clamp-2 text-center fp-text-shadow"
+              style={{ fontSize: '13px', fontWeight: 500, lineHeight: 1.35 }}
             >
               {content.title}
             </span>
           )}
           {content.artist && (
             <span
-              className="text-white/25 uppercase tracking-widest truncate max-w-full text-center"
-              style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace" }}
+              className="text-white/40 uppercase tracking-widest truncate max-w-full text-center font-mono"
+              style={{ fontSize: '9px', fontWeight: 500, lineHeight: 1.2 }}
             >
               {content.artist}
             </span>
@@ -300,7 +300,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 <path d="M8 5v14l11-7z"/>
               </svg>
             </div>
-            <p className="text-white/40 text-[10px] font-medium truncate max-w-[80%]">{content.title || ''}</p>
+            <p className="text-white/50 text-[10px] font-medium line-clamp-2 max-w-[80%] text-center" style={{ lineHeight: 1.35 }}>{content.title || ''}</p>
           </div>
         </div>
       )
@@ -460,7 +460,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             backdropFilter: 'blur(20px) saturate(120%)',
             WebkitBackdropFilter: 'blur(20px) saturate(120%)',
             border: '1px solid rgba(255, 255, 255, 0.08)',
-            fontFamily: "'DM Sans', sans-serif",
             minHeight: '200px',
           }}
         >
@@ -472,7 +471,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     }
 
     return (
-      <div className="w-full h-full fp-tile fp-surface flex items-center justify-center p-5" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+      <div className="w-full h-full fp-tile fp-surface flex items-center justify-center p-5">
         <p className={`whitespace-pre-wrap text-center opacity-85 ${typo}`}>
           {text}
         </p>
@@ -528,11 +527,11 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         className={`block w-full h-full fp-tile overflow-hidden relative flex flex-col items-center justify-center p-4 bg-[#0a0a0a] ${aspectClass}`}
       >
         <span className="absolute top-2.5 right-3 text-[13px] text-white/[0.12] font-light select-none">𝕏</span>
-        <p className={`whitespace-pre-wrap text-center text-white/70 ${typo} line-clamp-6`} style={{ fontFamily: "'DM Sans', sans-serif" }}>
+        <p className={`whitespace-pre-wrap text-center text-white/80 ${typo} line-clamp-6`}>
           {tweetText}
         </p>
         {handle && !isFallback && (
-          <span className="mt-2 text-[9px] text-white/25 uppercase tracking-[0.08em]">{handle}</span>
+          <span className="mt-2 text-[9px] text-white/35 uppercase tracking-[0.08em] font-mono">{handle}</span>
         )}
       </a>
     )
@@ -802,7 +801,10 @@ function LinkCard({
           onError={() => setMeta(m => m ? { ...m, image: null } : m)}
         />
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4">
-          <span className="text-[11px] font-mono tracking-wider text-white/50 text-center truncate max-w-full">
+          <span
+            className="text-[11px] tracking-wider text-white/60 text-center line-clamp-2"
+            style={{ fontWeight: 500, lineHeight: 1.35 }}
+          >
             {displayTitle !== hostname ? displayTitle : ''}
           </span>
         </div>
@@ -823,7 +825,10 @@ function LinkCard({
         WebkitBackdropFilter: 'blur(20px)',
       }}
     >
-      <span className="text-[11px] font-mono tracking-wider text-white/50 text-center truncate max-w-full">
+      <span
+        className="text-[11px] tracking-wider text-white/60 text-center line-clamp-2"
+        style={{ fontWeight: 500, lineHeight: 1.35 }}
+      >
         {displayTitle !== hostname ? displayTitle : ''}
       </span>
     </a>

@@ -48,26 +48,26 @@ export default function PreviewCardTile({
         <div
           className="absolute inset-x-0 bottom-0"
           style={{
-            height: '50%',
+            height: '55%',
             background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)',
           }}
         />
 
         {/* Title + subtitle overlay */}
         {(title || subtitle) && (
-          <div className="absolute inset-x-0 bottom-0 z-10 p-4 flex flex-col items-center gap-1">
+          <div className="absolute inset-x-0 bottom-0 z-10 p-4 flex flex-col items-center gap-0.5">
             {title && (
               <span
-                className="text-white/70 truncate max-w-full text-center"
-                style={{ fontSize: '13px', fontFamily: "'DM Sans', sans-serif" }}
+                className="text-white/80 line-clamp-2 text-center fp-text-shadow"
+                style={{ fontSize: '13px', fontWeight: 500, lineHeight: 1.35 }}
               >
                 {title}
               </span>
             )}
             {subtitle && (
               <span
-                className="text-white/25 uppercase tracking-widest truncate max-w-full text-center"
-                style={{ fontSize: '9px', fontFamily: "'JetBrains Mono', monospace" }}
+                className="text-white/40 uppercase tracking-widest truncate max-w-full text-center font-mono"
+                style={{ fontSize: '9px', fontWeight: 500, lineHeight: 1.2 }}
               >
                 {subtitle}
               </span>
@@ -91,11 +91,13 @@ export default function PreviewCardTile({
         WebkitBackdropFilter: 'blur(20px) saturate(120%)',
         border: '1px solid rgba(255, 255, 255, 0.08)',
         borderRadius: 'inherit',
-        fontFamily: "'DM Sans', sans-serif",
       }}
     >
       {title && title !== 'Link' && (
-        <span className="text-[11px] font-mono tracking-wider text-white/50 text-center truncate max-w-full">
+        <span
+          className="text-[11px] tracking-wider text-white/60 text-center line-clamp-2"
+          style={{ fontWeight: 500, lineHeight: 1.35 }}
+        >
           {title}
         </span>
       )}
