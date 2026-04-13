@@ -885,7 +885,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
       {/* Floating CTA bar — viewers only, hidden for owner and during claim */}
       {!isDraft && !claimActive && authChecked && !isOwner && (
-        <FloatingCtaBar isOwner={isOwner} onClaim={activateClaim} />
+        <FloatingCtaBar isOwner={isOwner} />
       )}
 
       {/* Copied toast */}
