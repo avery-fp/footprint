@@ -513,29 +513,33 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       )
     }
 
-    // Text-only tweet — filled dark tile with text, no empty border
+    // Text-only tweet — DM Sans, weight hierarchy, text-shadow
     const tweetText = content.title || (handle ? `Tweet by ${handle}` : 'Tweet')
     const isFallback = !content.title || content.title.startsWith('Tweet by ')
     const len = tweetText.length
     const typo = len <= 60
-      ? 'text-[14px] font-light tracking-[-0.01em] leading-snug'
+      ? 'text-[14px] tracking-[-0.01em] leading-snug'
       : len <= 140
-      ? 'text-[12px] font-light tracking-[-0.005em] leading-relaxed'
-      : 'text-[11px] font-light tracking-normal leading-relaxed'
+      ? 'text-[12px] tracking-[-0.005em] leading-relaxed'
+      : 'text-[11px] tracking-normal leading-relaxed'
 
     return (
       <a
         href={content.url}
         target="_blank"
         rel="noopener noreferrer"
-        className={`block w-full h-full fp-tile overflow-hidden relative flex flex-col items-center justify-center p-4 bg-[#0a0a0a] ${aspectClass}`}
+        className={`block w-full h-full fp-tile overflow-hidden relative flex flex-col items-center justify-center p-5 ${aspectClass}`}
+        style={{ background: 'rgba(255,255,255,0.04)' }}
       >
-        <span className="absolute top-2.5 right-3 text-[13px] text-white/[0.12] font-light select-none">𝕏</span>
-        <p className={`whitespace-pre-wrap text-center text-white/80 ${typo} line-clamp-6`}>
+        <span className="absolute top-2.5 right-3 text-[13px] text-white/20 select-none" style={{ fontWeight: 300 }}>𝕏</span>
+        <p
+          className={`whitespace-pre-wrap text-center text-white/80 fp-text-shadow ${typo} line-clamp-6`}
+          style={{ fontWeight: 500 }}
+        >
           {tweetText}
         </p>
         {handle && !isFallback && (
-          <span className="mt-2 text-[9px] text-white/35 uppercase tracking-[0.08em] font-mono">{handle}</span>
+          <span className="mt-2.5 text-[9px] text-white/40 uppercase tracking-[0.08em] font-mono" style={{ fontWeight: 500 }}>{handle}</span>
         )}
       </a>
     )

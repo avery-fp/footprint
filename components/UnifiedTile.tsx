@@ -286,7 +286,7 @@ export default function UnifiedTile({
     )
   }
 
-  // ── Payment link tile — price tag in a museum ──
+  // ── "yours" CTA tile — invites visitors to build their own ──
   const isPaymentLink = item.url && (
     item.url.includes('buy.stripe.com') ||
     item.url.includes('checkout.stripe.com') ||
@@ -295,33 +295,21 @@ export default function UnifiedTile({
   if (isPaymentLink) {
     return (
       <a
-        href={item.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="w-full h-full flex flex-col items-center justify-center p-6 group cursor-pointer no-underline"
+        href="/home"
+        className="w-full h-full flex items-center justify-center p-6 group cursor-pointer no-underline"
         style={{
           background: 'rgba(255,255,255,0.04)',
           borderRadius: 'inherit',
           textDecoration: 'none',
         }}
         data-tile-id={item.id}
-        data-tile-type="payment"
+        data-tile-type="cta"
       >
-        {/* Product name — small, above the price */}
-        {item.title && item.title !== 'Pay' && (
-          <span
-            className="text-white/30 font-mono tracking-[0.12em] uppercase text-center mb-3"
-            style={{ fontSize: '9px', fontWeight: 400 }}
-          >
-            {item.title}
-          </span>
-        )}
-        {/* Price IS the content — large, centered */}
         <span
-          className="text-white/70 font-mono text-center leading-none group-hover:text-white/90 transition-colors"
-          style={{ fontSize: '28px', fontWeight: 300, letterSpacing: '-0.02em' }}
+          className="text-white/40 text-center group-hover:text-white/70 transition-colors"
+          style={{ fontSize: '16px', fontWeight: 500, letterSpacing: '0.02em' }}
         >
-          {item.description || 'pay'}
+          yours →
         </span>
       </a>
     )
