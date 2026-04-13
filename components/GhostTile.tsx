@@ -130,11 +130,11 @@ export default function GhostTile({
         {/* Bottom gradient — text readability */}
         <div
           className="absolute inset-x-0 bottom-0"
-          style={{ height: '50%', background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)' }}
+          style={{ height: '55%', background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)' }}
         />
 
         {/* Title + artist — pinned to bottom */}
-        <div className="absolute inset-x-0 bottom-0 z-10 p-4 flex flex-col items-center gap-1">
+        <div className="absolute inset-x-0 bottom-0 z-10 p-4 flex flex-col items-center gap-0.5">
           <TitleBlock title={title} artist={artist} />
           <WaveformBarsIdle />
         </div>
@@ -309,15 +309,15 @@ function PlayIcon() {
 
 function TitleBlock({ title, artist }: { title?: string; artist?: string }) {
   return (
-    <div className="flex flex-col items-center gap-1 px-4 max-w-full">
+    <div className="flex flex-col items-center gap-0.5 px-4 max-w-full">
       {title && (
         <p
-          className="truncate max-w-full text-center"
+          className="line-clamp-2 text-center fp-text-shadow"
           style={{
-            fontSize: '12px',
-            color: 'rgba(255, 255, 255, 0.6)',
-            lineHeight: 1.3,
-            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: '13px',
+            fontWeight: 500,
+            color: 'rgba(255, 255, 255, 0.8)',
+            lineHeight: 1.35,
           }}
         >
           {title}
@@ -328,9 +328,11 @@ function TitleBlock({ title, artist }: { title?: string; artist?: string }) {
           className="truncate max-w-full text-center"
           style={{
             fontSize: '9px',
-            color: 'rgba(255, 255, 255, 0.25)',
+            fontWeight: 500,
+            color: 'rgba(255, 255, 255, 0.4)',
             textTransform: 'uppercase',
             letterSpacing: '0.15em',
+            lineHeight: 1.2,
             fontFamily: "'JetBrains Mono', monospace",
           }}
         >
