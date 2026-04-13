@@ -34,7 +34,6 @@ const LEGACY_AUTH_ROUTES = new Set<string>([
 // are caught by the isPublicProfile regex below. /api/ is caught by
 // isApiRoute. /auth covers both /auth/login and /auth/callback via prefix.
 const publicRoutes = [
-  '/',
   '/auth',
   '/deed',
   '/gift',
@@ -75,6 +74,12 @@ export function middleware(request: NextRequest) {
   if (host === 'footprint.onl') {
     const canonical = new URL(`https://www.footprint.onl${pathname}${search}`)
     return withSecurityHeaders(NextResponse.redirect(canonical, 301))
+  }
+
+  // ── 1b. Root "/" → redirect to /ae ──
+  if (pathname === '/') {
+    const target = new URL('/ae', request.url)
+    return withSecurityHeaders(NextResponse.redirect(target, 307))
   }
 
   // ── 2. /home — always pass through to the server component ──
