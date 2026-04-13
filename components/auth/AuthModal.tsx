@@ -13,6 +13,8 @@ interface AuthModalProps {
   showPrice?: boolean
   /** Optional auth error message (e.g. from failed OAuth callback). */
   authError?: string | null
+  /** Pre-fill the email input (e.g. from FloatingCtaBar ?email= param). */
+  initialEmail?: string
 }
 
 /**
@@ -31,8 +33,8 @@ interface AuthModalProps {
  *
  * No title, no subtitle. Footprint's wordless mono aesthetic.
  */
-export default function AuthModal({ redirectAfterAuth, onClose, showPrice, authError }: AuthModalProps) {
-  const [email, setEmail] = useState('')
+export default function AuthModal({ redirectAfterAuth, onClose, showPrice, authError, initialEmail }: AuthModalProps) {
+  const [email, setEmail] = useState(initialEmail || '')
   const [emailLoading, setEmailLoading] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
   const [emailError, setEmailError] = useState<string | null>(null)

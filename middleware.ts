@@ -76,13 +76,14 @@ export function middleware(request: NextRequest) {
     return withSecurityHeaders(NextResponse.redirect(canonical, 301))
   }
 
-  // ── 2. Root → /home redirect ──
-  // The landing page is retired. Send every `/` hit straight to /home,
-  // which either resolves the user's slug or renders the auth entry page.
+  // ── 2. Root → room or home ──
+  // Stranger → /ae (the room IS the homepage — desire first, auth second)
+  // Authenticated → /home → resolves to /{slug}/home
   if (pathname === '/') {
-    const homeUrl = request.nextUrl.clone()
-    homeUrl.pathname = '/home'
-    return withSecurityHeaders(NextResponse.redirect(homeUrl, 307))
+    const session = request.cookies.get('fp_session')
+    const dest = request.nextUrl.clone()
+    dest.pathname = session ? '/home' : '/ae'
+    return withSecurityHeaders(NextResponse.redirect(dest, 307))
   }
 
   // ── 2b. /home — always pass through to the server component ──
