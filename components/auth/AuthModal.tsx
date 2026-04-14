@@ -59,7 +59,7 @@ export default function AuthModal({ redirectAfterAuth, onClose, showPrice, authE
       const res = await fetch('/api/auth/magic-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: trimmed }),
+        body: JSON.stringify({ email: trimmed, redirect: redirectAfterAuth }),
       })
       if (res.ok) {
         setEmailSent(true)
@@ -72,7 +72,7 @@ export default function AuthModal({ redirectAfterAuth, onClose, showPrice, authE
     } finally {
       setEmailLoading(false)
     }
-  }, [email, emailLoading])
+  }, [email, emailLoading, redirectAfterAuth])
 
   return (
     <div

@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import type { EmailOtpType, User } from '@supabase/supabase-js'
 import { createSessionToken, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS, normalizeEmail } from '@/lib/auth'
 import { createRouteHandlerSupabaseAuthClient } from '@/lib/supabase-auth-ssr'
+import { sanitizeRedirect } from '@/lib/redirect'
 
 /**
  * GET /auth/callback
@@ -33,14 +34,14 @@ export async function GET(request: NextRequest) {
   const errParam = searchParams.get('error')
   const errCode = searchParams.get('error_code')
 
-  // Read the slug from cookie or query param — where the user came from
+  // Read the slug from cookie or query param — where the user came from.
+  // Cookie wins if valid; the ?redirect= query param is a backup for when
+  // the cookie is stripped by cross-origin OAuth redirects or by opening
+  // a magic link in a different browser than the one that requested it.
   const rawPostAuth = request.cookies.get('post_auth_redirect')?.value || ''
-  const redirectParam = searchParams.get('redirect') || ''
-  const returnPath = (rawPostAuth.startsWith('/') && !rawPostAuth.startsWith('//'))
-    ? rawPostAuth
-    : (redirectParam.startsWith('/') && !redirectParam.startsWith('//'))
-    ? redirectParam
-    : '/home' // absolute fallback — resolve to user's own home
+  const safePostAuth = sanitizeRedirect(rawPostAuth)
+  const safeRedirectParam = sanitizeRedirect(searchParams.get('redirect'))
+  const returnPath = safePostAuth ?? safeRedirectParam ?? '/home'
 
   // Build an error redirect. Reason strings are stable slugs — the modal
   // reads them verbatim. missing_params has no originating slug context,
@@ -154,12 +155,18 @@ export async function GET(request: NextRequest) {
     // ── Look up or create draft footprint ──
     // Every authenticated user must have a footprint so they always land
     // in their own HOME, never on someone else's page.
+    //
+    // Order matters: if the user has multiple footprints (draft + claimed,
+    // or a few claimed slugs), prefer the primary one, then the oldest,
+    // so the same user lands on the same page on every sign-in.
     let { data: footprint } = await supabase
       .from('footprints')
       .select('username')
       .eq('user_id', user.id)
+      .order('is_primary', { ascending: false })
+      .order('created_at', { ascending: true })
       .limit(1)
-      .single()
+      .maybeSingle()
 
     if (!footprint) {
       const draftSlug = `draft-${user.id.replace(/-/g, '').slice(0, 12)}`
@@ -191,13 +198,14 @@ export async function GET(request: NextRequest) {
       ? `/${footprint.username}/home`
       : '/home'
 
-    if (rawPostAuth.startsWith('/') && rawPostAuth !== '/home') {
+    // Honor an explicit claim destination if one survived to the callback,
+    // from either the cookie or the ?redirect= backup channel.
+    const claimCandidate = safePostAuth ?? safeRedirectParam
+    if (claimCandidate && claimCandidate !== '/home') {
       try {
-        const parsed = new URL(rawPostAuth, origin)
-        const isClaim = parsed.searchParams.get('claim') === '1'
-        const isInternal = parsed.pathname.startsWith('/') && !parsed.pathname.startsWith('//')
-        if (isClaim && isInternal) {
-          finalPath = returnPath
+        const parsed = new URL(claimCandidate, origin)
+        if (parsed.searchParams.get('claim') === '1') {
+          finalPath = claimCandidate
         }
       } catch {
         // Malformed — ignore, use default

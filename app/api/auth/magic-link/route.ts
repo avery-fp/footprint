@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { nanoid } from 'nanoid'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { createRouteHandlerSupabaseAuthClient } from '@/lib/supabase-auth-ssr'
+import { sanitizeRedirect } from '@/lib/redirect'
 
 /**
  * POST /api/auth/magic-link
@@ -37,7 +38,7 @@ function checkRate(email: string): boolean {
 
 export async function POST(request: NextRequest) {
   try {
-    const { email } = await request.json()
+    const { email, redirect } = await request.json()
 
     if (!email || typeof email !== 'string') {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 })
@@ -65,11 +66,23 @@ export async function POST(request: NextRequest) {
     // Pin the callback to the canonical production origin. This must match
     // an entry in the Supabase dashboard's redirect URL allow-list exactly;
     // a derived baseUrl can silently drift and cause "redirect URL mismatch"
-    // at the Supabase edge.
+    // at the Supabase edge. Query params are still allowed — Supabase
+    // matches the allow-list on origin + path, not full URL.
+    //
+    // Threading ?redirect= here lets the callback restore the claimer's
+    // intended destination even when the magic link is opened in a
+    // different browser than the one that requested it (Gmail → Safari),
+    // where the post_auth_redirect cookie will be absent.
+    const safeRedirect = sanitizeRedirect(redirect)
+    const callbackUrl = new URL('https://www.footprint.onl/auth/callback')
+    if (safeRedirect) {
+      callbackUrl.searchParams.set('redirect', safeRedirect)
+    }
+
     const { error } = await supabase.auth.signInWithOtp({
       email: cleanEmail,
       options: {
-        emailRedirectTo: 'https://www.footprint.onl/auth/callback',
+        emailRedirectTo: callbackUrl.toString(),
         shouldCreateUser: true,
       },
     })
