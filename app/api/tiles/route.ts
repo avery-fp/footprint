@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
       error = result.error
     } else {
       // Determine if this needs metadata enrichment at save time
-      const needsEnrich = ['youtube', 'spotify', 'twitter', 'tiktok', 'instagram'].includes(parsed.type)
+      const needsEnrich = ['youtube', 'spotify', 'twitter', 'tiktok', 'instagram', 'vimeo', 'soundcloud', 'bandcamp', 'github', 'letterboxd'].includes(parsed.type)
 
       // Fetch oEmbed / OG metadata at creation time
       let ghostArtist: string | null = null
@@ -168,6 +168,8 @@ export async function POST(request: NextRequest) {
               spotify: `https://open.spotify.com/oembed?url=${encodeURIComponent(parsed.url)}`,
               twitter: `https://publish.twitter.com/oembed?url=${encodeURIComponent(parsed.url)}&omit_script=true&dnt=true`,
               tiktok: `https://www.tiktok.com/oembed?url=${encodeURIComponent(parsed.url)}`,
+              vimeo: `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(parsed.url)}`,
+              soundcloud: `https://soundcloud.com/oembed?format=json&url=${encodeURIComponent(parsed.url)}`,
             }
             const endpoint = oembedEndpoints[parsed.type]
             if (endpoint) {
@@ -215,6 +217,29 @@ export async function POST(request: NextRequest) {
                 }
               } catch { /* silent */ }
             }
+
+            // Bandcamp, GitHub, Letterboxd: OG scrape for thumbnail + title
+            if (['bandcamp', 'github', 'letterboxd'].includes(parsed.type)) {
+              try {
+                const pageRes = await fetch(parsed.url, {
+                  signal: AbortSignal.timeout(5000),
+                  headers: browserHeaders,
+                  redirect: 'follow',
+                })
+                if (pageRes.ok) {
+                  const html = await pageRes.text()
+                  const ogImage = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i)?.[1]
+                    || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i)?.[1]
+                  if (ogImage) ghostThumbnailHq = ogImage
+                  const ogTitle = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i)?.[1]
+                    || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:title["']/i)?.[1]
+                  if (ogTitle) enrichedTitle = ogTitle.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+                  const ogDesc = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i)?.[1]
+                    || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:description["']/i)?.[1]
+                  if (ogDesc) ghostArtist = ogDesc.slice(0, 100)
+                }
+              } catch { /* silent */ }
+            }
           }
         } catch {
           // Metadata fetch failed — proceed without metadata, not a blocker
@@ -225,7 +250,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Cache social thumbnails to permanent Supabase Storage
-        if (ghostThumbnailHq && ['twitter', 'instagram', 'tiktok'].includes(parsed.type)) {
+        if (ghostThumbnailHq && needsEnrich && parsed.type !== 'youtube') {
           const { cacheThumbnail } = await import('@/lib/media/cache-thumbnail')
           const cached = await cacheThumbnail(ghostThumbnailHq, parsed.url, serialNumber)
           if (cached) ghostThumbnailHq = cached
