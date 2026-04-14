@@ -200,6 +200,34 @@ export default function UnifiedTile({
     }
   }
 
+  // ── Ghost tile — checked BEFORE canonicalType resolution ──
+  // render_mode='ghost' tiles must reach GhostTile regardless of URL shape.
+  // mediaTypeFromUrl defaults to 'image' for any non-video URL, which would
+  // intercept Twitter/TikTok/Instagram tiles before the ghost check ran.
+  const AUDIO_PLATFORMS = ['spotify', 'soundcloud', 'youtube', 'vimeo']
+  const forceGhost = isSoundRoom && AUDIO_PLATFORMS.includes(item.type)
+  const derivedGhostMediaId =
+    item.type === 'youtube'
+      ? extractYouTubeId(item.url || '')
+      : item.type === 'vimeo'
+      ? item.url.match(/vimeo\.com\/(\d+)/)?.[1] || null
+      : null
+  const ghostMediaId = item.media_id || derivedGhostMediaId || (item.type === 'spotify' ? item.id : null)
+  if ((item.render_mode === 'ghost' || forceGhost) && ghostMediaId) {
+    return (
+      <div className="w-full h-full" data-tile-id={item.id} data-tile-type={`ghost-${item.type}`}>
+        <GhostTile
+          url={item.url}
+          platform={item.type}
+          media_id={ghostMediaId}
+          title={item.title || undefined}
+          artist={item.artist || undefined}
+          thumbnail_url={item.thumbnail_url_hq || item.thumbnail_url || undefined}
+        />
+      </div>
+    )
+  }
+
   const canonicalType = resolveCanonicalType(item.type, item.url || '', item.media_kind)
   const isAuto = aspect === 'auto'
 
@@ -257,32 +285,6 @@ export default function UnifiedTile({
           sizes={getImageSizes(size)}
           index={index}
           size={size}
-        />
-      </div>
-    )
-  }
-
-  // ── Ghost tile — de-branded media render ──
-  // In the sound room, force ghost rendering for audio platforms even without render_mode
-  const AUDIO_PLATFORMS = ['spotify', 'soundcloud', 'youtube', 'vimeo']
-  const forceGhost = isSoundRoom && AUDIO_PLATFORMS.includes(item.type)
-  const derivedGhostMediaId =
-    item.type === 'youtube'
-      ? extractYouTubeId(item.url || '')
-      : item.type === 'vimeo'
-      ? item.url.match(/vimeo\.com\/(\d+)/)?.[1] || null
-      : null
-  const ghostMediaId = item.media_id || derivedGhostMediaId || (item.type === 'spotify' ? item.id : null)
-  if ((item.render_mode === 'ghost' || forceGhost) && ghostMediaId) {
-    return (
-      <div className="w-full h-full" data-tile-id={item.id} data-tile-type={`ghost-${item.type}`}>
-        <GhostTile
-          url={item.url}
-          platform={item.type}
-          media_id={ghostMediaId}
-          title={item.title || undefined}
-          artist={item.artist || undefined}
-          thumbnail_url={item.thumbnail_url_hq || item.thumbnail_url || undefined}
         />
       </div>
     )
