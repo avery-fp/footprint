@@ -250,7 +250,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Cache social thumbnails to permanent Supabase Storage
-        if (ghostThumbnailHq && needsEnrich && parsed.type !== 'youtube') {
+        if (ghostThumbnailHq && needsEnrich && !['youtube', 'tiktok'].includes(parsed.type)) {
           const { cacheThumbnail } = await import('@/lib/media/cache-thumbnail')
           const cached = await cacheThumbnail(ghostThumbnailHq, parsed.url, serialNumber)
           if (cached) ghostThumbnailHq = cached
