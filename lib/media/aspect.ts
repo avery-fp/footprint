@@ -46,7 +46,14 @@ export function isVideoTile(type: string, url?: string): boolean {
  * Default public grid — aspect ratio bundled into the class string.
  * Used by PublicPage default layout.
  *
- * Pass isVideo=true for video tile dominance: videos always get col-span-2 row-span-2.
+ * 3-state topology:
+ *   S (1) = The Artifact — 1×1 square thumbnail
+ *   M (2) = The Statement — 2×1 landscape card (4:3)
+ *   L (3) = The Hero — 2×2 square anchor
+ *
+ * Size dictates aspect. No overrides.
+ *
+ * Pass isVideo=true for video tile dominance: videos always get col-span-2 row-span-1.
  */
 export function getGridClass(size: number, aspect: string | null | undefined, isVideo = false): string {
   // Video dominance — always prominent
@@ -57,24 +64,26 @@ export function getGridClass(size: number, aspect: string | null | undefined, is
     return 'col-span-2 row-span-1 aspect-video'
   }
   if (aspect === 'wide' || aspect === 'landscape') {
-    if (size >= 3) return 'col-span-2 row-span-1 md:col-span-4 md:row-span-2 aspect-video'
-    if (size >= 2) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-1 aspect-video'
+    if (size >= 3) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-2 aspect-video'
+    if (size >= 2) return 'col-span-2 row-span-1 md:col-span-2 md:row-span-1 aspect-video'
     return 'col-span-2 row-span-1 aspect-video'
   }
   if (aspect === 'tall' || aspect === 'portrait') {
-    if (size >= 3) return 'col-span-2 row-span-3 md:col-span-2 md:row-span-4 aspect-[3/4]'
-    if (size >= 2) return 'col-span-1 row-span-3 md:col-span-2 md:row-span-3 aspect-[3/4]'
+    if (size >= 3) return 'col-span-1 row-span-3 md:col-span-2 md:row-span-3 aspect-[3/4]'
+    if (size >= 2) return 'col-span-1 row-span-2 md:col-span-2 md:row-span-2 aspect-[3/4]'
     return 'col-span-1 row-span-2 aspect-[3/4]'
   }
-  // square or auto — default 1×1 tile
-  if (size >= 3) return 'col-span-2 row-span-2 md:col-span-3 md:row-span-3 aspect-square'
-  if (size >= 2) return 'col-span-2 row-span-2 aspect-square'
+  // 3-state topology: S (1×1 square) → M (2×1 landscape) → L (2×2 square)
+  if (size >= 3) return 'col-span-2 row-span-2 aspect-square'
+  if (size >= 2) return 'col-span-2 row-span-1 aspect-[4/3]'
   return 'aspect-square'
 }
 
 /**
  * Home-style grid — spanning only, no aspect class bundled.
  * Aspect is handled separately via getAspectClass().
+ *
+ * 3-state topology: S → M → L (same as getGridClass but without aspect classes).
  *
  * Pass isVideo=true for video tile dominance.
  */
@@ -87,17 +96,18 @@ export function getGridClassHome(size: number, aspect: string, isVideo = false):
     return 'col-span-2 row-span-1'
   }
   if (aspect === 'wide' || aspect === 'landscape') {
-    if (size >= 3) return 'col-span-2 row-span-1 md:col-span-4 md:row-span-2'
-    if (size >= 2) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-1'
+    if (size >= 3) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-2'
+    if (size >= 2) return 'col-span-2 row-span-1 md:col-span-2 md:row-span-1'
     return 'col-span-2 row-span-1'
   }
   if (aspect === 'tall' || aspect === 'portrait') {
-    if (size >= 3) return 'col-span-2 row-span-3 md:col-span-2 md:row-span-4'
-    if (size >= 2) return 'col-span-1 row-span-3 md:col-span-2 md:row-span-3'
+    if (size >= 3) return 'col-span-1 row-span-3 md:col-span-2 md:row-span-3'
+    if (size >= 2) return 'col-span-1 row-span-2 md:col-span-2 md:row-span-2'
     return 'col-span-1 row-span-2'
   }
-  if (size >= 3) return 'col-span-2 row-span-2 md:col-span-3 md:row-span-3'
-  if (size >= 2) return 'col-span-2 row-span-2'
+  // 3-state topology: S (1×1) → M (2×1) → L (2×2)
+  if (size >= 3) return 'col-span-2 row-span-2'
+  if (size >= 2) return 'col-span-2 row-span-1'
   return ''
 }
 
@@ -114,8 +124,11 @@ export function getAspectClass(aspect: string): string {
 
 /**
  * Object-fit class for content within a tile.
+ * M-state (size 2) forces cover so portrait content fills the landscape frame
+ * instead of letterboxing with empty bars.
  */
-export function getObjectFit(_aspect: string): string {
+export function getObjectFit(_aspect: string, size?: number): string {
+  if (size === 2) return 'object-cover'
   return 'object-contain'
 }
 
@@ -123,7 +136,7 @@ export function getObjectFit(_aspect: string): string {
  * Responsive sizes attribute for Next.js Image.
  */
 export function getImageSizes(size: number): string {
-  if (size >= 3) return '(max-width: 768px) 100vw, 880px'
-  if (size >= 2) return '(max-width: 768px) 50vw, 50vw'
+  if (size >= 3) return '(max-width: 768px) 100vw, 50vw'
+  if (size >= 2) return '(max-width: 768px) 100vw, 50vw'
   return '(max-width: 768px) 33vw, 25vw'
 }
