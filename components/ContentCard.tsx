@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import type { ContentType } from '@/lib/parser'
+import { detectVariant } from '@/lib/parser'
 import { audioManager } from '@/lib/audio-manager'
 import { parseEmbed, extractYouTubeId } from '@/lib/parseEmbed'
 import type { EmbedResult } from '@/lib/parseEmbed'
@@ -10,6 +11,8 @@ import GlassEmbedFrameExtracted, { GLASS_STYLE as GLASS_STYLE_IMPORTED, GlassPla
 import FieldBackground from '@/components/FieldBackground'
 import { transformImageUrl } from '@/lib/image'
 import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getBestThumbnailUrl, getYouTubeThumbnailCandidates } from '@/lib/media/thumbnails'
+import ArtifactShell from '@/components/ArtifactShell'
+import SocialEmbed from '@/components/SocialEmbed'
 
 // ════════════════════════════════════════
 // Glass Embed Frame — imported from extracted component
@@ -96,8 +99,13 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const [isLoaded, setIsLoaded] = useState(false)
   const [isInView, setIsInView] = useState(false)
   const [iframeFailed, setIframeFailed] = useState(false)
+  const [shellOpen, setShellOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const audioIdRef = useRef(`card-${content.id}`)
+
+  // FIDELIO: Detect post vs profile for social embeds
+  const socialVariant = detectVariant(content.type, content.url)
+  const hasSocialEmbed = ['twitter', 'tiktok', 'instagram'].includes(content.type)
 
   // IntersectionObserver — only load content when near viewport
   useEffect(() => {
@@ -484,41 +492,51 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }
 
   // ════════════════════════════════════════
-  // TWITTER / X — thumbnail first, text fallback
+  // TWITTER / X — first-party closed state, ArtifactShell on tap
+  // FIDELIO: No third-party scripts until shell opens
   // ════════════════════════════════════════
   if (content.type === 'twitter') {
     const thumbSrc = getBestThumbnailUrl(content)
     const tweetMatch = content.url.match(/(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]+)\/status\//)
-    const handle = tweetMatch?.[1] ? `@${tweetMatch[1]}` : null
+    const handleMatch = content.url.match(/(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]+)/)
+    const handle = (tweetMatch?.[1] || handleMatch?.[1]) ? `@${tweetMatch?.[1] || handleMatch?.[1]}` : null
 
     // If we have a thumbnail, render full-bleed — hide on error so text fallback shows
     if (thumbSrc) {
       return (
-        <a
-          href={content.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          ref={containerRef as any}
-          className={`block w-full h-full fp-tile overflow-hidden relative ${aspectClass}`}
-          style={{ background: 'rgba(255,255,255,0.04)' }}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={thumbSrc}
-            alt=""
-            className="w-full h-full object-cover absolute inset-0 z-[1]"
-            loading="lazy"
-            decoding="async"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-          />
-          {/* Text fallback — visible when thumbnail fails */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-5">
-            <span className="absolute top-2.5 right-3 text-[13px] text-white/20 select-none" style={{ fontWeight: 300 }}>𝕏</span>
-            <p className="whitespace-pre-wrap text-center text-white/80 fp-text-shadow text-[14px] leading-snug line-clamp-6" style={{ fontWeight: 500 }}>
-              {content.title || (handle ? `Tweet by ${handle}` : 'Tweet')}
-            </p>
+        <>
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => setShellOpen(true)}
+            onKeyDown={(e) => { if (e.key === 'Enter') setShellOpen(true) }}
+            ref={containerRef as any}
+            className={`block w-full h-full fp-tile overflow-hidden relative cursor-pointer ${aspectClass}`}
+            style={{ background: 'rgba(255,255,255,0.04)' }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={thumbSrc}
+              alt=""
+              className="w-full h-full object-cover absolute inset-0 z-[1]"
+              loading="lazy"
+              decoding="async"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+            />
+            {/* Text fallback — visible when thumbnail fails */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-5">
+              <span className="absolute top-2.5 right-3 text-[13px] text-white/20 select-none" style={{ fontWeight: 300 }}>𝕏</span>
+              <p className="whitespace-pre-wrap text-center text-white/80 fp-text-shadow text-[14px] leading-snug line-clamp-6" style={{ fontWeight: 500 }}>
+                {content.title || (handle ? `Tweet by ${handle}` : 'Tweet')}
+              </p>
+            </div>
           </div>
-        </a>
+          {shellOpen && (
+            <ArtifactShell onDismiss={() => setShellOpen(false)} fallbackUrl={content.url}>
+              <SocialEmbed url={content.url} type="twitter" variant={socialVariant} onError={() => setShellOpen(false)} />
+            </ArtifactShell>
+          )}
+        </>
       )
     }
 
@@ -533,29 +551,38 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       : 'text-[11px] tracking-normal leading-relaxed'
 
     return (
-      <a
-        href={content.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={`block w-full h-full fp-tile overflow-hidden relative flex flex-col items-center justify-center p-5 ${aspectClass}`}
-        style={{ background: 'rgba(255,255,255,0.04)' }}
-      >
-        <span className="absolute top-2.5 right-3 text-[13px] text-white/20 select-none" style={{ fontWeight: 300 }}>𝕏</span>
-        <p
-          className={`whitespace-pre-wrap text-center text-white/80 fp-text-shadow ${typo} line-clamp-6`}
-          style={{ fontWeight: 500 }}
+      <>
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setShellOpen(true)}
+          onKeyDown={(e) => { if (e.key === 'Enter') setShellOpen(true) }}
+          className={`block w-full h-full fp-tile overflow-hidden relative flex flex-col items-center justify-center p-5 cursor-pointer ${aspectClass}`}
+          style={{ background: 'rgba(255,255,255,0.04)' }}
         >
-          {tweetText}
-        </p>
-        {handle && !isFallback && (
-          <span className="mt-2.5 text-[9px] text-white/40 uppercase tracking-[0.08em] font-mono" style={{ fontWeight: 500 }}>{handle}</span>
+          <span className="absolute top-2.5 right-3 text-[13px] text-white/20 select-none" style={{ fontWeight: 300 }}>𝕏</span>
+          <p
+            className={`whitespace-pre-wrap text-center text-white/80 fp-text-shadow ${typo} line-clamp-6`}
+            style={{ fontWeight: 500 }}
+          >
+            {tweetText}
+          </p>
+          {handle && !isFallback && (
+            <span className="mt-2.5 text-[9px] text-white/40 uppercase tracking-[0.08em] font-mono" style={{ fontWeight: 500 }}>{handle}</span>
+          )}
+        </div>
+        {shellOpen && (
+          <ArtifactShell onDismiss={() => setShellOpen(false)} fallbackUrl={content.url}>
+            <SocialEmbed url={content.url} type="twitter" variant={socialVariant} onError={() => setShellOpen(false)} />
+          </ArtifactShell>
         )}
-      </a>
+      </>
     )
   }
 
   // ════════════════════════════════════════
-  // TIKTOK — thumbnail with text fallback on failure
+  // TIKTOK — first-party closed state, ArtifactShell on tap
+  // FIDELIO: No third-party scripts until shell opens
   // ════════════════════════════════════════
   if (content.type === 'tiktok') {
     const thumbSrc = getBestThumbnailUrl(content)
@@ -568,40 +595,49 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       : 'text-[11px] tracking-normal leading-relaxed'
 
     return (
-      <a
-        href={content.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        ref={containerRef as any}
-        className={`block w-full h-full fp-tile overflow-hidden relative ${aspectClass}`}
-        style={{ background: 'rgba(255,255,255,0.04)' }}
-      >
-        {thumbSrc && (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
-            src={thumbSrc}
-            alt=""
-            className="w-full h-full object-cover absolute inset-0 z-[1]"
-            loading="lazy"
-            decoding="async"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-          />
-        )}
-        {/* Text fallback — visible when no thumbnail or image fails */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center p-5">
-          <p
-            className={`whitespace-pre-wrap text-center text-white/80 fp-text-shadow ${typo} line-clamp-6`}
-            style={{ fontWeight: 500 }}
-          >
-            {tiktokText}
-          </p>
+      <>
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setShellOpen(true)}
+          onKeyDown={(e) => { if (e.key === 'Enter') setShellOpen(true) }}
+          ref={containerRef as any}
+          className={`block w-full h-full fp-tile overflow-hidden relative cursor-pointer ${aspectClass}`}
+          style={{ background: 'rgba(255,255,255,0.04)' }}
+        >
+          {thumbSrc && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={thumbSrc}
+              alt=""
+              className="w-full h-full object-cover absolute inset-0 z-[1]"
+              loading="lazy"
+              decoding="async"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+            />
+          )}
+          {/* Text fallback — visible when no thumbnail or image fails */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-5">
+            <p
+              className={`whitespace-pre-wrap text-center text-white/80 fp-text-shadow ${typo} line-clamp-6`}
+              style={{ fontWeight: 500 }}
+            >
+              {tiktokText}
+            </p>
+          </div>
         </div>
-      </a>
+        {shellOpen && (
+          <ArtifactShell onDismiss={() => setShellOpen(false)} fallbackUrl={content.url}>
+            <SocialEmbed url={content.url} type="tiktok" variant={socialVariant} onError={() => setShellOpen(false)} />
+          </ArtifactShell>
+        )}
+      </>
     )
   }
 
   // ════════════════════════════════════════
-  // INSTAGRAM — thumbnail with text fallback on failure
+  // INSTAGRAM — first-party closed state, ArtifactShell on tap
+  // FIDELIO: No third-party scripts until shell opens
   // ════════════════════════════════════════
   if (content.type === 'instagram') {
     const thumbSrc = getBestThumbnailUrl(content)
@@ -614,35 +650,43 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       : 'text-[11px] tracking-normal leading-relaxed'
 
     return (
-      <a
-        href={content.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        ref={containerRef as any}
-        className={`block w-full h-full fp-tile overflow-hidden relative ${aspectClass}`}
-        style={{ background: 'rgba(255,255,255,0.04)' }}
-      >
-        {thumbSrc && (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
-            src={thumbSrc}
-            alt=""
-            className="w-full h-full object-cover absolute inset-0 z-[1]"
-            loading="lazy"
-            decoding="async"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-          />
-        )}
-        {/* Text fallback — visible when no thumbnail or image fails */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center p-5">
-          <p
-            className={`whitespace-pre-wrap text-center text-white/80 fp-text-shadow ${typo} line-clamp-6`}
-            style={{ fontWeight: 500 }}
-          >
-            {igText}
-          </p>
+      <>
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setShellOpen(true)}
+          onKeyDown={(e) => { if (e.key === 'Enter') setShellOpen(true) }}
+          ref={containerRef as any}
+          className={`block w-full h-full fp-tile overflow-hidden relative cursor-pointer ${aspectClass}`}
+          style={{ background: 'rgba(255,255,255,0.04)' }}
+        >
+          {thumbSrc && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={thumbSrc}
+              alt=""
+              className="w-full h-full object-cover absolute inset-0 z-[1]"
+              loading="lazy"
+              decoding="async"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+            />
+          )}
+          {/* Text fallback — visible when no thumbnail or image fails */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-5">
+            <p
+              className={`whitespace-pre-wrap text-center text-white/80 fp-text-shadow ${typo} line-clamp-6`}
+              style={{ fontWeight: 500 }}
+            >
+              {igText}
+            </p>
+          </div>
         </div>
-      </a>
+        {shellOpen && (
+          <ArtifactShell onDismiss={() => setShellOpen(false)} fallbackUrl={content.url}>
+            <SocialEmbed url={content.url} type="instagram" variant={socialVariant} onError={() => setShellOpen(false)} />
+          </ArtifactShell>
+        )}
+      </>
     )
   }
 

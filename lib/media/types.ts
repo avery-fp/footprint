@@ -31,6 +31,8 @@ export type MediaProvider =
   | 'soundcloud'
   | 'vimeo'
   | 'bandcamp'
+  | 'github'
+  | 'letterboxd'
   | 'uploaded_video'
   | 'generic'
 
@@ -77,6 +79,8 @@ export const PROVIDER_RENDER_DEFAULTS: Record<
   soundcloud:     { preferredMode: 'embed',        fallbackMode: 'preview_card' },
   vimeo:          { preferredMode: 'embed',        fallbackMode: 'preview_card' },
   bandcamp:       { preferredMode: 'embed',        fallbackMode: 'preview_card' },
+  github:         { preferredMode: 'preview_card', fallbackMode: 'link_only'    },
+  letterboxd:     { preferredMode: 'preview_card', fallbackMode: 'link_only'    },
   uploaded_video: { preferredMode: 'native_video', fallbackMode: 'preview_card' },
   generic:        { preferredMode: 'preview_card', fallbackMode: 'link_only'    },
 }
@@ -89,9 +93,12 @@ const KIND_MAP: Record<string, MediaKind> = {
   video:      'video',
   spotify:    'music',
   soundcloud: 'music',
+  bandcamp:   'music',
   twitter:    'social',
   instagram:  'social',
   tiktok:     'social',
+  github:     'link',
+  letterboxd: 'link',
   image:      'image',
   link:       'link',
   thought:    'link',
@@ -112,6 +119,9 @@ const PROVIDER_MAP: Record<string, MediaProvider> = {
   tiktok:     'tiktok',
   vimeo:      'vimeo',
   soundcloud: 'soundcloud',
+  bandcamp:   'bandcamp',
+  github:     'github',
+  letterboxd: 'letterboxd',
   video:      'uploaded_video',
 }
 
