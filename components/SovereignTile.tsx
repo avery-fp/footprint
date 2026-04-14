@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useSearchParams } from 'next/navigation'
 import ClaimCeremony from '@/components/ClaimCeremony'
 import AuthModal from '@/components/auth/AuthModal'
 
@@ -45,6 +46,11 @@ export default function SovereignTile({ slug, onDismiss, onComplete, sessionId: 
   const finalizeCalledRef = useRef(false)
   const usernameInputRef = useRef<HTMLInputElement>(null)
 
+  // Surface ?auth_error= from a failed /auth/callback round-trip so the modal
+  // can display the real reason (otp_expired, access_denied, verify, ...).
+  const searchParams = useSearchParams()
+  const authError = searchParams?.get('auth_error') ?? null
+
   // ── ONE init effect — replaces 5 racing effects ──
   useEffect(() => {
     // sessionId and returnUsername come from props, captured by PublicPage
@@ -75,16 +81,27 @@ export default function SovereignTile({ slug, onDismiss, onComplete, sessionId: 
           // Stripe return — finalize immediately
           setPhase('processing')
           finalize(sessionId, returnUsername)
+        } else if (authError && !authed) {
+          // Magic-link / OAuth callback came back with an error —
+          // open the modal immediately so the reason is visible.
+          setPhase('auth')
         } else {
           setPhase('username')
         }
       })
       .catch(() => {
         setIsAuthenticated(false)
-        setPhase('username')
+        setPhase(authError ? 'auth' : 'username')
       })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Late-arriving auth_error (e.g. router.push after an inline API failure)
+  // also forces the modal open so the reason never vanishes silently.
+  useEffect(() => {
+    if (!authError) return
+    setPhase(prev => (prev === 'ceremony' || prev === 'processing' || prev === 'done') ? prev : 'auth')
+  }, [authError])
 
   // ── Finalize Stripe payment ──
   async function finalize(sessionId: string, username: string) {
@@ -226,6 +243,7 @@ export default function SovereignTile({ slug, onDismiss, onComplete, sessionId: 
           <AuthModal
             redirectAfterAuth={`/${slug}?claim=1&username=${encodeURIComponent(username)}`}
             showPrice={seedPhase === false}
+            authError={authError}
             onClose={() => setPhase('username')}
           />
         </div>

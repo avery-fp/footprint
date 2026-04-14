@@ -44,6 +44,17 @@ export function createRouteHandlerSupabaseAuthClient(request: NextRequest) {
           pendingCookies.set(name, { type: 'remove', options })
         },
       },
+      // Pin PKCE. Magic-link + OAuth must use the same code-verifier flow so
+      // the server callback's exchangeCodeForSession has a verifier to match
+      // against. detectSessionInUrl:false because we handle the URL manually
+      // in the route handler — Supabase must not try to parse a fragment it
+      // will never see in a server context.
+      auth: {
+        flowType: 'pkce',
+        detectSessionInUrl: false,
+        persistSession: true,
+        autoRefreshToken: true,
+      },
     }
   )
 

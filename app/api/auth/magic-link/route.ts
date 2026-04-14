@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { nanoid } from 'nanoid'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { createRouteHandlerSupabaseAuthClient } from '@/lib/supabase-auth-ssr'
 
 /**
  * POST /api/auth/magic-link
  *
  * Sends a magic link email via Supabase Auth.
  * Works for both existing users (login) and new users (will create on callback).
+ *
+ * Must use the cookie-aware SSR client so the PKCE code_verifier is persisted
+ * in a response cookie. Without this, Supabase generates a verifier server-
+ * side but it never reaches the browser, and the callback's
+ * exchangeCodeForSession always fails.
  */
 
 // Rate limit: 3 magic links per email per 15 minutes
@@ -55,20 +60,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Magic links not configured' }, { status: 500 })
     }
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey)
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.footprint.onl'
+    const { supabase, applyPendingCookies } = createRouteHandlerSupabaseAuthClient(request)
 
+    // Pin the callback to the canonical production origin. This must match
+    // an entry in the Supabase dashboard's redirect URL allow-list exactly;
+    // a derived baseUrl can silently drift and cause "redirect URL mismatch"
+    // at the Supabase edge.
     const { error } = await supabase.auth.signInWithOtp({
       email: cleanEmail,
       options: {
-        emailRedirectTo: `${baseUrl}/auth/callback`,
+        emailRedirectTo: 'https://www.footprint.onl/auth/callback',
         shouldCreateUser: true,
       },
     })
 
     if (error) {
       console.error('[magic-link] Supabase OTP error:', error)
-      return NextResponse.json({ error: 'Failed to send magic link' }, { status: 500 })
+      return applyPendingCookies(NextResponse.json({ error: 'Failed to send magic link' }, { status: 500 }))
     }
 
     // Also store in our magic_links table for tracking
@@ -83,7 +91,10 @@ export async function POST(request: NextRequest) {
       ip_address: ip,
     })
 
-    return NextResponse.json({ success: true })
+    // applyPendingCookies is critical — it carries the PKCE code_verifier
+    // cookie back to the browser so the subsequent /auth/callback can
+    // exchange the code.
+    return applyPendingCookies(NextResponse.json({ success: true }))
   } catch (err) {
     console.error('[magic-link] unexpected error:', err)
     return NextResponse.json({ error: 'Something went wrong' }, { status: 500 })

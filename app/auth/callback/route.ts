@@ -1,22 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import type { EmailOtpType, User } from '@supabase/supabase-js'
 import { createSessionToken, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS, normalizeEmail } from '@/lib/auth'
 import { createRouteHandlerSupabaseAuthClient } from '@/lib/supabase-auth-ssr'
 
 /**
  * GET /auth/callback
  *
- * ONE JOB: exchange the OAuth code, issue a session, and send the
- * user to their own HOME. Never redirect to /login, /welcome,
- * /dashboard, or any other SaaS slop page.
+ * ONE JOB: exchange the OAuth code (or verify the magic-link token_hash),
+ * issue a session, and send the user to their own HOME. Never redirect to
+ * /login, /welcome, /dashboard, or any other SaaS slop page.
  *
- * If the user has no footprint yet, create a draft one immediately
- * so they always land in their own space.
+ * Dual branch by design:
+ *   - ?code=...                  → PKCE exchange (OAuth + magic link when the
+ *                                  link is opened in the same browser that
+ *                                  requested it and still holds the verifier)
+ *   - ?token_hash=...&type=...   → OTP verify (magic link opened in a
+ *                                  different browser/app — Gmail→Safari etc.)
+ *
+ * On error we preserve Supabase's real reason (otp_expired, access_denied,
+ * server_error, ...) in ?auth_error= so the modal can surface it. Missing
+ * params → /ae?claim=1&auth_error=missing_params.
+ *
+ * If the user has no footprint yet, create a draft one immediately so they
+ * always land in their own space.
  */
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  const error = searchParams.get('error')
+  const tokenHash = searchParams.get('token_hash')
+  const otpType = searchParams.get('type') as EmailOtpType | null
+  const errParam = searchParams.get('error')
+  const errCode = searchParams.get('error_code')
 
   // Read the slug from cookie or query param — where the user came from
   const rawPostAuth = request.cookies.get('post_auth_redirect')?.value || ''
@@ -27,20 +42,33 @@ export async function GET(request: NextRequest) {
     ? redirectParam
     : '/home' // absolute fallback — resolve to user's own home
 
-  if (error || !code) {
-    // Even on error, go back to the slug — the Sovereign Tile handles state
-    const errUrl = new URL(returnPath, origin)
-    errUrl.searchParams.set('auth_error', 'oauth')
+  // Build an error redirect. Reason strings are stable slugs — the modal
+  // reads them verbatim. missing_params has no originating slug context,
+  // so it lands on the public /ae nebula with claim flow open.
+  const redirectWithError = (reason: string) => {
+    const errUrl = reason === 'missing_params'
+      ? new URL('/ae', origin)
+      : new URL(returnPath, origin)
+    if (reason === 'missing_params') errUrl.searchParams.set('claim', '1')
+    errUrl.searchParams.set('auth_error', reason)
     const response = NextResponse.redirect(errUrl)
     if (rawPostAuth) response.cookies.set('post_auth_redirect', '', { path: '/', maxAge: 0 })
     return response
+  }
+
+  // Supabase returned an error directly (e.g. link expired, access denied).
+  // Preserve the specific code so the UI can say "otp_expired" not "oauth".
+  if (errParam) {
+    return redirectWithError(errCode || errParam)
+  }
+  if (!code && !tokenHash) {
+    return redirectWithError('missing_params')
   }
 
   let stage = 'init'
   let applyPendingCookies: ((r: NextResponse) => NextResponse) = (r) => r
 
   try {
-    stage = 'exchange'
     const authSsr = createRouteHandlerSupabaseAuthClient(request)
     applyPendingCookies = authSsr.applyPendingCookies
     const authClient = authSsr.supabase
@@ -51,20 +79,35 @@ export async function GET(request: NextRequest) {
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
-    const { data: authData, error: exchangeError } = await authClient.auth.exchangeCodeForSession(code)
-
-    if (exchangeError || !authData?.user?.email) {
-      console.error('[callback:exchange]', exchangeError)
-      const errUrl = new URL(returnPath, origin)
-      errUrl.searchParams.set('auth_error', 'exchange')
-      const response = NextResponse.redirect(errUrl)
-      if (rawPostAuth) response.cookies.set('post_auth_redirect', '', { path: '/', maxAge: 0 })
-      return applyPendingCookies(response)
+    // ── Dual branch: verifyOtp (token_hash) vs exchangeCodeForSession (code) ──
+    // verifyOtp returns { user: User | null; session: Session | null };
+    // exchangeCodeForSession returns a stricter union. Unify on User so the
+    // downstream code reads a single, non-null shape.
+    let authUser: User
+    if (tokenHash && otpType) {
+      stage = 'verify'
+      const { data, error: verifyError } = await authClient.auth.verifyOtp({
+        token_hash: tokenHash,
+        type: otpType,
+      })
+      if (verifyError || !data?.user?.email) {
+        console.error('[callback:verify]', verifyError)
+        return applyPendingCookies(redirectWithError('verify'))
+      }
+      authUser = data.user
+    } else {
+      stage = 'exchange'
+      const { data, error: exchangeError } = await authClient.auth.exchangeCodeForSession(code!)
+      if (exchangeError || !data?.user?.email) {
+        console.error('[callback:exchange]', exchangeError)
+        return applyPendingCookies(redirectWithError('exchange'))
+      }
+      authUser = data.user
     }
 
-    const email = normalizeEmail(authData.user.email)
-    const providerName = authData.user.app_metadata?.provider || 'oauth'
-    const userMeta = authData.user.user_metadata || {}
+    const email = normalizeEmail(authUser.email!)
+    const providerName = authUser.app_metadata?.provider || 'email'
+    const userMeta = authUser.user_metadata || {}
     const displayName = userMeta.full_name || userMeta.name || ''
     const avatarUrl = userMeta.avatar_url || userMeta.picture || ''
 
@@ -82,7 +125,7 @@ export async function GET(request: NextRequest) {
         .insert({
           email,
           auth_provider: providerName,
-          oauth_provider_id: authData.user.id,
+          oauth_provider_id: authUser.id,
           display_name: displayName,
           avatar_url: avatarUrl,
         })
@@ -104,11 +147,7 @@ export async function GET(request: NextRequest) {
     if (!user) {
       // Creation failed — still go back
       console.error('[callback:user] user insert returned null')
-      const errUrl = new URL(returnPath, origin)
-      errUrl.searchParams.set('auth_error', 'user')
-      const response = NextResponse.redirect(errUrl)
-      if (rawPostAuth) response.cookies.set('post_auth_redirect', '', { path: '/', maxAge: 0 })
-      return applyPendingCookies(response)
+      return applyPendingCookies(redirectWithError('user'))
     }
 
     stage = 'footprint'
@@ -180,10 +219,6 @@ export async function GET(request: NextRequest) {
     return applyPendingCookies(response)
   } catch (err) {
     console.error(`[callback:${stage}]`, err)
-    const errUrl = new URL(returnPath, origin)
-    errUrl.searchParams.set('auth_error', stage)
-    const response = NextResponse.redirect(errUrl)
-    if (rawPostAuth) response.cookies.set('post_auth_redirect', '', { path: '/', maxAge: 0 })
-    return applyPendingCookies(response)
+    return applyPendingCookies(redirectWithError(stage))
   }
 }
