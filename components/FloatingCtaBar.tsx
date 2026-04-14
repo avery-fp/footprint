@@ -29,7 +29,7 @@ export default function FloatingCtaBar({ isOwner = false }: { isOwner?: boolean 
       const res = await fetch('/api/auth/magic-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: trimmed }),
+        body: JSON.stringify({ email: trimmed, redirect: window.location.pathname }),
       })
       if (res.ok) {
         setSent(true)

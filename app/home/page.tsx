@@ -25,8 +25,10 @@ export default async function HomeResolver() {
         .from('footprints')
         .select('username')
         .eq('user_id', session.userId)
+        .order('is_primary', { ascending: false })
+        .order('created_at', { ascending: true })
         .limit(1)
-        .single()
+        .maybeSingle()
 
       if (footprint?.username) {
         redirect(`/${footprint.username}/home`)

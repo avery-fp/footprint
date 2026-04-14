@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerSupabaseAuthClient, getCanonicalAppBaseUrl } from '@/lib/supabase-auth-ssr'
+import { sanitizeRedirect } from '@/lib/redirect'
 
 /**
  * POST /api/auth/oauth
@@ -20,8 +21,9 @@ export async function POST(request: NextRequest) {
     const callbackUrl = new URL('/auth/callback', baseUrl)
     // Pass post-auth redirect through the OAuth flow as a query param
     // so it survives even if the cookie doesn't make it through cross-origin redirects
-    if (redirect && typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')) {
-      callbackUrl.searchParams.set('redirect', redirect)
+    const safeRedirect = sanitizeRedirect(redirect)
+    if (safeRedirect) {
+      callbackUrl.searchParams.set('redirect', safeRedirect)
     }
     const redirectTo = callbackUrl.toString()
 
