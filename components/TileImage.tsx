@@ -11,9 +11,10 @@ interface TileImageProps {
   index: number
   aspect?: string
   layout?: string
+  size?: number
 }
 
-export default function TileImage({ src, alt, sizes, index, aspect, layout }: TileImageProps) {
+export default function TileImage({ src, alt, sizes, index, aspect, layout, size }: TileImageProps) {
   const [failed, setFailed] = useState(false)
   const [loaded, setLoaded] = useState(false)
 
@@ -47,7 +48,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout }: Ti
           width={800}
           height={800}
           sizes={sizes}
-          className={`${isAuto ? 'w-full h-auto' : 'absolute inset-0 w-full h-full'} ${getObjectFit(aspect || 'square')} transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+          className={`${isAuto ? 'w-full h-auto' : 'absolute inset-0 w-full h-full'} ${getObjectFit(aspect || 'square', size)} transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
           loading={index < 4 ? 'eager' : 'lazy'}
           quality={90}
           onLoad={() => setLoaded(true)}

@@ -243,6 +243,7 @@ export default function UnifiedTile({
               index={index}
               aspect={aspect}
               layout={layout}
+              size={size}
             />
           </ZoomableImage>
         </div>
@@ -255,6 +256,7 @@ export default function UnifiedTile({
           alt={item.title || ''}
           sizes={getImageSizes(size)}
           index={index}
+          size={size}
         />
       </div>
     )

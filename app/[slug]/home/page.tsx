@@ -23,7 +23,6 @@ import { getFootprintDisplayTitle } from '@/lib/footprint'
 import {
   resolveAspect as resolveAspectShared,
   getGridClass as getGridClassShared,
-  getAspectClass as getAspectClassShared,
   getObjectFit as getObjectFitShared,
 } from '@/lib/media/aspect'
 import {
@@ -57,7 +56,6 @@ type PageMode =
 // Aspect / grid helpers — imported from @/lib/media/aspect
 const resolveAspect = resolveAspectShared
 const getGridClass = getGridClassShared
-const getAspectClass = getAspectClassShared
 const getObjectFit = getObjectFitShared
 
 function SortableTile({
@@ -163,10 +161,9 @@ function SortableTile({
   }
 
   // Grid class based on size × aspect — determines col/row spanning and aspect ratio
-  // Video dominance: videos always get col-span-2 row-span-2
-  const gridClass = getGridClass(size, aspect, isVideo)
-  const aspectClass = getAspectClass(isVideo ? 'wide' : aspect)
-  const sizeClass = `${gridClass} ${aspectClass}`.trim()
+  // 3-state topology: S (1×1 square) → M (2×1 landscape 4:3) → L (2×2 square)
+  // getGridClass bundles aspect ratios, so no separate aspectClass needed.
+  const sizeClass = getGridClass(size, aspect, isVideo)
 
   // Polaroid reveal — tile develops from frosted to crystal clear
   const isTemp = id.toString().startsWith('temp-')
@@ -310,7 +307,7 @@ function SortableTile({
               )}
             </>
           ) : content.url?.startsWith('data:') ? (
-            <img src={content.url} alt="" className={`${aspect === 'auto' ? 'w-full h-auto' : 'absolute inset-0 w-full h-full'} ${getObjectFit(aspect)}`} />
+            <img src={content.url} alt="" className={`${aspect === 'auto' ? 'w-full h-auto' : 'absolute inset-0 w-full h-full'} ${getObjectFit(aspect, size)}`} />
           ) : content.url ? (
             <Image
               src={content.url} unoptimized={content.url?.startsWith('data:')}
@@ -318,7 +315,7 @@ function SortableTile({
               width={400}
               height={400}
               sizes="(max-width: 640px) 50vw, 25vw"
-              className={`${aspect === 'auto' ? 'w-full h-auto' : 'absolute inset-0 w-full h-full'} ${getObjectFit(aspect)}`}
+              className={`${aspect === 'auto' ? 'w-full h-auto' : 'absolute inset-0 w-full h-full'} ${getObjectFit(aspect, size)}`}
               loading="lazy"
               decoding="async"
               quality={75}
@@ -343,7 +340,7 @@ function SortableTile({
         ) : (
           <div className={`${aspect === 'auto' ? 'w-full min-h-[80px]' : 'absolute inset-0'} flex flex-col items-center justify-center bg-white/[0.05] p-2`}>
             {preferredThumbnailUrl ? (
-              <Image src={preferredThumbnailUrl} alt="" width={200} height={200} sizes="(max-width: 640px) 50vw, 25vw" className={`${aspect === 'auto' ? 'w-full h-auto' : 'absolute inset-0 w-full h-full'} ${getObjectFit(aspect)}`} loading="lazy" decoding="async" quality={90}
+              <Image src={preferredThumbnailUrl} alt="" width={200} height={200} sizes="(max-width: 640px) 50vw, 25vw" className={`${aspect === 'auto' ? 'w-full h-auto' : 'absolute inset-0 w-full h-full'} ${getObjectFit(aspect, size)}`} loading="lazy" decoding="async" quality={90}
                 onError={(e) => {
                   const img = e.target as HTMLImageElement
                   if (!applyNextThumbnailFallback(img, thumbnailCandidates)) {
@@ -2274,11 +2271,11 @@ export default function EditPage() {
                 )
               )}
 
-              {/* Resize — segmented control */}
+              {/* Resize — 3-state topology: S (Artifact) → M (Statement) → L (Hero) */}
               <div className="flex items-center justify-between py-3">
                 <span className="text-sm text-white/50 font-mono">size</span>
                 <div className="flex gap-1 bg-white/[0.04] rounded-lg p-0.5">
-                  {[1, 2, 3].map(s => (
+                  {([1, 2, 3] as const).map(s => (
                     <button
                       key={s}
                       onClick={() => setTileSize(mode.tileId, s)}
@@ -2288,7 +2285,7 @@ export default function EditPage() {
                           : 'text-white/40 hover:text-white/60'
                       }`}
                     >
-                      {s}x
+                      {s === 1 ? 'S' : s === 2 ? 'M' : 'L'}
                     </button>
                   ))}
                 </div>
