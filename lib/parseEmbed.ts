@@ -51,7 +51,8 @@ function parseYouTube(url: string): EmbedResult | null {
   if (!m) return null
   return {
     platform: 'youtube',
-    embedUrl: `https://www.youtube-nocookie.com/embed/${m[1]}?autoplay=0&rel=0&iv_load_policy=3&playsinline=1`,
+    // Facade mode — autoplay off. The iframe mounted on tap uses the default (autoplay on).
+    embedUrl: buildYouTubeEmbedUrl(m[1], { autoplay: false, mute: false }),
     height: 0, // aspect-ratio driven
     aspectRatio: '16/9',
     tier: 1,
@@ -145,6 +146,33 @@ function parseFigma(url: string): EmbedResult | null {
     aspectRatio: '16/9',
     tier: 2,
   }
+}
+
+// ── YouTube embed URL builder — one source of truth ────────
+// Spec: AE Presentation Layer — Task 2 (YouTube Consolidation)
+// Every `youtube-nocookie.com/embed/...` URL in the app goes through this.
+// Default params enforce de-branding: modestbranding + rel=0 + iv_load_policy=3.
+// autoplay/mute default true because the dominant call site is the facade
+// iframe mounted on tap, where autoplay is desired; `mute=1` is required for
+// mobile-Safari autoplay compliance. Callers that need a non-autoplaying URL
+// (e.g. parseYouTube below, for the identity-intake pipeline) pass
+// `{ autoplay: false, mute: false }` explicitly.
+export function buildYouTubeEmbedUrl(
+  videoId: string,
+  opts: { autoplay?: boolean; mute?: boolean; start?: number } = {}
+): string {
+  const { autoplay = true, mute = true, start = 0 } = opts
+  const params = new URLSearchParams({
+    autoplay: autoplay ? '1' : '0',
+    mute: mute ? '1' : '0',
+    enablejsapi: '1',
+    rel: '0',
+    modestbranding: '1',
+    iv_load_policy: '3',
+    playsinline: '1',
+  })
+  if (start > 0) params.set('start', String(start))
+  return `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}`
 }
 
 // ── Main entry point ────────────────────────────────────────

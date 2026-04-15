@@ -5,7 +5,7 @@ import Image from 'next/image'
 import type { ContentType } from '@/lib/parser'
 import { detectVariant } from '@/lib/parser'
 import { audioManager } from '@/lib/audio-manager'
-import { parseEmbed, extractYouTubeId } from '@/lib/parseEmbed'
+import { parseEmbed, extractYouTubeId, buildYouTubeEmbedUrl } from '@/lib/parseEmbed'
 import type { EmbedResult } from '@/lib/parseEmbed'
 import GlassEmbedFrameExtracted, { GLASS_STYLE as GLASS_STYLE_IMPORTED, GlassPlaceholder as GlassPlaceholderExtracted } from '@/components/GlassEmbedFrame'
 import FieldBackground from '@/components/FieldBackground'
@@ -13,6 +13,8 @@ import { transformImageUrl } from '@/lib/image'
 import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getBestThumbnailUrl, getYouTubeThumbnailCandidates } from '@/lib/media/thumbnails'
 import ArtifactShell from '@/components/ArtifactShell'
 import SocialEmbed from '@/components/SocialEmbed'
+import TextExpandTile from '@/components/TextExpandTile'
+import FallbackCard from '@/components/FallbackCard'
 
 // ════════════════════════════════════════
 // Glass Embed Frame — imported from extracted component
@@ -102,6 +104,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const [isInView, setIsInView] = useState(false)
   const [iframeFailed, setIframeFailed] = useState(false)
   const [shellOpen, setShellOpen] = useState(false)
+  // Spec: AE Presentation Layer — Task 3. Thumb 404 → FallbackCard, not gray box.
+  const [socialThumbFailed, setSocialThumbFailed] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const audioIdRef = useRef(`card-${content.id}`)
 
@@ -172,7 +176,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     // isExpanded: skip facade, render iframe immediately (used in lightbox)
     if (isExpanded) {
       const thumbSrc = youtubeThumbCandidates[0]
-      const ytSrc = `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=1&enablejsapi=1&rel=0&iv_load_policy=3&playsinline=1`
+      const ytSrc = buildYouTubeEmbedUrl(youtubeId)
       return (
         <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative" style={{ background: '#000' }}>
           <FieldBackground imageUrl={thumbSrc} intensity="embed" />
@@ -222,7 +226,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       )
     }
     // YouTube activated state — mute=1 for reliable autoplay, postMessage unmutes after load
-    const ytActivatedSrc = `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=1&enablejsapi=1&rel=0&iv_load_policy=3&playsinline=1`
+    const ytActivatedSrc = buildYouTubeEmbedUrl(youtubeId)
     return (
       <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative" style={{ background: '#000' }}>
         <FieldBackground imageUrl={youtubeThumbCandidates[0]} intensity="embed" />
@@ -452,45 +456,12 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }
 
   // ════════════════════════════════════════
-  // THOUGHT — text tile with glass background
+  // THOUGHT — text tile with glass background + E-State expansion
+  // Spec: AE Presentation Layer — Task 1
   // ════════════════════════════════════════
   if (content.type === 'thought') {
     const text = content.title || content.description || ''
-    const len = text.length
-    const typo = len <= 6
-      ? 'text-[28px] font-light tracking-[-0.035em] leading-none'
-      : len <= 20
-      ? 'text-[18px] font-light tracking-[-0.025em] leading-tight'
-      : len <= 60
-      ? 'text-[15px] font-light tracking-[-0.01em] leading-snug'
-      : 'text-[15px] font-light tracking-[-0.01em] leading-relaxed'
-
-    if (isPublicView) {
-      return (
-        <div
-          className="w-full h-full flex items-center justify-center p-5"
-          style={{
-            background: 'rgba(255, 255, 255, 0.06)',
-            backdropFilter: 'blur(20px) saturate(120%)',
-            WebkitBackdropFilter: 'blur(20px) saturate(120%)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            minHeight: '200px',
-          }}
-        >
-          <p className={`whitespace-pre-wrap text-center text-white ${typo}`} style={{ fontWeight: 300, lineHeight: 1.5 }}>
-            {text}
-          </p>
-        </div>
-      )
-    }
-
-    return (
-      <div className="w-full h-full fp-tile fp-surface flex items-center justify-center p-5">
-        <p className={`whitespace-pre-wrap text-center opacity-85 ${typo}`}>
-          {text}
-        </p>
-      </div>
-    )
+    return <TextExpandTile text={text} isPublicView={isPublicView} />
   }
 
   // ════════════════════════════════════════
@@ -503,7 +474,12 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     const handleMatch = content.url.match(/(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]+)/)
     const handle = (tweetMatch?.[1] || handleMatch?.[1]) ? `@${tweetMatch?.[1] || handleMatch?.[1]}` : null
 
-    // If we have a thumbnail, render full-bleed — hide on error so text fallback shows
+    // Thumb 404 or no title → FallbackCard (never a gray box). Spec Task 3.
+    if (thumbSrc && socialThumbFailed) {
+      return <FallbackCard platform="x" title={content.title} url={content.url} aspectClass={aspectClass} />
+    }
+
+    // If we have a thumbnail, render full-bleed — swap to FallbackCard on error
     if (thumbSrc) {
       return (
         <>
@@ -523,9 +499,9 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               className="w-full h-full object-cover absolute inset-0 z-[1]"
               loading="lazy"
               decoding="async"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+              onError={() => setSocialThumbFailed(true)}
             />
-            {/* Text fallback — visible when thumbnail fails */}
+            {/* Text overlay — glyph top-right, caption bottom */}
             <div className="absolute inset-0 flex flex-col items-center justify-center p-5">
               <span className="absolute top-2.5 right-3 text-[13px] text-white/20 select-none" style={{ fontWeight: 300 }}>𝕏</span>
               <p className="whitespace-pre-wrap text-center text-white/80 fp-text-shadow text-[14px] leading-snug line-clamp-6" style={{ fontWeight: 500 }}>
@@ -540,6 +516,11 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           )}
         </>
       )
+    }
+
+    // No thumb + no real title → FallbackCard instead of "Tweet" placeholder
+    if (!content.title) {
+      return <FallbackCard platform="x" title={handle ? `Tweet by ${handle}` : null} url={content.url} aspectClass={aspectClass} />
     }
 
     // Text-only tweet — DM Sans, weight hierarchy, text-shadow
@@ -588,6 +569,15 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   if (content.type === 'tiktok') {
     const thumbSrc = getBestThumbnailUrl(content)
+
+    // Thumb 404 or no content at all → FallbackCard. Spec Task 3.
+    if (thumbSrc && socialThumbFailed) {
+      return <FallbackCard platform="tiktok" title={content.title} url={content.url} aspectClass={aspectClass} />
+    }
+    if (!thumbSrc && !content.title) {
+      return <FallbackCard platform="tiktok" title={null} url={content.url} aspectClass={aspectClass} />
+    }
+
     const tiktokText = content.title || 'TikTok'
     const len = tiktokText.length
     const typo = len <= 60
@@ -615,10 +605,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               className="w-full h-full object-cover absolute inset-0 z-[1]"
               loading="lazy"
               decoding="async"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+              onError={() => setSocialThumbFailed(true)}
             />
           )}
-          {/* Text fallback — visible when no thumbnail or image fails */}
+          {/* Text overlay — caption atop thumb, readable via text-shadow */}
           <div className="absolute inset-0 flex flex-col items-center justify-center p-5">
             <p
               className={`whitespace-pre-wrap text-center text-white/80 fp-text-shadow ${typo} line-clamp-6`}
@@ -643,6 +633,15 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   if (content.type === 'instagram') {
     const thumbSrc = getBestThumbnailUrl(content)
+
+    // Thumb 404 or no content at all → FallbackCard. Spec Task 3.
+    if (thumbSrc && socialThumbFailed) {
+      return <FallbackCard platform="instagram" title={content.title} url={content.url} aspectClass={aspectClass} />
+    }
+    if (!thumbSrc && !content.title) {
+      return <FallbackCard platform="instagram" title={null} url={content.url} aspectClass={aspectClass} />
+    }
+
     const igText = content.title || 'Instagram'
     const len = igText.length
     const typo = len <= 60
@@ -670,10 +669,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               className="w-full h-full object-cover absolute inset-0 z-[1]"
               loading="lazy"
               decoding="async"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+              onError={() => setSocialThumbFailed(true)}
             />
           )}
-          {/* Text fallback — visible when no thumbnail or image fails */}
+          {/* Text overlay — caption atop thumb */}
           <div className="absolute inset-0 flex flex-col items-center justify-center p-5">
             <p
               className={`whitespace-pre-wrap text-center text-white/80 fp-text-shadow ${typo} line-clamp-6`}
