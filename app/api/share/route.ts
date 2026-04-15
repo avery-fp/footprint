@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
   // Find footprint by username
   const { data: footprint } = await supabase
     .from('footprints')
-    .select('username, user_id, display_title, display_name, serial_number')
+    .select('username, user_id, display_name, serial_number')
     .eq('username', slug)
     .eq('published', true)
     .single()
