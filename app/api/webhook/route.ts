@@ -222,7 +222,7 @@ async function handleCheckoutComplete(session: any) {
   // Record conversion event for analytics micro-brain
   const { data: fp } = await supabase
     .from('footprints')
-    .select('id')
+    .select('user_id')
     .eq('user_id', user.id)
     .eq('is_primary', true)
     .single()

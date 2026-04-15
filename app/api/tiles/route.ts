@@ -263,7 +263,10 @@ export async function POST(request: NextRequest) {
             try {
               const clipRes = await fetch(parsed.url, {
                 signal: AbortSignal.timeout(7000),
-                headers: browserHeaders,
+                headers: {
+                  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                },
                 redirect: 'follow',
               })
               if (clipRes.ok) {

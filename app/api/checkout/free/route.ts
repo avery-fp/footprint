@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
     // Record conversion event (non-critical)
     const { data: fp } = await supabase
       .from('footprints')
-      .select('id')
+      .select('user_id')
       .eq('user_id', user.id)
       .eq('is_primary', true)
       .single()
