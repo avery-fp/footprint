@@ -10,6 +10,8 @@
  * repos, and everything else. No UI choices. Paste → detect → route.
  */
 
+import { buildYouTubeEmbedUrl } from '@/lib/parseEmbed'
+
 // Supported content types
 export type ContentType =
   | 'youtube'
@@ -257,7 +259,10 @@ function parseYouTube(url: string, match: RegExpMatchArray): ParsedContent {
     title: 'YouTube Video',
     description: null,
     thumbnail_url: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
-    embed_html: `<iframe src="https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=1&enablejsapi=1&loop=1&playlist=${videoId}&controls=0&modestbranding=1&rel=0&iv_load_policy=3&playsinline=1&fs=0&disablekb=1" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy" class="w-full aspect-video "></iframe>`,
+    // Legacy looping embed — helper covers the common de-branding params;
+    // loop/playlist/controls/fs/disablekb are appended because they're
+    // specific to this background-player mode, not the general embed shape.
+    embed_html: `<iframe src="${buildYouTubeEmbedUrl(videoId)}&loop=1&playlist=${videoId}&controls=0&fs=0&disablekb=1" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy" class="w-full aspect-video "></iframe>`,
   }
 }
 

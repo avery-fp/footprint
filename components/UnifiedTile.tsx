@@ -10,6 +10,7 @@ import PreviewCardTileBase from '@/components/PreviewCardTile'
 import { getImageSizes } from '@/lib/media/aspect'
 import { mediaTypeFromUrl } from '@/lib/media'
 import { extractYouTubeId } from '@/lib/parseEmbed'
+import TextExpandTile from '@/components/TextExpandTile'
 import { isNewStyleRenderMode } from '@/lib/media/types'
 import type { RenderMode } from '@/lib/media/types'
 
@@ -232,24 +233,17 @@ export default function UnifiedTile({
   const isAuto = aspect === 'auto'
 
   // ── Thought ──
+  // Spec: AE Presentation Layer — Task 1 (E-State text expansion)
   if (canonicalType === 'thought') {
     const text = item.title || ''
-    const len = text.length
-    const fontSize = len <= 6 ? '24px' : len <= 20 ? '17px' : len <= 60 ? '14px' : '13px'
-    const letterSpacing = len <= 6 ? '-0.03em' : len <= 20 ? '-0.02em' : '-0.01em'
     return (
       <div
-        className="w-full h-full flex items-center justify-center p-4"
+        className="w-full h-full"
         style={{ background: 'rgba(255,255,255,0.04)' }}
         data-tile-id={item.id}
         data-tile-type="thought"
       >
-        <p
-          className="whitespace-pre-wrap text-center text-white"
-          style={{ fontSize, fontWeight: 300, letterSpacing, lineHeight: 1.5 }}
-        >
-          {text}
-        </p>
+        <TextExpandTile text={text} isPublicView={mode === 'public'} />
       </div>
     )
   }
