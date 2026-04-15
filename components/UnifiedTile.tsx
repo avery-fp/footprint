@@ -129,6 +129,47 @@ export default function UnifiedTile({
     )
   }
 
+  // ── Pay / "yours" CTA — early return for same reason as thought: render_mode
+  // can be 'embed' from identity intake, which would route to ContentCard.
+  if (
+    item.type === 'payment' ||
+    (item.url && (item.url.includes('buy.stripe.com') || item.url.includes('checkout.stripe.com')))
+  ) {
+    return (
+      <a
+        href="/home"
+        className="w-full h-full flex flex-col items-center justify-center p-6 group cursor-pointer no-underline relative"
+        style={{
+          background: 'radial-gradient(circle at 50% 40%, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 70%)',
+          borderRadius: 'inherit',
+          textDecoration: 'none',
+        }}
+        data-tile-id={item.id}
+        data-tile-type="cta"
+      >
+        <span className="text-white/90 text-center block" style={{ fontSize: 'clamp(28px, 8vw, 56px)', fontWeight: 300, letterSpacing: '-0.03em', lineHeight: 1 }}>yours</span>
+        <span className="text-white/35 group-hover:text-white/60 transition-colors mt-3 text-center block" style={{ fontSize: '12px', fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase' }}>make one →</span>
+      </a>
+    )
+  }
+
+  // ── Thought tile — early return, type takes priority over render_mode.
+  // Some thought rows carry render_mode='preview_card' or 'embed' from the
+  // identity intake layer, which would otherwise route them to ContentCard
+  // before the TextExpandTile branch fires. Platform is source of truth.
+  if (item.type === 'thought') {
+    return (
+      <div
+        className="w-full h-full"
+        style={{ background: 'rgba(255,255,255,0.04)' }}
+        data-tile-id={item.id}
+        data-tile-type="thought"
+      >
+        <TextExpandTile text={item.title || ''} isPublicView={mode === 'public'} />
+      </div>
+    )
+  }
+
   // ── RenderMode-driven dispatch (new-style tiles) ──
   // Only fires for renderMode values produced by the identity intake layer.
   // Legacy tiles with render_mode 'ghost' or 'embed' skip this entirely.
@@ -224,6 +265,8 @@ export default function UnifiedTile({
           title={item.title || undefined}
           artist={item.artist || undefined}
           thumbnail_url={item.thumbnail_url_hq || item.thumbnail_url || undefined}
+          clip_start_ms={(item as any).clip_start_ms ?? undefined}
+          clip_end_ms={(item as any).clip_end_ms ?? undefined}
         />
       </div>
     )
@@ -232,8 +275,10 @@ export default function UnifiedTile({
   const canonicalType = resolveCanonicalType(item.type, item.url || '', item.media_kind)
   const isAuto = aspect === 'auto'
 
-  // ── Thought ──
-  // Spec: AE Presentation Layer — Task 1 (E-State text expansion)
+  // ── Thought (safety net) ──
+  // Primary catch is the type-based early return above (fires before the
+  // identity-layer dispatch). This branch catches any edge case where
+  // canonicalType resolves to 'thought' from a URL-based inference.
   if (canonicalType === 'thought') {
     const text = item.title || ''
     return (
@@ -285,6 +330,9 @@ export default function UnifiedTile({
   }
 
   // ── "yours" CTA tile — invites visitors to build their own ──
+  // Rubin-pass: this is the single ask on the page. Make it breathe.
+  // Hero type, no chrome, the whole tile is the target. Subtle 2-line
+  // hierarchy (action → label) reads cleanly at any size.
   const isPaymentLink = item.url && (
     item.url.includes('buy.stripe.com') ||
     item.url.includes('checkout.stripe.com') ||
@@ -294,9 +342,9 @@ export default function UnifiedTile({
     return (
       <a
         href="/home"
-        className="w-full h-full flex items-center justify-center p-6 group cursor-pointer no-underline"
+        className="w-full h-full flex flex-col items-center justify-center p-6 group cursor-pointer no-underline relative"
         style={{
-          background: 'rgba(255,255,255,0.04)',
+          background: 'radial-gradient(circle at 50% 40%, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 70%)',
           borderRadius: 'inherit',
           textDecoration: 'none',
         }}
@@ -304,10 +352,16 @@ export default function UnifiedTile({
         data-tile-type="cta"
       >
         <span
-          className="text-white/40 text-center group-hover:text-white/70 transition-colors"
-          style={{ fontSize: '16px', fontWeight: 500, letterSpacing: '0.02em' }}
+          className="text-white/90 text-center block"
+          style={{ fontSize: 'clamp(28px, 8vw, 56px)', fontWeight: 300, letterSpacing: '-0.03em', lineHeight: 1 }}
         >
-          yours →
+          yours
+        </span>
+        <span
+          className="text-white/35 group-hover:text-white/60 transition-colors mt-3 text-center block"
+          style={{ fontSize: '12px', fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase' }}
+        >
+          make one →
         </span>
       </a>
     )

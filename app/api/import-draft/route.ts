@@ -185,7 +185,8 @@ export async function POST(request: NextRequest) {
       if (imageItems.length > 0) {
         const libraryRows = imageItems.map((item, index) => ({
           serial_number: serialNumber,
-          image_url: item.url,
+          // Strip embedded whitespace — see app/api/tiles/route.ts for details
+          image_url: (item.url || '').replace(/[\n\r]+/g, '').trim(),
           position: index,
         }))
         const { error: libError } = await supabase.from('library').insert(libraryRows)

@@ -124,6 +124,9 @@ export default async function FootprintPage({ params }: Props) {
       artist: link.artist || null,
       thumbnail_url_hq: link.thumbnail_url_hq || null,
       media_id: link.media_id || null,
+      // YouTube clip range (ms) — resolved when a tile's URL is a /clip/ link
+      clip_start_ms: link.metadata?.clip_start_ms ?? null,
+      clip_end_ms: link.metadata?.clip_end_ms ?? null,
       // Container tile fields
       container_label: link.container_label || null,
       container_cover_url: link.container_cover_url || null,
@@ -164,8 +167,11 @@ export default async function FootprintPage({ params }: Props) {
 
   return (
     <>
-      <AnalyticsTracker footprintId={footprint.id} serialNumber={footprint.serial_number} />
-      <EventTracker footprintId={footprint.id} />
+      {/* footprint.id was dropped from the schema; user_id (UUID) is the
+          stable identifier for analytics. fp_events.footprint_id still carries
+          UUID type so we send user_id there. */}
+      <AnalyticsTracker footprintId={footprint.user_id} serialNumber={footprint.serial_number} />
+      <EventTracker footprintId={footprint.user_id} />
       <ReferralBanner serial={serial} />
       <ShareEngine slug={params.slug} />
       <PublicPage

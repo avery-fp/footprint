@@ -222,7 +222,7 @@ async function handleCheckoutComplete(session: any) {
   // Record conversion event for analytics micro-brain
   const { data: fp } = await supabase
     .from('footprints')
-    .select('id')
+    .select('user_id')
     .eq('user_id', user.id)
     .eq('is_primary', true)
     .single()
@@ -230,9 +230,9 @@ async function handleCheckoutComplete(session: any) {
   if (fp) {
     try {
       await supabase.from('fp_events').insert({
-        footprint_id: fp.id,
+        footprint_id: fp.user_id,
         event_type: 'conversion',
-        event_data: {
+        data: {
           serial_number: serialNumber,
           amount: session.amount_total,
           ref: refCode || null,

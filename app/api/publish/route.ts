@@ -186,9 +186,9 @@ export async function POST(request: NextRequest) {
         // Record conversion event (non-critical)
         try {
           await supabase.from('fp_events').insert({
-            footprint_id: footprint.id,
+            footprint_id: footprint.user_id,
             event_type: 'conversion',
-            event_data: {
+            data: {
               serial_number: serialNumber,
               amount: 0,
               source: 'promo',
@@ -275,9 +275,9 @@ export async function POST(request: NextRequest) {
 
           try {
             await supabase.from('fp_events').insert({
-              footprint_id: footprint.id,
+              footprint_id: footprint.user_id,
               event_type: 'conversion',
-              event_data: {
+              data: {
                 serial_number: serialNumber,
                 amount: 0,
                 source: 'seed',
@@ -343,7 +343,7 @@ export async function POST(request: NextRequest) {
           customer_creation: 'always',
           metadata: {
             product: 'footprint_publish',
-            footprint_id: footprint.id,
+            footprint_id: footprint.user_id,
             user_id: userId,
             username: cleanUsername,
           },
@@ -419,7 +419,7 @@ export async function POST(request: NextRequest) {
           customer_creation: 'always',
           metadata: {
             product: 'footprint_publish',
-            footprint_id: footprint.id,
+            footprint_id: footprint.user_id,
             user_id: userId,
             username: cleanUsername,
           },
@@ -521,9 +521,9 @@ export async function POST(request: NextRequest) {
         // Record conversion event (non-critical)
         try {
           await supabase.from('fp_events').insert({
-            footprint_id: footprint.id,
+            footprint_id: footprint.user_id,
             event_type: 'conversion',
-            event_data: {
+            data: {
               serial_number: serialNumber,
               amount: session.amount_total,
               source: 'stripe_publish',

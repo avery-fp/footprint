@@ -92,11 +92,18 @@ export async function POST(request: NextRequest) {
 
     if (isImage) {
       // Insert into library table for images
+      // Strip embedded whitespace — supabase.storage.getPublicUrl() has been
+      // observed to occasionally include a stray '\n' between the host and
+      // the path, which silently breaks <img src> in strict parsers and
+      // makes our isCachedThumbnail() check fail. cache-thumbnail.ts:81
+      // already does this for cached thumbs; we apply the same guard here
+      // for direct-image uploads. (See improvements-audit-2026-04-15.md item 6.)
+      const cleanImageUrl = (parsed.url || '').replace(/[\n\r]+/g, '').trim()
       const result = await supabase
         .from('library')
         .insert({
           serial_number: serialNumber,
-          image_url: parsed.url,
+          image_url: cleanImageUrl,
           position: nextPosition,
           room_id: room_id || null,
         })
@@ -247,6 +254,46 @@ export async function POST(request: NextRequest) {
 
         if (parsed.type === 'youtube') {
           ghostThumbnailHq = parsed.thumbnail_url || ghostThumbnailHq
+
+          // YouTube clip normalization: /clip/ URLs don't contain the video ID.
+          // Scrape the page to extract parent videoId + clip start/end times.
+          // The clip ID captured by the parser regex won't match the 11-char
+          // video ID format, so ghostMediaId will be null — we detect that.
+          if (/youtube\.com\/clip\//.test(parsed.url) && !ghostMediaId?.match(/^[a-zA-Z0-9_-]{11}$/)) {
+            try {
+              const clipRes = await fetch(parsed.url, {
+                signal: AbortSignal.timeout(7000),
+                headers: {
+                  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                },
+                redirect: 'follow',
+              })
+              if (clipRes.ok) {
+                const clipHtml = await clipRes.text()
+                const parentVid = clipHtml.match(/"videoId"\s*:\s*"([a-zA-Z0-9_-]{11})"/)?.[1]
+                if (parentVid) ghostMediaId = parentVid
+                const startMs = clipHtml.match(/"startTimeMs"\s*:\s*"(\d+)"/)?.[1]
+                const endMs = clipHtml.match(/"endTimeMs"\s*:\s*"(\d+)"/)?.[1]
+                if (startMs || endMs) {
+                  // Store clip range in metadata (plucked onto item by page.tsx)
+                  ;(parsed as any)._clipMeta = {
+                    clip_start_ms: startMs ? parseInt(startMs, 10) : undefined,
+                    clip_end_ms: endMs ? parseInt(endMs, 10) : undefined,
+                  }
+                }
+                // Also grab a proper thumbnail from the parent video
+                if (parentVid && !ghostThumbnailHq) {
+                  ghostThumbnailHq = `https://i.ytimg.com/vi/${parentVid}/maxresdefault.jpg`
+                }
+                // And a title from OG if the oEmbed didn't resolve one
+                if (!enrichedTitle) {
+                  const ogTitle = clipHtml.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i)?.[1]
+                  if (ogTitle) enrichedTitle = ogTitle.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+                }
+              }
+            } catch { /* clip scrape failed — tile still creates, just without clip range */ }
+          }
         }
 
         // Cache social thumbnails to permanent Supabase Storage
@@ -275,6 +322,7 @@ export async function POST(request: NextRequest) {
             embed_html: parsed.embed_html,
             kind: identityKind,
             provider: identityProvider,
+            ...((parsed as any)._clipMeta || {}),
           },
           thumbnail: parsed.thumbnail_url,
           position: nextPosition,

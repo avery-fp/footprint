@@ -47,59 +47,41 @@ export default function ContainerTile({ label, coverUrl, childCount, firstChildT
         />
       )}
 
-      {/* Stacked-layer depth cue — two thin lines suggesting layers behind */}
+      {/* Subtle dimming overlay so the label always reads on busy bg images */}
       <div
-        className="absolute top-2 right-2 bottom-2 w-[3px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-        style={{ background: 'rgba(255,255,255,0.08)' }}
-      />
-      <div
-        className="absolute top-3 right-3.5 bottom-3 w-[2px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-75"
-        style={{ background: 'rgba(255,255,255,0.04)' }}
+        className="absolute inset-0"
+        style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.45) 100%)' }}
       />
 
-      {/* Permanent subtle depth indicator — stacked edge */}
-      <div
-        className="absolute top-1.5 right-1 bottom-1.5 w-[2px] rounded-full"
-        style={{ background: 'rgba(255,255,255,0.1)' }}
-      />
-
-      {/* Label + enter affordance */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4">
+      {/* Label — the door is named, large enough to read at a glance */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4">
         <span
-          className="text-white/80 font-mono tracking-[0.15em] uppercase text-center leading-tight"
-          style={{ fontSize: '11px', fontWeight: 400 }}
+          className="text-white text-center leading-tight px-2"
+          style={{ fontSize: 'clamp(15px, 4vw, 22px)', fontWeight: 400, letterSpacing: '-0.01em' }}
         >
           {label}
         </span>
-
-        {/* Enter arrow — subtle, appears on hover */}
-        <div
-          className="w-7 h-7 rounded-full flex items-center justify-center opacity-40 group-hover:opacity-80 transition-all duration-300 group-hover:scale-110"
-          style={{
-            background: 'rgba(255,255,255,0.06)',
-            border: '1px solid rgba(255,255,255,0.1)',
-          }}
-        >
-          <svg className="w-3 h-3 text-white/70" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m0 0l6.75-6.75M12 19.5l-6.75-6.75" />
-          </svg>
-        </div>
+        {childCount !== undefined && childCount > 0 ? (
+          <span
+            className="text-white/45 font-mono"
+            style={{ fontSize: '11px', fontWeight: 500, letterSpacing: '0.1em' }}
+          >
+            {childCount} {childCount === 1 ? 'item' : 'items'}
+          </span>
+        ) : (
+          <span
+            className="text-white/30 font-mono"
+            style={{ fontSize: '10px', fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase' }}
+          >
+            empty
+          </span>
+        )}
       </div>
 
-      {/* Child count — small monospace number, bottom-right corner */}
-      {childCount !== undefined && childCount > 0 && (
-        <span
-          className="absolute bottom-2.5 right-3 font-mono text-white/20"
-          style={{ fontSize: '10px', fontWeight: 500 }}
-        >
-          {childCount}
-        </span>
-      )}
-
-      {/* Bottom border glow — architectural entry line */}
+      {/* Hover affordance — stacked-edge corner ticks suggest depth without arrows */}
       <div
-        className="absolute bottom-0 left-4 right-4 h-px"
-        style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)' }}
+        className="absolute top-2 right-2 bottom-2 w-[2px] rounded-full opacity-30 group-hover:opacity-70 transition-opacity duration-300"
+        style={{ background: 'rgba(255,255,255,0.5)' }}
       />
     </div>
   )

@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
     // Record conversion event (non-critical)
     const { data: fp } = await supabase
       .from('footprints')
-      .select('id')
+      .select('user_id')
       .eq('user_id', user.id)
       .eq('is_primary', true)
       .single()
@@ -136,9 +136,9 @@ export async function POST(request: NextRequest) {
     if (fp) {
       try {
         await supabase.from('fp_events').insert({
-          footprint_id: fp.id,
+          footprint_id: fp.user_id,
           event_type: 'conversion',
-          event_data: {
+          data: {
             serial_number: serialNumber,
             amount: 0,
             ref: ref || null,
