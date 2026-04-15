@@ -230,9 +230,9 @@ async function handleCheckoutComplete(session: any) {
   if (fp) {
     try {
       await supabase.from('fp_events').insert({
-        footprint_id: fp.id,
+        footprint_id: fp.user_id,
         event_type: 'conversion',
-        event_data: {
+        data: {
           serial_number: serialNumber,
           amount: session.amount_total,
           ref: refCode || null,

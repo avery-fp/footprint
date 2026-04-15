@@ -136,9 +136,9 @@ export async function POST(request: NextRequest) {
     if (fp) {
       try {
         await supabase.from('fp_events').insert({
-          footprint_id: fp.id,
+          footprint_id: fp.user_id,
           event_type: 'conversion',
-          event_data: {
+          data: {
             serial_number: serialNumber,
             amount: 0,
             ref: ref || null,

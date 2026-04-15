@@ -52,6 +52,8 @@ export default function GhostTile({
 }: GhostTileProps) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [iframeLoaded, setIframeLoaded] = useState(false)
+  const [iframeFailed, setIframeFailed] = useState(false)
+  const iframeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const tileId = useRef(`ghost-${media_id}-${Math.random().toString(36).slice(2, 6)}`)
 
 
@@ -122,6 +124,10 @@ export default function GhostTile({
     // Pause ContentCard tiles via AudioManager
     audioManager.play(tileId.current)
     setIsPlaying(true)
+    setIframeFailed(false)
+    // Timeout: if the iframe doesn't fire onLoad within 8s, show fallback.
+    // Cleared in the onLoad handler if load succeeds.
+    iframeTimerRef.current = setTimeout(() => { setIframeFailed(true) }, 8000)
     onPlay?.()
   }, [onPlay])
 
@@ -327,7 +333,17 @@ export default function GhostTile({
         </div>
       </div>
 
-      {isPlaying && iframeSrc && (
+      {/* Fallback: if iframe fails or times out, show a graceful link-out */}
+      {isPlaying && iframeFailed && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/80" style={{ zIndex: 3 }}>
+          <a href={url} target="_blank" rel="noopener noreferrer"
+            className="text-white/60 hover:text-white/90 text-sm underline transition-colors">
+            open source ↗
+          </a>
+        </div>
+      )}
+
+      {isPlaying && iframeSrc && !iframeFailed && (
         <div
           className="absolute inset-0"
           style={{
@@ -339,11 +355,6 @@ export default function GhostTile({
           <iframe
             src={iframeSrc}
             className="w-full h-full"
-            // Intrinsic 1920×1080 (CSS scales to fit w-full h-full). YouTube
-            // keys its auto-quality off the iframe's reported size — a small
-            // tile defaults to 360–480p even if we request hd1080 via flags.
-            // Oversizing the iframe and letting CSS downscale gives the player
-            // permission to fetch 1080p when bandwidth allows.
             width={platform === 'youtube' ? 1920 : undefined}
             height={platform === 'youtube' ? 1080 : undefined}
             style={{ border: 'none' }}
@@ -351,7 +362,12 @@ export default function GhostTile({
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
             loading="lazy"
-            onLoad={(e) => { setIframeLoaded(true); handleYTLoad(e) }}
+            onLoad={(e) => {
+              if (iframeTimerRef.current) clearTimeout(iframeTimerRef.current)
+              setIframeLoaded(true)
+              handleYTLoad(e)
+            }}
+            onError={() => { setIframeFailed(true) }}
           />
           {/* Block clicks on YouTube watermark area */}
           {platform === 'youtube' && (

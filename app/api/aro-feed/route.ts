@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     // Build query with bounded limit
     let query = supabase
       .from('fp_events')
-      .select('footprint_id, event_type, event_data, referrer, created_at')
+      .select('footprint_id, event_type, data, referrer, created_at')
       .gte('created_at', since.toISOString())
       .order('created_at', { ascending: true })
 
@@ -131,8 +131,8 @@ export async function GET(request: NextRequest) {
         case 'tile_click':
           g.tile_clicks++
           g.daily[date].clicks++
-          if (event.event_data?.tile_id) {
-            const tid = event.event_data.tile_id
+          if (event.data?.tile_id) {
+            const tid = event.data.tile_id
             g.tile_counts[tid] = (g.tile_counts[tid] || 0) + 1
           }
           break
