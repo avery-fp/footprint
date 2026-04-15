@@ -31,6 +31,10 @@ interface GhostTileProps {
   title?: string
   artist?: string
   thumbnail_url?: string
+  /** YouTube clip start time (ms) — if set, iframe autoplays from this point */
+  clip_start_ms?: number
+  /** YouTube clip end time (ms) — if set, iframe stops here */
+  clip_end_ms?: number
 
   onPlay?: () => void
 }
@@ -42,6 +46,8 @@ export default function GhostTile({
   title,
   artist,
   thumbnail_url,
+  clip_start_ms,
+  clip_end_ms,
   onPlay,
 }: GhostTileProps) {
   const [isPlaying, setIsPlaying] = useState(false)
@@ -73,6 +79,42 @@ export default function GhostTile({
     window.addEventListener(GHOST_PAUSE_EVENT, handler)
     return () => window.removeEventListener(GHOST_PAUSE_EVENT, handler)
   }, [])
+
+  // Auto-revert to thumbnail when video ends.
+  // YouTube (via enablejsapi=1): { event: 'onStateChange' | 'infoDelivery', info: 0 } — 0 = ended.
+  // TikTok (player/v1): { type: 'onStateChange', value: 0, 'x-tiktok-player': true }.
+  // Vimeo: { event: 'ended' }.
+  useEffect(() => {
+    if (!isPlaying) return
+    const ALLOWED_ORIGINS = new Set([
+      'https://www.youtube-nocookie.com',
+      'https://www.youtube.com',
+      'https://www.tiktok.com',
+      'https://player.vimeo.com',
+    ])
+    const onMessage = (e: MessageEvent) => {
+      if (!ALLOWED_ORIGINS.has(e.origin)) return
+      let data: any = e.data
+      if (typeof data === 'string') {
+        try { data = JSON.parse(data) } catch { return }
+      }
+      if (!data || typeof data !== 'object') return
+
+      const youtubeEnded =
+        (data.event === 'onStateChange' && data.info === 0) ||
+        (data.event === 'infoDelivery' && data.info?.playerState === 0)
+      const tiktokEnded =
+        data['x-tiktok-player'] && data.type === 'onStateChange' && data.value === 0
+      const vimeoEnded = data.event === 'ended'
+
+      if (youtubeEnded || tiktokEnded || vimeoEnded) {
+        setIsPlaying(false)
+        setIframeLoaded(false)
+      }
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [isPlaying])
 
   const handlePlay = useCallback(() => {
     // Pause other ghost tiles
@@ -163,26 +205,91 @@ export default function GhostTile({
   }
 
   // ════════════════════════════════════════
-  // VISUAL PIPE — YouTube, Vimeo
+  // TWITTER / X — blockquote + widgets.js approach
+  // Platform/X has no public iframe embed API. Twitter's own widgets.js
+  // script transforms a `<blockquote class="twitter-tweet">` pointing at
+  // the tweet URL into a full inline-rendered tweet (author, media, etc.).
+  // Click-to-reveal same as youtube — text card facade → real tweet on tap.
+  // ════════════════════════════════════════
+  if (platform === 'twitter') {
+    return (
+      <div
+        className="w-full h-full relative fp-tile group overflow-hidden"
+        style={{ borderRadius: 'inherit', clipPath: 'inset(0 round var(--fp-tile-radius, 0px))' }}
+      >
+        {/* Facade — tweet text preview + play affordance */}
+        <div
+          className="absolute inset-0 flex flex-col items-stretch justify-center p-5 cursor-pointer bg-black"
+          style={{ opacity: isPlaying ? 0 : 1, pointerEvents: isPlaying ? 'none' : 'auto', transition: 'opacity 0.4s ease', zIndex: 2 }}
+          onClick={handlePlay}
+        >
+          {title ? (
+            <p className="text-white/85 text-[15px] leading-snug line-clamp-6 whitespace-pre-wrap">{title}</p>
+          ) : (
+            <p className="text-white/40 text-sm">tweet</p>
+          )}
+          {artist ? <p className="text-white/50 text-xs mt-3">{artist}</p> : null}
+        </div>
+
+        {/* Inline tweet — Twitter widgets.js transforms the blockquote into the real embed */}
+        {isPlaying ? (
+          <div className="absolute inset-0 overflow-auto" style={{ background: 'transparent', zIndex: 1 }}>
+            <TwitterEmbed url={url} />
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
+  // ════════════════════════════════════════
+  // VISUAL PIPE — YouTube, Vimeo, TikTok, Instagram
   // Blurred thumbnail bg + iframe reveal on play
   // ════════════════════════════════════════
+  // Instagram URL shape determines embed path (post vs reel).
+  const isInstagramReel = platform === 'instagram' && /\/reel\//.test(url)
+  // YouTube clip support: convert ms → integer seconds for start/end params.
+  const ytClipStart = clip_start_ms ? Math.floor(clip_start_ms / 1000) : 0
+  const ytClipEnd = clip_end_ms ? Math.ceil(clip_end_ms / 1000) : 0
   const iframeSrc = platform === 'youtube'
-    ? buildYouTubeEmbedUrl(media_id)
+    ? buildYouTubeEmbedUrl(media_id, { start: ytClipStart, end: ytClipEnd, hd: true })
     : platform === 'vimeo'
-    ? `https://player.vimeo.com/video/${media_id}?title=0&byline=0&portrait=0&badge=0&dnt=1&autoplay=1`
+    // Vimeo respects `quality` param: "1080p" | "720p" | ... | "auto"
+    ? `https://player.vimeo.com/video/${media_id}?title=0&byline=0&portrait=0&badge=0&dnt=1&autoplay=1&quality=1080p`
+    : platform === 'tiktok'
+    ? `https://www.tiktok.com/player/v1/${media_id}?autoplay=1&music_info=1&description=0&rel=0&closed_caption=0&loop=0&native_context_menu=0&progress_bar=1`
+    : platform === 'instagram' && media_id
+    ? `https://www.instagram.com/${isInstagramReel ? 'reel' : 'p'}/${media_id}/embed/captioned/`
     : undefined
 
-  // postMessage unmute for mobile Safari
+  // postMessage unmute for mobile Safari + subscribe to player state events +
+  // force highest available playback quality (hd1080+, fallback chain).
   const handleYTLoad = useCallback((e: React.SyntheticEvent<HTMLIFrameElement>) => {
     if (platform !== 'youtube') return
     const iframe = e.currentTarget
+    const post = (msg: Record<string, any>) => {
+      try { iframe.contentWindow?.postMessage(JSON.stringify(msg), '*') } catch {}
+    }
+    // Subscribe + unmute — settled timing (~800ms after load event).
     setTimeout(() => {
-      try {
-        iframe.contentWindow?.postMessage('{"event":"command","func":"unMute","args":""}', '*')
-        iframe.contentWindow?.postMessage('{"event":"command","func":"setVolume","args":[100]}', '*')
-      } catch {}
+      post({ event: 'listening', id: media_id })
+      post({ event: 'command', func: 'unMute', args: '' })
+      post({ event: 'command', func: 'setVolume', args: [100] })
     }, 800)
-  }, [platform])
+    // Quality nudges — YouTube auto-selects based on viewport + bandwidth, but
+    // setPlaybackQuality is still honored as a soft preference. Send descending
+    // so the player lands on the highest it can actually serve for the video.
+    // Fired several times because the YT player sometimes ignores early calls
+    // before the first video frame is ready.
+    const nudgeQuality = () => {
+      for (const q of ['hd2160', 'hd1440', 'hd1080', 'highres']) {
+        post({ event: 'command', func: 'setPlaybackQuality', args: [q] })
+        post({ event: 'command', func: 'setPlaybackQualityRange', args: [q, q] })
+      }
+    }
+    setTimeout(nudgeQuality, 1000)
+    setTimeout(nudgeQuality, 2500)
+    setTimeout(nudgeQuality, 5000)
+  }, [platform, media_id])
 
   return (
     <div
@@ -232,6 +339,13 @@ export default function GhostTile({
           <iframe
             src={iframeSrc}
             className="w-full h-full"
+            // Intrinsic 1920×1080 (CSS scales to fit w-full h-full). YouTube
+            // keys its auto-quality off the iframe's reported size — a small
+            // tile defaults to 360–480p even if we request hd1080 via flags.
+            // Oversizing the iframe and letting CSS downscale gives the player
+            // permission to fetch 1080p when bandwidth allows.
+            width={platform === 'youtube' ? 1920 : undefined}
+            height={platform === 'youtube' ? 1080 : undefined}
             style={{ border: 'none' }}
             allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
             allowFullScreen
@@ -262,6 +376,63 @@ export default function GhostTile({
 // ════════════════════════════════════════
 // SUB-COMPONENTS
 // ════════════════════════════════════════
+
+/**
+ * Twitter/X inline embed via widgets.js (createTweet API).
+ * Extract the tweet ID from the URL, then call twttr.widgets.createTweet
+ * which directly fetches + renders the tweet inside our container element.
+ * More reliable than blockquote auto-transform — no race condition with
+ * widgets.load(), and we get a Promise we can hook into for failure UI.
+ */
+function TwitterEmbed({ url }: { url: string }) {
+  const ref = useRef<HTMLDivElement | null>(null)
+  const [failed, setFailed] = useState(false)
+  useEffect(() => {
+    const tweetId = url.match(/(?:twitter\.com|x\.com)\/[^/]+\/status(?:es)?\/(\d+)/)?.[1]
+    if (!tweetId) { setFailed(true); return }
+    const w = window as any
+    const render = () => {
+      if (!ref.current) return
+      ref.current.innerHTML = ''
+      try {
+        w.twttr.widgets.createTweet(tweetId, ref.current, {
+          theme: 'dark',
+          dnt: true,
+          align: 'center',
+          conversation: 'none',
+        }).then((el: any) => { if (!el) setFailed(true) })
+          .catch(() => setFailed(true))
+      } catch { setFailed(true) }
+    }
+    const ensureScript = () => {
+      if (w.twttr?.widgets) { render(); return }
+      const existing = document.querySelector('script[data-twttr]') as HTMLScriptElement | null
+      if (existing) {
+        if (w.twttr?.widgets) render()
+        else existing.addEventListener('load', render, { once: true })
+        return
+      }
+      const s = document.createElement('script')
+      s.src = 'https://platform.twitter.com/widgets.js'
+      s.async = true
+      s.setAttribute('data-twttr', '1')
+      s.addEventListener('load', render, { once: true })
+      document.body.appendChild(s)
+    }
+    ensureScript()
+  }, [url])
+  return (
+    <div className="w-full h-full overflow-auto bg-black flex items-start justify-center p-2">
+      <div ref={ref} className="w-full" />
+      {failed ? (
+        <div className="text-white/40 text-sm p-4 text-center">
+          tweet unavailable —{' '}
+          <a href={url} target="_blank" rel="noopener noreferrer" className="underline">open on x</a>
+        </div>
+      ) : null}
+    </div>
+  )
+}
 
 function ThumbnailBg({ src, candidates }: { src: string | null; candidates: string[] }) {
   if (!src) return (

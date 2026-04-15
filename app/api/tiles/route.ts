@@ -92,11 +92,18 @@ export async function POST(request: NextRequest) {
 
     if (isImage) {
       // Insert into library table for images
+      // Strip embedded whitespace — supabase.storage.getPublicUrl() has been
+      // observed to occasionally include a stray '\n' between the host and
+      // the path, which silently breaks <img src> in strict parsers and
+      // makes our isCachedThumbnail() check fail. cache-thumbnail.ts:81
+      // already does this for cached thumbs; we apply the same guard here
+      // for direct-image uploads. (See improvements-audit-2026-04-15.md item 6.)
+      const cleanImageUrl = (parsed.url || '').replace(/[\n\r]+/g, '').trim()
       const result = await supabase
         .from('library')
         .insert({
           serial_number: serialNumber,
-          image_url: parsed.url,
+          image_url: cleanImageUrl,
           position: nextPosition,
           room_id: room_id || null,
         })

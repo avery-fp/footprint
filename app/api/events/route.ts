@@ -48,13 +48,19 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
-    await supabase.from('fp_events').insert({
+    // fp_events live schema: id, footprint_id, event_type, data (jsonb),
+    // referrer, user_agent, created_at. Note: column is `data`, NOT
+    // `event_data`. visitor_hash is stored inside `data` since the
+    // top-level column was dropped at some point. Don't write to columns
+    // that no longer exist or the insert silently fails.
+    const { error } = await supabase.from('fp_events').insert({
       footprint_id,
       event_type,
-      event_data: event_data || {},
-      visitor_hash: visitorHash,
+      data: { ...(event_data || {}), visitor_hash: visitorHash },
       referrer,
+      user_agent: userAgent.slice(0, 500),
     })
+    if (error) log.warn({ err: error.message }, 'fp_events insert failed')
 
     return NextResponse.json({ ok: true })
   } catch (error) {

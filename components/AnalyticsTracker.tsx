@@ -24,6 +24,7 @@ interface AnalyticsTrackerProps {
  */
 export default function AnalyticsTracker({ footprintId, serialNumber }: AnalyticsTrackerProps) {
   useEffect(() => {
+    if (!footprintId) return // see EventTracker — undefined ID was the 400 source
     const timer = setTimeout(() => {
       // Fire the view event
       fetch('/api/analytics', {

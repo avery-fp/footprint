@@ -159,9 +159,18 @@ function parseFigma(url: string): EmbedResult | null {
 // `{ autoplay: false, mute: false }` explicitly.
 export function buildYouTubeEmbedUrl(
   videoId: string,
-  opts: { autoplay?: boolean; mute?: boolean; start?: number } = {}
+  opts: {
+    autoplay?: boolean
+    mute?: boolean
+    start?: number
+    /** Clip end (seconds). YouTube stops playback at this point. */
+    end?: number
+    /** Force 1080p quality hints (vq=hd1080, hd=1). Best-effort — YouTube
+     *  auto-selects based on bandwidth/viewport, but these flags nudge it. */
+    hd?: boolean
+  } = {}
 ): string {
-  const { autoplay = true, mute = true, start = 0 } = opts
+  const { autoplay = true, mute = true, start = 0, end = 0, hd = false } = opts
   const params = new URLSearchParams({
     autoplay: autoplay ? '1' : '0',
     mute: mute ? '1' : '0',
@@ -172,6 +181,8 @@ export function buildYouTubeEmbedUrl(
     playsinline: '1',
   })
   if (start > 0) params.set('start', String(start))
+  if (end > 0) params.set('end', String(end))
+  if (hd) { params.set('vq', 'hd1080'); params.set('hd', '1') }
   return `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}`
 }
 

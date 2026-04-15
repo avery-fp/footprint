@@ -18,6 +18,11 @@ interface EventTrackerProps {
  */
 export default function EventTracker({ footprintId }: EventTrackerProps) {
   useEffect(() => {
+    // Don't fire events if footprintId is missing — wastes requests + fills
+    // server logs with 400s. This was the bug: pre-fix we received undefined
+    // and POSTed with no footprint_id field, which the schema rejected.
+    if (!footprintId) return
+
     // 1. Visit event
     fetch('/api/events', {
       method: 'POST',
