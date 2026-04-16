@@ -15,6 +15,7 @@ import { glassStyle } from '@/lib/glass'
 import { useDepthExpansion } from '@/hooks/useDepthExpansion'
 import { getGridClass, resolveAspect, isVideoTile } from '@/lib/media/aspect'
 import { getFootprintDisplayTitle } from '@/lib/footprint'
+import { getRoomAtmosphere } from '@/lib/roomAtmosphere'
 import {
   DndContext,
   closestCenter,
@@ -55,27 +56,8 @@ interface PublicPageProps {
 }
 
 // Room subtitles removed — the rooms speak for themselves
-
-// Wallpaper filter per room
-const ROOM_FILTERS = [
-  'blur(8px) brightness(0.45) saturate(0.85) hue-rotate(-8deg)',
-  'blur(4px) brightness(0.65) saturate(1.4) hue-rotate(25deg)',
-  'blur(16px) brightness(0.3) saturate(1.6) hue-rotate(-35deg)',
-  'blur(0px) brightness(0.55) saturate(0.2) hue-rotate(0deg)',
-  'blur(10px) brightness(0.7) saturate(1.2) hue-rotate(35deg)',
-  'blur(14px) brightness(0.35) saturate(0.4) hue-rotate(-20deg)',
-]
-const DEFAULT_FILTER = 'blur(12px)'
-
-const ROOM_OVERLAYS = [
-  'rgba(0,0,0,0.35)',
-  'rgba(0,0,0,0.30)',
-  'rgba(0,0,0,0.42)',
-  'rgba(0,0,0,0.38)',
-  'rgba(0,0,0,0.28)',
-  'rgba(0,0,0,0.45)',
-]
-const DEFAULT_OVERLAY = 'rgba(0,0,0,0.35)'
+// Wallpaper filter + overlay per room live in lib/roomAtmosphere.ts so
+// the editor and public render the same room with the same atmosphere.
 
 export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl, isDraft, containerMeta = {}, ownerEmail = null }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
@@ -174,20 +156,12 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // Show tiles in user's arranged order — no shuffle
   const content = baseContent
 
-  // Wallpaper filter
+  // Wallpaper filter + overlay come from the shared room-atmosphere table
+  // so the editor renders the same room with the same atmosphere.
   const activeRoomIndex = activeRoomId ? visibleRooms.findIndex(r => r.id === activeRoomId) : -1
   const activeRoom = activeRoomId ? visibleRooms.find(r => r.id === activeRoomId) : null
   const isSoundRoom = activeRoom?.name?.toLowerCase() === 'sound'
-  const wallpaperFilter = isSoundRoom
-    ? 'blur(20px) brightness(0.25) saturate(1.8) hue-rotate(-15deg)'
-    : activeRoomIndex >= 0
-    ? ROOM_FILTERS[activeRoomIndex % ROOM_FILTERS.length]
-    : DEFAULT_FILTER
-  const overlayColor = isSoundRoom
-    ? 'rgba(0,0,0,0.50)'
-    : activeRoomIndex >= 0
-    ? ROOM_OVERLAYS[activeRoomIndex % ROOM_OVERLAYS.length]
-    : DEFAULT_OVERLAY
+  const { filter: wallpaperFilter, overlay: overlayColor } = getRoomAtmosphere(activeRoomIndex, isSoundRoom)
 
   const handleShare = () => {
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://footprint.onl'

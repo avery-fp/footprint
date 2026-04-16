@@ -18,7 +18,7 @@ import { AUTH_ENTRY } from '@/lib/routes'
 import { humanUsernameReason } from '@/lib/errors'
 import LayoutToggle from '@/components/LayoutToggle'
 import { type RoomLayout, getGridLayout } from '@/lib/grid-layouts'
-import { getLayoutConfig } from '@/lib/layout-engine'
+import { getRoomAtmosphere } from '@/lib/roomAtmosphere'
 import { getFootprintDisplayTitle } from '@/lib/footprint'
 import {
   resolveAspect as resolveAspectShared,
@@ -236,14 +236,14 @@ function SortableTile({
       data-tile
     >
       <div
-        className={`tile-inner relative fp-tile overflow-hidden w-full ${aspect !== 'auto' ? 'h-full' : isVideo ? 'aspect-video' : ''} ${
+        className={`tile-inner relative fp-tile fp-tile-hover rounded-2xl overflow-hidden w-full ${aspect !== 'auto' ? 'h-full' : isVideo ? 'aspect-video' : ''} ${
           isArranging
             ? isMobile
               ? 'tile-arranging ring-1 ring-white/20'
               : 'tile-arranging tile-jiggle'
             : ''
         } ${selected ? 'ring-2 ring-white/60' : ''}`}
-        style={revealStyle}
+        style={{ ...(revealStyle || {}), background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
         {...tileHandlers}
         {...touchHandlers}
         onContextMenu={(e) => e.preventDefault()}
@@ -1824,21 +1824,32 @@ export default function EditPage() {
   return (
     <ErrorBoundary context="editor">
     <div className="relative min-h-[100dvh] w-full overflow-x-hidden pb-32" style={{ background: theme.colors.background, color: theme.colors.text }}>
-      {/* Wallpaper layer */}
-      {wallpaperUrl && (
-        <div
-          className="fixed inset-0 z-0 bg-cover bg-center"
-          style={{
-            backgroundImage: `url(${wallpaperUrl})`,
-            top: backgroundBlur ? '-24px' : '0',
-            right: backgroundBlur ? '-24px' : '0',
-            bottom: backgroundBlur ? '-24px' : '0',
-            left: backgroundBlur ? '-24px' : '0',
-            filter: backgroundBlur ? 'blur(12px) brightness(0.7)' : 'none',
-            pointerEvents: 'none',
-          }}
-        />
-      )}
+      {/* Wallpaper layer — same atmosphere system as public (lib/roomAtmosphere).
+          The editor is the public room with owner controls on top, so the
+          background must be the same species: per-room filter + overlay
+          keyed off the active visible room's index. */}
+      {wallpaperUrl && (() => {
+        const visibleRooms = rooms.filter(r => r.name && r.name.trim().length > 0)
+        const activeRoomIndex = activeRoomId ? visibleRooms.findIndex(r => r.id === activeRoomId) : -1
+        const activeRoom = activeRoomId ? visibleRooms.find(r => r.id === activeRoomId) : null
+        const isSoundRoom = activeRoom?.name?.toLowerCase() === 'sound'
+        const { filter, overlay } = getRoomAtmosphere(activeRoomIndex, isSoundRoom)
+        return (
+          <div className="fixed inset-0 z-0 fp-wallpaper-gpu pointer-events-none">
+            <div
+              className="absolute inset-0 bg-cover bg-center transition-all duration-700"
+              style={{
+                backgroundImage: `url(${wallpaperUrl})`,
+                filter: backgroundBlur ? filter : 'none',
+              }}
+            />
+            <div
+              className="absolute inset-0 transition-all duration-800"
+              style={{ backgroundColor: overlay }}
+            />
+          </div>
+        )
+      })()}
 
       {/* ═══ HEADER ═══ */}
       <div className="fixed top-0 left-0 right-0 z-50 bg-black/60 backdrop-blur-sm border-b border-white/[0.06]"
@@ -2092,7 +2103,6 @@ export default function EditPage() {
                 className="grid grid-cols-2 md:grid-cols-4"
                 style={{
                 gap: getGridLayout(rooms.find(r => r.id === activeRoomId)?.layout).gap,
-                '--fp-tile-radius': `${getLayoutConfig('grid').tileRadius}px`,
                 gridAutoRows: publicLayout === 'home' ? 'auto' : undefined,
                 gridAutoFlow: 'dense',
                 opacity: gridFade === 'out' ? 0 : 1,
@@ -2101,7 +2111,7 @@ export default function EditPage() {
                 {/* Background tile — first tile, opens photo picker */}
                 {isArranging && (
                   <div
-                    className="aspect-square rounded-xl overflow-hidden cursor-pointer group"
+                    className="aspect-square rounded-2xl overflow-hidden cursor-pointer group"
                     onClick={() => bgFileInputRef.current?.click()}
                     style={{
                       background: wallpaperUrl
@@ -2169,7 +2179,7 @@ export default function EditPage() {
             style={{ gap: getGridLayout(rooms.find(r => r.id === activeRoomId)?.layout).gap }}
           >
             <div
-              className="aspect-square rounded-xl overflow-hidden cursor-pointer group"
+              className="aspect-square rounded-2xl overflow-hidden cursor-pointer group"
               onClick={() => bgFileInputRef.current?.click()}
               style={{
                 background: wallpaperUrl
