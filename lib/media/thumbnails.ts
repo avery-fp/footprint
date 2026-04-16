@@ -31,13 +31,16 @@ export function getYouTubeThumbnailCandidates(input: { url?: string | null; medi
   }
 
   return dedupe([
+    // Cached Supabase copy wins when present — cached precisely because
+    // YouTube's maxresdefault 404s for many videos. Hitting ytimg first
+    // means broken tiles on those videos. Our cache is the reliable source.
+    input.thumbnail_url_hq,
+    input.thumbnail_url,
     `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`,
     `https://i.ytimg.com/vi/${id}/sddefault.jpg`,
     `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
     `https://i.ytimg.com/vi/${id}/mqdefault.jpg`,
     `https://i.ytimg.com/vi/${id}/default.jpg`,
-    input.thumbnail_url,
-    input.thumbnail_url_hq,
   ])
 }
 
