@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getUserIdFromRequest } from '@/lib/auth'
-import { mediaTypeFromUrl } from '@/lib/media'
+import { loadFootprint } from '@/lib/loadFootprint'
 
 export const dynamic = 'force-dynamic'
 
 /**
  * GET /api/footprint/[slug]
  *
- * Returns footprint + tiles for the edit page.
+ * Returns footprint + tiles for the edit page via the shared loader.
  * Requires auth — only the owner can access.
  */
 export async function GET(
@@ -22,96 +22,20 @@ export async function GET(
       return NextResponse.json({ owned: false }, { status: 401 })
     }
 
-    const username = params.slug
-    const supabase = createServerSupabaseClient()
-
-    const { data: footprint, error: footprintError } = await supabase
-      .from('footprints')
-      .select('*')
-      .eq('username', username)
-      .single()
-
-    if (footprintError || !footprint) {
+    const result = await loadFootprint(params.slug, { ownerView: true })
+    if (!result) {
       return NextResponse.json({ owned: false })
     }
 
     // Ownership check — user must own this footprint
-    if (footprint.user_id !== userId) {
+    if (result.footprint.user_id !== userId) {
       return NextResponse.json({ owned: false }, { status: 403 })
-    }
-
-    let allTiles: any[] = []
-
-    // Only fetch tiles if the footprint has a serial_number (published or migrated)
-    if (footprint.serial_number) {
-      const [libraryResult, linksResult] = await Promise.all([
-        supabase
-          .from('library')
-          .select('*')
-          .eq('serial_number', footprint.serial_number)
-          .order('position', { ascending: true }),
-        supabase
-          .from('links')
-          .select('*')
-          .eq('serial_number', footprint.serial_number)
-          .order('position', { ascending: true }),
-      ])
-
-      const libraryTiles = (libraryResult.data || []).map(item => {
-        const type = mediaTypeFromUrl(item.image_url || '', item.media_kind)
-        return {
-          id: item.id,
-          url: item.image_url,
-          type,
-          title: item.title || null,
-          description: null,
-          thumbnail_url: null,
-          embed_html: null,
-          position: item.position,
-          source: 'library' as const,
-          room_id: item.room_id || null,
-          size: item.size || 1,
-          aspect: item.aspect || null,
-          caption: item.caption || null,
-          parent_tile_id: item.parent_tile_id || null,
-          playback_url: item.playback_url || null,
-          poster_url: item.poster_url || null,
-          status: item.status || null,
-          asset_id: item.asset_id || null,
-        }
-      })
-      const linkTiles = (linksResult.data || []).map(item => ({
-        id: item.id,
-        url: item.url,
-        type: item.platform,
-        title: item.title,
-        description: item.metadata?.description || null,
-        thumbnail_url: item.thumbnail || null,
-        embed_html: item.metadata?.embed_html || null,
-        position: item.position,
-        source: 'links' as const,
-        room_id: item.room_id || null,
-        size: item.size || 1,
-        aspect: item.aspect || null,
-        render_mode: item.render_mode || 'embed',
-        artist: item.artist || null,
-        thumbnail_url_hq: item.thumbnail_url_hq || null,
-        media_id: item.media_id || null,
-        container_label: item.container_label || null,
-        container_cover_url: item.container_cover_url || null,
-        parent_tile_id: item.parent_tile_id || null,
-      }))
-
-      // Only street-level tiles (no children inside containers)
-      allTiles = [...libraryTiles, ...linkTiles]
-        .filter(t => !t.parent_tile_id)
-        .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
     }
 
     return NextResponse.json({
       owned: true,
-      footprint,
-      tiles: allTiles,
+      footprint: result.footprint,
+      tiles: result.content,
     })
   } catch (error) {
     console.error('Footprint lookup error:', error)
