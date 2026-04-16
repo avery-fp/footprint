@@ -99,10 +99,16 @@ export async function GET(request: NextRequest) {
     const auth = await verifyOwnership(request, supabase, Number(serialNumber))
     if (auth.error) return auth.error
 
+    // Mirror the public page's room filter so the owner's editor lands on
+    // the same room set a visitor sees. Without .neq('hidden', true), the
+    // editor could open to a hidden room with no/few tiles while public
+    // lands on a visible room — producing "public has content editor
+    // doesn't" without the underlying data actually diverging.
     const { data: rooms, error } = await supabase
       .from('rooms')
       .select('*')
       .eq('serial_number', Number(serialNumber))
+      .neq('hidden', true)
       .order('position')
 
     if (error) {

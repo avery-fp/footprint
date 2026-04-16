@@ -11,8 +11,11 @@ import EventTracker from '@/components/EventTracker'
 import ReferralBanner from '@/components/ReferralBanner'
 import PublicPage from './PublicPage'
 
-// ISR — cache page at the edge, revalidate every 60 seconds
-export const revalidate = 60
+// ISR — cache page at the edge, revalidate every 5 seconds while we debug
+// the editor/public divergence. The 60s window was masking whether fixes
+// landed by serving stale data for up to a minute after an edit. Bump back
+// up once the shared-loader work is in and the mismatch is gone.
+export const revalidate = 5
 
 interface Props {
   params: { slug: string }
