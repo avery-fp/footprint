@@ -840,6 +840,89 @@ async function runFix() {
       console.log('youtube tiles by render_mode:', ytTally, 'total:', yts?.length, 'missing media_id:', ytNoMedia.length)
       if (ytNoMedia.length) console.log('  missing media_id:', ytNoMedia.map(r => r.id).join(', '))
     }
+    else if (p === 'probe-sizes-v2') {
+      // Just dump the size distribution across both tables
+      const { data: links } = await supabase.from('links').select('id, size, platform, title, created_at').eq('serial_number', serial)
+      const linksDist = (links || []).reduce((a,r) => ({ ...a, [r.size ?? 'null']: (a[r.size ?? 'null']||0)+1 }), {})
+      const byPlatSize = (links || []).reduce((a,r) => { const k = `${r.platform}/${r.size}`; a[k]=(a[k]||0)+1; return a }, {})
+      console.log('links count:', links?.length, 'dist:', linksDist)
+      console.log('links by platform/size:', byPlatSize)
+      const sampleColumns = links?.[0] ? Object.keys(links[0]).join(', ') : 'empty'
+      console.log('links columns:', sampleColumns)
+      const { data: lib } = await supabase.from('library').select('id, size').eq('serial_number', serial)
+      const libDist = (lib || []).reduce((a,r) => ({ ...a, [r.size ?? 'null']: (a[r.size ?? 'null']||0)+1 }), {})
+      console.log('library count:', lib?.length, 'dist:', libDist)
+    }
+    else if (p === 'probe-size-floor-damage') {
+      // Inspect: which tiles were touched by the 2026-04-15 22:33:37 size-floor bump?
+      // links has updated_at — window the query.
+      // library has no updated_at — show full distribution by size.
+      const windowStart = '2026-04-15T22:33:30Z'
+      const windowEnd = '2026-04-15T22:33:50Z'
+      const { data: linksBumped } = await supabase
+        .from('links')
+        .select('id, platform, title, size, updated_at')
+        .eq('serial_number', serial)
+        .eq('size', 2)
+        .gte('updated_at', windowStart)
+        .lte('updated_at', windowEnd)
+      console.log(`  links size=2 updated_at in bump window [${windowStart} .. ${windowEnd}]:  ${linksBumped?.length || 0}`)
+      if (linksBumped?.length) {
+        const byPlat = linksBumped.reduce((a,r) => ({ ...a, [r.platform]: (a[r.platform]||0)+1 }), {})
+        console.log('  by platform:', byPlat)
+      }
+      // Also count links at size=2 NOT in the window (intentional)
+      const { data: linksAllSize2 } = await supabase
+        .from('links')
+        .select('id, platform, size, updated_at')
+        .eq('serial_number', serial)
+        .eq('size', 2)
+      const linksIntentional = (linksAllSize2 || []).filter(r => !(r.updated_at >= windowStart && r.updated_at <= windowEnd))
+      console.log(`  links size=2 OUTSIDE window (intentional, keep):  ${linksIntentional.length}`)
+      // Library — full size distribution
+      const { data: lib } = await supabase.from('library').select('id, size').eq('serial_number', serial)
+      const libDist = (lib || []).reduce((a,r) => ({ ...a, [r.size]: (a[r.size]||0)+1 }), {})
+      console.log(`  library size distribution:`, libDist)
+    }
+    else if (p === 'revert-size-floor') {
+      // Reverse-engineer peak state: apply the pre-#244 code default retroactively.
+      //   - YouTube / Vimeo: size 2 (M) — videos need the 16:9 room
+      //   - Everything else: size 1 (S) — the long-standing convention
+      // Links table has no updated_at column, so we can't identify which specific
+      // rows my destructive bump touched vs which were intentional. This rule-based
+      // revert restores the peak composition; any intentional non-default sizes
+      // will need to be re-applied via edit mode (honest tradeoff — we prioritize
+      // restoring the grid's visual rhythm over preserving individual overrides).
+      const { data: linksNonVideo } = await supabase
+        .from('links')
+        .select('id')
+        .eq('serial_number', serial)
+        .eq('size', 2)
+        .not('platform', 'in', '(youtube,vimeo)')
+      let reverted = 0
+      if (linksNonVideo?.length) {
+        const ids = linksNonVideo.map(r => r.id)
+        const { error } = await supabase.from('links').update({ size: 1 }).in('id', ids)
+        if (!error) reverted += ids.length
+        else console.log('  links revert err:', error.message)
+        console.log(`  reverted ${ids.length} non-video links back to size 1`)
+      }
+      // Library: all images default to S (square). Blanket revert.
+      const { data: libToRevert } = await supabase
+        .from('library')
+        .select('id')
+        .eq('serial_number', serial)
+        .eq('size', 2)
+      if (libToRevert?.length) {
+        const ids = libToRevert.map(r => r.id)
+        const { error } = await supabase.from('library').update({ size: 1 }).in('id', ids)
+        if (!error) reverted += ids.length
+        else console.log('  library revert err:', error.message)
+        console.log(`  reverted ${ids.length} library images back to size 1`)
+      }
+      console.log(`  ✓ ${reverted} tiles reverted`)
+      total += reverted
+    }
     else if (p === 'size-floor') {
       // Bump ALL size-1 tiles to size-2 across both tables
       const { data: links1 } = await supabase.from('links').select('id').eq('serial_number', serial).eq('size', 1)

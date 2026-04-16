@@ -327,9 +327,10 @@ export async function POST(request: NextRequest) {
           thumbnail: parsed.thumbnail_url,
           position: nextPosition,
           room_id: room_id || null,
-          // Default M (size 2) for all tiles. S was too cramped for every type.
-          // Edit mode keeps manual resize if someone wants smaller.
-          size: 2,
+          // Peak convention: videos get M (need 16:9 room), everything else
+          // starts S. User resizes individual tiles in edit mode. Flat defaults
+          // kill the grid's visual rhythm — don't go back there.
+          size: ['youtube', 'vimeo'].includes(parsed.type) ? 2 : 1,
           ...(needsEnrich ? {
             render_mode: 'ghost',
             artist: ghostArtist,
