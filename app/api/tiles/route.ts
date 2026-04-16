@@ -411,6 +411,16 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized or not found' }, { status: 403 })
     }
 
+    // Cascade: any row with parent_tile_id = this id is a child of this tile
+    // (container children live in either table). Schema has no FK on
+    // parent_tile_id, so without this step deleting a container leaves its
+    // children orphaned in the DB — invisible everywhere but accumulating
+    // forever. Delete them in parallel before the parent.
+    await Promise.all([
+      supabase.from('library').delete().eq('parent_tile_id', id).eq('serial_number', serialNumber),
+      supabase.from('links').delete().eq('parent_tile_id', id).eq('serial_number', serialNumber),
+    ])
+
     // Delete from the correct table, ensuring serial_number matches
     const { error, count } = await supabase
       .from(source)
@@ -421,6 +431,18 @@ export async function DELETE(request: NextRequest) {
     if (error) {
       log.error({ err: error }, 'DELETE /api/tiles: Database error')
       return NextResponse.json({ error: 'Internal error' }, { status: 500 })
+    }
+
+    // count === 0 means the row didn't match — stale tileSources entry,
+    // serial mismatch, double-tap race, or concurrent tab already deleted.
+    // Reporting success here is the zombie generator: client removes the
+    // tile locally, DB still has the row, next reload brings it back.
+    // Surface a real failure so the client can refetch and reconcile.
+    if (count === 0) {
+      return NextResponse.json(
+        { error: 'Tile not found or already deleted', code: 'not_found' },
+        { status: 404 }
+      )
     }
 
     revalidatePath(`/${slug}`)

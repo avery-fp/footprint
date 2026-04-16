@@ -1108,6 +1108,51 @@ export default function EditPage() {
     }
   }
 
+  // Reconcile local state with DB truth after a delete that didn't cleanly
+  // remove a row. Fetches the full tile list and rebuilds draft.content +
+  // tileSources so zombie tiles can't linger in local state when the server
+  // reports the row didn't match (stale tileSources, double-tap race,
+  // concurrent tab already deleted).
+  async function refetchTiles(): Promise<void> {
+    try {
+      const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
+        cache: 'no-store',
+        next: { revalidate: 0 },
+      })
+      if (!res.ok) return
+      const data = await res.json()
+      if (!data.footprint) return
+      const sources: Record<string, 'library' | 'links'> = {}
+      const content = (data.tiles || []).map((tile: any) => {
+        sources[tile.id] = tile.source
+        return {
+          id: tile.id,
+          url: tile.url,
+          type: tile.type,
+          title: tile.title,
+          description: tile.description,
+          thumbnail_url: tile.thumbnail_url,
+          embed_html: tile.embed_html,
+          position: tile.position,
+          room_id: tile.room_id || null,
+          size: tile.size || 1,
+          aspect: tile.aspect || null,
+          caption: tile.caption || null,
+          render_mode: tile.render_mode || 'embed',
+          artist: tile.artist || null,
+          thumbnail_url_hq: tile.thumbnail_url_hq || null,
+          media_id: tile.media_id || null,
+          container_label: tile.container_label || null,
+          container_cover_url: tile.container_cover_url || null,
+        }
+      })
+      setTileSources(sources)
+      setDraft(prev => prev ? { ...prev, content, updated_at: Date.now() } : null)
+    } catch (err) {
+      console.error('refetchTiles failed:', err)
+    }
+  }
+
   async function handleDelete(id: string) {
     if (deletingIds.has(id)) return
     setDeletingIds(prev => new Set(prev).add(id))
@@ -1115,7 +1160,12 @@ export default function EditPage() {
 
     try {
       const source = tileSources[id]
-      if (!source) throw new Error('Unknown tile source')
+      if (!source) {
+        // Client state lost track of which table this tile is in — the safest
+        // move is a refetch, not a guessed delete that might silently miss.
+        await refetchTiles()
+        return
+      }
 
       const res = await fetch('/api/tiles', {
         method: 'DELETE',
@@ -1123,24 +1173,29 @@ export default function EditPage() {
         body: JSON.stringify({ slug, source, id }),
       })
 
-      if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.error || 'Delete failed')
+      if (res.ok) {
+        setDraft(prev => prev ? {
+          ...prev,
+          content: prev.content.filter(c => c.id !== id),
+          updated_at: Date.now(),
+        } : null)
+        setTileSources(prev => {
+          const next = { ...prev }
+          delete next[id]
+          return next
+        })
+        return
       }
 
-      setDraft(prev => prev ? {
-        ...prev,
-        content: prev.content.filter(c => c.id !== id),
-        updated_at: Date.now(),
-      } : null)
-
-      setTileSources(prev => {
-        const next = { ...prev }
-        delete next[id]
-        return next
-      })
+      // Any non-2xx — including the server's new 404 when count === 0 —
+      // means local state can't be trusted to match the DB. Reconcile by
+      // refetching rather than doing an optimistic removal that creates
+      // a zombie on reload.
+      console.warn('Delete failed, reconciling with server:', res.status)
+      await refetchTiles()
     } catch (error) {
       console.error('Failed to delete tile:', error)
+      await refetchTiles()
     } finally {
       setDeletingIds(prev => {
         const next = new Set(prev)
