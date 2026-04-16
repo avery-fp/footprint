@@ -840,6 +840,27 @@ async function runFix() {
       console.log('youtube tiles by render_mode:', ytTally, 'total:', yts?.length, 'missing media_id:', ytNoMedia.length)
       if (ytNoMedia.length) console.log('  missing media_id:', ytNoMedia.map(r => r.id).join(', '))
     }
+    else if (p === 'size-floor') {
+      // Bump ALL size-1 tiles to size-2 across both tables
+      const { data: links1 } = await supabase.from('links').select('id').eq('serial_number', serial).eq('size', 1)
+      const { data: lib1 } = await supabase.from('library').select('id').eq('serial_number', serial).eq('size', 1)
+      console.log(`  links size=1: ${links1?.length || 0}   library size=1: ${lib1?.length || 0}`)
+      let bumped = 0
+      if (links1?.length) {
+        const ids = links1.map(r => r.id)
+        const { error } = await supabase.from('links').update({ size: 2 }).in('id', ids)
+        if (!error) bumped += ids.length
+        else console.log('  links err:', error.message)
+      }
+      if (lib1?.length) {
+        const ids = lib1.map(r => r.id)
+        const { error } = await supabase.from('library').update({ size: 2 }).in('id', ids)
+        if (!error) bumped += ids.length
+        else console.log('  library err:', error.message)
+      }
+      console.log(`  ✓ ${bumped} tiles bumped to size 2`)
+      total += bumped
+    }
     else if (p === 'bump-text-tiles') {
       const { data: rows } = await supabase
         .from('links')
