@@ -2,9 +2,8 @@ import { createServerSupabaseClient } from '@/lib/supabase'
 import { notFound } from 'next/navigation'
 import { Metadata } from 'next'
 import { getTheme } from '@/lib/themes'
-import { transformImageUrl } from '@/lib/image'
-import { mediaTypeFromUrl } from '@/lib/media'
 import { getFootprintDisplayTitle } from '@/lib/footprint'
+import { loadFootprint } from '@/lib/loadFootprint'
 import AnalyticsTracker from '@/components/AnalyticsTracker'
 import ShareEngine from '@/components/ShareEngine'
 import EventTracker from '@/components/EventTracker'
@@ -63,106 +62,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function FootprintPage({ params }: Props) {
   if (RESERVED_SLUGS.has(params.slug)) notFound()
 
+  const result = await loadFootprint(params.slug, { ownerView: false })
+  if (!result) notFound()
+
+  const { footprint, content, rooms: roomsFlat, containerMeta } = result
+
   const supabase = createServerSupabaseClient()
-
-  // Fetch footprint by username + published
-  const { data: footprint } = await supabase
-    .from('footprints')
-    .select('*')
-    .eq('username', params.slug)
-    .eq('published', true)
-    .single()
-
-  if (!footprint) notFound()
-
   const { data: owner } = await supabase
     .from('users')
     .select('email')
     .eq('id', footprint.user_id)
     .maybeSingle()
 
-  // Fetch tiles + rooms in parallel (single round-trip, no waterfall)
-  // Street level only: parent_tile_id IS NULL (children render inside containers)
-  const [{ data: images }, { data: links }, { data: roomsData }, { data: childImages }, { data: childLinks }] = await Promise.all([
-    supabase.from('library').select('*').eq('serial_number', footprint.serial_number).is('parent_tile_id', null).order('position'),
-    supabase.from('links').select('*').eq('serial_number', footprint.serial_number).is('parent_tile_id', null).order('position'),
-    supabase.from('rooms').select('*').eq('serial_number', footprint.serial_number).neq('hidden', true).order('position'),
-    // Lightweight child queries for container facade metadata (count + first thumbnail)
-    supabase.from('library').select('id, parent_tile_id, image_url, position').eq('serial_number', footprint.serial_number).not('parent_tile_id', 'is', null).order('position'),
-    supabase.from('links').select('id, parent_tile_id, thumbnail, thumbnail_url_hq, position').eq('serial_number', footprint.serial_number).not('parent_tile_id', 'is', null).order('position'),
-  ])
-
-  // Merge and sort by position
-  const content = [
-    ...(images || []).map((img: any) => {
-      const isVideo = mediaTypeFromUrl(img.image_url || '', img.media_kind) === 'video'
-      const usePlaybackUrl = isVideo && img.playback_url && img.status === 'ready'
-      return {
-        id: img.id,
-        type: isVideo ? 'video' : 'image',
-        url: usePlaybackUrl ? img.playback_url : (isVideo ? img.image_url : transformImageUrl(img.image_url)),
-        position: img.position,
-        room_id: img.room_id,
-        size: img.size || 1,
-        aspect: img.aspect || null,
-        caption: img.caption || null,
-        playback_url: img.playback_url || null,
-        poster_url: img.poster_url || null,
-        status: img.status || null,
-      }
-    }),
-    ...(links || []).map((link: any) => ({
-      id: link.id,
-      type: link.platform,
-      url: link.url,
-      title: link.title,
-      thumbnail_url: transformImageUrl(link.thumbnail),
-      embed_html: link.metadata?.embed_html,
-      description: link.metadata?.description,
-      position: link.position,
-      room_id: link.room_id,
-      size: link.size || 1,
-      aspect: link.aspect || null,
-      render_mode: link.render_mode || 'embed',
-      artist: link.artist || null,
-      thumbnail_url_hq: link.thumbnail_url_hq || null,
-      media_id: link.media_id || null,
-      // YouTube clip range (ms) — resolved when a tile's URL is a /clip/ link
-      clip_start_ms: link.metadata?.clip_start_ms ?? null,
-      clip_end_ms: link.metadata?.clip_end_ms ?? null,
-      // Container tile fields
-      container_label: link.container_label || null,
-      container_cover_url: link.container_cover_url || null,
-    })),
-  ].sort((a, b) => a.position - b.position)
-
-  // Group content by rooms
-  const rooms = (roomsData || []).map((room: any) => ({
-    id: room.id,
-    name: room.name,
-    layout: room.layout === 'editorial' ? 'mix' : (['grid', 'mix', 'rail'] as const).includes(room.layout) ? room.layout : 'grid',
+  // Public page expects rooms with their content already grouped in.
+  const rooms = roomsFlat.map(room => ({
+    ...room,
     content: content.filter(item => item.room_id === room.id),
   }))
-
-  // Build container facade metadata: child count + first child thumbnail
-  const containerMeta: Record<string, { childCount: number; firstThumb: string | null }> = {}
-  for (const img of (childImages || []).sort((a: any, b: any) => a.position - b.position)) {
-    if (!img.parent_tile_id) continue
-    if (!containerMeta[img.parent_tile_id]) containerMeta[img.parent_tile_id] = { childCount: 0, firstThumb: null }
-    containerMeta[img.parent_tile_id].childCount++
-    if (!containerMeta[img.parent_tile_id].firstThumb && img.image_url) {
-      containerMeta[img.parent_tile_id].firstThumb = transformImageUrl(img.image_url)
-    }
-  }
-  for (const link of (childLinks || []).sort((a: any, b: any) => a.position - b.position)) {
-    if (!link.parent_tile_id) continue
-    if (!containerMeta[link.parent_tile_id]) containerMeta[link.parent_tile_id] = { childCount: 0, firstThumb: null }
-    containerMeta[link.parent_tile_id].childCount++
-    const linkThumb = link.thumbnail_url_hq || link.thumbnail
-    if (!containerMeta[link.parent_tile_id].firstThumb && linkThumb) {
-      containerMeta[link.parent_tile_id].firstThumb = transformImageUrl(linkThumb)
-    }
-  }
 
   const serial = footprint.serial_number.toString().padStart(4, '0')
   const theme = getTheme(footprint.dimension || 'midnight')
