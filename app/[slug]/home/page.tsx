@@ -865,13 +865,17 @@ export default function EditPage() {
 
           setSerialNumber(data.footprint.serial_number || null)
 
-          // Fetch rooms via server API (bypasses RLS) — only if serial exists
+          // Fetch rooms via server API (bypasses RLS) — only if serial exists.
+          // Pick the same default room the public page picks: first room whose
+          // name has content. /api/rooms already drops hidden rooms server-side,
+          // so filtering on name here is enough to match public's selection.
           if (data.footprint.serial_number) {
             const roomsRes = await fetch(`/api/rooms?serial_number=${data.footprint.serial_number}`)
             const roomsJson = await roomsRes.json()
             if (roomsJson.rooms?.length > 0) {
               setRooms(roomsJson.rooms)
-              setActiveRoomId(roomsJson.rooms[0].id)
+              const firstNamed = roomsJson.rooms.find((r: { name?: string }) => r.name && r.name.trim().length > 0)
+              if (firstNamed) setActiveRoomId(firstNamed.id)
             }
           }
         } else {
