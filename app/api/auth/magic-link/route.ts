@@ -61,7 +61,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Magic links not configured' }, { status: 500 })
     }
 
-    const { supabase, applyPendingCookies } = createRouteHandlerSupabaseAuthClient(request)
+    // Implicit flow — magic-link emails arrive as ?token_hash=...&type=email.
+    // The callback's verifyOtp branch handles them with no PKCE verifier
+    // cookie, which is the only way the flow survives a cross-device open
+    // (Gmail → Safari, desktop → phone). PKCE here would produce a ?code=X
+    // link that only works in the browser that hit this route.
+    const { supabase, applyPendingCookies } = createRouteHandlerSupabaseAuthClient(request, { flowType: 'implicit' })
 
     // Pin the callback to the canonical production origin. This must match
     // an entry in the Supabase dashboard's redirect URL allow-list exactly;

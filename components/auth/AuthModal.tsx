@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useEffect, FormEvent } from 'react'
 import OAuthButton from './OAuthButton'
-import PasskeyButton from './PasskeyButton'
 
 interface AuthModalProps {
   /** Where to send the user after auth succeeds. Used by OAuthButton. */
@@ -27,11 +26,12 @@ interface AuthModalProps {
  * Layout (top to bottom):
  *   - X close (optional)
  *   - Continue with Google
+ *   - Continue with Apple
  *   - "or" divider
  *   - Email input + → submit  (POST /api/auth/magic-link)
  *   - $10 price line (optional)
  *
- * No title, no subtitle. Footprint's wordless mono aesthetic.
+ * Provider buttons only: Google, Apple, Email. No passkey, no other copy.
  */
 export default function AuthModal({ redirectAfterAuth, onClose, showPrice, authError, initialEmail }: AuthModalProps) {
   const [email, setEmail] = useState(initialEmail || '')
@@ -78,7 +78,7 @@ export default function AuthModal({ redirectAfterAuth, onClose, showPrice, authE
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Sign in or sign up"
+      aria-label="Create Footprint"
       className="claim-overlay-enter relative"
       style={{
         width: 'min(88vw, 380px)',
@@ -129,7 +129,6 @@ export default function AuthModal({ redirectAfterAuth, onClose, showPrice, authE
       <div style={{ display: 'flex', flexDirection: 'column', gap: 0, width: '100%' }}>
         <OAuthButton provider="google" label="continue with google" redirectAfterAuth={redirectAfterAuth} />
         <OAuthButton provider="apple" label="continue with apple" redirectAfterAuth={redirectAfterAuth} />
-        <PasskeyButton redirectAfterAuth={redirectAfterAuth} />
       </div>
 
       <div aria-hidden style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%' }}>

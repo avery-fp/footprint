@@ -2100,26 +2100,48 @@ export default function EditPage() {
             </SortableContext>
           </DndContext>
           </LayoutGroup>
+        ) : isOwner ? (
+          // Empty room for the owner → one wallpaper tile. Tap it to upload
+          // media; the upload becomes the room background. No demo tiles,
+          // no seeded artifacts, no AE content. First-run is this and only
+          // this.
+          <div
+            className="grid grid-cols-2 md:grid-cols-4"
+            style={{ gap: getGridLayout(rooms.find(r => r.id === activeRoomId)?.layout).gap }}
+          >
+            <div
+              className="aspect-square rounded-xl overflow-hidden cursor-pointer group"
+              onClick={() => bgFileInputRef.current?.click()}
+              style={{
+                background: wallpaperUrl
+                  ? `url(${wallpaperUrl}) center/cover`
+                  : 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                animation: bgPulse && !wallpaperUrl ? 'fp-bg-pulse 2s ease-in-out' : undefined,
+              }}
+            >
+              <div className={`w-full h-full flex items-center justify-center transition-all ${wallpaperUrl ? 'bg-black/30 group-hover:bg-black/50' : 'group-hover:bg-white/[0.04]'}`}>
+                <svg
+                  className={`w-5 h-5 transition-all ${wallpaperUrl ? 'text-white/50 group-hover:text-white/80' : 'text-white/25 group-hover:text-white/50'}`}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <path d="M21 15l-5-5L5 21" />
+                </svg>
+              </div>
+            </div>
+          </div>
         ) : (
           <div className="text-center py-32 flex flex-col items-center gap-4">
             <p className="text-white/30 text-sm font-mono">
               {activeRoomId ? 'this space is empty.' : 'nothing here yet.'}
             </p>
-            {isArranging ? (
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="text-xs text-white/50 hover:text-white/80 font-mono px-5 py-2.5 rounded-full bg-white/[0.06] hover:bg-white/[0.10] border border-white/10 transition-all"
-              >
-                add something
-              </button>
-            ) : (
-              <button
-                onClick={enterEdit}
-                className="text-xs text-white/50 hover:text-white/80 font-mono px-5 py-2.5 rounded-full bg-white/[0.06] hover:bg-white/[0.10] border border-white/10 transition-all"
-              >
-                tap to start
-              </button>
-            )}
           </div>
         )}
       </div>

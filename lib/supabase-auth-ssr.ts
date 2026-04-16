@@ -23,8 +23,12 @@ export function getCanonicalAppBaseUrl(request?: NextRequest) {
   return url.origin
 }
 
-export function createRouteHandlerSupabaseAuthClient(request: NextRequest) {
+export function createRouteHandlerSupabaseAuthClient(
+  request: NextRequest,
+  options: { flowType?: 'pkce' | 'implicit' } = {}
+) {
   const pendingCookies = new Map<string, PendingCookie>()
+  const flowType = options.flowType ?? 'pkce'
 
   const supabase = createServerClient(
     requireEnv('NEXT_PUBLIC_SUPABASE_URL'),
@@ -44,13 +48,20 @@ export function createRouteHandlerSupabaseAuthClient(request: NextRequest) {
           pendingCookies.set(name, { type: 'remove', options })
         },
       },
-      // Pin PKCE. Magic-link + OAuth must use the same code-verifier flow so
-      // the server callback's exchangeCodeForSession has a verifier to match
-      // against. detectSessionInUrl:false because we handle the URL manually
-      // in the route handler — Supabase must not try to parse a fragment it
-      // will never see in a server context.
+      // flowType defaults to 'pkce' (required for OAuth — same-device by
+      // design). Magic-link routes pass 'implicit' so the generated email
+      // link contains ?token_hash=X&type=email rather than ?code=X, letting
+      // the callback's verifyOtp branch succeed even when the email is
+      // opened in a different browser than the one that requested it
+      // (Gmail → Safari, desktop → phone). With PKCE, the code_verifier
+      // cookie is absent in the second browser and exchangeCodeForSession
+      // fails with auth_error=exchange.
+      //
+      // detectSessionInUrl:false because we handle the URL manually in the
+      // route handler — Supabase must not try to parse a fragment it will
+      // never see in a server context.
       auth: {
-        flowType: 'pkce',
+        flowType,
         detectSessionInUrl: false,
         persistSession: true,
         autoRefreshToken: true,
