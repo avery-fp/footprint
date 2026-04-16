@@ -80,7 +80,7 @@ export default function FloatingCtaBar({ isOwner = false }: { isOwner?: boolean 
     >
       <div style={{ maxWidth: '400px', margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
         <span style={{ fontSize: '10px', fontWeight: 500, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)' }}>
-          make yours
+          create footprint
         </span>
 
         {sent ? (

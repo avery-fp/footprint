@@ -20,8 +20,8 @@ import { sanitizeRedirect } from '@/lib/redirect'
  *                                  different browser/app — Gmail→Safari etc.)
  *
  * On error we preserve Supabase's real reason (otp_expired, access_denied,
- * server_error, ...) in ?auth_error= so the modal can surface it. Missing
- * params → /ae?claim=1&auth_error=missing_params.
+ * server_error, ...) in ?reason= on /auth/retry. /ae is never an auth
+ * error destination — it's Ae's room, not a system fallback.
  *
  * If the user has no footprint yet, create a draft one immediately so they
  * always land in their own space.
@@ -41,17 +41,14 @@ export async function GET(request: NextRequest) {
   const rawPostAuth = request.cookies.get('post_auth_redirect')?.value || ''
   const safePostAuth = sanitizeRedirect(rawPostAuth)
   const safeRedirectParam = sanitizeRedirect(searchParams.get('redirect'))
-  const returnPath = safePostAuth ?? safeRedirectParam ?? '/home'
 
-  // Build an error redirect. Reason strings are stable slugs — the modal
-  // reads them verbatim. missing_params has no originating slug context,
-  // so it lands on the public /ae nebula with claim flow open.
+  // Every auth failure routes to /auth/retry — a neutral, Footprint-branded
+  // page with one CTA. Reason strings are stable slugs carried in ?reason=
+  // for diagnostics. /ae is never an auth error destination: it's a room,
+  // not a system fallback.
   const redirectWithError = (reason: string) => {
-    const errUrl = reason === 'missing_params'
-      ? new URL('/ae', origin)
-      : new URL(returnPath, origin)
-    if (reason === 'missing_params') errUrl.searchParams.set('claim', '1')
-    errUrl.searchParams.set('auth_error', reason)
+    const errUrl = new URL('/auth/retry', origin)
+    errUrl.searchParams.set('reason', reason)
     const response = NextResponse.redirect(errUrl)
     if (rawPostAuth) response.cookies.set('post_auth_redirect', '', { path: '/', maxAge: 0 })
     return response
