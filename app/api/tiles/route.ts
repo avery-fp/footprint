@@ -327,7 +327,9 @@ export async function POST(request: NextRequest) {
           thumbnail: parsed.thumbnail_url,
           position: nextPosition,
           room_id: room_id || null,
-          size: ['youtube', 'vimeo'].includes(parsed.type) ? 2 : 1,
+          // Default M (size 2) for all tiles. S was too cramped for every type.
+          // Edit mode keeps manual resize if someone wants smaller.
+          size: 2,
           ...(needsEnrich ? {
             render_mode: 'ghost',
             artist: ghostArtist,
