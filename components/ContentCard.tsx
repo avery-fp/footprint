@@ -106,6 +106,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const [shellOpen, setShellOpen] = useState(false)
   // Spec: AE Presentation Layer — Task 3. Thumb 404 → FallbackCard, not gray box.
   const [socialThumbFailed, setSocialThumbFailed] = useState(false)
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const audioIdRef = useRef(`card-${content.id}`)
 
@@ -407,18 +408,50 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // VIDEO (native) — with vapor box
   // ════════════════════════════════════════
   if (content.type === 'video') {
+    // Append #t=0.1 so the first frame renders as poster instead of a black square.
+    // Skips if URL already has a fragment.
+    const videoSrc = content.url && !content.url.includes('#') ? `${content.url}#t=0.1` : content.url
     return (
-      <div ref={containerRef} className="fp-tile overflow-hidden relative">
+      <div ref={containerRef} className="fp-tile overflow-hidden relative group">
         {isInView ? (
-          <video
-            src={content.url}
-            muted
-            loop
-            playsInline
-            preload="metadata"
-            className={`w-full ${aspectClass || 'aspect-video'} ${fitClass}`}
-            onLoadedData={(e) => { setIsLoaded(true); (e.target as HTMLVideoElement).play().catch(() => {}) }}
-          />
+          <>
+            <video
+              src={videoSrc}
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              className={`w-full ${aspectClass || 'aspect-video'} ${fitClass} cursor-pointer`}
+              onLoadedData={(e) => { setIsLoaded(true); (e.target as HTMLVideoElement).play().catch(() => {}) }}
+              onPlay={() => setIsVideoPlaying(true)}
+              onPause={() => setIsVideoPlaying(false)}
+              onClick={(e) => {
+                const v = e.currentTarget as HTMLVideoElement
+                if (v.paused) v.play().catch(() => {})
+                else v.pause()
+              }}
+              onMouseEnter={(e) => {
+                const v = e.currentTarget as HTMLVideoElement
+                if (v.paused) v.play().catch(() => {})
+              }}
+            />
+            {/* Subtle hover play affordance — only when paused */}
+            {!isVideoPlaying && (
+              <div
+                className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200"
+                aria-hidden="true"
+              >
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center"
+                  style={{ background: 'rgba(0,0,0,0.28)', backdropFilter: 'blur(8px)' }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="text-white/75" style={{ transform: 'translateX(1px)' }}>
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                </div>
+              </div>
+            )}
+          </>
         ) : (
           <div className={`w-full ${aspectClass || 'aspect-video'}`} style={{ background: 'rgba(0,0,0,0.3)' }} />
         )}
@@ -465,67 +498,19 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }
 
   // ════════════════════════════════════════
-  // TWITTER / X — first-party closed state, ArtifactShell on tap
-  // FIDELIO: No third-party scripts until shell opens
+  // TWITTER / X — minimalist text artifact, never expands
+  // Text-only. Small handle marker. No thumbnail, no shell, no embed.
   // ════════════════════════════════════════
   if (content.type === 'twitter') {
-    const thumbSrc = getBestThumbnailUrl(content)
     const tweetMatch = content.url.match(/(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]+)\/status\//)
     const handleMatch = content.url.match(/(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]+)/)
     const handle = (tweetMatch?.[1] || handleMatch?.[1]) ? `@${tweetMatch?.[1] || handleMatch?.[1]}` : null
 
-    // Thumb 404 or no title → FallbackCard (never a gray box). Spec Task 3.
-    if (thumbSrc && socialThumbFailed) {
-      return <FallbackCard platform="x" title={content.title} url={content.url} aspectClass={aspectClass} />
-    }
-
-    // If we have a thumbnail, render full-bleed — swap to FallbackCard on error
-    if (thumbSrc) {
-      return (
-        <>
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={() => setShellOpen(true)}
-            onKeyDown={(e) => { if (e.key === 'Enter') setShellOpen(true) }}
-            ref={containerRef as any}
-            className={`block w-full h-full fp-tile overflow-hidden relative cursor-pointer ${aspectClass}`}
-            style={{ background: 'rgba(255,255,255,0.04)' }}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={thumbSrc}
-              alt=""
-              className="w-full h-full object-cover absolute inset-0 z-[1]"
-              loading="lazy"
-              decoding="async"
-              onError={() => setSocialThumbFailed(true)}
-            />
-            {/* Text overlay — glyph top-right, caption bottom */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center p-5">
-              <span className="absolute top-2.5 right-3 text-[13px] text-white/20 select-none" style={{ fontWeight: 300 }}>𝕏</span>
-              <p className="whitespace-pre-wrap text-center text-white/80 fp-text-shadow text-[14px] leading-snug line-clamp-6" style={{ fontWeight: 500 }}>
-                {content.title || (handle ? `Tweet by ${handle}` : 'Tweet')}
-              </p>
-            </div>
-          </div>
-          {shellOpen && (
-            <ArtifactShell onDismiss={() => setShellOpen(false)} fallbackUrl={content.url}>
-              <SocialEmbed url={content.url} type="twitter" variant={socialVariant} onError={() => setShellOpen(false)} />
-            </ArtifactShell>
-          )}
-        </>
-      )
-    }
-
-    // No thumb + no real title → FallbackCard instead of "Tweet" placeholder
     if (!content.title) {
       return <FallbackCard platform="x" title={handle ? `Tweet by ${handle}` : null} url={content.url} aspectClass={aspectClass} />
     }
 
-    // Text-only tweet — DM Sans, weight hierarchy, text-shadow
-    const tweetText = content.title || (handle ? `Tweet by ${handle}` : 'Tweet')
-    const isFallback = !content.title || content.title.startsWith('Tweet by ')
+    const tweetText = content.title
     const len = tweetText.length
     const typo = len <= 60
       ? 'text-[14px] tracking-[-0.01em] leading-snug'
@@ -534,32 +519,21 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       : 'text-[11px] tracking-normal leading-relaxed'
 
     return (
-      <>
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={() => setShellOpen(true)}
-          onKeyDown={(e) => { if (e.key === 'Enter') setShellOpen(true) }}
-          className={`block w-full h-full fp-tile overflow-hidden relative flex flex-col items-center justify-center p-5 cursor-pointer ${aspectClass}`}
-          style={{ background: 'rgba(255,255,255,0.04)' }}
+      <div
+        className={`block w-full h-full fp-tile overflow-hidden relative flex flex-col items-center justify-center p-5 ${aspectClass}`}
+        style={{ background: 'rgba(255,255,255,0.04)' }}
+      >
+        <span className="absolute top-2.5 right-3 text-[13px] text-white/20 select-none" style={{ fontWeight: 300 }}>𝕏</span>
+        <p
+          className={`whitespace-pre-wrap text-center text-white/80 fp-text-shadow ${typo} line-clamp-6`}
+          style={{ fontWeight: 500 }}
         >
-          <span className="absolute top-2.5 right-3 text-[13px] text-white/20 select-none" style={{ fontWeight: 300 }}>𝕏</span>
-          <p
-            className={`whitespace-pre-wrap text-center text-white/80 fp-text-shadow ${typo} line-clamp-6`}
-            style={{ fontWeight: 500 }}
-          >
-            {tweetText}
-          </p>
-          {handle && !isFallback && (
-            <span className="mt-2.5 text-[9px] text-white/40 uppercase tracking-[0.08em] font-mono" style={{ fontWeight: 500 }}>{handle}</span>
-          )}
-        </div>
-        {shellOpen && (
-          <ArtifactShell onDismiss={() => setShellOpen(false)} fallbackUrl={content.url}>
-            <SocialEmbed url={content.url} type="twitter" variant={socialVariant} onError={() => setShellOpen(false)} />
-          </ArtifactShell>
+          {tweetText}
+        </p>
+        {handle && (
+          <span className="mt-2.5 text-[9px] text-white/40 uppercase tracking-[0.08em] font-mono" style={{ fontWeight: 500 }}>{handle}</span>
         )}
-      </>
+      </div>
     )
   }
 

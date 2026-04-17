@@ -163,32 +163,36 @@ function ExpandedOverlay({
         if (e.target === e.currentTarget) onDismiss()
       }}
     >
-      {/* The Void — dark, blurred backdrop */}
+      {/* Backdrop — softer dim so the expansion reads as a card lift, not a takeover */}
       <div
         className="absolute inset-0"
         style={{
-          background: 'rgba(0, 0, 0, 0.85)',
-          backdropFilter: 'blur(24px) saturate(80%)',
-          WebkitBackdropFilter: 'blur(24px) saturate(80%)',
+          background: 'rgba(0, 0, 0, 0.55)',
+          backdropFilter: 'blur(12px) saturate(90%)',
+          WebkitBackdropFilter: 'blur(12px) saturate(90%)',
         }}
         onClick={onDismiss}
       />
 
-      {/* Reading surface */}
+      {/* Reading surface — contained card, breathing room around it on mobile */}
       <motion.div
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.98 }}
         transition={enter}
-        className="relative z-10 w-full max-w-[640px] max-h-[80vh] overflow-y-auto overflow-x-hidden mx-4 px-6 py-10"
+        className="relative z-10 w-full max-w-[560px] max-h-[70vh] overflow-y-auto overflow-x-hidden mx-5 px-6 py-8 rounded-2xl"
         style={{
           WebkitOverflowScrolling: 'touch',
           scrollbarWidth: 'none',
+          background: 'rgba(20, 20, 20, 0.72)',
+          backdropFilter: 'blur(16px) saturate(120%)',
+          WebkitBackdropFilter: 'blur(16px) saturate(120%)',
+          border: '1px solid rgba(255, 255, 255, 0.06)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
         <p
-          className="whitespace-pre-wrap text-white text-[18px] md:text-[20px] text-center"
+          className="whitespace-pre-wrap text-white/90 text-[16px] md:text-[18px] text-center"
           style={{
             fontWeight: 300,
             lineHeight: 1.6,
