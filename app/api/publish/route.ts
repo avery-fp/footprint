@@ -50,12 +50,14 @@ export async function POST(request: NextRequest) {
     // Create a placeholder footprint so check-username, publish, and publish-paid can proceed.
     if (!footprint) {
       if (validatedBody.action === 'check-username' || validatedBody.action === 'publish-paid' || validatedBody.action === 'publish') {
+        const { data: pendingSerial } = await supabase.rpc('claim_next_serial')
         const { data: newFp, error: createFpError } = await supabase
           .from('footprints')
           .insert({
             user_id: userId,
             username: `pending-${userId.replace(/-/g, '').slice(0, 12)}`,
-            name: 'Everything',
+            display_name: '',
+            serial_number: pendingSerial ?? null,
             is_primary: true,
             published: false,
           })
@@ -165,7 +167,7 @@ export async function POST(request: NextRequest) {
             published: true,
             published_at: new Date().toISOString(),
           })
-          .eq('id', footprint.id)
+          .eq('username', footprint.username)
 
         if (publishError) {
           log.error({ err: publishError }, 'Publish failed')
@@ -248,7 +250,7 @@ export async function POST(request: NextRequest) {
               is_seed: true,
               payment_type: 'seed',
             })
-            .eq('id', footprint.id)
+            .eq('username', footprint.username)
 
           if (publishError) {
             log.error({ err: publishError }, 'Seed publish failed')
@@ -298,7 +300,7 @@ export async function POST(request: NextRequest) {
         const { error: reserveError } = await supabase
           .from('footprints')
           .update({ username: cleanUsername })
-          .eq('id', footprint.id)
+          .eq('user_id', footprint.user_id)
 
         if (reserveError) {
           log.error({ err: reserveError }, 'Failed to reserve slug (publish action)')
@@ -374,7 +376,7 @@ export async function POST(request: NextRequest) {
         const { error: reserveError } = await supabase
           .from('footprints')
           .update({ username: cleanUsername })
-          .eq('id', footprint.id)
+          .eq('user_id', footprint.user_id)
 
         if (reserveError) {
           log.error({ err: reserveError }, 'Failed to reserve slug')
@@ -493,7 +495,7 @@ export async function POST(request: NextRequest) {
             published_at: new Date().toISOString(),
             payment_type: 'stripe',
           })
-          .eq('id', footprint.id)
+          .eq('username', footprint.username)
 
         if (publishError) {
           log.error({ err: publishError }, 'Finalize publish failed')
