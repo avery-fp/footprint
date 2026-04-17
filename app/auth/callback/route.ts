@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
           display_name: displayName,
           avatar_url: avatarUrl,
         })
-        .select('id, email')
+        .select('id, email, serial_number')
         .single()
 
       user = newUser
