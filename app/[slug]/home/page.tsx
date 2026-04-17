@@ -540,16 +540,17 @@ export default function EditPage() {
     finalize()
   }, [stripeSessionId, stripeUsername])
 
-  // After OAuth redirect back with ?claim=1, open claim overlay
-  // Skip if user already owns this footprint (has a serial number)
+  // After OAuth redirect back with ?claim=1, open claim overlay.
+  // "Already paid" = has serial AND username is not a draft/pending placeholder.
+  const isPaidOwner = !!serialNumber && !slug.startsWith('draft-') && !slug.startsWith('pending-')
   const shouldClaim = searchParams.get('claim') === '1'
   useEffect(() => {
-    if (shouldClaim && !isLoading && !serialNumber) {
+    if (shouldClaim && !isLoading && !isPaidOwner) {
       setClaimOverlay('claim')
       const url = new URL(window.location.href)
       url.searchParams.delete('claim')
       window.history.replaceState({}, '', url.toString())
-    } else if (shouldClaim && !isLoading && serialNumber) {
+    } else if (shouldClaim && !isLoading && isPaidOwner) {
       // Owner returning from OAuth — just clean up the URL
       const url = new URL(window.location.href)
       url.searchParams.delete('claim')
@@ -1954,8 +1955,8 @@ export default function EditPage() {
                 /* "go live ↗" button — only for unpublished rooms */
                 <button
                   onClick={async () => {
-                    // Already paid (has serial) — skip checkout, just publish + redirect
-                    if (serialNumber) {
+                    // Already paid (has serial + non-draft username) — skip checkout, just publish + redirect
+                    if (serialNumber && !slug.startsWith('draft-') && !slug.startsWith('pending-')) {
                       setGoLiveLoading(true)
                       try {
                         // Save current draft
