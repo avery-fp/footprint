@@ -113,7 +113,7 @@ export async function GET(request: NextRequest) {
     // Look up or create user
     let { data: user } = await supabase
       .from('users')
-      .select('id, email')
+      .select('id, email, serial_number')
       .ilike('email', email)
       .single()
 
@@ -167,12 +167,25 @@ export async function GET(request: NextRequest) {
 
     if (!footprint) {
       const draftSlug = `draft-${user.id.replace(/-/g, '').slice(0, 12)}`
+
+      // claim_next_serial is required — serial_number is NOT NULL on footprints
+      const { data: serialData } = await supabase.rpc('claim_next_serial')
+      const serialNumber: number | null = serialData ?? null
+
+      // Backfill user serial if missing (new users created via this callback)
+      if (serialNumber && !user.serial_number) {
+        await supabase
+          .from('users')
+          .update({ serial_number: serialNumber })
+          .eq('id', user.id)
+      }
+
       const { data: newFp } = await supabase
         .from('footprints')
         .insert({
           user_id: user.id,
           username: draftSlug,
-          name: 'Everything',
+          serial_number: serialNumber,
           is_primary: true,
           published: false,
           display_name: displayName || '',
