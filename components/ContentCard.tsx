@@ -106,6 +106,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const [shellOpen, setShellOpen] = useState(false)
   // Spec: AE Presentation Layer — Task 3. Thumb 404 → FallbackCard, not gray box.
   const [socialThumbFailed, setSocialThumbFailed] = useState(false)
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const audioIdRef = useRef(`card-${content.id}`)
 
@@ -407,18 +408,50 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // VIDEO (native) — with vapor box
   // ════════════════════════════════════════
   if (content.type === 'video') {
+    // Append #t=0.1 so the first frame renders as poster instead of a black square.
+    // Skips if URL already has a fragment.
+    const videoSrc = content.url && !content.url.includes('#') ? `${content.url}#t=0.1` : content.url
     return (
-      <div ref={containerRef} className="fp-tile overflow-hidden relative">
+      <div ref={containerRef} className="fp-tile overflow-hidden relative group">
         {isInView ? (
-          <video
-            src={content.url}
-            muted
-            loop
-            playsInline
-            preload="metadata"
-            className={`w-full ${aspectClass || 'aspect-video'} ${fitClass}`}
-            onLoadedData={(e) => { setIsLoaded(true); (e.target as HTMLVideoElement).play().catch(() => {}) }}
-          />
+          <>
+            <video
+              src={videoSrc}
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              className={`w-full ${aspectClass || 'aspect-video'} ${fitClass} cursor-pointer`}
+              onLoadedData={(e) => { setIsLoaded(true); (e.target as HTMLVideoElement).play().catch(() => {}) }}
+              onPlay={() => setIsVideoPlaying(true)}
+              onPause={() => setIsVideoPlaying(false)}
+              onClick={(e) => {
+                const v = e.currentTarget as HTMLVideoElement
+                if (v.paused) v.play().catch(() => {})
+                else v.pause()
+              }}
+              onMouseEnter={(e) => {
+                const v = e.currentTarget as HTMLVideoElement
+                if (v.paused) v.play().catch(() => {})
+              }}
+            />
+            {/* Subtle hover play affordance — only when paused */}
+            {!isVideoPlaying && (
+              <div
+                className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200"
+                aria-hidden="true"
+              >
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center"
+                  style={{ background: 'rgba(0,0,0,0.28)', backdropFilter: 'blur(8px)' }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="text-white/75" style={{ transform: 'translateX(1px)' }}>
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                </div>
+              </div>
+            )}
+          </>
         ) : (
           <div className={`w-full ${aspectClass || 'aspect-video'}`} style={{ background: 'rgba(0,0,0,0.3)' }} />
         )}

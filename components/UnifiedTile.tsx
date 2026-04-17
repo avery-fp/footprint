@@ -179,7 +179,7 @@ export default function UnifiedTile({
       case 'native_video':
         return (
           <div className="w-full h-full" data-tile-id={item.id} data-tile-type="native-video">
-            <video src={item.url} className="w-full h-full object-cover" muted loop playsInline preload="metadata" />
+            <video src={item.url && !item.url.includes('#') ? `${item.url}#t=0.1` : item.url} className="w-full h-full object-cover" muted loop playsInline preload="metadata" autoPlay />
           </div>
         )
       case 'embed':

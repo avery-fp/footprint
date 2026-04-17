@@ -286,7 +286,7 @@ function SortableTile({
               {content.url ? (
                 <video
                   ref={videoRef}
-                  src={content.url}
+                  src={content.url.includes('#') ? content.url : `${content.url}#t=0.1`}
                   className={`absolute inset-0 w-full h-full object-cover cursor-pointer ${isArranging ? 'pointer-events-none' : ''}`}
                   muted
                   loop
