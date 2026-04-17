@@ -189,7 +189,6 @@ export async function GET(request: NextRequest) {
           is_primary: true,
           published: false,
           display_name: displayName || '',
-          avatar_url: avatarUrl || '',
         })
         .select('username')
         .single()
