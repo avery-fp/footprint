@@ -132,3 +132,14 @@ Footprint is a permanent digital identity platform. Free to build, $10 to claim 
 - **Dev server:** `npm run dev` on port 3000
 - **What not to touch:** Anything currently working. The ae standard and Superpowers methodology govern future work only.
 - **ae standard for copy, comments, and communication:** no padding, no hedging, no over-qualification. Compression after discovery, not before.
+
+---
+
+## Anti-Entropy Rules
+
+Derived from session diagnostics (edit-thrashing, error-loop, negative-drift patterns).
+
+- **One edit pass.** Read the full file before editing. Plan all changes, then make one complete edit. If you've edited the same file 3+ times in a session, stop and re-read the original request.
+- **Fail fast.** After 2 consecutive tool failures, stop and change approach entirely. Explain what failed, try a different strategy.
+- **No drift.** Every few turns, re-read the original request to confirm you haven't drifted from the goal.
+- **Complete the task.** If the request covers multiple things, implement all of them before presenting results.
