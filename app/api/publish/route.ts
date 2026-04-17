@@ -556,6 +556,7 @@ export async function POST(request: NextRequest) {
     }
   } catch (error: any) {
     log.error({ err: error }, 'Publish failed')
-    return NextResponse.json({ error: 'Something went wrong' }, { status: 500 })
+    const errMsg = error?.message || String(error)
+    return NextResponse.json({ error: 'Something went wrong', _debug: errMsg }, { status: 500 })
   }
 }
