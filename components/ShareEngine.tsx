@@ -59,7 +59,8 @@ export default function ShareEngine({ slug }: ShareEngineProps) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-40 bg-white/10 hover:bg-white/15 backdrop-blur-md border border-white/10 rounded-full px-5 py-2.5 text-white/60 hover:text-white/80 text-xs font-mono tracking-wide transition-all"
+        className="fixed left-4 md:left-6 z-40 bg-white/10 hover:bg-white/15 backdrop-blur-md border border-white/10 rounded-full px-4 py-2 text-white/60 hover:text-white/80 text-xs font-mono tracking-wide transition-all"
+        style={{ top: 'max(1.25rem, env(safe-area-inset-top))' }}
       >
         share
       </button>

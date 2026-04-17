@@ -1828,18 +1828,28 @@ export default function EditPage() {
           The editor is the public room with owner controls on top, so the
           background must be the same species: per-room filter + overlay
           keyed off the active visible room's index. */}
-      {wallpaperUrl && (() => {
+      {(() => {
         const visibleRooms = rooms.filter(r => r.name && r.name.trim().length > 0)
         const activeRoomIndex = activeRoomId ? visibleRooms.findIndex(r => r.id === activeRoomId) : -1
         const activeRoom = activeRoomId ? visibleRooms.find(r => r.id === activeRoomId) : null
         const isSoundRoom = activeRoom?.name?.toLowerCase() === 'sound'
         const { filter, overlay } = getRoomAtmosphere(activeRoomIndex, isSoundRoom)
+        // Wallpaper truth:
+        //  - If the user is viewing a specific room, that room's wallpaper_url IS the truth.
+        //    Empty room → show nothing. Never leak footprint.background_url, which can be a
+        //    stale legacy/ARO value that no longer matches any room.
+        //  - Only when there is no active room (initial load / no rooms yet) do we fall back
+        //    to the top-level background_url so brand-new footprints aren't a black void.
+        const effectiveWallpaper = activeRoom
+          ? (activeRoom.wallpaper_url || null)
+          : wallpaperUrl
+        if (!effectiveWallpaper) return null
         return (
           <div className="fixed inset-0 z-0 fp-wallpaper-gpu pointer-events-none">
             <div
               className="absolute inset-0 bg-cover bg-center transition-all duration-700"
               style={{
-                backgroundImage: `url(${wallpaperUrl})`,
+                backgroundImage: `url(${effectiveWallpaper})`,
                 filter: backgroundBlur ? filter : 'none',
               }}
             />
@@ -2025,8 +2035,8 @@ export default function EditPage() {
             />
           </div>
         </div>
-        {/* URL bar — greyed when unpublished, full white when live */}
-        <div className="px-4 pb-2">
+        {/* URL bar — desktop only. On mobile the browser bar already shows this; repeating it crowds the header. */}
+        <div className="hidden md:block px-4 pb-2">
           <div className="relative flex items-center justify-center">
             <p className="font-mono text-[12px] tracking-[0.01em] transition-opacity duration-700 text-center">
               <span className="text-white/20">footprint.onl/</span>
@@ -2075,7 +2085,7 @@ export default function EditPage() {
 
 
       {/* ═══ TILE GRID ═══ */}
-      <div className="max-w-7xl mx-auto px-3 md:px-6 pt-40 md:pt-36 pb-32 relative z-10"
+      <div className="max-w-7xl mx-auto px-3 md:px-6 pt-36 pb-32 relative z-10"
         onClick={(e) => {
           // Tap background to deselect swap
           if (swapSourceId && (e.target as HTMLElement).closest('[data-tile]') === null) {
