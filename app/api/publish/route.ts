@@ -135,9 +135,9 @@ export async function POST(request: NextRequest) {
         // Check username availability again
         const { data: taken } = await supabase
           .from('footprints')
-          .select('id')
+          .select('username')
           .eq('username', cleanUsername)
-          .neq('id', footprint.id)
+          .neq('user_id', footprint.user_id)
           .single()
 
         if (taken) {
@@ -213,9 +213,9 @@ export async function POST(request: NextRequest) {
         // Check username availability
         const { data: taken } = await supabase
           .from('footprints')
-          .select('id')
+          .select('username')
           .eq('username', cleanUsername)
-          .neq('id', footprint.id)
+          .neq('user_id', footprint.user_id)
           .single()
 
         if (taken) {
@@ -228,12 +228,18 @@ export async function POST(request: NextRequest) {
 
         if (isSeed) {
           // ── SEED PATH: claim serial + publish immediately, no Stripe ──
-          const { data: claimedSerial, error: serialError } = await supabase.rpc('claim_next_serial')
-          if (serialError || !claimedSerial) {
-            log.error({ err: serialError }, 'No serials available (seed path)')
-            return NextResponse.json({ error: 'No serials available' }, { status: 500 })
+          // Reuse draft serial if already assigned (avoids FK violation on links table)
+          let serialNumber: number
+          if (footprint.serial_number) {
+            serialNumber = footprint.serial_number
+          } else {
+            const { data: claimedSerial, error: serialError } = await supabase.rpc('claim_next_serial')
+            if (serialError || !claimedSerial) {
+              log.error({ err: serialError }, 'No serials available (seed path)')
+              return NextResponse.json({ error: 'No serials available' }, { status: 500 })
+            }
+            serialNumber = claimedSerial
           }
-          const serialNumber: number = claimedSerial
 
           await supabase
             .from('users')
@@ -362,9 +368,9 @@ export async function POST(request: NextRequest) {
         // Check username availability
         const { data: taken } = await supabase
           .from('footprints')
-          .select('id')
+          .select('username')
           .eq('username', cleanUsername)
-          .neq('id', footprint.id)
+          .neq('user_id', footprint.user_id)
           .single()
 
         if (taken) {
@@ -460,24 +466,29 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Username mismatch' }, { status: 400 })
         }
 
-        // Check username again
+        // Check username again (exclude this user's own footprint)
         const { data: taken } = await supabase
           .from('footprints')
-          .select('id')
+          .select('username')
           .eq('username', cleanUsername)
-          .neq('id', footprint.id)
+          .neq('user_id', footprint.user_id)
           .single()
 
         if (taken) {
           return NextResponse.json({ error: 'Username was claimed while you were paying' }, { status: 409 })
         }
 
-        // Claim serial post-payment
-        const { data: serialData, error: serialError } = await supabase.rpc('claim_next_serial')
-        if (serialError || !serialData) {
-          return NextResponse.json({ error: 'No serials available' }, { status: 500 })
+        // Claim serial post-payment (reuse draft serial if already assigned)
+        let serialNumber: number
+        if (footprint.serial_number) {
+          serialNumber = footprint.serial_number
+        } else {
+          const { data: serialData, error: serialError } = await supabase.rpc('claim_next_serial')
+          if (serialError || !serialData) {
+            return NextResponse.json({ error: 'No serials available' }, { status: 500 })
+          }
+          serialNumber = serialData
         }
-        const serialNumber: number = serialData
 
         // Update user with serial
         await supabase
