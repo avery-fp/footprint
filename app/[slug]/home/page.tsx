@@ -1897,7 +1897,7 @@ export default function EditPage() {
         <ClaimPlaque
           onClick={handleGoLive}
           loading={goLiveLoading}
-          className="hidden md:flex fixed top-[14px] right-4 z-[60]"
+          className="hidden md:flex fixed top-[14px] right-[88px] z-[60]"
         />
       )}
 
