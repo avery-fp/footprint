@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { AUTH_ENTRY } from '@/lib/routes'
+import { verifySessionToken } from '@/lib/auth'
 
 /**
  * Middleware: canonical host redirect + session gate.
@@ -66,7 +67,7 @@ function withSecurityHeaders(response: NextResponse) {
   return response
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl
   const host = request.headers.get('host') || ''
 
@@ -79,10 +80,16 @@ export function middleware(request: NextRequest) {
   // ── 2. Root → room or home ──
   // Stranger → /ae (the room IS the homepage — desire first, auth second)
   // Authenticated → /home → resolves to /{slug}/home
+  //
+  // Stale or expired cookies are treated as stranger. A cookie that merely
+  // exists is not a session; if verify fails, the user gets the room, not a
+  // sign-in wall. This preserves the PR #248 "stranger → /ae" safety net
+  // for everyone carrying a dead JWT in their browser.
   if (pathname === '/') {
-    const session = request.cookies.get('fp_session')
+    const token = request.cookies.get('fp_session')?.value
+    const authed = token ? (await verifySessionToken(token)) !== null : false
     const dest = request.nextUrl.clone()
-    dest.pathname = session ? '/home' : '/ae'
+    dest.pathname = authed ? '/home' : '/ae'
     return withSecurityHeaders(NextResponse.redirect(dest, 307))
   }
 
