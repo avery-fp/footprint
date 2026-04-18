@@ -79,6 +79,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [serialFlyout, setSerialFlyout] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [roomFade, setRoomFade] = useState<'visible' | 'out' | 'in'>('visible')
+  const railScrollRef = useRef<HTMLDivElement | null>(null)
+
+  const scrollRail = (dir: 'left' | 'right') => {
+    const el = railScrollRef.current
+    if (!el) return
+    const amount = Math.min(el.clientWidth * 0.85, 640)
+    el.scrollBy({ left: dir === 'left' ? -amount : amount, behavior: 'smooth' })
+  }
 
   // ── Integrated Void Transition ──
   const [claimActive, setClaimActive] = useState(false)
@@ -348,7 +356,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
   const gridInner = isRail ? (
     // ── RAIL MODE: cinematic horizontal snap scroll ──
+    <div className="relative">
     <div
+      ref={railScrollRef}
       className={`${layoutConfig.containerClass} hide-scrollbar`}
       style={{
         scrollSnapType: 'x mandatory',
@@ -412,6 +422,31 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </div>
         )
       })}
+    </div>
+    {displayContent.length > 1 && !expanded && (
+      <>
+        <button
+          type="button"
+          aria-label="Previous"
+          onClick={() => scrollRail('left')}
+          className="hidden md:flex absolute left-3 top-1/2 -translate-y-1/2 z-20 w-7 h-7 items-center justify-center rounded-full bg-white/[0.04] hover:bg-white/[0.1] backdrop-blur-sm transition opacity-50 hover:opacity-100"
+        >
+          <svg className="w-3 h-3 text-white/70" fill="none" stroke="currentColor" strokeWidth="1.25" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          aria-label="Next"
+          onClick={() => scrollRail('right')}
+          className="hidden md:flex absolute right-3 top-1/2 -translate-y-1/2 z-20 w-7 h-7 items-center justify-center rounded-full bg-white/[0.04] hover:bg-white/[0.1] backdrop-blur-sm transition opacity-50 hover:opacity-100"
+        >
+          <svg className="w-3 h-3 text-white/70" fill="none" stroke="currentColor" strokeWidth="1.25" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+          </svg>
+        </button>
+      </>
+    )}
     </div>
   ) : (
     // ── GRID / MIX MODE: vertical CSS grid ──
