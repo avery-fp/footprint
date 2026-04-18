@@ -17,6 +17,7 @@ import AuthModal from '@/components/auth/AuthModal'
 import { AUTH_ENTRY } from '@/lib/routes'
 import { humanUsernameReason } from '@/lib/errors'
 import LayoutToggle from '@/components/LayoutToggle'
+import ClaimPlaque from '@/components/ClaimPlaque'
 import { type RoomLayout, getGridLayout } from '@/lib/grid-layouts'
 import { getRoomAtmosphere } from '@/lib/roomAtmosphere'
 import { getFootprintDisplayTitle } from '@/lib/footprint'
@@ -972,6 +973,31 @@ export default function EditPage() {
     trackOp(op)
   }, [isPublished, slug, trackOp])
 
+  // Handler for the ClaimPlaque object (desktop + mobile both use this).
+  //  - Already paid (real serial + non-draft slug): save, flip published, go public.
+  //  - Otherwise: open the claim overlay with the current slug prefilled.
+  const handleGoLive = useCallback(async () => {
+    if (serialNumber && !slug.startsWith('draft-') && !slug.startsWith('pending-')) {
+      setGoLiveLoading(true)
+      try {
+        if (draft) await saveData(draft)
+        await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ published: true }),
+        })
+        window.location.href = `/${encodeURIComponent(slug)}`
+      } catch {
+        setStatusToast('something went wrong')
+        setTimeout(() => setStatusToast(null), 3000)
+        setGoLiveLoading(false)
+      }
+      return
+    }
+    setClaimUsername(slug)
+    setClaimOverlay('claim')
+  }, [serialNumber, slug, draft, saveData])
+
   useEffect(() => {
     if (pillMode === 'url') {
       setTimeout(() => urlInputRef.current?.focus(), 100)
@@ -1862,6 +1888,19 @@ export default function EditPage() {
         )
       })()}
 
+      {/* ═══ CLAIM PLAQUE (desktop) ═══
+          Fixed top-right, sits above the header. Hidden on mobile — the mobile
+          slot renders the same plaque inline in the header action row. Gated
+          to draft-only, non-arrange state so the chrome stays clean once the
+          room is live or being rearranged. */}
+      {!isPublished && !isArranging && (
+        <ClaimPlaque
+          onClick={handleGoLive}
+          loading={goLiveLoading}
+          className="hidden md:flex fixed top-[14px] right-[88px] z-[60]"
+        />
+      )}
+
       {/* ═══ HEADER ═══ */}
       <div className="fixed top-0 left-0 right-0 z-50 bg-black/60 backdrop-blur-sm border-b border-white/[0.06]"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}>
@@ -1952,44 +1991,14 @@ export default function EditPage() {
                   )}
                 </>
               ) : (
-                /* "go live ↗" button — only for unpublished rooms */
-                <button
-                  onClick={async () => {
-                    // Already paid (has serial + non-draft username) — skip checkout, just publish + redirect
-                    if (serialNumber && !slug.startsWith('draft-') && !slug.startsWith('pending-')) {
-                      setGoLiveLoading(true)
-                      try {
-                        // Save current draft
-                        if (draft) await saveData(draft)
-                        // Publish
-                        await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
-                          method: 'PUT',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ published: true }),
-                        })
-                        // Redirect to public page
-                        window.location.href = `/${encodeURIComponent(slug)}`
-                        return
-                      } catch {
-                        setStatusToast('something went wrong')
-                        setTimeout(() => setStatusToast(null), 3000)
-                        setGoLiveLoading(false)
-                        return
-                      }
-                    }
-                    // No serial — first-time publish, show claim overlay
-                    setClaimUsername(slug)
-                    setClaimOverlay('claim')
-                  }}
-                  disabled={goLiveLoading}
-                  className="text-[13px] text-white/60 hover:text-white/90 transition font-mono flex items-center justify-center px-5 rounded-full border border-white/[0.10] hover:border-white/25 disabled:opacity-30"
-                  style={{
-                    minHeight: '36px',
-                    background: 'rgba(255, 255, 255, 0.04)',
-                  }}
-                >
-                  {goLiveLoading ? '...' : '→'}
-                </button>
+                /* Draft → Go live plaque. Mobile-only here; desktop renders a
+                   fixed top-right instance as a sibling of the header so the
+                   object reads as its own register rather than a peer pill. */
+                <ClaimPlaque
+                  onClick={handleGoLive}
+                  loading={goLiveLoading}
+                  className="md:hidden"
+                />
               )}
               {/* Edit button */}
               <button
