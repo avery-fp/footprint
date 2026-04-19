@@ -639,29 +639,6 @@ export default function EditPage() {
     p.finally(() => pendingOpsRef.current.delete(p))
   }, [])
 
-  // Flush debounced profile save (fire-and-forget), then navigate
-  const navigateToPublic = useCallback(() => {
-    // Flush debounced profile save immediately (background, non-blocking)
-    if (saveTimeoutRef.current && draft && isOwner) {
-      clearTimeout(saveTimeoutRef.current)
-      saveTimeoutRef.current = null
-      fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          display_title: draft.display_title || '',
-          display_name: draft.display_name,
-          handle: draft.handle,
-          bio: draft.bio,
-          theme: draft.theme,
-          grid_mode: draft.grid_mode,
-        }),
-      }).catch(() => {})
-    }
-    // Navigate immediately — saves complete in background
-    router.push(`/${slug}`)
-  }, [slug, draft, isOwner, router])
-
   // Mode transition helpers
   const enterEdit = () => setMode({ type: 'arranging' })
   const exitEdit = () => { setSwapSourceId(null); setMode({ type: 'viewing' }) }
@@ -943,6 +920,15 @@ export default function EditPage() {
       await Promise.allSettled(Array.from(pendingOpsRef.current))
     }
   }, [draft, isOwner, saveData])
+
+  // Flush profile save AND pending tile ops before navigating. Previously
+  // fired profile save fire-and-forget and ignored tile ops — a mid-flight
+  // image upload would be aborted by navigation and its temp tile (only in
+  // React state, not yet in DB) lost on return.
+  const navigateToPublic = useCallback(async () => {
+    await flushEditorChanges()
+    router.push(`/${slug}`)
+  }, [slug, router, flushEditorChanges])
 
   useEffect(() => {
     if (draft && !isLoading) {
@@ -1906,13 +1892,15 @@ export default function EditPage() {
         style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="flex items-center justify-between px-4 pt-4 pb-2" style={{ minHeight: '52px' }}>
           <div className="flex items-center gap-1">
-            <button
-              onClick={navigateToPublic}
-              className="text-sm text-white/60 hover:text-white/90 transition font-mono flex items-center justify-center"
-              style={{ minWidth: '44px', minHeight: '44px' }}
-            >
-              ←
-            </button>
+            {isPublished && !slug.startsWith('draft-') && !slug.startsWith('pending-') && (
+              <button
+                onClick={navigateToPublic}
+                className="text-sm text-white/60 hover:text-white/90 transition font-mono flex items-center justify-center"
+                style={{ minWidth: '44px', minHeight: '44px' }}
+              >
+                ←
+              </button>
+            )}
             {!isArranging && (
               <button
                 onClick={async () => {
