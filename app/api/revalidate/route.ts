@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
-import { getUserIdFromRequest } from '@/lib/auth'
 
+/**
+ * GET /api/revalidate?path=/some/path
+ *
+ * Administrative cache-bust. Gated by REVALIDATE_SECRET in the
+ * X-Revalidate-Secret header to prevent cache-busting attacks.
+ */
 export async function GET(request: NextRequest) {
-  // Require authentication to prevent cache-busting attacks
-  const userId = await getUserIdFromRequest(request)
-  if (!userId) {
+  const secret = process.env.REVALIDATE_SECRET
+  const header = request.headers.get('x-revalidate-secret')
+  if (!secret || header !== secret) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

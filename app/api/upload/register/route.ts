@@ -1,30 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { getUserIdFromRequest } from '@/lib/auth'
+import { getEditAuth } from '@/lib/edit-auth'
 import { mediaTypeFromUrl } from '@/lib/media'
 
-// Lightweight endpoint: register a file already uploaded to Supabase Storage
-// Used by client-side video uploads that bypass Vercel's body limit
+// Lightweight endpoint: register a file already uploaded to Supabase Storage.
+// Used by client-side video uploads that bypass Vercel's body limit.
 export async function POST(request: NextRequest) {
   try {
-    const userId = await getUserIdFromRequest(request)
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const { slug, url, room_id, aspect, content_type } = await request.json()
 
     if (!slug || !url) {
       return NextResponse.json({ error: 'slug and url required' }, { status: 400 })
     }
 
+    const auth = await getEditAuth(request, slug)
+    if (!auth.ok) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const supabase = createServerSupabaseClient()
 
-    // Get footprint and verify ownership
     const { data: footprint } = await supabase
       .from('footprints')
-      .select('serial_number, user_id')
+      .select('serial_number')
       .eq('username', slug)
       .single()
 
@@ -32,13 +31,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Footprint not found' }, { status: 404 })
     }
 
-    if (footprint.user_id !== userId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-
     const serialNumber = footprint.serial_number
 
-    // Get next position
     const { data: maxPos } = await supabase
       .from('library')
       .select('position')
@@ -67,7 +61,6 @@ export async function POST(request: NextRequest) {
 
     revalidatePath(`/${slug}`)
 
-    // MIME-type contract: media_kind from DB first, then URL extension
     const canonicalType = mediaTypeFromUrl(url || '', tile.media_kind)
 
     return NextResponse.json({

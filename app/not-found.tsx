@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { AUTH_ENTRY } from '@/lib/routes'
 
 const DM = "'DM Sans', sans-serif"
 const MONO = "'JetBrains Mono', monospace"
@@ -18,7 +17,7 @@ const MONO = "'JetBrains Mono', monospace"
  */
 export default function NotFound() {
   const pathname = usePathname()
-  const [authState, setAuthState] = useState<'loading' | 'owner' | 'not-owner'>('loading')
+  const [authState, setAuthState] = useState<'loading' | 'owner' | 'not-owner'>('not-owner')
   const [price, setPrice] = useState('$10')
   const [visible, setVisible] = useState(false)
 
@@ -26,38 +25,18 @@ export default function NotFound() {
   const segments = pathname?.split('/').filter(Boolean)
   const displaySlug = segments?.[0] || ''
 
-  // Auth guard — redirect owners to their editor
+  // Owner detection via edit-token cookie: if fp_edit_{slug} is present,
+  // the cookie is HttpOnly and can't be read here, so we bounce to the
+  // editor which will validate (or redirect back to /{slug}).
   useEffect(() => {
-    if (!displaySlug) {
-      setAuthState('not-owner')
-      return
+    if (!displaySlug) return
+    // If the user holds an edit token for this slug they'll want the editor;
+    // if not, the editor will bounce them right back to /{slug}. Either way
+    // a single hop resolves it.
+    const hasEditCookie = document.cookie.split('; ').some(c => c.startsWith(`fp_edit_${displaySlug}=`))
+    if (hasEditCookie) {
+      window.location.href = `/${displaySlug}/home`
     }
-
-    let cancelled = false
-
-    async function checkAuth() {
-      try {
-        const res = await fetch('/api/footprint-for-user', { credentials: 'include' })
-        if (cancelled) return
-
-        if (res.ok) {
-          const data = await res.json()
-          if (data.slug && data.slug === displaySlug) {
-            window.location.href = `/${data.slug}/home`
-            return
-          }
-        }
-      } catch {
-        // Auth check failed — fall through to unclaimed
-      }
-
-      if (!cancelled) {
-        setAuthState('not-owner')
-      }
-    }
-
-    checkAuth()
-    return () => { cancelled = true }
   }, [displaySlug])
 
   // Geo pricing
@@ -85,16 +64,9 @@ export default function NotFound() {
     )
   }
 
-  // CTA always routes through the canonical auth entry. The previous
-  // document.cookie check was structurally broken — fp_session is HttpOnly,
-  // so the check was always false and the CTA always pointed at /login,
-  // which 404'd back here in an infinite loop.
-  //
-  // We deliberately do NOT use authEntryFor(displaySlug) here. displaySlug
-  // is unclaimed by definition (we're rendering the not-found page), so
-  // /{displaySlug}?claim=1 would 404 right back into this same component.
-  // Pre-filling the desired username inside SovereignTile is a PR #2 polish.
-  const claimHref = AUTH_ENTRY
+  // Claim CTA lands on /ae (the showcase room). From there, "Make yours →"
+  // opens the anonymous build flow that ends with a /api/checkout call.
+  const claimHref = '/ae'
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-[#080808] relative overflow-hidden">

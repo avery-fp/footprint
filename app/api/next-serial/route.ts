@@ -1,17 +1,16 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { getUserIdFromRequest } from '@/lib/auth'
 
-export async function GET(request: NextRequest) {
+/**
+ * GET /api/next-serial
+ *
+ * Returns the next serial number. Serial numbers aren't secret — they
+ * appear on every public page — so this is intentionally unauthenticated.
+ */
+export async function GET() {
   try {
-    // Require authentication — leaks business metrics
-    const userId = await getUserIdFromRequest(request)
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const supabase = createServerSupabaseClient()
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('footprints')
       .select('serial_number')
       .order('serial_number', { ascending: false })

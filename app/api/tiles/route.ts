@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { parseURL } from '@/lib/parser'
-import { getUserIdFromRequest } from '@/lib/auth'
+import { getEditAuth } from '@/lib/edit-auth'
 import { tilesPostSchema, tilesDeleteSchema, tilesPutSchema, tilesPatchSchema, containerPostSchema } from '@/lib/schemas'
 import { validateBody } from '@/lib/validate'
 import { routeLogger } from '@/lib/logger'
@@ -12,26 +12,25 @@ import { PROVIDER_RENDER_DEFAULTS, contentTypeToKind, contentTypeToProvider } fr
 const log = routeLogger('MULTI', '/api/tiles')
 
 /**
- * Get serial_number from slug + verify the requesting user owns it.
- * Returns null if not found or not owned.
+ * Verify the request carries a valid edit_token for `slug` and return the
+ * footprint's serial_number. Returns null if auth fails or the slug is
+ * unknown.
  */
 async function getSerialNumber(
   request: NextRequest,
   supabase: ReturnType<typeof createServerSupabaseClient>,
   slug: string
 ): Promise<number | null> {
-  const userId = await getUserIdFromRequest(request)
-  if (!userId) return null
+  const auth = await getEditAuth(request, slug)
+  if (!auth.ok) return null
 
   const { data: footprint } = await supabase
     .from('footprints')
-    .select('serial_number, user_id')
+    .select('serial_number')
     .eq('username', slug)
     .single()
 
-  if (!footprint || footprint.user_id !== userId) return null
-
-  return footprint.serial_number
+  return footprint?.serial_number ?? null
 }
 
 /**

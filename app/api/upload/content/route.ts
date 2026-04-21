@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { getUserIdFromRequest } from '@/lib/auth'
+import { getEditAuth } from '@/lib/edit-auth'
 import { routeLogger } from '@/lib/logger'
 
 const log = routeLogger('POST', '/api/upload/content')
@@ -15,11 +15,6 @@ const ALLOWED_TYPES = [...IMAGE_TYPES, ...VIDEO_TYPES]
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = await getUserIdFromRequest(request)
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const formData = await request.formData()
     const file = formData.get('file') as File | null
     const slug = formData.get('slug') as string | null
@@ -27,6 +22,11 @@ export async function POST(request: NextRequest) {
 
     if (!file || !slug) {
       return NextResponse.json({ error: 'file and slug required' }, { status: 400 })
+    }
+
+    const auth = await getEditAuth(request, slug)
+    if (!auth.ok) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     if (!ALLOWED_TYPES.includes(file.type)) {
@@ -41,19 +41,14 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
-    // Get footprint and verify ownership
     const { data: footprint } = await supabase
       .from('footprints')
-      .select('serial_number, user_id')
+      .select('serial_number')
       .eq('username', slug)
       .single()
 
     if (!footprint) {
       return NextResponse.json({ error: 'Footprint not found' }, { status: 404 })
-    }
-
-    if (footprint.user_id !== userId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const serialNumber = footprint.serial_number

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { parseURL } from '@/lib/parser'
-import { getUserIdFromRequest } from '@/lib/auth'
+import { getEditAuthForFootprintId } from '@/lib/edit-auth'
 import { contentPostSchema } from '@/lib/schemas'
 import { validateBody } from '@/lib/validate'
 import { routeLogger } from '@/lib/logger'
@@ -22,24 +22,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'footprint_id required' }, { status: 400 })
     }
 
-    // Require authentication — prevents IDOR on unpublished footprints
-    const userId = await getUserIdFromRequest(request)
-    if (!userId) {
+    const auth = await getEditAuthForFootprintId(request, footprintId)
+    if (!auth.ok) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const supabase = createServerSupabaseClient()
-
-    // Verify user owns this footprint
-    const { data: footprint } = await supabase
-      .from('footprints')
-      .select('user_id')
-      .eq('id', footprintId)
-      .single()
-
-    if (!footprint || footprint.user_id !== userId) {
-      return NextResponse.json({ error: 'Not your footprint' }, { status: 403 })
-    }
 
     const { data: content, error } = await supabase
       .from('content')
@@ -77,24 +65,12 @@ export async function POST(request: NextRequest) {
     if (!v.success) return v.response
     const { url, footprint_id } = v.data
 
-    // Verify user owns this footprint
-    const userId = await getUserIdFromRequest(request)
-    if (!userId) {
+    const auth = await getEditAuthForFootprintId(request, footprint_id)
+    if (!auth.ok) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const supabase = createServerSupabaseClient()
-
-    // Check footprint ownership
-    const { data: footprint } = await supabase
-      .from('footprints')
-      .select('user_id')
-      .eq('id', footprint_id)
-      .single()
-
-    if (!footprint || footprint.user_id !== userId) {
-      return NextResponse.json({ error: 'Not your footprint' }, { status: 403 })
-    }
 
     // Parse the URL
     const parsed = await parseURL(url)
@@ -153,22 +129,22 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'id required' }, { status: 400 })
     }
 
-    const userId = await getUserIdFromRequest(request)
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const supabase = createServerSupabaseClient()
 
-    // Get content and verify ownership through footprint
+    // Resolve content → footprint, then verify edit auth on that footprint.
     const { data: content } = await supabase
       .from('content')
-      .select('footprint_id, footprints(user_id)')
+      .select('footprint_id')
       .eq('id', contentId)
       .single()
 
-    if (!content || (content.footprints as any)?.user_id !== userId) {
-      return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
+    if (!content?.footprint_id) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
+    const auth = await getEditAuthForFootprintId(request, content.footprint_id)
+    if (!auth.ok) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     // Delete it

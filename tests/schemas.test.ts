@@ -105,16 +105,18 @@ describe('eventsSchema', () => {
 })
 
 describe('checkoutSchema', () => {
-  it('accepts email checkout', () => {
-    expect(checkoutSchema.safeParse({ email: 'a@b.com' }).success).toBe(true)
+  it('accepts minimal body (slug validation is enforced at route level)', () => {
+    // With Stripe-as-identity, the schema is intentionally permissive — the
+    // route layer validates desired_slug / draft_slug shape and normalizes.
+    expect(checkoutSchema.safeParse({}).success).toBe(true)
   })
 
-  it('accepts remix checkout', () => {
-    expect(checkoutSchema.safeParse({ remix_source: 'some-source' }).success).toBe(true)
+  it('accepts draft_slug + desired_slug', () => {
+    expect(checkoutSchema.safeParse({ draft_slug: 'draft-abc', desired_slug: 'alice' }).success).toBe(true)
   })
 
-  it('rejects neither email nor remix_source', () => {
-    expect(checkoutSchema.safeParse({}).success).toBe(false)
+  it('accepts legacy slug field', () => {
+    expect(checkoutSchema.safeParse({ slug: 'alice' }).success).toBe(true)
   })
 })
 

@@ -1,23 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { getUserIdFromRequest } from '@/lib/auth'
+import { getEditAuth } from '@/lib/edit-auth'
 
 const VALID_MODES = ['grid']
 
 /**
  * PATCH /api/layout-mode
  *
- * Owner sets their default layout mode for a footprint.
  * Body: { slug: string, grid_mode: 'grid' }
+ * Requires edit_token for the slug.
  */
 export async function PATCH(request: NextRequest) {
   try {
-    const userId = await getUserIdFromRequest(request)
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const body = await request.json()
     const { slug, grid_mode } = body
 
@@ -25,24 +20,17 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
     }
 
-    const supabase = createServerSupabaseClient()
-
-    // Verify ownership
-    const { data: footprint } = await supabase
-      .from('footprints')
-      .select('id, user_id')
-      .eq('username', slug)
-      .single()
-
-    if (!footprint || footprint.user_id !== userId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const auth = await getEditAuth(request, slug)
+    if (!auth.ok) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Update grid_mode
+    const supabase = createServerSupabaseClient()
+
     const { error } = await supabase
       .from('footprints')
       .update({ grid_mode })
-      .eq('id', footprint.id)
+      .eq('username', slug)
 
     if (error) {
       return NextResponse.json({ error: 'Internal error' }, { status: 500 })

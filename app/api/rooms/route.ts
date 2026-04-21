@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { getUserIdFromRequest } from '@/lib/auth'
+import { getEditAuth } from '@/lib/edit-auth'
 import { roomsPatchSchema, roomsPostSchema } from '@/lib/schemas'
 import { validateBody } from '@/lib/validate'
 import { routeLogger } from '@/lib/logger'
@@ -9,46 +9,39 @@ import { routeLogger } from '@/lib/logger'
 const log = routeLogger('MULTI', '/api/rooms')
 
 /**
- * Verify the requesting user owns the footprint with this serial_number.
- * Returns the serial_number if valid, or a NextResponse error.
+ * Resolve a serial_number to its slug, then verify edit_token for that slug.
  */
-async function verifyOwnership(
+async function verifyBySerial(
   request: NextRequest,
   supabase: ReturnType<typeof createServerSupabaseClient>,
   serialNumber: number
-): Promise<{ error?: NextResponse }> {
-  const userId = await getUserIdFromRequest(request)
-  if (!userId) {
-    return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
-  }
-
+): Promise<{ error?: NextResponse; slug?: string }> {
   const { data: footprint } = await supabase
     .from('footprints')
-    .select('user_id')
+    .select('username')
     .eq('serial_number', serialNumber)
     .single()
 
-  if (!footprint || footprint.user_id !== userId) {
+  if (!footprint?.username) {
     return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
   }
 
-  return {}
-}
-
-/**
- * Look up a room and verify the requesting user owns it.
- */
-async function verifyRoomOwnership(
-  request: NextRequest,
-  supabase: ReturnType<typeof createServerSupabaseClient>,
-  roomId: string
-): Promise<{ error?: NextResponse; serialNumber?: number }> {
-  const userId = await getUserIdFromRequest(request)
-  if (!userId) {
+  const auth = await getEditAuth(request, footprint.username)
+  if (!auth.ok) {
     return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
   }
 
-  // Get the room's serial_number
+  return { slug: footprint.username }
+}
+
+/**
+ * Resolve a room_id to its footprint slug, then verify edit_token.
+ */
+async function verifyByRoomId(
+  request: NextRequest,
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  roomId: string
+): Promise<{ error?: NextResponse; slug?: string; serialNumber?: number }> {
   const { data: room } = await supabase
     .from('rooms')
     .select('serial_number')
@@ -59,24 +52,13 @@ async function verifyRoomOwnership(
     return { error: NextResponse.json({ error: 'Room not found' }, { status: 404 }) }
   }
 
-  // Verify the user owns the footprint with this serial_number
-  const { data: footprint } = await supabase
-    .from('footprints')
-    .select('user_id')
-    .eq('serial_number', room.serial_number)
-    .single()
-
-  if (!footprint || footprint.user_id !== userId) {
-    return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
-  }
-
-  return { serialNumber: room.serial_number }
+  const { slug, error } = await verifyBySerial(request, supabase, room.serial_number)
+  if (error) return { error }
+  return { slug, serialNumber: room.serial_number }
 }
 
 /**
  * GET /api/rooms?serial_number=123
- *
- * Fetch rooms for a footprint by serial_number.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -87,23 +69,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'serial_number required' }, { status: 400 })
     }
 
-    // Require authentication — prevents enumeration of hidden rooms
-    const userId = await getUserIdFromRequest(request)
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const supabase = createServerSupabaseClient()
 
-    // Verify ownership
-    const auth = await verifyOwnership(request, supabase, Number(serialNumber))
+    const auth = await verifyBySerial(request, supabase, Number(serialNumber))
     if (auth.error) return auth.error
 
-    // Mirror the public page's room filter so the owner's editor lands on
-    // the same room set a visitor sees. Without .neq('hidden', true), the
-    // editor could open to a hidden room with no/few tiles while public
-    // lands on a visible room — producing "public has content editor
-    // doesn't" without the underlying data actually diverging.
     const { data: rooms, error } = await supabase
       .from('rooms')
       .select('*')
@@ -123,9 +93,7 @@ export async function GET(request: NextRequest) {
 
 /**
  * PATCH /api/rooms
- *
- * Update room properties (hidden, name).
- * Body: { id, slug?, hidden?, name? }
+ * Body: { id, slug?, hidden?, name?, layout? }
  */
 export async function PATCH(request: NextRequest) {
   try {
@@ -136,8 +104,7 @@ export async function PATCH(request: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
-    // Verify ownership
-    const auth = await verifyRoomOwnership(request, supabase, id)
+    const auth = await verifyByRoomId(request, supabase, id)
     if (auth.error) return auth.error
 
     const updates: Record<string, any> = {}
@@ -158,7 +125,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Internal error' }, { status: 500 })
     }
 
-    if (slug) revalidatePath(`/${slug}`)
+    if (slug || auth.slug) revalidatePath(`/${slug || auth.slug}`)
     return NextResponse.json({ success: true })
   } catch (error) {
     return NextResponse.json({ error: 'Failed to update room' }, { status: 500 })
@@ -167,8 +134,6 @@ export async function PATCH(request: NextRequest) {
 
 /**
  * DELETE /api/rooms?id=xxx
- *
- * Permanently delete a room and unassign its content.
  */
 export async function DELETE(request: NextRequest) {
   try {
@@ -182,21 +147,18 @@ export async function DELETE(request: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
-    // Verify ownership
-    const auth = await verifyRoomOwnership(request, supabase, id)
+    const auth = await verifyByRoomId(request, supabase, id)
     if (auth.error) return auth.error
 
-    // Unassign tiles from this room (move to unassigned, don't delete them)
     await supabase.from('library').update({ room_id: null }).eq('room_id', id)
     await supabase.from('links').update({ room_id: null }).eq('room_id', id)
-    // Delete room
     const { error } = await supabase.from('rooms').delete().eq('id', id)
 
     if (error) {
       return NextResponse.json({ error: 'Internal error' }, { status: 500 })
     }
 
-    if (slug) revalidatePath(`/${slug}`)
+    if (slug || auth.slug) revalidatePath(`/${slug || auth.slug}`)
     return NextResponse.json({ success: true })
   } catch (error) {
     return NextResponse.json({ error: 'Failed to delete room' }, { status: 500 })
@@ -205,8 +167,6 @@ export async function DELETE(request: NextRequest) {
 
 /**
  * POST /api/rooms
- *
- * Create a new room.
  * Body: { serial_number, name, position }
  */
 export async function POST(request: NextRequest) {
@@ -218,8 +178,7 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
-    // Verify ownership
-    const auth = await verifyOwnership(request, supabase, serial_number)
+    const auth = await verifyBySerial(request, supabase, serial_number)
     if (auth.error) return auth.error
 
     const { data: room, error } = await supabase
@@ -236,7 +195,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Internal error' }, { status: 500 })
     }
 
-    if (slug) revalidatePath(`/${slug}`)
+    if (slug || auth.slug) revalidatePath(`/${slug || auth.slug}`)
     return NextResponse.json({ room })
   } catch (error) {
     return NextResponse.json({ error: 'Failed to create room' }, { status: 500 })

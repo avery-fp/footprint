@@ -1,24 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { getUserIdFromRequest } from '@/lib/auth'
+import { getEditAuth } from '@/lib/edit-auth'
 
 /**
  * POST /api/upload/presign
  *
- * Returns a signed upload URL for Supabase Storage.
- * Uses service role key — bypasses storage RLS policies.
+ * Returns a signed upload URL for Supabase Storage. Caller must present a
+ * valid edit_token (or be on a draft slug) for the slug embedded in `path`.
+ *
+ * Path convention: "{slug}/..." — the first segment is the footprint slug.
  */
 export async function POST(request: NextRequest) {
   try {
-    const userId = await getUserIdFromRequest(request)
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const { path, contentType } = await request.json()
 
-    if (!path) {
+    if (!path || typeof path !== 'string') {
       return NextResponse.json({ error: 'path required' }, { status: 400 })
+    }
+
+    const slug = path.split('/')[0]
+    if (!slug) {
+      return NextResponse.json({ error: 'path must begin with slug' }, { status: 400 })
+    }
+
+    const auth = await getEditAuth(request, slug)
+    if (!auth.ok) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const supabase = createServerSupabaseClient()

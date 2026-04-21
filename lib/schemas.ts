@@ -103,11 +103,17 @@ export const eventsSchema = z.object({
 
 export const checkoutSchema = z.object({
   email: z.string().optional(),
+  // Legacy: a single slug param (claim-by-name pre-draft flow). Accepted for
+  // compatibility with any caller that hasn't switched to draft_slug yet.
   slug: z.string().optional(),
+  // New flow: draft_slug identifies the anonymous draft row to promote;
+  // desired_slug is what the user wants to claim.
+  draft_slug: z.string().optional(),
+  desired_slug: z.string().optional(),
   remix_source: z.string().optional(),
   remix_room: z.string().optional(),
   ref: z.string().optional(),
-}).refine(d => d.email || d.remix_source, { message: 'Email is required' })
+})
 
 export const checkoutActivateSchema = z.object({
   session_id: z.string().min(1, 'Missing session_id'),

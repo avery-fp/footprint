@@ -1,133 +1,59 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { getUserIdFromRequest } from '@/lib/auth'
+import { getEditAuth } from '@/lib/edit-auth'
 
 /**
  * POST /api/seed-rooms
  *
- * Create default rooms for a footprint and distribute existing content.
- * Requires auth + ownership.
- *
- * Body: { serial_number: 1001 }
+ * Body: { slug: string }
+ * Verifies the caller holds edit_token for {slug}, then ensures the
+ * footprint has default rooms seeded.
  */
 export async function POST(request: NextRequest) {
   try {
-    const userId = await getUserIdFromRequest(request)
-    if (!userId) {
+    const body = await request.json().catch(() => ({}))
+    const slug: string | undefined = body?.slug
+
+    if (!slug) {
+      return NextResponse.json({ error: 'slug required' }, { status: 400 })
+    }
+
+    const auth = await getEditAuth(request, slug)
+    if (!auth.ok) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await request.json().catch(() => ({}))
-    const serialNumber = body.serial_number
-
-    if (!serialNumber) {
-      return NextResponse.json({ error: 'serial_number required' }, { status: 400 })
-    }
-
     const supabase = createServerSupabaseClient()
-
-    // Verify ownership
     const { data: footprint } = await supabase
       .from('footprints')
-      .select('user_id')
-      .eq('serial_number', serialNumber)
-      .single()
+      .select('serial_number')
+      .eq('username', slug)
+      .maybeSingle()
 
-    if (!footprint || footprint.user_id !== userId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (!footprint?.serial_number) {
+      return NextResponse.json({ ok: true, seeded: 0 })
     }
 
-    // 1. Check existing rooms
-    const { data: existingRooms } = await supabase
+    const { count } = await supabase
       .from('rooms')
-      .select('*')
-      .eq('serial_number', serialNumber)
-      .order('position')
+      .select('id', { count: 'exact', head: true })
+      .eq('serial_number', footprint.serial_number)
 
-    if (existingRooms && existingRooms.length > 0) {
-      return NextResponse.json({
-        message: `Already has ${existingRooms.length} rooms`,
-        rooms: existingRooms,
-      })
+    if ((count ?? 0) > 0) {
+      return NextResponse.json({ ok: true, seeded: 0 })
     }
 
-    // 2. Create 5 rooms
-    const roomNames = ['void', 'world', 'fits', 'sound', 'archive']
-    const { data: rooms, error: roomError } = await supabase
-      .from('rooms')
-      .insert(roomNames.map((name, i) => ({
-        serial_number: serialNumber,
-        name,
-        position: i,
-      })))
-      .select()
+    const defaults = ['Home', 'Work', 'Play', 'Sound', 'About']
+    const rows = defaults.map((name, i) => ({
+      serial_number: footprint.serial_number,
+      name,
+      position: i,
+    }))
+    await supabase.from('rooms').insert(rows)
 
-    if (roomError) {
-      return NextResponse.json({ error: 'Failed to seed rooms' }, { status: 500 })
-    }
-
-    // 3. Get all existing content
-    const [{ data: images }, { data: links }] = await Promise.all([
-      supabase.from('library').select('id').eq('serial_number', serialNumber),
-      supabase.from('links').select('id').eq('serial_number', serialNumber),
-    ])
-
-    const allItems = [
-      ...(images || []).map(img => ({ id: img.id, table: 'library' as const })),
-      ...(links || []).map(link => ({ id: link.id, table: 'links' as const })),
-    ]
-
-    if (allItems.length === 0) {
-      return NextResponse.json({
-        message: 'Rooms created but no content to distribute',
-        rooms,
-      })
-    }
-
-    // 4. Distribute randomly across rooms
-    const roomIds = rooms!.map(r => r.id)
-    const shuffled = allItems.sort(() => Math.random() - 0.5)
-
-    const libraryUpdates: { id: string; room_id: string }[] = []
-    const linksUpdates: { id: string; room_id: string }[] = []
-
-    shuffled.forEach((item, i) => {
-      const roomId = roomIds[i % roomIds.length]
-      if (item.table === 'library') {
-        libraryUpdates.push({ id: item.id, room_id: roomId })
-      } else {
-        linksUpdates.push({ id: item.id, room_id: roomId })
-      }
-    })
-
-    const updatePromises: PromiseLike<any>[] = []
-    for (const u of libraryUpdates) {
-      updatePromises.push(
-        supabase.from('library').update({ room_id: u.room_id }).eq('id', u.id)
-      )
-    }
-    for (const u of linksUpdates) {
-      updatePromises.push(
-        supabase.from('links').update({ room_id: u.room_id }).eq('id', u.id)
-      )
-    }
-    await Promise.all(updatePromises)
-
-    // 5. Summary
-    const distribution: Record<string, number> = {}
-    rooms!.forEach(r => { distribution[r.name] = 0 })
-    shuffled.forEach((_, i) => {
-      const roomName = rooms![i % rooms!.length].name
-      distribution[roomName]++
-    })
-
-    return NextResponse.json({
-      message: `Created ${rooms!.length} rooms, distributed ${allItems.length} tiles`,
-      rooms,
-      distribution,
-    })
-  } catch (error) {
-    console.error('Seed rooms error:', error)
-    return NextResponse.json({ error: 'Failed to seed rooms' }, { status: 500 })
+    return NextResponse.json({ ok: true, seeded: rows.length })
+  } catch (err) {
+    console.error('seed-rooms failed:', err)
+    return NextResponse.json({ error: 'Seed failed' }, { status: 500 })
   }
 }

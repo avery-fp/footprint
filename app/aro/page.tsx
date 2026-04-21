@@ -250,8 +250,8 @@ export default function AroDashboard() {
           >
             + New Pack
           </button>
-          <a href="/api/auth/signout" style={styles.logoutButton}>
-            Sign out
+          <a href="/" style={styles.logoutButton}>
+            Back
           </a>
         </div>
       </header>

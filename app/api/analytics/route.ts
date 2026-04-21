@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { getUserIdFromRequest } from '@/lib/auth'
+import { getEditAuthForFootprintId } from '@/lib/edit-auth'
 
 /**
  * POST /api/analytics
@@ -82,11 +82,6 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    const userId = await getUserIdFromRequest(request)
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const { searchParams } = new URL(request.url)
     const footprintId = searchParams.get('footprint_id')
 
@@ -96,16 +91,22 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
-    // footprints.id was dropped — caller now passes user_id as the analytics
-    // key. Verify ownership by matching user_id directly.
-    const { data: footprint } = await supabase
+    // footprint_id in analytics is the user_id (see POST above); authorize
+    // by matching the requester's edit_token for the footprint owned by
+    // that user.
+    const { data: fp } = await supabase
       .from('footprints')
-      .select('user_id, serial_number')
+      .select('id, username')
       .eq('user_id', footprintId)
-      .single()
+      .maybeSingle()
 
-    if (!footprint || footprint.user_id !== userId) {
+    if (!fp?.id) {
       return NextResponse.json({ error: 'Not your footprint' }, { status: 403 })
+    }
+
+    const auth = await getEditAuthForFootprintId(request, fp.id)
+    if (!auth.ok) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     // Get total views: count page_view rows in fp_events

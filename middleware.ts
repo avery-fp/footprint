@@ -1,49 +1,19 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { AUTH_ENTRY } from '@/lib/routes'
-import { verifySessionToken } from '@/lib/auth'
 
 /**
- * Middleware: canonical host redirect + session gate.
+ * Middleware: host canonicalization + security headers. No auth.
  *
  * Rules:
- * 1. Redirect bare "footprint.onl" → "www.footprint.onl" (301)
- * 2. Legacy auth entry points (/login, /signin, /auth/login) → hard 307
- *    to AUTH_ENTRY. Handled here rather than in server components so the
- *    redirect is a real HTTP response instead of an RSC-streaming template
- *    that only fires after JS hydration. Crawlers, email clients, link
- *    previewers, and curl all follow it correctly.
- * 3. Public routes → pass through
- * 4. Auth-required routes → check fp_session cookie exists
- *    - present  → allow through
- *    - missing  → redirect to AUTH_ENTRY
+ * 1. Apex footprint.onl → www.footprint.onl (301)
+ * 2. Root / → /ae (the room IS the homepage)
+ * 3. Legacy /home → / (old auth entry; identity is now Stripe)
+ * 4. Everything else: pass through with security headers
  *
- * Middleware does NOT verify/decode the JWT. API routes handle that.
+ * There is no session to check. Edit-gated routes (the editor, edit-scoped
+ * API calls) verify the edit_token per-request via lib/edit-auth.ts.
  */
 
-// Legacy auth entry points — any hit here is redirected at the edge to the
-// canonical AUTH_ENTRY with a proper HTTP 307. Single source of truth:
-// lib/routes.ts. Do not add new entries here without also deleting the
-// corresponding app/**/page.tsx redirect stub.
-const LEGACY_AUTH_ROUTES = new Set<string>([
-  ...['login', 'signin'].map((segment) => `/${segment}`),
-  `/${['auth', 'login'].join('/')}`,
-])
-
-// Only multi-segment routes need explicit entries here. Single-segment
-// public routes (/login, /signup, /signin, /welcome, /claim, /build, etc.)
-// are caught by the isPublicProfile regex below. /api/ is caught by
-// isApiRoute. /auth covers both /auth/login and /auth/callback via prefix.
-const publicRoutes = [
-  '/auth',
-  '/deed',
-  '/gift',
-  '/public',
-]
-
-/**
- * Add security headers to all responses.
- */
 function withSecurityHeaders(response: NextResponse) {
   response.headers.set('X-Content-Type-Options', 'nosniff')
   response.headers.set('X-Frame-Options', 'DENY')
@@ -71,87 +41,42 @@ export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl
   const host = request.headers.get('host') || ''
 
-  // ── 1. Canonical host: redirect apex → www ──
+  // 1. Apex → www
   if (host === 'footprint.onl') {
     const canonical = new URL(`https://www.footprint.onl${pathname}${search}`)
     return withSecurityHeaders(NextResponse.redirect(canonical, 301))
   }
 
-  // ── 2. Root → room or home ──
-  // Stranger → /ae (the room IS the homepage — desire first, auth second)
-  // Authenticated → /home → resolves to /{slug}/home
-  //
-  // Stale or expired cookies are treated as stranger. A cookie that merely
-  // exists is not a session; if verify fails, the user gets the room, not a
-  // sign-in wall. This preserves the PR #248 "stranger → /ae" safety net
-  // for everyone carrying a dead JWT in their browser.
+  // 2. Root → /ae (showcase room, no auth)
   if (pathname === '/') {
-    const token = request.cookies.get('fp_session')?.value
-    const authed = token ? (await verifySessionToken(token)) !== null : false
     const dest = request.nextUrl.clone()
-    dest.pathname = authed ? '/home' : '/ae'
+    dest.pathname = '/ae'
     return withSecurityHeaders(NextResponse.redirect(dest, 307))
   }
 
-  // ── 2b. /home — always pass through to the server component ──
-  // Authenticated → resolves slug → redirects to /{slug}/home
-  // Unauthenticated → renders minimal Google auth entry page
-  if (pathname === '/home') {
-    return withSecurityHeaders(NextResponse.next())
+  // 3. Legacy /home → /
+  if (pathname === '/home' || pathname.startsWith('/home/')) {
+    const dest = request.nextUrl.clone()
+    dest.pathname = '/'
+    dest.search = ''
+    return withSecurityHeaders(NextResponse.redirect(dest, 307))
   }
 
-  // ── 2b. Legacy auth entry points → hard 307 to AUTH_ENTRY ──
-  // Previously these were handled by server-component redirect() stubs in
-  // app/login/page.tsx, app/signin/page.tsx, app/auth/login/page.tsx.
-  // Those worked in real browsers but Next's RSC streaming pipeline emits
-  // a <template data-dgst="NEXT_REDIRECT;...307;"> that only fires after
-  // hydration — crawlers, curl, Slack unfurlers, and email previewers saw
-  // a 200 OK with a blank div and never navigated. That broke welcome-
-  // email link previews and deliverability for any mass-send. Moving the
-  // redirect to the edge gives every client a real HTTP 307.
-  if (LEGACY_AUTH_ROUTES.has(pathname)) {
-    const target = new URL(AUTH_ENTRY, request.url)
-    return withSecurityHeaders(NextResponse.redirect(target, 307))
+  // 4. SID attribution cookie — capture ?sid= on any route
+  const sid = request.nextUrl.searchParams.get('sid')
+  if (sid && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sid)) {
+    const response = withSecurityHeaders(NextResponse.next())
+    response.cookies.set('fp_sid', sid, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 30 * 24 * 60 * 60, // 30 days
+    })
+    return response
   }
 
-  // ── 3. Public routes ──
-  const isPublicRoute = publicRoutes.some(route => pathname === route || pathname.startsWith(route + '/'))
-  const isApiRoute = pathname.startsWith('/api/') || pathname.startsWith('/api')
-  const isPublicProfile = /^\/[a-zA-Z0-9_-]+$/.test(pathname)
-  const isHomeEditor = /^\/[a-zA-Z0-9_-]+\/home$/.test(pathname)
-
-  if (isPublicRoute || isApiRoute || isPublicProfile || isHomeEditor) {
-    // ── SID attribution cookie: capture ?sid= on any public/profile route ──
-    const sid = request.nextUrl.searchParams.get('sid')
-    if (sid && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sid)) {
-      const response = withSecurityHeaders(NextResponse.next())
-      response.cookies.set('fp_sid', sid, {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'lax',
-        path: '/',
-        maxAge: 30 * 24 * 60 * 60, // 30 days
-      })
-      return response
-    }
-    return withSecurityHeaders(NextResponse.next())
-  }
-
-  // ── 3. Auth-required routes ──
-  // Everything below here requires a session cookie.
-  // /{slug}/home and any other sub-paths are auth-required.
-  const session = request.cookies.get('fp_session')
-
-  if (session?.value) {
-    // Cookie exists → let them through. API routes validate the JWT.
-    return withSecurityHeaders(NextResponse.next())
-  }
-
-  // No session → redirect to /home (the single auth entry point)
-  const homeUrl = request.nextUrl.clone()
-  homeUrl.pathname = '/home'
-  homeUrl.search = ''
-  return withSecurityHeaders(NextResponse.redirect(homeUrl))
+  return withSecurityHeaders(NextResponse.next())
 }
 
 export const config = {

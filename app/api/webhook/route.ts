@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { constructWebhookEvent } from '@/lib/stripe'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { sendWelcomeEmail, normalizeEmail } from '@/lib/auth'
-import { nanoid } from 'nanoid'
 import { routeLogger } from '@/lib/logger'
+import { RESERVED_SLUGS } from '@/lib/constants'
 
 const log = routeLogger('POST', '/api/webhook')
 
@@ -34,120 +34,190 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ received: true })
   } catch (error) {
+    // Returning 500 ensures Stripe retries — do NOT mark the session handled
+    // on failure.
     log.error({ err: error }, 'Webhook failed')
     return NextResponse.json({ error: 'Webhook failed' }, { status: 500 })
   }
 }
 
+const SLUG_RE = /^[a-z0-9-]{1,40}$/
+
+function isValidDesiredSlug(s: string | undefined | null): s is string {
+  if (!s) return false
+  const clean = s.toLowerCase().trim()
+  if (!SLUG_RE.test(clean)) return false
+  if ((RESERVED_SLUGS as readonly string[]).includes(clean)) return false
+  if (clean.startsWith('draft-')) return false
+  return true
+}
+
 async function handleCheckoutComplete(session: any) {
   const supabase = createServerSupabaseClient()
   const rawEmail = session.customer_email || session.customer_details?.email
-
   if (!rawEmail) throw new Error('No email found in checkout session')
-  const email = rawEmail.toLowerCase().trim()
+  const email = normalizeEmail(rawEmail)
 
-  // ── SID attribution: extract from Stripe metadata or client_reference_id ──
-  const sid: string | null =
-    session.metadata?.sid ||
-    session.client_reference_id ||
-    null
-
-  // Idempotency: check if this session was already processed
+  // ── Idempotency: already processed? ──
   const { data: existingPayment } = await supabase
     .from('payments')
     .select('id')
     .eq('stripe_session_id', session.id)
-    .single()
+    .maybeSingle()
 
   if (existingPayment) {
     log.info(`Webhook already processed: ${session.id}`)
     return
   }
 
-  // Check if user already exists (import-draft may have run first)
+  const desiredSlugRaw = session.metadata?.desired_slug || session.metadata?.slug || null
+  const draftSlug = session.metadata?.draft_slug || null
+  const sid: string | null = session.metadata?.sid || session.client_reference_id || null
+
+  if (!isValidDesiredSlug(desiredSlugRaw)) {
+    throw new Error(`Webhook missing or invalid desired_slug (session ${session.id})`)
+  }
+  const desiredSlug = desiredSlugRaw as string
+
+  // ── 1. Upsert user by email (Stripe-verified root credential) ──
   const { data: existingUser } = await supabase
     .from('users')
     .select('id, serial_number')
-    .ilike('email', normalizeEmail(email))
-    .single()
+    .ilike('email', email)
+    .maybeSingle()
+
+  let userId: string
+  let serialNumber: number
 
   if (existingUser) {
-    // User exists (import-draft created them) — just record payment if missing
-    await supabase.from('payments').upsert({
-      user_id: existingUser.id,
-      stripe_session_id: session.id,
-      stripe_payment_intent: session.payment_intent,
-      amount: session.amount_total,
-      currency: session.currency,
-      status: 'completed',
-    }, { onConflict: 'stripe_session_id', ignoreDuplicates: true })
+    userId = existingUser.id
+    serialNumber = existingUser.serial_number
+  } else {
+    const { data: serialData, error: serialError } = await supabase.rpc('claim_next_serial')
+    if (serialError || !serialData) throw new Error('Failed to claim serial number')
+    serialNumber = serialData as number
 
-    // ── ARO: record purchase event for existing user ──
-    if (sid) {
-      await recordAroEvent(supabase, 'purchase', sid, session.id, session.amount_total, session.currency, email)
+    const { data: newUser, error: userError } = await supabase
+      .from('users')
+      .insert({
+        email,
+        serial_number: serialNumber,
+        stripe_customer_id: session.customer || null,
+        referred_by: session.metadata?.ref || null,
+        gifts_remaining: 2,
+      })
+      .select()
+      .single()
+
+    if (userError || !newUser) {
+      // Race: concurrent retry may have inserted. Re-read.
+      const { data: raceUser } = await supabase
+        .from('users')
+        .select('id, serial_number')
+        .ilike('email', email)
+        .maybeSingle()
+      if (!raceUser) throw new Error(`Failed to create user: ${userError?.message}`)
+      userId = raceUser.id
+      serialNumber = raceUser.serial_number
+    } else {
+      userId = newUser.id
     }
-
-    log.info(`User already exists: ${email} #${existingUser.serial_number}`)
-    return
   }
 
-  // Re-check for user one more time (race: concurrent webhook retries)
-  const { data: raceCheckUser } = await supabase
-    .from('users')
-    .select('id, serial_number')
-    .ilike('email', normalizeEmail(email))
-    .single()
+  // ── 2. Decide final slug. If someone else won the race, fall back. ──
+  const { data: slugHolder } = await supabase
+    .from('footprints')
+    .select('username, user_id, edit_token')
+    .eq('username', desiredSlug)
+    .maybeSingle()
 
-  if (raceCheckUser) {
-    await supabase.from('payments').upsert({
-      user_id: raceCheckUser.id,
-      stripe_session_id: session.id,
-      stripe_payment_intent: session.payment_intent,
-      amount: session.amount_total,
-      currency: session.currency,
-      status: 'completed',
-    }, { onConflict: 'stripe_session_id', ignoreDuplicates: true })
-    log.info(`Race-condition resolved: user already exists: ${email}`)
-    return
+  let finalSlug = desiredSlug
+  let collisionFallback = false
+
+  if (slugHolder && slugHolder.edit_token && slugHolder.user_id && slugHolder.user_id !== userId) {
+    // Taken by someone else. Use a safe fallback.
+    finalSlug = `${desiredSlug}-${serialNumber}`
+    collisionFallback = true
+    log.info(`Slug collision on ${desiredSlug}; falling back to ${finalSlug} for user ${userId}`)
   }
 
-  const { data: serialData, error: serialError } = await supabase.rpc('claim_next_serial')
-  if (serialError || !serialData) throw new Error('Failed to claim serial number')
+  // crypto.randomUUID — issued in app code for stability across this function
+  const editToken = (globalThis as any).crypto?.randomUUID?.()
+    ?? require('crypto').randomUUID()
 
-  const serialNumber = serialData
-  const username = `fp-${serialNumber}-${nanoid(4).toLowerCase()}`
+  // ── 3. Promote draft OR create claimed footprint ──
+  let footprintWritten = false
 
-  const { data: user, error: userError } = await supabase
-    .from('users')
-    .insert({
-      email,
+  if (draftSlug && !collisionFallback) {
+    // Promote the draft: rename draft_slug → finalSlug and fill in identity.
+    const { data: draft } = await supabase
+      .from('footprints')
+      .select('username')
+      .eq('username', draftSlug)
+      .maybeSingle()
+
+    if (draft) {
+      const { error: updError } = await supabase
+        .from('footprints')
+        .update({
+          user_id: userId,
+          username: finalSlug,
+          serial_number: serialNumber,
+          edit_token: editToken,
+          published: true,
+          is_primary: true,
+        })
+        .eq('username', draftSlug)
+
+      if (updError) {
+        log.error({ err: updError }, 'Draft promotion failed')
+      } else {
+        footprintWritten = true
+      }
+    }
+  }
+
+  if (!footprintWritten) {
+    // No draft (or fallback slug in play): insert a fresh footprint.
+    const { error: insError } = await supabase.from('footprints').insert({
+      user_id: userId,
+      username: finalSlug,
       serial_number: serialNumber,
-      stripe_customer_id: session.customer,
-      referred_by: session.metadata?.ref || null,
-      gifts_remaining: 2,
+      edit_token: editToken,
+      name: 'Everything',
+      icon: '◈',
+      is_primary: true,
+      published: true,
     })
-    .select()
-    .single()
 
-  if (userError || !user) throw new Error('Failed to create user')
+    if (insError) {
+      // If the draft row exists but we fell back due to collision, we should
+      // still promote the draft to finalSlug instead of dropping its content.
+      if (draftSlug) {
+        const { error: updError } = await supabase
+          .from('footprints')
+          .update({
+            user_id: userId,
+            username: finalSlug,
+            serial_number: serialNumber,
+            edit_token: editToken,
+            published: true,
+            is_primary: true,
+          })
+          .eq('username', draftSlug)
 
-  const { error: fpError } = await supabase.from('footprints').insert({
-    user_id: user.id,
-    username,
-    serial_number: serialNumber,
-    name: 'Everything',
-    icon: '◈',
-    is_primary: true,
-    published: true,
-  })
-
-  if (fpError) {
-    log.error({ err: fpError }, 'CRITICAL: Webhook footprint creation failed')
-    throw new Error(`Footprint creation failed for ${email}: ${fpError.message}`)
+        if (updError) {
+          throw new Error(`Footprint write failed: ${insError.message} / ${updError.message}`)
+        }
+      } else {
+        throw new Error(`Footprint insert failed: ${insError.message}`)
+      }
+    }
   }
 
+  // ── 4. Record payment (idempotency anchor) ──
   const { error: payError } = await supabase.from('payments').insert({
-    user_id: user.id,
+    user_id: userId,
     stripe_session_id: session.id,
     stripe_payment_intent: session.payment_intent,
     amount: session.amount_total,
@@ -156,30 +226,37 @@ async function handleCheckoutComplete(session: any) {
   })
 
   if (payError) {
-    log.error({ err: payError }, 'CRITICAL: Webhook payment record failed')
-    // Don't throw — user and footprint exist, payment record is secondary
+    // Secondary — footprint is live. Log and continue.
+    log.error({ err: payError }, 'Payment record insert failed')
   }
 
-  // ── ARO: record signup + purchase events for new user ──
+  // ── 5. Release reservation ──
+  await supabase
+    .from('slug_reservations')
+    .delete()
+    .eq('slug', desiredSlug)
+
+  // ── ARO attribution (non-critical) ──
   if (sid) {
-    await recordAroEvent(supabase, 'signup', sid)
-    await recordAroEvent(supabase, 'purchase', sid, session.id, session.amount_total, session.currency, email)
+    await recordAroEvent(supabase, existingUser ? 'purchase' : 'signup', sid)
+    if (!existingUser) {
+      await recordAroEvent(supabase, 'purchase', sid, session.id, session.amount_total, session.currency, email)
+    }
   }
 
-  // Handle remix: clone room content from source footprint
+  // ── Remix clone (non-critical) ──
   const remixSource = session.metadata?.remix_source
   const remixRoom = session.metadata?.remix_room
-
   if (remixSource) {
     try {
-      await cloneRemixContent(supabase, remixSource, remixRoom, serialNumber, username)
+      await cloneRemixContent(supabase, remixSource, remixRoom, serialNumber, finalSlug)
       log.info(`Remix from ${remixSource} to #${serialNumber}`)
     } catch (err) {
       log.error({ err }, 'Remix clone failed')
     }
   }
 
-  // Track conversion from UTM if present
+  // ── Conversion tracking from UTM ──
   const utmChannel = session.metadata?.utm_channel
   const utmPack = session.metadata?.utm_pack
   if (utmChannel && utmPack) {
@@ -191,7 +268,6 @@ async function handleCheckoutComplete(session: any) {
         .eq('channel', utmChannel)
         .order('posted_at', { ascending: false })
         .limit(1)
-
       if (matchingEvents && matchingEvents.length > 0) {
         await supabase
           .from('fp_distribution_events')
@@ -203,7 +279,7 @@ async function handleCheckoutComplete(session: any) {
     }
   }
 
-  // Track referral from checkout metadata
+  // ── Referral tracking ──
   const refCode = session.metadata?.ref
   if (refCode) {
     const refSerial = parseInt(refCode.replace('FP-', ''), 10)
@@ -211,7 +287,7 @@ async function handleCheckoutComplete(session: any) {
       try {
         await supabase.from('referrals').insert({
           referrer_serial: refSerial,
-          referred_user_id: user.id,
+          referred_user_id: userId,
           referral_code: refCode,
           converted: true,
         })
@@ -219,41 +295,27 @@ async function handleCheckoutComplete(session: any) {
     }
   }
 
-  // Record conversion event for analytics micro-brain
-  const { data: fp } = await supabase
-    .from('footprints')
-    .select('user_id')
-    .eq('user_id', user.id)
-    .eq('is_primary', true)
-    .single()
+  try {
+    await supabase.from('fp_events').insert({
+      footprint_id: userId,
+      event_type: 'conversion',
+      data: {
+        serial_number: serialNumber,
+        amount: session.amount_total,
+        ref: refCode || null,
+        source: 'stripe',
+      },
+    })
+  } catch { /* non-critical */ }
 
-  if (fp) {
-    try {
-      await supabase.from('fp_events').insert({
-        footprint_id: fp.user_id,
-        event_type: 'conversion',
-        data: {
-          serial_number: serialNumber,
-          amount: session.amount_total,
-          ref: refCode || null,
-          source: 'stripe',
-        },
-      })
-    } catch { /* non-critical */ }
-  }
+  log.info(`Claim complete: ${email} #${serialNumber} /${finalSlug}${collisionFallback ? ' (fallback)' : ''}`)
 
-  log.info(`New user: ${email} #${serialNumber}`)
-
-  // Send welcome email — fire-and-forget, don't block webhook response
-  sendWelcomeEmail(email, serialNumber, username)
+  // ── Welcome email (fire-and-forget) ──
+  sendWelcomeEmail(email, { slug: finalSlug, editToken, serialNumber })
     .then(() => log.info(`Welcome email sent: ${email}`))
     .catch((err) => log.error({ err }, `Welcome email failed for ${email}`))
 }
 
-/**
- * Record an ARO attribution event (signup or purchase).
- * Non-critical — errors are logged but never block the webhook.
- */
 async function recordAroEvent(
   supabase: ReturnType<typeof createServerSupabaseClient>,
   eventType: 'signup' | 'purchase',
@@ -266,7 +328,6 @@ async function recordAroEvent(
   try {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
     const isValidUuid = uuidRegex.test(sid)
-
     const metadata: Record<string, unknown> = { sid }
     if (eventType === 'purchase') {
       metadata.stripe_session_id = stripeSessionId || null
@@ -274,25 +335,19 @@ async function recordAroEvent(
       metadata.currency = currency || 'usd'
       metadata.customer_email = customerEmail || null
     }
-
     const { error } = await supabase.from('aro_events').insert({
       target_id: isValidUuid ? sid : null,
       event_type: eventType,
       metadata,
     })
-
     if (error) {
-      log.error({ err: error, sid, eventType, stripeSessionId, amount, currency, customerEmail }, `ARO ${eventType} event insert failed`)
+      log.error({ err: error, sid, eventType }, `ARO ${eventType} event insert failed`)
     }
   } catch (err) {
-    log.error({ err, sid, eventType, stripeSessionId, amount, currency, customerEmail }, `ARO ${eventType} event failed`)
+    log.error({ err, sid, eventType }, `ARO ${eventType} event failed`)
   }
 }
 
-/**
- * Clone content from a source footprint to a new user's footprint.
- * Powers the remix/clone mechanic — every buyer becomes a distribution node.
- */
 async function cloneRemixContent(
   supabase: ReturnType<typeof createServerSupabaseClient>,
   sourceSlug: string,
@@ -300,18 +355,14 @@ async function cloneRemixContent(
   targetSerialNumber: number,
   targetSlug: string
 ) {
-  // Get source footprint
   const { data: source } = await supabase
     .from('footprints')
     .select('serial_number')
     .eq('username', sourceSlug)
     .single()
-
   if (!source) return
-
   const sourceSerial = source.serial_number
 
-  // Get source rooms
   let sourceRooms
   if (roomName) {
     const { data } = await supabase
@@ -330,30 +381,21 @@ async function cloneRemixContent(
       .limit(5)
     sourceRooms = data
   }
-
   if (!sourceRooms || sourceRooms.length === 0) return
 
   for (const sourceRoom of sourceRooms) {
-    // Create new room for target user
     const { data: newRoom } = await supabase
       .from('rooms')
-      .insert({
-        serial_number: targetSerialNumber,
-        name: sourceRoom.name,
-        position: sourceRoom.position,
-      })
+      .insert({ serial_number: targetSerialNumber, name: sourceRoom.name, position: sourceRoom.position })
       .select()
       .single()
-
     if (!newRoom) continue
 
-    // Clone images (library) — points to same storage URLs
     const { data: sourceImages } = await supabase
       .from('library')
       .select('*')
       .eq('serial_number', sourceSerial)
       .eq('room_id', sourceRoom.id)
-
     if (sourceImages) {
       for (const img of sourceImages) {
         await supabase.from('library').insert({
@@ -366,13 +408,11 @@ async function cloneRemixContent(
       }
     }
 
-    // Clone links/embeds
     const { data: sourceLinks } = await supabase
       .from('links')
       .select('*')
       .eq('serial_number', sourceSerial)
       .eq('room_id', sourceRoom.id)
-
     if (sourceLinks) {
       for (const link of sourceLinks) {
         await supabase.from('links').insert({
@@ -390,7 +430,6 @@ async function cloneRemixContent(
     }
   }
 
-  // Track remix in distribution events (non-critical)
   try {
     await supabase.from('fp_distribution_events').insert({
       serial_number: sourceSerial,
@@ -398,5 +437,5 @@ async function cloneRemixContent(
       surface: `remix by #${targetSerialNumber}`,
       notes: `Cloned to ${targetSlug} from ${sourceSlug}`,
     })
-  } catch { /* non-critical, don't fail the purchase */ }
+  } catch { /* non-critical */ }
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { getUserIdFromRequest } from '@/lib/auth'
+import { getEditAuth } from '@/lib/edit-auth'
 import { containerPostSchema } from '@/lib/schemas'
 import { validateBody } from '@/lib/validate'
 import { transformImageUrl } from '@/lib/image'
@@ -13,15 +13,14 @@ async function getSerialNumber(
   supabase: ReturnType<typeof createServerSupabaseClient>,
   slug: string
 ): Promise<number | null> {
-  const userId = await getUserIdFromRequest(request)
-  if (!userId) return null
+  const auth = await getEditAuth(request, slug)
+  if (!auth.ok) return null
   const { data: footprint } = await supabase
     .from('footprints')
-    .select('serial_number, user_id')
+    .select('serial_number')
     .eq('username', slug)
     .single()
-  if (!footprint || footprint.user_id !== userId) return null
-  return footprint.serial_number
+  return footprint?.serial_number ?? null
 }
 
 /**

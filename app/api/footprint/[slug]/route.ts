@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { getUserIdFromRequest } from '@/lib/auth'
+import { getStripe } from '@/lib/stripe'
+import { getEditAuth } from '@/lib/edit-auth'
 import { loadFootprint } from '@/lib/loadFootprint'
 
 export const dynamic = 'force-dynamic'
@@ -9,27 +10,56 @@ export const dynamic = 'force-dynamic'
 /**
  * GET /api/footprint/[slug]
  *
- * Returns footprint + tiles for the edit page via the shared loader.
- * Requires auth — only the owner can access.
+ * Two personas:
+ *
+ * 1. Editor / API client holding an edit_token (cookie, ?token=, or header)
+ *    → returns { owned: true, footprint, tiles }
+ *
+ * 2. Post-payment claim poll: ?stripe_session_id=... — if the session is
+ *    completed within the last 10 minutes AND its metadata matches this
+ *    slug, return the edit_token so the client can unlock editing. This
+ *    is the short-window UX gap between Stripe success_url redirect and
+ *    webhook completion.
+ *
+ * No token and no valid stripe_session_id → 401.
  */
 export async function GET(
   request: NextRequest,
   { params }: { params: { slug: string } }
 ) {
   try {
-    const userId = await getUserIdFromRequest(request)
-    if (!userId) {
+    const slug = params.slug
+    const url = new URL(request.url)
+    const stripeSessionId = url.searchParams.get('stripe_session_id')
+
+    // ── Post-payment token return ──
+    if (stripeSessionId) {
+      const token = await tokenForPaidSession(slug, stripeSessionId)
+      if (token) {
+        const result = await loadFootprint(slug, { ownerView: true })
+        if (!result) {
+          return NextResponse.json({ owned: false, edit_token: null }, { status: 404 })
+        }
+        return NextResponse.json({
+          owned: true,
+          edit_token: token,
+          footprint: result.footprint,
+          tiles: result.content,
+        })
+      }
+      // Webhook not done yet; surface a soft 200 so the client keeps polling.
+      return NextResponse.json({ owned: false, edit_token: null })
+    }
+
+    // ── Standard edit-token path ──
+    const auth = await getEditAuth(request, slug)
+    if (!auth.ok) {
       return NextResponse.json({ owned: false }, { status: 401 })
     }
 
-    const result = await loadFootprint(params.slug, { ownerView: true })
+    const result = await loadFootprint(slug, { ownerView: true })
     if (!result) {
       return NextResponse.json({ owned: false })
-    }
-
-    // Ownership check — user must own this footprint
-    if (result.footprint.user_id !== userId) {
-      return NextResponse.json({ owned: false }, { status: 403 })
     }
 
     return NextResponse.json({
@@ -44,33 +74,49 @@ export async function GET(
 }
 
 /**
+ * If the Stripe session paid for this slug, is "paid", and completed within
+ * the last 10 minutes, return the edit_token. Otherwise null.
+ */
+async function tokenForPaidSession(slug: string, sessionId: string): Promise<string | null> {
+  try {
+    const session = await getStripe().checkout.sessions.retrieve(sessionId)
+    if (session.payment_status !== 'paid') return null
+
+    const metaSlug = (session.metadata as any)?.desired_slug || (session.metadata as any)?.slug
+    if (metaSlug !== slug) return null
+
+    const createdMs = (session.created || 0) * 1000
+    if (Date.now() - createdMs > 10 * 60 * 1000) return null
+
+    const supabase = createServerSupabaseClient()
+    const { data } = await supabase
+      .from('footprints')
+      .select('edit_token')
+      .eq('username', slug)
+      .maybeSingle()
+    return data?.edit_token || null
+  } catch {
+    return null
+  }
+}
+
+/**
  * PUT /api/footprint/[slug]
  *
- * Updates footprint settings. Requires auth + ownership.
+ * Updates footprint settings. Requires edit_token for this slug.
  */
 export async function PUT(
   request: NextRequest,
   { params }: { params: { slug: string } }
 ) {
   try {
-    const userId = await getUserIdFromRequest(request)
-    if (!userId) {
+    const auth = await getEditAuth(request, params.slug)
+    if (!auth.ok) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const username = params.slug
     const supabase = createServerSupabaseClient()
-
-    // Verify ownership
-    const { data: footprint } = await supabase
-      .from('footprints')
-      .select('user_id')
-      .eq('username', username)
-      .single()
-
-    if (!footprint || footprint.user_id !== userId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
 
     const body = await request.json()
     const { is_public, published, display_title, display_name, handle, bio, theme, grid_mode, background_url, background_blur, interactive } = body
