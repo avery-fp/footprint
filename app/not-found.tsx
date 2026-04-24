@@ -8,66 +8,149 @@ const DM = "'DM Sans', sans-serif"
 const MONO = "'JetBrains Mono', monospace"
 
 /**
- * NOT FOUND → $10 CLAIM PAGE
+ * Unclaimed-slug page.
  *
- * When someone visits an unclaimed slug (fp.onl/john), show a compelling
- * claim page with the slug, price, and CTA.
+ * Two cases:
  *
- * Auth guard prevents flash for owners of unpublished pages.
+ * 1. Visitor lands on an unclaimed slug → soft "this footprint hasn't been
+ *    claimed" page with a quiet CTA.
+ *
+ * 2. Owner just paid — URL has ?claimed=true or ?session_id=... but the
+ *    webhook hasn't promoted the draft yet. Poll /api/footprint/{slug}
+ *    every 2s for up to 30s; on success cookie the edit_token and bounce
+ *    to /{slug}/home. Never show the "claim this page" CTA to a paying
+ *    customer.
  */
 export default function NotFound() {
   const pathname = usePathname()
-  const [authState, setAuthState] = useState<'loading' | 'owner' | 'not-owner'>('not-owner')
-  const [price, setPrice] = useState('$10')
+  const segments = pathname?.split('/').filter(Boolean)
+  const displaySlug = segments?.[0] || ''
+
+  // Read post-payment params from window. useSearchParams() in not-found.tsx
+  // forces a Suspense boundary at build time; window.location is dynamic and
+  // safe inside useEffect/handlers.
+  const [isClaiming, setIsClaiming] = useState(false)
+  const [sessionId, setSessionId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search)
+    const claiming = sp.get('claimed') === 'true' || !!sp.get('session_id')
+    setIsClaiming(claiming)
+    setSessionId(sp.get('session_id'))
+  }, [])
+
+  const [pollState, setPollState] = useState<'polling' | 'elapsed'>('polling')
   const [visible, setVisible] = useState(false)
   const [claimLoading, setClaimLoading] = useState(false)
   const [claimError, setClaimError] = useState<string | null>(null)
 
-  // Extract slug from path
-  const segments = pathname?.split('/').filter(Boolean)
-  const displaySlug = segments?.[0] || ''
-
-  // Owner detection via edit-token cookie: if fp_edit_{slug} is present,
-  // the cookie is HttpOnly and can't be read here, so we bounce to the
-  // editor which will validate (or redirect back to /{slug}).
+  // Owner with edit-token cookie → bounce to editor.
   useEffect(() => {
-    if (!displaySlug) return
-    // If the user holds an edit token for this slug they'll want the editor;
-    // if not, the editor will bounce them right back to /{slug}. Either way
-    // a single hop resolves it.
+    if (!displaySlug || isClaiming) return
     const hasEditCookie = document.cookie.split('; ').some(c => c.startsWith(`fp_edit_${displaySlug}=`))
     if (hasEditCookie) {
       window.location.href = `/${displaySlug}/home`
     }
-  }, [displaySlug])
+  }, [displaySlug, isClaiming])
 
-  // Geo pricing
+  // Post-payment polling: webhook may not have completed yet.
   useEffect(() => {
-    fetch('/api/geo')
-      .then(r => r.json())
-      .then(d => { if (d.price) setPrice(d.price) })
-      .catch(() => {})
-  }, [])
+    if (!isClaiming || !displaySlug) return
+
+    let cancelled = false
+    let attempts = 0
+    const maxAttempts = 15
+    const intervalMs = 2000
+
+    async function tick() {
+      if (cancelled) return
+      attempts += 1
+
+      try {
+        const url = sessionId
+          ? `/api/footprint/${encodeURIComponent(displaySlug)}?stripe_session_id=${encodeURIComponent(sessionId)}`
+          : `/api/footprint/${encodeURIComponent(displaySlug)}`
+        const res = await fetch(url, { cache: 'no-store' })
+        const data = await res.json().catch(() => ({}))
+        if (cancelled) return
+
+        if (data?.edit_token) {
+          const unlock = await fetch('/api/edit-unlock', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ slug: displaySlug, token: data.edit_token }),
+          })
+          if (unlock.ok) {
+            window.location.href = `/${displaySlug}/home`
+            return
+          }
+        }
+      } catch {
+        // transient; keep polling
+      }
+
+      if (cancelled) return
+      if (attempts >= maxAttempts) {
+        setPollState('elapsed')
+        return
+      }
+      setTimeout(tick, intervalMs)
+    }
+
+    tick()
+    return () => { cancelled = true }
+  }, [isClaiming, displaySlug, sessionId])
 
   // Staggered entrance
   useEffect(() => {
-    if (authState === 'not-owner') {
-      const t = setTimeout(() => setVisible(true), 100)
-      return () => clearTimeout(t)
-    }
-  }, [authState])
+    const t = setTimeout(() => setVisible(true), 80)
+    return () => clearTimeout(t)
+  }, [])
 
-  // Loading / owner redirect
-  if (authState === 'loading' || authState === 'owner') {
+  // ── Post-payment polling view ──
+  if (isClaiming) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#080808]">
-        <div className="w-5 h-5 border-2 border-white/10 border-t-white/30 rounded-full animate-spin" />
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-[#080808] relative overflow-hidden">
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.03) 0%, transparent 70%)',
+          }}
+        />
+        <div className="relative z-10 max-w-sm text-center">
+          {pollState === 'polling' ? (
+            <>
+              <div className="w-9 h-9 rounded-full border-2 border-white/10 border-t-[#d4c5a9] animate-spin mx-auto mb-7" />
+              <p className="text-[14px] text-white/70 font-light tracking-[-0.01em]" style={{ fontFamily: DM }}>
+                claiming footprint.onl/{displaySlug}
+              </p>
+              <p className="text-[12px] text-white/30 mt-3" style={{ fontFamily: MONO }}>
+                just a second…
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-[16px] text-white/80 font-light tracking-[-0.01em] mb-3" style={{ fontFamily: DM }}>
+                your footprint is on its way
+              </p>
+              <p className="text-[12px] text-white/45 leading-[1.7]" style={{ fontFamily: MONO }}>
+                check your email — your permanent edit link is coming through.
+              </p>
+              <button
+                onClick={() => window.location.reload()}
+                className="mt-7 px-5 py-2.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-white/70 text-[12px] transition"
+                style={{ fontFamily: MONO }}
+              >
+                try again
+              </button>
+            </>
+          )}
+        </div>
       </div>
     )
   }
 
-  // Claim CTA: start an anonymous draft and navigate into the editor.
-  // The user builds the page, then claims the slug via /api/checkout.
+  // ── Unclaimed-slug visitor view ──
   const handleClaim = async () => {
     if (claimLoading) return
     setClaimLoading(true)
@@ -89,72 +172,68 @@ export default function NotFound() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-[#080808] relative overflow-hidden">
-      {/* Subtle radial glow */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.03) 0%, transparent 70%)',
+          background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.025) 0%, transparent 70%)',
         }}
       />
 
-      <div className="relative z-10 max-w-md text-center">
-        {/* Slug display */}
+      <div className="relative z-10 max-w-sm text-center">
         <p
           className="transition-all duration-700 ease-out"
           style={{
             fontFamily: MONO,
-            fontSize: '13px',
+            fontSize: '12px',
             letterSpacing: '0.04em',
-            color: 'rgba(255,255,255,0.35)',
+            color: 'rgba(255,255,255,0.30)',
             marginBottom: '20px',
             opacity: visible ? 1 : 0,
-            transform: visible ? 'translateY(0)' : 'translateY(8px)',
+            transform: visible ? 'translateY(0)' : 'translateY(6px)',
           }}
         >
-          fp.onl/{displaySlug}
+          footprint.onl/{displaySlug}
         </p>
 
-        {/* Price — the anchor */}
         <p
           className="transition-all duration-700 ease-out"
           style={{
             fontFamily: DM,
-            fontSize: 'clamp(40px, 8vw, 56px)',
+            fontSize: '15px',
             fontWeight: 300,
-            letterSpacing: '-0.02em',
-            color: 'rgba(255,255,255,0.9)',
-            lineHeight: 1,
-            marginBottom: '12px',
+            letterSpacing: '-0.005em',
+            color: 'rgba(255,255,255,0.70)',
+            lineHeight: 1.5,
+            marginBottom: '28px',
             opacity: visible ? 1 : 0,
-            transform: visible ? 'translateY(0)' : 'translateY(8px)',
-            transitionDelay: '150ms',
+            transform: visible ? 'translateY(0)' : 'translateY(6px)',
+            transitionDelay: '120ms',
           }}
         >
-          {price}
+          This footprint hasn&rsquo;t been claimed yet.
         </p>
 
-        {/* CTA */}
         <div
-          className="flex flex-col items-center gap-5 transition-all duration-700 ease-out"
+          className="flex flex-col items-center gap-4 transition-all duration-700 ease-out"
           style={{
             opacity: visible ? 1 : 0,
-            transform: visible ? 'translateY(0)' : 'translateY(8px)',
-            transitionDelay: '450ms',
+            transform: visible ? 'translateY(0)' : 'translateY(6px)',
+            transitionDelay: '280ms',
           }}
         >
           <button
             type="button"
             onClick={handleClaim}
             disabled={claimLoading}
-            className="rounded-full px-8 py-3 bg-white text-black/90 hover:bg-white/90 transition-all duration-200 text-sm font-medium disabled:opacity-60 disabled:cursor-default"
-            style={{ fontFamily: DM, border: 'none', cursor: claimLoading ? 'default' : 'pointer' }}
+            className="text-white/70 hover:text-white/95 transition-colors duration-200 text-[14px] disabled:opacity-50 disabled:cursor-default"
+            style={{ fontFamily: DM, background: 'none', border: 'none', cursor: claimLoading ? 'default' : 'pointer' }}
           >
-            {claimLoading ? 'preparing…' : 'claim this page'}
+            {claimLoading ? 'preparing…' : 'make yours →'}
           </button>
 
           {claimError && (
             <p
-              className="text-red-400/70 text-[12px]"
+              className="text-red-400/70 text-[11px]"
               style={{ fontFamily: MONO, letterSpacing: '0.02em' }}
             >
               {claimError}
@@ -163,10 +242,10 @@ export default function NotFound() {
 
           <Link
             href="/ae"
-            className="text-white/15 hover:text-white/35 transition-colors duration-300 text-sm"
+            className="text-white/20 hover:text-white/45 transition-colors duration-300 text-[12px]"
             style={{ fontFamily: DM }}
           >
-            see one
+            see example
           </Link>
         </div>
       </div>

@@ -1722,7 +1722,7 @@ export default function EditPage() {
               >
                 <div>
                   <div className="flex items-center gap-0 rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <span className="text-white/20 text-[13px] pl-4 shrink-0">fp.onl/</span>
+                    <span className="text-white/20 text-[13px] pl-4 shrink-0">footprint.onl/</span>
                     <input type="text" value={claimUsername} onChange={(e) => { setClaimUsername(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, '')); setClaimAvailable(null) }} placeholder="username" aria-label="Username" className="flex-1 bg-transparent py-3.5 pr-4 text-white/90 placeholder:text-white/20 focus:outline-none text-[14px]" autoFocus />
                     <button onClick={handleClaimSubmit} disabled={claimLoading || !claimAvailable || !claimUsername.trim()} className="pr-4 text-white/40 text-[18px] hover:text-white/70 transition-colors disabled:opacity-30" aria-label="Submit">{claimLoading ? '...' : '\u2192'}</button>
                   </div>
@@ -1732,7 +1732,10 @@ export default function EditPage() {
                     </div>
                   )}
                 </div>
-                <p className="text-center text-white/90 text-[28px] mt-8" style={{ fontWeight: 500 }}>$10</p>
+                <p className="text-center text-white/30 text-[11px] mt-4 font-mono leading-relaxed">
+                  Choose carefully. This address can&rsquo;t be changed after publishing.
+                </p>
+                <p className="text-center text-white/90 text-[28px] mt-6" style={{ fontWeight: 500 }}>$10</p>
               </div>
             )}
           </div>
@@ -2610,7 +2613,7 @@ export default function EditPage() {
                       border: '1px solid rgba(255,255,255,0.08)',
                     }}
                   >
-                    <span className="text-white/20 text-[13px] pl-4 shrink-0">fp.onl/</span>
+                    <span className="text-white/20 text-[13px] pl-4 shrink-0">footprint.onl/</span>
                     <input
                       type="text"
                       value={claimUsername}
@@ -2647,7 +2650,11 @@ export default function EditPage() {
                   )}
                 </div>
 
-                <p className="text-center text-white/90 text-[28px] mt-8" style={{ fontWeight: 500 }}>
+                <p className="text-center text-white/30 text-[11px] mt-4 font-mono leading-relaxed">
+                  Choose carefully. This address can&rsquo;t be changed after publishing.
+                </p>
+
+                <p className="text-center text-white/90 text-[28px] mt-6" style={{ fontWeight: 500 }}>
                   $10
                 </p>
               </>
