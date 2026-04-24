@@ -7,6 +7,27 @@ import { RESERVED_SLUGS } from '@/lib/constants'
 
 const log = routeLogger('POST', '/api/webhook')
 
+/**
+ * GET /api/webhook
+ *
+ * Diagnostic probe: confirms the STRIPE_WEBHOOK_SECRET env var is loaded
+ * by the running deployment. Exposes only the first 8 chars of the secret
+ * — enough to compare against the Stripe dashboard without leaking it.
+ *
+ * Use to rule out env-var drift when the webhook starts 400ing on
+ * "Invalid signature".
+ */
+export async function GET() {
+  const secret = process.env.STRIPE_WEBHOOK_SECRET
+  return NextResponse.json({
+    status: 'ok',
+    secretLoaded: !!secret,
+    secretPrefix: secret ? secret.slice(0, 8) : 'MISSING',
+    secretLength: secret ? secret.length : 0,
+    env: process.env.VERCEL_ENV || process.env.NODE_ENV || 'unknown',
+  })
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.text()
@@ -19,8 +40,22 @@ export async function POST(request: NextRequest) {
     let event
     try {
       event = constructWebhookEvent(body, signature)
-    } catch (err) {
-      log.error({ err }, 'Webhook signature verification failed')
+    } catch (err: any) {
+      // Verification failed. Log enough to diagnose env-var drift WITHOUT
+      // leaking either secret. First 8 chars of each is plenty to confirm
+      // "is the running deployment reading the same whsec_ that Stripe is
+      // signing with" from Vercel logs.
+      const secret = process.env.STRIPE_WEBHOOK_SECRET
+      log.error({
+        err_message: err?.message || String(err),
+        secretLoaded: !!secret,
+        secretPrefix: secret ? secret.slice(0, 8) : 'MISSING',
+        secretLength: secret ? secret.length : 0,
+        signaturePrefix: signature ? signature.slice(0, 10) : 'MISSING',
+        signatureLength: signature ? signature.length : 0,
+        bodyLength: body.length,
+        env: process.env.VERCEL_ENV || process.env.NODE_ENV || 'unknown',
+      }, 'Webhook signature verification failed')
       return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
     }
 

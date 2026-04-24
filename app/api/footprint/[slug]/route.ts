@@ -138,10 +138,11 @@ export async function PUT(
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
     }
 
-    const { error: updateError } = await supabase
+    const { data: updated, error: updateError } = await supabase
       .from('footprints')
       .update(updates)
       .eq('username', username)
+      .select('username')
 
     if (updateError) {
       console.error('[footprint PUT] update failed', {
@@ -160,6 +161,22 @@ export async function PUT(
           hint: updateError.hint || null,
         },
         { status: 500 }
+      )
+    }
+
+    // Zero rows updated = row not found for this username. Postgres +
+    // Supabase don't raise an error for this — without an explicit
+    // check we'd return success=true while writing nothing, which is
+    // exactly what the wallpaper PUT symptom looks like.
+    if (!updated || updated.length === 0) {
+      console.error('[footprint PUT] update affected 0 rows', {
+        slug: username,
+        updates,
+        auth_is_draft: auth.isDraft,
+      })
+      return NextResponse.json(
+        { error: 'Footprint not found', slug: username },
+        { status: 404 }
       )
     }
 
