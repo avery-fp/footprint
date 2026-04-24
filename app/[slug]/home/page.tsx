@@ -1772,22 +1772,23 @@ export default function EditPage() {
 
   return (
     <ErrorBoundary context="editor">
-    <div className="relative min-h-[100dvh] w-full overflow-x-hidden pb-32" style={{ background: wallpaperUrl ? 'transparent' : theme.colors.background, color: theme.colors.text }}>
-      {/* Wallpaper layer. Simplified: show the footprint-level background
-          whenever wallpaperUrl is truthy. Per-room filter/overlay logic
-          can come back as polish later; right now the product needs to
-          show a background the moment someone uploads one. */}
-      {wallpaperUrl && (
-        <div className="fixed inset-0 z-0 pointer-events-none">
+    <div className="relative min-h-[100dvh] w-full overflow-x-hidden pb-32" style={{ background: 'transparent', color: theme.colors.text }}>
+      {/* Wallpaper layer — absolute inside the wrapper so it lives in the
+          same stacking context as the content (no outer layout / body bg
+          can cover it). z-0 keeps it behind every sibling below. */}
+      {wallpaperUrl ? (
+        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
           <div
-            className="absolute inset-0 bg-cover bg-center transition-all duration-700"
+            className="absolute inset-0 bg-cover bg-center"
             style={{ backgroundImage: `url(${wallpaperUrl})` }}
           />
           <div
-            className="absolute inset-0 transition-all duration-800"
+            className="absolute inset-0"
             style={{ backgroundColor: 'rgba(0,0,0,0.55)' }}
           />
         </div>
+      ) : (
+        <div className="absolute inset-0 z-0" style={{ background: theme.colors.background }} />
       )}
 
       {/* ═══ CLAIM PLAQUE (desktop) ═══
