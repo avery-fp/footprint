@@ -24,23 +24,44 @@ export async function POST(_request: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
-    const { error } = await supabase.from('footprints').insert({
-      user_id: null,
+    // Only fields we truly need. Everything else should fall back to the
+    // column default. If the database still has NOT NULL on serial_number
+    // or any other column we don't set, the insert will fail — migration
+    // 023_draft_friendly_footprints.sql exists to fix that drift. Surface
+    // the PG error in logs so future drift is diagnosable in Vercel.
+    const row = {
+      user_id: null as string | null,
       username: tempSlug,
-      name: 'Everything',
-      icon: '◈',
       published: false,
       is_primary: false,
-    })
+    }
+
+    const { error } = await supabase.from('footprints').insert(row)
 
     if (error) {
-      log.error({ err: error }, 'Failed to insert draft footprint')
-      return NextResponse.json({ error: 'Failed to create draft' }, { status: 500 })
+      log.error(
+        { err: error, code: error.code, message: error.message, details: error.details, hint: error.hint, row: { username: tempSlug } },
+        'Draft footprint insert failed'
+      )
+      return NextResponse.json(
+        {
+          error: 'Failed to create draft',
+          // Non-secret PG error envelope — helps triage a schema-drift
+          // repeat without exposing anything sensitive. Safe because we
+          // don't include user data.
+          code: error.code || null,
+          detail: error.message || null,
+        },
+        { status: 500 }
+      )
     }
 
     return NextResponse.json({ tempSlug })
-  } catch (error) {
-    log.error({ err: error }, 'Draft creation failed')
-    return NextResponse.json({ error: 'Failed to create draft' }, { status: 500 })
+  } catch (error: any) {
+    log.error({ err: error, message: error?.message }, 'Draft creation threw')
+    return NextResponse.json(
+      { error: 'Failed to create draft', detail: error?.message || null },
+      { status: 500 }
+    )
   }
 }
