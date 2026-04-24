@@ -20,6 +20,8 @@ export default function NotFound() {
   const [authState, setAuthState] = useState<'loading' | 'owner' | 'not-owner'>('not-owner')
   const [price, setPrice] = useState('$10')
   const [visible, setVisible] = useState(false)
+  const [claimLoading, setClaimLoading] = useState(false)
+  const [claimError, setClaimError] = useState<string | null>(null)
 
   // Extract slug from path
   const segments = pathname?.split('/').filter(Boolean)
@@ -64,9 +66,26 @@ export default function NotFound() {
     )
   }
 
-  // Claim CTA lands on /ae (the showcase room). From there, "Make yours →"
-  // opens the anonymous build flow that ends with a /api/checkout call.
-  const claimHref = '/ae'
+  // Claim CTA: start an anonymous draft and navigate into the editor.
+  // The user builds the page, then claims the slug via /api/checkout.
+  const handleClaim = async () => {
+    if (claimLoading) return
+    setClaimLoading(true)
+    setClaimError(null)
+    try {
+      const res = await fetch('/api/draft/create', { method: 'POST' })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data?.tempSlug) {
+        window.location.href = `/${data.tempSlug}/home`
+        return
+      }
+      setClaimError(data?.error || 'could not start — try again')
+    } catch {
+      setClaimError('network error — try again')
+    } finally {
+      setClaimLoading(false)
+    }
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-[#080808] relative overflow-hidden">
@@ -123,13 +142,24 @@ export default function NotFound() {
             transitionDelay: '450ms',
           }}
         >
-          <a
-            href={claimHref}
-            className="rounded-full px-8 py-3 bg-white text-black/90 hover:bg-white/90 transition-all duration-200 text-sm font-medium"
-            style={{ fontFamily: DM }}
+          <button
+            type="button"
+            onClick={handleClaim}
+            disabled={claimLoading}
+            className="rounded-full px-8 py-3 bg-white text-black/90 hover:bg-white/90 transition-all duration-200 text-sm font-medium disabled:opacity-60 disabled:cursor-default"
+            style={{ fontFamily: DM, border: 'none', cursor: claimLoading ? 'default' : 'pointer' }}
           >
-            claim this page
-          </a>
+            {claimLoading ? 'preparing…' : 'claim this page'}
+          </button>
+
+          {claimError && (
+            <p
+              className="text-red-400/70 text-[12px]"
+              style={{ fontFamily: MONO, letterSpacing: '0.02em' }}
+            >
+              {claimError}
+            </p>
+          )}
 
           <Link
             href="/ae"

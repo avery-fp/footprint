@@ -36,11 +36,22 @@ function normalizeSlug(s: string | undefined | null): string | null {
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
+    // ── Step 1: parse the body. Reject malformed JSON up front — never
+    //    let a broken request reach Stripe or Supabase. ──
+    let body: any
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+    }
+
+    // ── Step 2: shape validation via schema. ──
     const v = validateBody(checkoutSchema, body)
     if (!v.success) return v.response
     const { email, remix_source, remix_room, ref } = v.data
 
+    // ── Step 3: normalize + validate the slug BEFORE touching Stripe or
+    //    Supabase. A missing/invalid slug is a 400, not a silent Stripe hit. ──
     const desired = normalizeSlug(v.data.desired_slug) || normalizeSlug(v.data.slug)
     const draftSlug = v.data.draft_slug || null
 
