@@ -1241,13 +1241,18 @@ export default function EditPage() {
 
   async function handleBgFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (!file || !serialNumber) return
+    if (!file) return
     setBgPulse(false)
     const prevWallpaper = wallpaperUrl
     try {
       const resized = await resizeImage(file, 2400)
       const ext = 'jpg'
-      const filename = `${serialNumber}/bg-${Date.now()}.${ext}`
+      // Path key: serial if loaded, else slug. Storage doesn't care what the
+      // first segment is — it only needs to be unique and traceable. Gating
+      // on `serialNumber` silently swallowed uploads when the button was
+      // clicked before loadData resolved.
+      const pathKey = serialNumber || slug
+      const filename = `${pathKey}/bg-${Date.now()}.${ext}`
       const publicUrl = await uploadWithProgress(
         new File([resized], filename, { type: 'image/jpeg' }),
         filename,
@@ -1761,14 +1766,13 @@ export default function EditPage() {
         const isSoundRoom = activeRoom?.name?.toLowerCase() === 'sound'
         const { filter, overlay } = getRoomAtmosphere(activeRoomIndex, isSoundRoom)
         // Wallpaper truth:
-        //  - If the user is viewing a specific room, that room's wallpaper_url IS the truth.
-        //    Empty room → show nothing. Never leak footprint.background_url, which can be a
-        //    stale legacy/ARO value that no longer matches any room.
-        //  - Only when there is no active room (initial load / no rooms yet) do we fall back
-        //    to the top-level background_url so brand-new footprints aren't a black void.
-        const effectiveWallpaper = activeRoom
-          ? (activeRoom.wallpaper_url || null)
-          : wallpaperUrl
+        //  - Per-room wallpaper_url wins when set (each room can override).
+        //  - Otherwise fall back to the footprint-level background_url
+        //    (wallpaperUrl). This covers the draft-editor case where a user
+        //    uploads a wallpaper before (or without) setting a per-room one —
+        //    without this fallback, the new wallpaper silently disappears the
+        //    moment any room becomes active.
+        const effectiveWallpaper = (activeRoom?.wallpaper_url) || wallpaperUrl || null
         if (!effectiveWallpaper) return null
         return (
           <div className="fixed inset-0 z-0 fp-wallpaper-gpu pointer-events-none">
