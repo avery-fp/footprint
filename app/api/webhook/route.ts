@@ -79,7 +79,25 @@ async function handleCheckoutComplete(session: any) {
   }
   const desiredSlug = desiredSlugRaw as string
 
-  // ── 1. Upsert user by email (Stripe-verified root credential) ──
+  // ── 1. Look up the draft first. Its serial_number is the PK of the
+  //      row we'll promote, so we MUST reuse it — we cannot mutate a PK
+  //      that five other tables FK into. If no draft: we'll claim a new
+  //      serial below. ──
+  let draftRow: { serial_number: number } | null = null
+  if (draftSlug) {
+    const { data } = await supabase
+      .from('footprints')
+      .select('serial_number')
+      .eq('username', draftSlug)
+      .maybeSingle()
+    if (data?.serial_number != null) {
+      draftRow = { serial_number: data.serial_number }
+    }
+  }
+
+  // ── 2. Resolve user. Use the draft's serial if we have one; otherwise
+  //      claim a fresh serial for a brand-new user. Existing users keep
+  //      their own serial (one user = one serial). ──
   const { data: existingUser } = await supabase
     .from('users')
     .select('id, serial_number')
@@ -91,8 +109,39 @@ async function handleCheckoutComplete(session: any) {
 
   if (existingUser) {
     userId = existingUser.id
-    serialNumber = existingUser.serial_number
+    // Existing users already own a serial. The draft's serial (if any)
+    // belongs to the new footprint row, not to the user.
+    serialNumber = draftRow?.serial_number ?? existingUser.serial_number
+  } else if (draftRow) {
+    // New user claiming via a draft: adopt the draft's pre-claimed serial.
+    serialNumber = draftRow.serial_number
+
+    const { data: newUser, error: userError } = await supabase
+      .from('users')
+      .insert({
+        email,
+        serial_number: serialNumber,
+        stripe_customer_id: session.customer || null,
+        referred_by: session.metadata?.ref || null,
+        gifts_remaining: 2,
+      })
+      .select()
+      .single()
+
+    if (userError || !newUser) {
+      const { data: raceUser } = await supabase
+        .from('users')
+        .select('id, serial_number')
+        .ilike('email', email)
+        .maybeSingle()
+      if (!raceUser) throw new Error(`Failed to create user: ${userError?.message}`)
+      userId = raceUser.id
+      serialNumber = raceUser.serial_number
+    } else {
+      userId = newUser.id
+    }
   } else {
+    // No draft, new user — claim a fresh serial for both.
     const { data: serialData, error: serialError } = await supabase.rpc('claim_next_serial')
     if (serialError || !serialData) throw new Error('Failed to claim serial number')
     serialNumber = serialData as number
@@ -110,7 +159,6 @@ async function handleCheckoutComplete(session: any) {
       .single()
 
     if (userError || !newUser) {
-      // Race: concurrent retry may have inserted. Re-read.
       const { data: raceUser } = await supabase
         .from('users')
         .select('id, serial_number')
@@ -124,7 +172,7 @@ async function handleCheckoutComplete(session: any) {
     }
   }
 
-  // ── 2. Decide final slug. If someone else won the race, fall back. ──
+  // ── 3. Decide final slug. If someone else won the race, fall back. ──
   const { data: slugHolder } = await supabase
     .from('footprints')
     .select('username, user_id, edit_token')
@@ -135,7 +183,6 @@ async function handleCheckoutComplete(session: any) {
   let collisionFallback = false
 
   if (slugHolder && slugHolder.edit_token && slugHolder.user_id && slugHolder.user_id !== userId) {
-    // Taken by someone else. Use a safe fallback.
     finalSlug = `${desiredSlug}-${serialNumber}`
     collisionFallback = true
     log.info(`Slug collision on ${desiredSlug}; falling back to ${finalSlug} for user ${userId}`)
@@ -145,35 +192,28 @@ async function handleCheckoutComplete(session: any) {
   const editToken = (globalThis as any).crypto?.randomUUID?.()
     ?? require('crypto').randomUUID()
 
-  // ── 3. Promote draft OR create claimed footprint ──
+  // ── 4. Promote draft OR create claimed footprint ──
   let footprintWritten = false
 
-  if (draftSlug && !collisionFallback) {
+  if (draftSlug && draftRow) {
     // Promote the draft: rename draft_slug → finalSlug and fill in identity.
-    const { data: draft } = await supabase
+    // Do NOT touch serial_number — it's the PK and five tables FK to it.
+    // The draft's existing serial IS the new footprint's serial.
+    const { error: updError } = await supabase
       .from('footprints')
-      .select('username')
+      .update({
+        user_id: userId,
+        username: finalSlug,
+        edit_token: editToken,
+        published: true,
+        is_primary: true,
+      })
       .eq('username', draftSlug)
-      .maybeSingle()
 
-    if (draft) {
-      const { error: updError } = await supabase
-        .from('footprints')
-        .update({
-          user_id: userId,
-          username: finalSlug,
-          serial_number: serialNumber,
-          edit_token: editToken,
-          published: true,
-          is_primary: true,
-        })
-        .eq('username', draftSlug)
-
-      if (updError) {
-        log.error({ err: updError }, 'Draft promotion failed')
-      } else {
-        footprintWritten = true
-      }
+    if (updError) {
+      log.error({ err: updError }, 'Draft promotion failed')
+    } else {
+      footprintWritten = true
     }
   }
 
@@ -191,15 +231,16 @@ async function handleCheckoutComplete(session: any) {
     })
 
     if (insError) {
-      // If the draft row exists but we fell back due to collision, we should
-      // still promote the draft to finalSlug instead of dropping its content.
+      // If the draft row exists but the prior UPDATE path didn't run
+      // (e.g. draftRow lookup raced), still promote the draft to
+      // finalSlug instead of dropping its content. Never touch
+      // serial_number — it's the PK.
       if (draftSlug) {
         const { error: updError } = await supabase
           .from('footprints')
           .update({
             user_id: userId,
             username: finalSlug,
-            serial_number: serialNumber,
             edit_token: editToken,
             published: true,
             is_primary: true,
@@ -215,7 +256,7 @@ async function handleCheckoutComplete(session: any) {
     }
   }
 
-  // ── 4. Record payment (idempotency anchor) ──
+  // ── 5. Record payment (idempotency anchor) ──
   const { error: payError } = await supabase.from('payments').insert({
     user_id: userId,
     stripe_session_id: session.id,
@@ -230,7 +271,7 @@ async function handleCheckoutComplete(session: any) {
     log.error({ err: payError }, 'Payment record insert failed')
   }
 
-  // ── 5. Release reservation ──
+  // ── 6. Release reservation ──
   await supabase
     .from('slug_reservations')
     .delete()

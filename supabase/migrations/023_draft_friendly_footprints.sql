@@ -1,17 +1,15 @@
 -- 023_draft_friendly_footprints.sql
 --
--- Ensures the footprints table accepts anonymous draft rows. This migration
--- backstops 022 — without it, prod rejects `/api/draft/create` because
--- serial_number is still NOT NULL (an earlier "onboarding_rebuild" ALTER
--- lived only in schema.sql and was never promoted to a migration file).
+-- NO-OP. Superseded by the application-level change in app/api/draft/create:
+-- drafts now claim a real serial_number at creation via claim_next_serial()
+-- because footprints.serial_number is the PRIMARY KEY (five tables FK to it)
+-- and cannot be made nullable.
 --
--- All statements idempotent. Safe to rerun.
+-- The earlier version of this migration attempted
+--   ALTER TABLE footprints ALTER COLUMN serial_number DROP NOT NULL;
+-- which fails on PRIMARY KEY columns. If you ran it and it errored, that
+-- error was harmless — no rows or columns were modified.
+--
+-- Intentionally empty. Safe to run or skip.
 
--- Drafts have no serial until claim-time.
-ALTER TABLE footprints ALTER COLUMN serial_number DROP NOT NULL;
-
--- Mirror the drop on users in case prod drifted there too.
-ALTER TABLE users ALTER COLUMN serial_number DROP NOT NULL;
-
--- New rows default to unpublished — drafts are draft until Stripe promotes them.
-ALTER TABLE footprints ALTER COLUMN published SET DEFAULT FALSE;
+SELECT 1;
