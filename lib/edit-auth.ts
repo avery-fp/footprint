@@ -67,9 +67,15 @@ export function extractEditToken(request: NextRequest | Request, slug: string): 
  * Verify that {token} is the current edit_token for the footprint at {slug}.
  * For draft slugs, returns ok without requiring a token (knowledge of the
  * unguessable slug is sufficient).
+ *
+ * On rejection, logs the specific reason so prod 401s are diagnosable in
+ * Vercel logs without redeploying with extra instrumentation.
  */
 export async function verifyEditToken(slug: string, token: string | null): Promise<EditAuthResult> {
-  if (!slug) return { ok: false }
+  if (!slug) {
+    console.error('[edit-auth] reject: empty slug')
+    return { ok: false }
+  }
 
   const db = createServerSupabaseClient()
   const { data, error } = await db
@@ -78,16 +84,46 @@ export async function verifyEditToken(slug: string, token: string | null): Promi
     .eq('username', slug)
     .maybeSingle()
 
-  if (error || !data) return { ok: false }
+  if (error) {
+    console.error('[edit-auth] reject: DB error looking up slug', { slug, code: error.code, message: error.message })
+    return { ok: false }
+  }
+
+  if (!data) {
+    console.error('[edit-auth] reject: no footprint row for slug', { slug })
+    return { ok: false }
+  }
 
   // Draft footprint: anonymous, slug-as-credential.
-  if (isDraftSlug(slug) && data.edit_token === null && data.user_id === null) {
-    return { ok: true, userId: null, slug, isDraft: true }
+  if (isDraftSlug(slug)) {
+    if (data.edit_token === null && data.user_id === null) {
+      return { ok: true, userId: null, slug, isDraft: true }
+    }
+    console.error('[edit-auth] reject: draft slug but row has claim state', {
+      slug,
+      has_edit_token: data.edit_token !== null,
+      has_user_id: data.user_id !== null,
+    })
+    return { ok: false }
   }
 
   // Claimed footprint: edit_token must match.
-  if (!data.edit_token || !token || data.edit_token !== token) return { ok: false }
-  if (!data.user_id) return { ok: false }
+  if (!data.edit_token) {
+    console.error('[edit-auth] reject: claimed slug with no edit_token in DB', { slug })
+    return { ok: false }
+  }
+  if (!token) {
+    console.error('[edit-auth] reject: no token presented for claimed slug', { slug })
+    return { ok: false }
+  }
+  if (data.edit_token !== token) {
+    console.error('[edit-auth] reject: token mismatch', { slug })
+    return { ok: false }
+  }
+  if (!data.user_id) {
+    console.error('[edit-auth] reject: claimed slug missing user_id', { slug })
+    return { ok: false }
+  }
 
   return { ok: true, userId: data.user_id, slug, isDraft: false }
 }

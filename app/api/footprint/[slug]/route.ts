@@ -144,14 +144,38 @@ export async function PUT(
       .eq('username', username)
 
     if (updateError) {
-      console.error('Footprint update error:', updateError)
-      return NextResponse.json({ error: 'Update failed' }, { status: 500 })
+      console.error('[footprint PUT] update failed', {
+        slug: username,
+        code: updateError.code,
+        message: updateError.message,
+        details: updateError.details,
+        hint: updateError.hint,
+        updates,
+      })
+      return NextResponse.json(
+        {
+          error: 'Update failed',
+          code: updateError.code || null,
+          detail: updateError.message || null,
+          hint: updateError.hint || null,
+        },
+        { status: 500 }
+      )
     }
 
-    revalidatePath(`/${username}`)
+    try {
+      revalidatePath(`/${username}`)
+    } catch (revalError) {
+      // Revalidation is best-effort; do not fail the write if the cache
+      // invalidation hits a Next internal (e.g. during static export).
+      console.warn('[footprint PUT] revalidatePath failed (non-fatal)', { slug: username, err: revalError })
+    }
     return NextResponse.json({ success: true, ...updates })
-  } catch (error) {
-    console.error('Update footprint error:', error)
-    return NextResponse.json({ error: 'Failed to update' }, { status: 500 })
+  } catch (error: any) {
+    console.error('[footprint PUT] threw', { message: error?.message, stack: error?.stack })
+    return NextResponse.json(
+      { error: 'Failed to update', detail: error?.message || null },
+      { status: 500 }
+    )
   }
 }

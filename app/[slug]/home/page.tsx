@@ -1250,7 +1250,8 @@ export default function EditPage() {
       const publicUrl = await uploadWithProgress(
         new File([resized], filename, { type: 'image/jpeg' }),
         filename,
-        () => {}
+        () => {},
+        slug,
       )
       const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
         method: 'PUT',
@@ -1577,7 +1578,8 @@ export default function EditPage() {
               ...prev,
               content: prev.content.map(c => c.id === tempId ? { ...c, _progress: pct } : c),
             } : null)
-          }
+          },
+          slug,
         )
 
         const res = await fetch('/api/upload/register', {
