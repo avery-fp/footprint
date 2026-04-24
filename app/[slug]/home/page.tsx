@@ -1244,6 +1244,7 @@ export default function EditPage() {
     if (!file) return
     setBgPulse(false)
     const prevWallpaper = wallpaperUrl
+    console.log('[BG_UPLOAD] start', { slug, serialNumber, fileName: file.name, fileSize: file.size })
     try {
       const resized = await resizeImage(file, 2400)
       const ext = 'jpg'
@@ -1259,25 +1260,42 @@ export default function EditPage() {
         () => {},
         slug,
       )
+      console.log('[BG_UPLOAD] storage ok', { publicUrl })
       // Apply optimistically so the user sees the new wallpaper the moment
       // Supabase storage accepted the upload — don't wait on the DB PUT.
       setWallpaperUrl(publicUrl)
-      const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
+
+      const putUrl = `/api/footprint/${encodeURIComponent(slug)}`
+      const putBody = JSON.stringify({ background_url: publicUrl })
+      console.log('[BG_UPLOAD] sending PUT', { putUrl, putBody })
+      const res = await fetch(putUrl, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ background_url: publicUrl }),
+        body: putBody,
       })
+      const respText = await res.text().catch(() => '')
+      console.log('[BG_UPLOAD] PUT response', { status: res.status, ok: res.ok, body: respText })
+
       if (!res.ok) {
         // Roll back local state and surface the real failure so it's not silent.
         setWallpaperUrl(prevWallpaper)
-        const body = await res.text().catch(() => '')
-        console.error('Background save failed:', res.status, body)
+        console.error('[BG_UPLOAD] Background save failed:', res.status, respText)
         setStatusToast(`background save failed (${res.status})`)
         setTimeout(() => setStatusToast(null), 5000)
+        return
+      }
+
+      // Belt-and-suspenders: after the dedicated background PUT succeeds,
+      // fire the debounced profile saver so the next keystroke cannot race
+      // and PUT a partial body that somehow clobbers the just-saved value.
+      // (saveData's body doesn't include background_url, so this is a
+      // coherence call, not a write — but it ensures ordering.)
+      if (draft) {
+        saveData(draft).catch(err => console.error('[BG_UPLOAD] saveData follow-up failed:', err))
       }
     } catch (err) {
       setWallpaperUrl(prevWallpaper)
-      console.error('Background upload failed:', err)
+      console.error('[BG_UPLOAD] Background upload failed:', err)
       setStatusToast('background upload failed')
       setTimeout(() => setStatusToast(null), 5000)
     }
