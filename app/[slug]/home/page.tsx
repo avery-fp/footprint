@@ -412,6 +412,7 @@ export default function EditPage() {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
   const [gridFade, setGridFade] = useState<'visible' | 'out' | 'in'>('visible')
   const [wallpaperUrl, setWallpaperUrl] = useState('')
+  const [wallpaperLoaded, setWallpaperLoaded] = useState(false)
   const [backgroundBlur, setBackgroundBlur] = useState(true)
   const publicLayout = 'home' as const
   const [serialNumber, setSerialNumber] = useState<number | null>(null)
@@ -1770,17 +1771,48 @@ export default function EditPage() {
 
   const theme = getTheme(draft.theme)
 
+  const visibleRoomsForAtmosphere = rooms.filter(r => r.name && r.name.trim().length > 0)
+  const activeRoomIndexForAtmosphere = activeRoomId ? visibleRoomsForAtmosphere.findIndex(r => r.id === activeRoomId) : -1
+  const activeRoomForAtmosphere = activeRoomId ? visibleRoomsForAtmosphere.find(r => r.id === activeRoomId) : null
+  const isSoundRoom = activeRoomForAtmosphere?.name?.toLowerCase() === 'sound'
+  const { filter: wallpaperFilter, overlay: overlayColor } = getRoomAtmosphere(activeRoomIndexForAtmosphere, isSoundRoom)
+  const claimActive = claimOverlay !== 'closed'
+
   return (
     <ErrorBoundary context="editor">
     <div
       className="relative flex min-h-[100dvh] w-full flex-col overflow-x-hidden pb-32"
       style={{
-        background: wallpaperUrl
-          ? `linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.55)), url(${wallpaperUrl}) center/cover no-repeat`
-          : theme.colors.background,
+        background: theme.colors.background,
         color: theme.colors.text,
       }}
     >
+      {/* Wallpaper layer — matches PublicPage rendering exactly */}
+      {wallpaperUrl && (
+        <div className="fixed inset-0 z-0 fp-wallpaper-gpu">
+          <Image
+            src={wallpaperUrl}
+            alt=""
+            fill
+            priority
+            quality={60}
+            sizes="100vw"
+            fetchPriority="high"
+            className={`object-cover transition-opacity duration-700 ${wallpaperLoaded ? 'opacity-100' : 'opacity-0'}`}
+            style={{
+              filter: claimActive
+                ? 'blur(60px) brightness(0.15)'
+                : backgroundBlur ? wallpaperFilter : 'none',
+              transition: 'filter 0.8s ease',
+            }}
+            onLoad={() => setWallpaperLoaded(true)}
+          />
+          <div
+            className="absolute inset-0 transition-all duration-800"
+            style={{ backgroundColor: claimActive ? 'rgba(0,0,0,0.8)' : overlayColor }}
+          />
+        </div>
+      )}
 
       {/* ═══ CLAIM PLAQUE (desktop) ═══
           Fixed top-right, sits above the header. Hidden on mobile — the mobile
