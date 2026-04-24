@@ -1773,64 +1773,22 @@ export default function EditPage() {
   return (
     <ErrorBoundary context="editor">
     <div className="relative min-h-[100dvh] w-full overflow-x-hidden pb-32" style={{ background: theme.colors.background, color: theme.colors.text }}>
-      {/* Wallpaper layer — same atmosphere system as public (lib/roomAtmosphere).
-          The editor is the public room with owner controls on top, so the
-          background must be the same species: per-room filter + overlay
-          keyed off the active visible room's index. */}
-      {(() => {
-        const visibleRooms = rooms.filter(r => r.name && r.name.trim().length > 0)
-        const activeRoomIndex = activeRoomId ? visibleRooms.findIndex(r => r.id === activeRoomId) : -1
-        const activeRoom = activeRoomId ? visibleRooms.find(r => r.id === activeRoomId) : null
-        const isSoundRoom = activeRoom?.name?.toLowerCase() === 'sound'
-        const { filter, overlay } = getRoomAtmosphere(activeRoomIndex, isSoundRoom)
-        // Wallpaper truth:
-        //  - Per-room wallpaper_url wins when it's a non-empty string.
-        //  - Otherwise fall back to the footprint-level background_url
-        //    (wallpaperUrl). This covers the draft-editor case where a user
-        //    uploads a wallpaper before (or without) setting a per-room one —
-        //    without this fallback, the new wallpaper silently disappears the
-        //    moment any room becomes active.
-        //
-        // Explicit non-empty-string checks instead of `||` chains so we don't
-        // accidentally swallow a legit URL if something upstream sends an
-        // empty string through the activeRoom shape.
-        const roomWp = activeRoom?.wallpaper_url
-        const hasRoomWp = typeof roomWp === 'string' && roomWp.length > 0
-        const hasFootprintWp = typeof wallpaperUrl === 'string' && wallpaperUrl.length > 0
-        const effectiveWallpaper = hasRoomWp
-          ? roomWp!
-          : hasFootprintWp
-            ? wallpaperUrl
-            : null
-        if (typeof window !== 'undefined') {
-          console.log('[WALLPAPER_RENDER]', {
-            effectiveWallpaper,
-            wallpaperUrl,
-            roomWp,
-            hasRoomWp,
-            hasFootprintWp,
-            activeRoomId,
-            activeRoomName: activeRoom?.name,
-            visibleRoomsCount: visibleRooms.length,
-          })
-        }
-        if (!effectiveWallpaper) return null
-        return (
-          <div className="fixed inset-0 z-0 fp-wallpaper-gpu pointer-events-none">
-            <div
-              className="absolute inset-0 bg-cover bg-center transition-all duration-700"
-              style={{
-                backgroundImage: `url(${effectiveWallpaper})`,
-                filter: backgroundBlur ? filter : 'none',
-              }}
-            />
-            <div
-              className="absolute inset-0 transition-all duration-800"
-              style={{ backgroundColor: overlay }}
-            />
-          </div>
-        )
-      })()}
+      {/* Wallpaper layer. Simplified: show the footprint-level background
+          whenever wallpaperUrl is truthy. Per-room filter/overlay logic
+          can come back as polish later; right now the product needs to
+          show a background the moment someone uploads one. */}
+      {wallpaperUrl && (
+        <div className="fixed inset-0 z-0 pointer-events-none">
+          <div
+            className="absolute inset-0 bg-cover bg-center transition-all duration-700"
+            style={{ backgroundImage: `url(${wallpaperUrl})` }}
+          />
+          <div
+            className="absolute inset-0 transition-all duration-800"
+            style={{ backgroundColor: 'rgba(0,0,0,0.55)' }}
+          />
+        </div>
+      )}
 
       {/* ═══ CLAIM PLAQUE (desktop) ═══
           Fixed top-right, sits above the header. Hidden on mobile — the mobile
