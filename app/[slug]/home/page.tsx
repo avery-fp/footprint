@@ -1772,29 +1772,15 @@ export default function EditPage() {
 
   return (
     <ErrorBoundary context="editor">
-    <div className="relative flex min-h-[100dvh] w-full flex-col overflow-x-hidden pb-32" style={{ background: theme.colors.background, color: theme.colors.text }}>
-      {/* Wallpaper layer — mirrors app/[slug]/PublicPage.tsx exactly. Next
-          <Image fill> inside a fixed-inset-0 z-0 wrapper, GPU-composited,
-          with a semi-transparent overlay on top. This is the gold standard
-          from the public page; the editor should look identical. */}
-      {wallpaperUrl && (
-        <div className="fixed inset-0 z-0 fp-wallpaper-gpu">
-          <Image
-            src={wallpaperUrl}
-            alt=""
-            fill
-            priority
-            quality={60}
-            sizes="100vw"
-            fetchPriority="high"
-            className="object-cover"
-          />
-          <div
-            className="absolute inset-0"
-            style={{ backgroundColor: 'rgba(0,0,0,0.55)' }}
-          />
-        </div>
-      )}
+    <div
+      className="relative flex min-h-[100dvh] w-full flex-col overflow-x-hidden pb-32"
+      style={{
+        background: wallpaperUrl
+          ? `linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.55)), url(${wallpaperUrl}) center/cover no-repeat`
+          : theme.colors.background,
+        color: theme.colors.text,
+      }}
+    >
 
       {/* ═══ CLAIM PLAQUE (desktop) ═══
           Fixed top-right, sits above the header. Hidden on mobile — the mobile
