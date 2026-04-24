@@ -1772,7 +1772,7 @@ export default function EditPage() {
 
   return (
     <ErrorBoundary context="editor">
-    <div className="relative min-h-[100dvh] w-full overflow-x-hidden pb-32" style={{ background: theme.colors.background, color: theme.colors.text }}>
+    <div className="relative min-h-[100dvh] w-full overflow-x-hidden pb-32" style={{ background: wallpaperUrl ? 'transparent' : theme.colors.background, color: theme.colors.text }}>
       {/* Wallpaper layer. Simplified: show the footprint-level background
           whenever wallpaperUrl is truthy. Per-room filter/overlay logic
           can come back as polish later; right now the product needs to
