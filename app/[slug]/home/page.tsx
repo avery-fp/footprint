@@ -412,7 +412,6 @@ export default function EditPage() {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
   const [gridFade, setGridFade] = useState<'visible' | 'out' | 'in'>('visible')
   const [wallpaperUrl, setWallpaperUrl] = useState('')
-  const [wallpaperLoaded, setWallpaperLoaded] = useState(false)
   const [backgroundBlur, setBackgroundBlur] = useState(true)
   const publicLayout = 'home' as const
   const [serialNumber, setSerialNumber] = useState<number | null>(null)
@@ -1242,61 +1241,38 @@ export default function EditPage() {
 
   async function handleBgFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (!file) return
+    if (!file || !serialNumber) return
     setBgPulse(false)
     const prevWallpaper = wallpaperUrl
-    console.log('[BG_UPLOAD] start', { slug, serialNumber, fileName: file.name, fileSize: file.size })
     try {
       const resized = await resizeImage(file, 2400)
       const ext = 'jpg'
-      // Path key: serial if loaded, else slug. Storage doesn't care what the
-      // first segment is — it only needs to be unique and traceable. Gating
-      // on `serialNumber` silently swallowed uploads when the button was
-      // clicked before loadData resolved.
-      const pathKey = serialNumber || slug
-      const filename = `${pathKey}/bg-${Date.now()}.${ext}`
+      const filename = `${serialNumber}/bg-${Date.now()}.${ext}`
       const publicUrl = await uploadWithProgress(
         new File([resized], filename, { type: 'image/jpeg' }),
         filename,
         () => {},
         slug,
       )
-      console.log('[BG_UPLOAD] storage ok', { publicUrl })
       // Apply optimistically so the user sees the new wallpaper the moment
       // Supabase storage accepted the upload — don't wait on the DB PUT.
       setWallpaperUrl(publicUrl)
-
-      const putUrl = `/api/footprint/${encodeURIComponent(slug)}`
-      const putBody = JSON.stringify({ background_url: publicUrl })
-      console.log('[BG_UPLOAD] sending PUT', { putUrl, putBody })
-      const res = await fetch(putUrl, {
+      const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: putBody,
+        body: JSON.stringify({ background_url: publicUrl }),
       })
-      const respText = await res.text().catch(() => '')
-      console.log('[BG_UPLOAD] PUT response', { status: res.status, ok: res.ok, body: respText })
-
       if (!res.ok) {
         // Roll back local state and surface the real failure so it's not silent.
         setWallpaperUrl(prevWallpaper)
-        console.error('[BG_UPLOAD] Background save failed:', res.status, respText)
+        const body = await res.text().catch(() => '')
+        console.error('Background save failed:', res.status, body)
         setStatusToast(`background save failed (${res.status})`)
         setTimeout(() => setStatusToast(null), 5000)
-        return
-      }
-
-      // Belt-and-suspenders: after the dedicated background PUT succeeds,
-      // fire the debounced profile saver so the next keystroke cannot race
-      // and PUT a partial body that somehow clobbers the just-saved value.
-      // (saveData's body doesn't include background_url, so this is a
-      // coherence call, not a write — but it ensures ordering.)
-      if (draft) {
-        saveData(draft).catch(err => console.error('[BG_UPLOAD] saveData follow-up failed:', err))
       }
     } catch (err) {
       setWallpaperUrl(prevWallpaper)
-      console.error('[BG_UPLOAD] Background upload failed:', err)
+      console.error('Background upload failed:', err)
       setStatusToast('background upload failed')
       setTimeout(() => setStatusToast(null), 5000)
     }
@@ -1771,46 +1747,17 @@ export default function EditPage() {
 
   const theme = getTheme(draft.theme)
 
-  const visibleRoomsForAtmosphere = rooms.filter(r => r.name && r.name.trim().length > 0)
-  const activeRoomIndexForAtmosphere = activeRoomId ? visibleRoomsForAtmosphere.findIndex(r => r.id === activeRoomId) : -1
-  const activeRoomForAtmosphere = activeRoomId ? visibleRoomsForAtmosphere.find(r => r.id === activeRoomId) : null
-  const isSoundRoom = activeRoomForAtmosphere?.name?.toLowerCase() === 'sound'
-  const { filter: wallpaperFilter, overlay: overlayColor } = getRoomAtmosphere(activeRoomIndexForAtmosphere, isSoundRoom)
-  const claimActive = claimOverlay !== 'closed'
-
   return (
     <ErrorBoundary context="editor">
-    <div
-      className="relative flex min-h-[100dvh] w-full flex-col overflow-x-hidden pb-32"
-      style={{
-        background: theme.colors.background,
-        color: theme.colors.text,
-      }}
-    >
-      {/* Wallpaper layer — matches PublicPage rendering exactly */}
+    <div className="relative min-h-[100dvh] w-full overflow-x-hidden pb-32" style={{ background: theme.colors.background, color: theme.colors.text }}>
       {wallpaperUrl && (
-        <div className="fixed inset-0 z-0 fp-wallpaper-gpu">
-          <Image
+        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+          <img
             src={wallpaperUrl}
             alt=""
-            fill
-            priority
-            quality={60}
-            sizes="100vw"
-            fetchPriority="high"
-            className={`object-cover transition-opacity duration-700 ${wallpaperLoaded ? 'opacity-100' : 'opacity-0'}`}
-            style={{
-              filter: claimActive
-                ? 'blur(60px) brightness(0.15)'
-                : backgroundBlur ? wallpaperFilter : 'none',
-              transition: 'filter 0.8s ease',
-            }}
-            onLoad={() => setWallpaperLoaded(true)}
+            className="absolute inset-0 h-full w-full object-cover"
           />
-          <div
-            className="absolute inset-0 transition-all duration-800"
-            style={{ backgroundColor: claimActive ? 'rgba(0,0,0,0.8)' : overlayColor }}
-          />
+          <div className="absolute inset-0 bg-black/55" />
         </div>
       )}
 
