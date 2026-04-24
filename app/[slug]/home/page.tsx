@@ -1243,6 +1243,7 @@ export default function EditPage() {
     const file = e.target.files?.[0]
     if (!file || !serialNumber) return
     setBgPulse(false)
+    const prevWallpaper = wallpaperUrl
     try {
       const resized = await resizeImage(file, 2400)
       const ext = 'jpg'
@@ -1253,15 +1254,27 @@ export default function EditPage() {
         () => {},
         slug,
       )
+      // Apply optimistically so the user sees the new wallpaper the moment
+      // Supabase storage accepted the upload — don't wait on the DB PUT.
+      setWallpaperUrl(publicUrl)
       const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ background_url: publicUrl }),
       })
-      if (!res.ok) throw new Error(`Failed: ${res.status}`)
-      setWallpaperUrl(publicUrl)
+      if (!res.ok) {
+        // Roll back local state and surface the real failure so it's not silent.
+        setWallpaperUrl(prevWallpaper)
+        const body = await res.text().catch(() => '')
+        console.error('Background save failed:', res.status, body)
+        setStatusToast(`background save failed (${res.status})`)
+        setTimeout(() => setStatusToast(null), 5000)
+      }
     } catch (err) {
+      setWallpaperUrl(prevWallpaper)
       console.error('Background upload failed:', err)
+      setStatusToast('background upload failed')
+      setTimeout(() => setStatusToast(null), 5000)
     }
     if (bgFileInputRef.current) bgFileInputRef.current.value = ''
   }

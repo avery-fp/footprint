@@ -133,7 +133,7 @@ export const tilesPostSchema = z.object({
   slug: z.string().min(1, 'slug and (url or thought) required'),
   url: z.string().optional(),
   thought: z.string().optional(),
-  room_id: z.string().optional(),
+  room_id: z.string().nullable().optional(),
 }).refine(d => d.url || d.thought, { message: 'slug and (url or thought) required' })
 
 export const tilesDeleteSchema = z.object({
@@ -167,8 +167,8 @@ export const tilesPatchSchema = z.object({
 export const containerPostSchema = z.object({
   slug: z.string().min(1, 'slug and label required'),
   label: z.string().min(1, 'slug and label required').max(100),
-  cover_url: z.string().optional(),
-  room_id: z.string().optional(),
+  cover_url: z.string().nullable().optional(),
+  room_id: z.string().nullable().optional(),
 })
 
 export const footprintStateSnapshotSchema = z.record(z.string(), z.unknown())
