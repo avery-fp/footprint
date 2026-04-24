@@ -1784,13 +1784,36 @@ export default function EditPage() {
         const isSoundRoom = activeRoom?.name?.toLowerCase() === 'sound'
         const { filter, overlay } = getRoomAtmosphere(activeRoomIndex, isSoundRoom)
         // Wallpaper truth:
-        //  - Per-room wallpaper_url wins when set (each room can override).
+        //  - Per-room wallpaper_url wins when it's a non-empty string.
         //  - Otherwise fall back to the footprint-level background_url
         //    (wallpaperUrl). This covers the draft-editor case where a user
         //    uploads a wallpaper before (or without) setting a per-room one —
         //    without this fallback, the new wallpaper silently disappears the
         //    moment any room becomes active.
-        const effectiveWallpaper = (activeRoom?.wallpaper_url) || wallpaperUrl || null
+        //
+        // Explicit non-empty-string checks instead of `||` chains so we don't
+        // accidentally swallow a legit URL if something upstream sends an
+        // empty string through the activeRoom shape.
+        const roomWp = activeRoom?.wallpaper_url
+        const hasRoomWp = typeof roomWp === 'string' && roomWp.length > 0
+        const hasFootprintWp = typeof wallpaperUrl === 'string' && wallpaperUrl.length > 0
+        const effectiveWallpaper = hasRoomWp
+          ? roomWp!
+          : hasFootprintWp
+            ? wallpaperUrl
+            : null
+        if (typeof window !== 'undefined') {
+          console.log('[WALLPAPER_RENDER]', {
+            effectiveWallpaper,
+            wallpaperUrl,
+            roomWp,
+            hasRoomWp,
+            hasFootprintWp,
+            activeRoomId,
+            activeRoomName: activeRoom?.name,
+            visibleRoomsCount: visibleRooms.length,
+          })
+        }
         if (!effectiveWallpaper) return null
         return (
           <div className="fixed inset-0 z-0 fp-wallpaper-gpu pointer-events-none">
