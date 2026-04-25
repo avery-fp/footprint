@@ -104,8 +104,10 @@ export async function POST(request: NextRequest) {
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.footprint.onl'
 
-    // New: land the user back on their claimed page with a polling overlay.
-    const successUrl = `${baseUrl}/${encodeURIComponent(desired)}?claimed=true&session_id={CHECKOUT_SESSION_ID}`
+    // Success path: /claim/success synchronously calls /api/claim/complete
+    // which retrieves the Stripe session, verifies it's paid, and promotes
+    // the draft. Webhook stays as the idempotent safety net.
+    const successUrl = `${baseUrl}/claim/success?session_id={CHECKOUT_SESSION_ID}`
     const cancelUrl = draftSlug
       ? `${baseUrl}/${encodeURIComponent(draftSlug)}/home`
       : `${baseUrl}`
