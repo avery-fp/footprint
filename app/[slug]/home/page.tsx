@@ -1754,7 +1754,8 @@ export default function EditPage() {
 
   return (
     <ErrorBoundary context="editor">
-    <div className="relative min-h-[100dvh] w-full overflow-x-hidden pb-32" style={{ background: theme.colors.background, color: theme.colors.text }}>
+    <div className="relative min-h-[100dvh] w-full overflow-x-hidden pb-32" style={{ background: wallpaperUrl ? 'transparent' : theme.colors.background, color: theme.colors.text }}>
+      {/* Wallpaper layer */}
       {wallpaperUrl && (
         <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
           <img
