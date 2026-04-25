@@ -1721,11 +1721,13 @@ export default function EditPage() {
                 }}
               >
                 <div>
+                  <form onSubmit={(e) => { e.preventDefault(); handleClaimSubmit() }}>
                   <div className="flex items-center gap-0 rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
                     <span className="text-white/20 text-[13px] pl-4 shrink-0">footprint.onl/</span>
-                    <input type="text" value={claimUsername} onChange={(e) => { setClaimUsername(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, '')); setClaimAvailable(null) }} placeholder="username" aria-label="Username" className="flex-1 bg-transparent py-3.5 pr-4 text-white/90 placeholder:text-white/20 focus:outline-none text-[14px]" autoFocus />
-                    <button onClick={handleClaimSubmit} disabled={claimLoading || !claimAvailable || !claimUsername.trim()} className="pr-4 text-white/40 text-[18px] hover:text-white/70 transition-colors disabled:opacity-30" aria-label="Submit">{claimLoading ? '...' : '\u2192'}</button>
+                    <input type="text" value={claimUsername} onChange={(e) => { setClaimUsername(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, '')); setClaimAvailable(null) }} placeholder="username" aria-label="Username" className="flex-1 min-w-0 bg-transparent py-3.5 pr-2 text-white/90 placeholder:text-white/20 focus:outline-none text-[14px]" autoFocus />
+                    <button type="submit" disabled={claimLoading || !claimAvailable || !claimUsername.trim()} className="shrink-0 px-4 py-3.5 text-white/80 text-[20px] hover:text-white transition-colors disabled:opacity-25 disabled:cursor-not-allowed" aria-label="Submit">{claimLoading ? '\u2026' : '\u2192'}</button>
                   </div>
+                  </form>
                   {claimUsername.length >= 2 && (
                     <div className="mt-1.5 px-1">
                       {claimChecking ? <p className="text-white/20 text-[11px]">checking...</p> : claimAvailable === true ? <p className="text-green-400/70 text-[11px]">available</p> : claimAvailable === false ? <p className="text-red-400/70 text-[11px]">{claimReason ? humanUsernameReason(claimReason) : 'taken'}</p> : null}
@@ -2606,6 +2608,7 @@ export default function EditPage() {
             >
               <>
                 <div>
+                  <form onSubmit={(e) => { e.preventDefault(); handleClaimSubmit() }}>
                   <div
                     className="flex items-center gap-0 rounded-xl overflow-hidden"
                     style={{
@@ -2623,18 +2626,19 @@ export default function EditPage() {
                       }}
                       placeholder="username"
                       aria-label="Username"
-                      className="flex-1 bg-transparent py-3.5 pr-4 text-white/90 placeholder:text-white/20 focus:outline-none text-[14px]"
+                      className="flex-1 min-w-0 bg-transparent py-3.5 pr-2 text-white/90 placeholder:text-white/20 focus:outline-none text-[14px]"
                       autoFocus
                     />
                     <button
-                      onClick={handleClaimSubmit}
+                      type="submit"
                       disabled={claimLoading || !claimAvailable || !claimUsername.trim()}
-                      className="pr-4 text-white/40 text-[18px] hover:text-white/70 transition-colors disabled:opacity-30"
+                      className="shrink-0 px-4 py-3.5 text-white/80 text-[20px] hover:text-white transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
                       aria-label="Submit"
                     >
-                      {claimLoading ? '...' : '\u2192'}
+                      {claimLoading ? '\u2026' : '\u2192'}
                     </button>
                   </div>
+                  </form>
                   {claimUsername.length >= 2 && (
                     <div className="mt-1.5 px-1">
                       {claimChecking ? (
