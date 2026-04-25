@@ -141,7 +141,7 @@ export default function ClaimSuccessPage() {
               something went wrong
             </p>
             <p className="text-[12px] text-white/45 leading-[1.7]" style={{ fontFamily: MONO }}>
-              your payment is recorded. check your email for your edit link.
+              still preparing your footprint. try again in a moment.
             </p>
             {errorDetail && (
               <p className="text-[10px] text-white/20 mt-5 font-mono">{errorDetail}</p>

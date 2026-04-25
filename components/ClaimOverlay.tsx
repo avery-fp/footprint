@@ -99,10 +99,10 @@ export default function ClaimOverlay({ slug }: { slug: string }) {
         {state === 'elapsed' && (
           <>
             <p className="text-[17px] text-white/80 font-light tracking-[-0.01em] mb-3">
-              your footprint is on its way
+              still preparing your footprint
             </p>
             <p className="text-[13px] text-white/50 leading-[1.7]">
-              check your email in a minute — your permanent edit link is coming through.
+              try again in a moment.
             </p>
             <button
               onClick={() => window.location.reload()}

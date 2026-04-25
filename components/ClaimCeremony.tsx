@@ -113,7 +113,7 @@ export default function ClaimCeremony({ serial, slug, onComplete }: ClaimCeremon
             animationDelay: phase >= 3 && !reducedMotion ? '200ms' : undefined,
           }}
         >
-          fp.onl/{slug}
+          footprint.onl/{slug}
         </p>
 
         {/* Continue */}
