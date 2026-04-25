@@ -7,7 +7,7 @@ import type { NextRequest } from 'next/server'
  * Rules:
  * 1. Apex footprint.onl → www.footprint.onl (301)
  * 2. Root / → /ae (the room IS the homepage)
- * 3. Legacy /home → / (old auth entry; identity is now Stripe)
+ * 3. /home starts an anonymous draft
  * 4. Everything else: pass through with security headers
  *
  * There is no session to check. Edit-gated routes (the editor, edit-scoped
@@ -51,14 +51,6 @@ export async function middleware(request: NextRequest) {
   if (pathname === '/') {
     const dest = request.nextUrl.clone()
     dest.pathname = '/ae'
-    return withSecurityHeaders(NextResponse.redirect(dest, 307))
-  }
-
-  // 3. Legacy /home → /
-  if (pathname === '/home' || pathname.startsWith('/home/')) {
-    const dest = request.nextUrl.clone()
-    dest.pathname = '/'
-    dest.search = ''
     return withSecurityHeaders(NextResponse.redirect(dest, 307))
   }
 
