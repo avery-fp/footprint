@@ -783,13 +783,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         <div className="py-10 flex items-center justify-center">
           <button
             onClick={handleShare}
-            className="group inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.03] text-white/[0.22] transition-colors duration-500 hover:bg-white/[0.07] hover:text-white/[0.54] touch-manipulation"
+            className="group inline-flex h-9 w-12 items-center justify-center text-white/[0.26] transition-colors duration-500 hover:text-white/[0.58] touch-manipulation"
             aria-label="Copy Footprint link"
           >
-            <span className="relative block h-5 w-5" aria-hidden="true">
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
-                <ellipse cx="9" cy="15.2" rx="2.35" ry="4.2" transform="rotate(-18 9 15.2)" opacity="0.74" />
-                <ellipse cx="15.1" cy="8.8" rx="2.35" ry="4.2" transform="rotate(18 15.1 8.8)" opacity="0.92" />
+            <span className="block h-6 w-8" aria-hidden="true">
+              <svg viewBox="0 0 32 24" className="h-6 w-8" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10.8 20.2c-2.8-.8-4.8-3.5-4.1-6.2.5-2.1 2.2-4 3.4-5.8.9-1.4 1.2-2.7 1.1-4.3 3.7.8 5.1 4.5 4.3 8.1-.8 3.4-1.7 6.6-4.7 8.2Z" opacity="0.68" />
+                <path d="M21.2 16.8c2.8-.8 4.8-3.5 4.1-6.2-.5-2.1-2.2-4-3.4-5.8-.9-1.4-1.2-2.7-1.1-4.3-3.7.8-5.1 4.5-4.3 8.1.8 3.4 1.7 6.6 4.7 8.2Z" opacity="0.9" />
               </svg>
             </span>
           </button>
