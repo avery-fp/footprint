@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 /**
  * FloatingCtaBar — visitor-facing "Make yours →" CTA at the bottom of
@@ -8,15 +8,9 @@ import { useEffect, useState } from 'react'
  * and drops the visitor into /{tempSlug}/home to start building.
  */
 export default function FloatingCtaBar({ isOwner = false }: { isOwner?: boolean }) {
-  const [visible, setVisible] = useState(false)
   const [dismissed, setDismissed] = useState(false)
   const [loading, setLoading] = useState(false)
-
-  useEffect(() => {
-    const onScroll = () => setVisible(window.scrollY > 200)
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
+  const visible = true
 
   if (isOwner || dismissed) return null
 
