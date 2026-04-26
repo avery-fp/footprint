@@ -44,13 +44,17 @@ export function isHEIC(file: File): boolean {
 /**
  * Get a presigned upload URL from the server.
  * Server uses service role key — bypasses storage RLS policies.
+ *
+ * Auth on the server is checked against {slug}, not the path. The path
+ * is serial-number-keyed for storage, which would otherwise make the
+ * server guess at the owner.
  */
-async function getPresignedUrl(path: string): Promise<{ signedUrl: string; token: string } | null> {
+async function getPresignedUrl(path: string, slug?: string): Promise<{ signedUrl: string; token: string } | null> {
   try {
     const res = await fetch('/api/upload/presign', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path }),
+      body: JSON.stringify({ path, ...(slug ? { slug } : {}) }),
     })
     if (!res.ok) return null
     return res.json()
@@ -67,17 +71,20 @@ async function getPresignedUrl(path: string): Promise<{ signedUrl: string; token
  * @param file       The file to upload
  * @param path       Storage path (e.g. "12345/timestamp-hash.jpg")
  * @param onProgress Callback with upload percentage (0-100)
+ * @param slug       Footprint slug for auth (owner of the footprint).
+ *                   Required for drafts and edit-token-gated uploads.
  */
 export async function uploadWithProgress(
   file: File,
   path: string,
-  onProgress: (pct: number) => void
+  onProgress: (pct: number) => void,
+  slug?: string
 ): Promise<string> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
   // Try presigned URL first (bypasses storage policies)
-  const presigned = await getPresignedUrl(path)
+  const presigned = await getPresignedUrl(path, slug)
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()

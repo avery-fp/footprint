@@ -13,8 +13,6 @@ import { snapToPreset } from '@/lib/aspect-ratios'
 import Image from 'next/image'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import GiftModal from '@/components/GiftModal'
-import AuthModal from '@/components/auth/AuthModal'
-import { AUTH_ENTRY } from '@/lib/routes'
 import { humanUsernameReason } from '@/lib/errors'
 import LayoutToggle from '@/components/LayoutToggle'
 import ClaimPlaque from '@/components/ClaimPlaque'
@@ -430,7 +428,7 @@ export default function EditPage() {
   const [birthCountUp, setBirthCountUp] = useState(0)
   const [birthPhase, setBirthPhase] = useState<'counting' | 'reveal' | 'done'>('counting')
   // Auth/claim overlay state
-  const [claimOverlay, setClaimOverlay] = useState<'closed' | 'auth' | 'claim'>('closed')
+  const [claimOverlay, setClaimOverlay] = useState<'closed' | 'claim'>('closed')
   const [claimUsername, setClaimUsername] = useState('')
   const [claimAvailable, setClaimAvailable] = useState<boolean | null>(null)
   const [claimChecking, setClaimChecking] = useState(false)
@@ -439,109 +437,12 @@ export default function EditPage() {
   // Gift state
   const [showGiftModal, setShowGiftModal] = useState(false)
   const [giftsRemaining, setGiftsRemaining] = useState(0)
-  // Finalize after Stripe payment redirect
-  const finalizeCalledRef = useRef(false)
-  const stripeSessionId = searchParams.get('session_id')
-  const stripeUsername = searchParams.get('username')
+  // Post-payment flow now lives on /{slug}?claimed=true (see ClaimOverlay).
+  // The editor is only reached once the edit_token cookie is set, so there
+  // is no session_id to finalize here anymore.
 
-  useEffect(() => {
-    if (!stripeSessionId || !stripeUsername) return
-    if (finalizeCalledRef.current) return
-    finalizeCalledRef.current = true
-
-    async function finalize() {
-      try {
-        const res = await fetch('/api/publish', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'finalize',
-            session_id: stripeSessionId,
-            username: stripeUsername,
-          }),
-        })
-
-        const data = await res.json()
-        if (!res.ok || !data.success) {
-          const msg = data.error || 'publish failed'
-          setStatusToast(msg)
-          setTimeout(() => setStatusToast(null), 5000)
-          // Clean URL params
-          const url = new URL(window.location.href)
-          url.searchParams.delete('session_id')
-          url.searchParams.delete('username')
-          window.history.replaceState({}, '', url.toString())
-          return
-        }
-        if (data.success) {
-          // Start birth moment animation
-          const targetSerial = data.serial
-          setBirthMoment({ serial: targetSerial, slug: data.slug })
-          setIsPublished(true)
-          setSerialNumber(targetSerial)
-
-          // Count-up animation with tick sound
-          const start = Math.max(targetSerial - 20, 1)
-          let current = start
-
-          // Create tick sound using AudioContext (no external files)
-          let audioCtx: AudioContext | null = null
-          try { audioCtx = new AudioContext() } catch {}
-          const tick = () => {
-            if (!audioCtx) return
-            const osc = audioCtx.createOscillator()
-            const gain = audioCtx.createGain()
-            osc.connect(gain)
-            gain.connect(audioCtx.destination)
-            osc.frequency.value = 800 + Math.random() * 200
-            osc.type = 'sine'
-            gain.gain.setValueAtTime(0.03, audioCtx.currentTime)
-            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04)
-            osc.start()
-            osc.stop(audioCtx.currentTime + 0.04)
-          }
-
-          const countInterval = setInterval(() => {
-            current += 1
-            setBirthCountUp(current)
-            tick()
-            if (current >= targetSerial) {
-              clearInterval(countInterval)
-              // Final lock-in: slightly louder + lower tone
-              if (audioCtx) {
-                const osc = audioCtx.createOscillator()
-                const gain = audioCtx.createGain()
-                osc.connect(gain)
-                gain.connect(audioCtx.destination)
-                osc.frequency.value = 600
-                osc.type = 'sine'
-                gain.gain.setValueAtTime(0.06, audioCtx.currentTime)
-                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15)
-                osc.start()
-                osc.stop(audioCtx.currentTime + 0.15)
-              }
-              setTimeout(() => setBirthPhase('reveal'), 600)
-            }
-          }, 60)
-          setBirthCountUp(start)
-
-          // Clean URL params without reload
-          const url = new URL(window.location.href)
-          url.searchParams.delete('session_id')
-          url.searchParams.delete('username')
-          window.history.replaceState({}, '', url.toString())
-        }
-      } catch (err) {
-        console.error('Finalize error:', err)
-        setStatusToast('something went wrong — try refreshing')
-        setTimeout(() => setStatusToast(null), 5000)
-      }
-    }
-
-    finalize()
-  }, [stripeSessionId, stripeUsername])
-
-  // After OAuth redirect back with ?claim=1, open claim overlay.
+  // ?claim=1 legacy entry: opens the claim overlay. Auth redirects no longer
+  // exist, but the param is still honored for direct links.
   // "Already paid" = has serial AND username is not a draft/pending placeholder.
   const isPaidOwner = !!serialNumber && !slug.startsWith('draft-') && !slug.startsWith('pending-')
   const shouldClaim = searchParams.get('claim') === '1'
@@ -559,12 +460,39 @@ export default function EditPage() {
     }
   }, [shouldClaim, isLoading, serialNumber])
 
-  // Set redirect cookie when auth overlay is showing
+  // Edit-token unlock: if the URL carries ?token=, POST it to /api/edit-unlock
+  // to set the httpOnly fp_edit_{slug} cookie, then strip the token from the URL.
+  // This is the entry point for the welcome-email edit link.
   useEffect(() => {
-    if (claimOverlay === 'auth') {
-      document.cookie = `post_auth_redirect=/${encodeURIComponent(slug)}/home?claim=1; path=/; max-age=600; samesite=lax`
-    }
-  }, [claimOverlay, slug])
+    const params = new URL(window.location.href).searchParams
+    const token = params.get('token')
+    if (!token) return
+
+    // Strip first so the token never sits in browser history / referrer /
+    // analytics. The unlock is idempotent — worst case, the cookie already
+    // exists and the server verifies it.
+    const clean = new URL(window.location.href)
+    clean.searchParams.delete('token')
+    window.history.replaceState({}, '', clean.toString())
+
+    fetch('/api/edit-unlock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug, token }),
+    }).catch(() => { /* no-op — GET will 401 and redirect if cookie didn't stick */ })
+  }, [slug])
+
+  // TEMP env-gated unlock: /ae/home?owner_unlock=<secret>. Bounces through
+  // the API which sets the cookie and redirects back. TODO remove after
+  // the email-code flow has been verified live.
+  useEffect(() => {
+    const params = new URL(window.location.href).searchParams
+    const secret = params.get('owner_unlock')
+    if (!secret || slug !== 'ae') return
+    window.location.replace(
+      `/api/edit-access/owner-unlock?slug=${encodeURIComponent(slug)}&secret=${encodeURIComponent(secret)}`
+    )
+  }, [slug])
 
   // Debounced username availability check
   useEffect(() => {
@@ -576,10 +504,10 @@ export default function EditPage() {
     const timer = setTimeout(async () => {
       setClaimChecking(true)
       try {
-        const res = await fetch('/api/publish', {
+        const res = await fetch('/api/check-username', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'check-username', username: claimUsername.trim() }),
+          body: JSON.stringify({ username: claimUsername.trim() }),
         })
         const data = await res.json()
         setClaimAvailable(data.available)
@@ -597,17 +525,16 @@ export default function EditPage() {
     if (!claimUsername.trim() || !claimAvailable || claimLoading) return
     setClaimLoading(true)
     try {
-      const res = await fetch('/api/publish', {
+      const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'publish-paid',
-          username: claimUsername.trim(),
-          return_to: `/${encodeURIComponent(claimUsername.trim())}/home`,
+          draft_slug: slug,
+          desired_slug: claimUsername.trim(),
         }),
       })
       const data = await res.json()
-      if (data.url) {
+      if (res.ok && data.url) {
         window.location.href = data.url
       } else {
         setStatusToast(data.error || 'something went wrong')
@@ -638,29 +565,6 @@ export default function EditPage() {
     pendingOpsRef.current.add(p)
     p.finally(() => pendingOpsRef.current.delete(p))
   }, [])
-
-  // Flush debounced profile save (fire-and-forget), then navigate
-  const navigateToPublic = useCallback(() => {
-    // Flush debounced profile save immediately (background, non-blocking)
-    if (saveTimeoutRef.current && draft && isOwner) {
-      clearTimeout(saveTimeoutRef.current)
-      saveTimeoutRef.current = null
-      fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          display_title: draft.display_title || '',
-          display_name: draft.display_name,
-          handle: draft.handle,
-          bio: draft.bio,
-          theme: draft.theme,
-          grid_mode: draft.grid_mode,
-        }),
-      }).catch(() => {})
-    }
-    // Navigate immediately — saves complete in background
-    router.push(`/${slug}`)
-  }, [slug, draft, isOwner, router])
 
   // Mode transition helpers
   const enterEdit = () => setMode({ type: 'arranging' })
@@ -803,15 +707,9 @@ export default function EditPage() {
           next: { revalidate: 0 },
         })
 
-        // Auth/ownership failure → show auth overlay instead of redirecting
-        if (res.status === 401) {
-          setClaimOverlay('auth')
-          setIsLoading(false)
-          return
-        }
-        if (res.status === 403) {
-          // Logged in but wrong user
-          router.push('/build')
+        // No valid edit_token for this slug → drop to public page.
+        if (res.status === 401 || res.status === 403) {
+          window.location.href = `/${encodeURIComponent(slug)}`
           return
         }
 
@@ -898,11 +796,6 @@ export default function EditPage() {
         }
       } catch (error) {
         console.error('Failed to load footprint:', error)
-        // Network error — show the in-page auth overlay so the user can
-        // retry without losing editor context. The post_auth_redirect
-        // cookie effect (see line 562) will bounce them back to this URL
-        // after successful sign-in.
-        setClaimOverlay('auth')
         setIsLoading(false)
         return
       }
@@ -943,6 +836,15 @@ export default function EditPage() {
       await Promise.allSettled(Array.from(pendingOpsRef.current))
     }
   }, [draft, isOwner, saveData])
+
+  // Flush profile save AND pending tile ops before navigating. Previously
+  // fired profile save fire-and-forget and ignored tile ops — a mid-flight
+  // image upload would be aborted by navigation and its temp tile (only in
+  // React state, not yet in DB) lost on return.
+  const navigateToPublic = useCallback(async () => {
+    await flushEditorChanges()
+    router.push(`/${slug}`)
+  }, [slug, router, flushEditorChanges])
 
   useEffect(() => {
     if (draft && !isLoading) {
@@ -1353,6 +1255,7 @@ export default function EditPage() {
     const file = e.target.files?.[0]
     if (!file || !serialNumber) return
     setBgPulse(false)
+    const prevWallpaper = wallpaperUrl
     try {
       const resized = await resizeImage(file, 2400)
       const ext = 'jpg'
@@ -1360,17 +1263,30 @@ export default function EditPage() {
       const publicUrl = await uploadWithProgress(
         new File([resized], filename, { type: 'image/jpeg' }),
         filename,
-        () => {}
+        () => {},
+        slug,
       )
+      // Apply optimistically so the user sees the new wallpaper the moment
+      // Supabase storage accepted the upload — don't wait on the DB PUT.
+      setWallpaperUrl(publicUrl)
       const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ background_url: publicUrl }),
       })
-      if (!res.ok) throw new Error(`Failed: ${res.status}`)
-      setWallpaperUrl(publicUrl)
+      if (!res.ok) {
+        // Roll back local state and surface the real failure so it's not silent.
+        setWallpaperUrl(prevWallpaper)
+        const body = await res.text().catch(() => '')
+        console.error('Background save failed:', res.status, body)
+        setStatusToast(`background save failed (${res.status})`)
+        setTimeout(() => setStatusToast(null), 5000)
+      }
     } catch (err) {
+      setWallpaperUrl(prevWallpaper)
       console.error('Background upload failed:', err)
+      setStatusToast('background upload failed')
+      setTimeout(() => setStatusToast(null), 5000)
     }
     if (bgFileInputRef.current) bgFileInputRef.current.value = ''
   }
@@ -1687,7 +1603,8 @@ export default function EditPage() {
               ...prev,
               content: prev.content.map(c => c.id === tempId ? { ...c, _progress: pct } : c),
             } : null)
-          }
+          },
+          slug,
         )
 
         const res = await fetch('/api/upload/register', {
@@ -1802,17 +1719,11 @@ export default function EditPage() {
           </div>
         )}
 
-        {/* Auth/claim overlay rendered during loading state (e.g. 401) */}
+        {/* Claim overlay rendered during loading state (pre-payment flow) */}
         {claimOverlay !== 'closed' && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center">
             <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" />
-            {claimOverlay === 'auth' ? (
-              // AuthModal is its own card — no wrapper needed. Blocker state:
-              // no onClose because the user can't use the editor without auth.
-              <div className="relative z-10">
-                <AuthModal redirectAfterAuth={`/${slug}/home?claim=1`} showPrice />
-              </div>
-            ) : (
+            {(
               <div
                 className="relative z-10 w-full max-w-xs mx-6 rounded-2xl border border-white/[0.08] p-8"
                 style={{
@@ -1822,18 +1733,23 @@ export default function EditPage() {
                 }}
               >
                 <div>
+                  <form onSubmit={(e) => { e.preventDefault(); handleClaimSubmit() }}>
                   <div className="flex items-center gap-0 rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <span className="text-white/20 text-[13px] pl-4 shrink-0">fp.onl/</span>
-                    <input type="text" value={claimUsername} onChange={(e) => { setClaimUsername(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, '')); setClaimAvailable(null) }} placeholder="username" aria-label="Username" className="flex-1 bg-transparent py-3.5 pr-4 text-white/90 placeholder:text-white/20 focus:outline-none text-[14px]" autoFocus />
-                    <button onClick={handleClaimSubmit} disabled={claimLoading || !claimAvailable || !claimUsername.trim()} className="pr-4 text-white/40 text-[18px] hover:text-white/70 transition-colors disabled:opacity-30" aria-label="Submit">{claimLoading ? '...' : '\u2192'}</button>
+                    <span className="text-white/20 text-[13px] pl-4 shrink-0">footprint.onl/</span>
+                    <input type="text" value={claimUsername} onChange={(e) => { setClaimUsername(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, '')); setClaimAvailable(null) }} placeholder="username" aria-label="Username" className="flex-1 min-w-0 bg-transparent py-3.5 pr-2 text-white/90 placeholder:text-white/20 focus:outline-none text-[14px]" autoFocus />
+                    <button type="submit" disabled={claimLoading || !claimAvailable || !claimUsername.trim()} className="shrink-0 px-4 py-3.5 text-white/80 text-[20px] hover:text-white transition-colors disabled:opacity-25 disabled:cursor-not-allowed" aria-label="Submit">{claimLoading ? '\u2026' : '\u2192'}</button>
                   </div>
+                  </form>
                   {claimUsername.length >= 2 && (
                     <div className="mt-1.5 px-1">
                       {claimChecking ? <p className="text-white/20 text-[11px]">checking...</p> : claimAvailable === true ? <p className="text-green-400/70 text-[11px]">available</p> : claimAvailable === false ? <p className="text-red-400/70 text-[11px]">{claimReason ? humanUsernameReason(claimReason) : 'taken'}</p> : null}
                     </div>
                   )}
                 </div>
-                <p className="text-center text-white/90 text-[28px] mt-8" style={{ fontWeight: 500 }}>$10</p>
+                <p className="text-center text-white/30 text-[11px] mt-4 font-mono leading-relaxed">
+                  Choose carefully. This address can&rsquo;t be changed after publishing.
+                </p>
+                <p className="text-center text-white/90 text-[28px] mt-6" style={{ fontWeight: 500 }}>$10</p>
               </div>
             )}
           </div>
@@ -1850,43 +1766,18 @@ export default function EditPage() {
 
   return (
     <ErrorBoundary context="editor">
-    <div className="relative min-h-[100dvh] w-full overflow-x-hidden pb-32" style={{ background: theme.colors.background, color: theme.colors.text }}>
-      {/* Wallpaper layer — same atmosphere system as public (lib/roomAtmosphere).
-          The editor is the public room with owner controls on top, so the
-          background must be the same species: per-room filter + overlay
-          keyed off the active visible room's index. */}
-      {(() => {
-        const visibleRooms = rooms.filter(r => r.name && r.name.trim().length > 0)
-        const activeRoomIndex = activeRoomId ? visibleRooms.findIndex(r => r.id === activeRoomId) : -1
-        const activeRoom = activeRoomId ? visibleRooms.find(r => r.id === activeRoomId) : null
-        const isSoundRoom = activeRoom?.name?.toLowerCase() === 'sound'
-        const { filter, overlay } = getRoomAtmosphere(activeRoomIndex, isSoundRoom)
-        // Wallpaper truth:
-        //  - If the user is viewing a specific room, that room's wallpaper_url IS the truth.
-        //    Empty room → show nothing. Never leak footprint.background_url, which can be a
-        //    stale legacy/ARO value that no longer matches any room.
-        //  - Only when there is no active room (initial load / no rooms yet) do we fall back
-        //    to the top-level background_url so brand-new footprints aren't a black void.
-        const effectiveWallpaper = activeRoom
-          ? (activeRoom.wallpaper_url || null)
-          : wallpaperUrl
-        if (!effectiveWallpaper) return null
-        return (
-          <div className="fixed inset-0 z-0 fp-wallpaper-gpu pointer-events-none">
-            <div
-              className="absolute inset-0 bg-cover bg-center transition-all duration-700"
-              style={{
-                backgroundImage: `url(${effectiveWallpaper})`,
-                filter: backgroundBlur ? filter : 'none',
-              }}
-            />
-            <div
-              className="absolute inset-0 transition-all duration-800"
-              style={{ backgroundColor: overlay }}
-            />
-          </div>
-        )
-      })()}
+    <div className="relative min-h-[100dvh] w-full overflow-x-hidden pb-32" style={{ background: wallpaperUrl ? 'transparent' : theme.colors.background, color: theme.colors.text }}>
+      {/* Wallpaper layer */}
+      {wallpaperUrl && (
+        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+          <img
+            src={wallpaperUrl}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+          <div className="absolute inset-0 bg-black/55" />
+        </div>
+      )}
 
       {/* ═══ CLAIM PLAQUE (desktop) ═══
           Fixed top-right, sits above the header. Hidden on mobile — the mobile
@@ -1906,24 +1797,26 @@ export default function EditPage() {
         style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="flex items-center justify-between px-4 pt-4 pb-2" style={{ minHeight: '52px' }}>
           <div className="flex items-center gap-1">
-            <button
-              onClick={navigateToPublic}
-              className="text-sm text-white/60 hover:text-white/90 transition font-mono flex items-center justify-center"
-              style={{ minWidth: '44px', minHeight: '44px' }}
-            >
-              ←
-            </button>
+            {isPublished && !slug.startsWith('draft-') && !slug.startsWith('pending-') && (
+              <button
+                onClick={navigateToPublic}
+                className="text-sm text-white/60 hover:text-white/90 transition font-mono flex items-center justify-center"
+                style={{ minWidth: '44px', minHeight: '44px' }}
+              >
+                ←
+              </button>
+            )}
             {!isArranging && (
               <button
-                onClick={async () => {
-                  await fetch('/api/auth/signout', { method: 'POST' })
-                  // After sign-out: drop them on their public profile
+                onClick={() => {
+                  // Drop the edit-token cookie for this slug and leave the editor.
+                  document.cookie = `fp_edit_${slug}=; path=/; max-age=0`
                   window.location.href = `/${slug}`
                 }}
                 className="text-[11px] text-white/25 hover:text-white/50 transition font-mono"
                 style={{ minHeight: '44px', padding: '0 4px' }}
               >
-                sign out
+                lock
               </button>
             )}
           </div>
@@ -2715,17 +2608,8 @@ export default function EditPage() {
             onClick={() => !claimLoading && setClaimOverlay('closed')}
           />
 
-          {claimOverlay === 'auth' ? (
-            /* ── Phase 1: Sign in — AuthModal is its own card ── */
-            <div className="relative z-10" style={{ animation: 'go-live-sheet 0.4s cubic-bezier(0.16, 1, 0.3, 1)' }}>
-              <AuthModal
-                redirectAfterAuth={`/${slug}/home?claim=1`}
-                showPrice
-                onClose={() => setClaimOverlay('closed')}
-              />
-            </div>
-          ) : (
-            /* ── Phase 2: Claim username ── */
+          {(
+            /* ── Claim username → Stripe ── */
             <div
               className="relative z-10 w-full max-w-xs mx-6 rounded-2xl border border-white/[0.08] p-8"
               style={{
@@ -2737,6 +2621,7 @@ export default function EditPage() {
             >
               <>
                 <div>
+                  <form onSubmit={(e) => { e.preventDefault(); handleClaimSubmit() }}>
                   <div
                     className="flex items-center gap-0 rounded-xl overflow-hidden"
                     style={{
@@ -2744,7 +2629,7 @@ export default function EditPage() {
                       border: '1px solid rgba(255,255,255,0.08)',
                     }}
                   >
-                    <span className="text-white/20 text-[13px] pl-4 shrink-0">fp.onl/</span>
+                    <span className="text-white/20 text-[13px] pl-4 shrink-0">footprint.onl/</span>
                     <input
                       type="text"
                       value={claimUsername}
@@ -2754,18 +2639,19 @@ export default function EditPage() {
                       }}
                       placeholder="username"
                       aria-label="Username"
-                      className="flex-1 bg-transparent py-3.5 pr-4 text-white/90 placeholder:text-white/20 focus:outline-none text-[14px]"
+                      className="flex-1 min-w-0 bg-transparent py-3.5 pr-2 text-white/90 placeholder:text-white/20 focus:outline-none text-[14px]"
                       autoFocus
                     />
                     <button
-                      onClick={handleClaimSubmit}
+                      type="submit"
                       disabled={claimLoading || !claimAvailable || !claimUsername.trim()}
-                      className="pr-4 text-white/40 text-[18px] hover:text-white/70 transition-colors disabled:opacity-30"
+                      className="shrink-0 px-4 py-3.5 text-white/80 text-[20px] hover:text-white transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
                       aria-label="Submit"
                     >
-                      {claimLoading ? '...' : '\u2192'}
+                      {claimLoading ? '\u2026' : '\u2192'}
                     </button>
                   </div>
+                  </form>
                   {claimUsername.length >= 2 && (
                     <div className="mt-1.5 px-1">
                       {claimChecking ? (
@@ -2781,7 +2667,11 @@ export default function EditPage() {
                   )}
                 </div>
 
-                <p className="text-center text-white/90 text-[28px] mt-8" style={{ fontWeight: 500 }}>
+                <p className="text-center text-white/30 text-[11px] mt-4 font-mono leading-relaxed">
+                  Choose carefully. This address can&rsquo;t be changed after publishing.
+                </p>
+
+                <p className="text-center text-white/90 text-[28px] mt-6" style={{ fontWeight: 500 }}>
                   $10
                 </p>
               </>

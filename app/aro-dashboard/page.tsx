@@ -1,19 +1,12 @@
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { verifySessionToken } from '@/lib/auth'
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { AUTH_ENTRY } from '@/lib/routes'
 
 export const dynamic = 'force-dynamic'
 
-/** Admin email allowlist — mirrors src/aro/lib/auth.ts */
-function getAdminEmails(): string[] {
-  const envList = process.env.ARO_ADMIN_EMAILS
-  if (envList) {
-    return envList.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean)
-  }
-  return ['nickocorder@gmail.com']
-}
+// ARO admin secret — the single-user JWT gate is gone. Set
+// ARO_ADMIN_SECRET in env and pass it as the fp_admin cookie to access.
+const ARO_ADMIN_COOKIE = 'fp_admin'
 
 interface Stats {
   sent: number
@@ -27,21 +20,12 @@ function newStats(): Stats {
 }
 
 export default async function ARODashboard() {
-  // ── Auth gate: server-side session verification ──
+  // ── Admin gate: fp_admin cookie must match ARO_ADMIN_SECRET env var ──
   const cookieStore = await cookies()
-  const token = cookieStore.get('fp_session')?.value
+  const adminCookie = cookieStore.get(ARO_ADMIN_COOKIE)?.value
+  const expected = process.env.ARO_ADMIN_SECRET
 
-  if (!token) {
-    redirect(AUTH_ENTRY)
-  }
-
-  const session = await verifySessionToken(token)
-  if (!session) {
-    redirect(AUTH_ENTRY)
-  }
-
-  const admins = getAdminEmails()
-  if (!admins.includes(session.email.toLowerCase())) {
+  if (!expected || !adminCookie || adminCookie !== expected) {
     redirect('/')
   }
 

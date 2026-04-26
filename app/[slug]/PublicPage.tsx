@@ -182,28 +182,30 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     return () => { window.removeEventListener('resize', check); clearTimeout(timeout) }
   }, [])
 
-  // Check if user is logged in + owner
-  // Any failure (network, 401, malformed JSON) falls through to isOwner=false, isLoggedIn=false
-  // so FloatingCtaBar always renders for visitors
+  // Owner check: presence of an fp_edit_{slug} cookie implies edit access.
+  // The cookie is httpOnly, so we can't read its value — we just probe the
+  // edit endpoint. Any failure falls through to visitor state.
   useEffect(() => {
     (async () => {
       try {
-        const r = await fetch('/api/user', { credentials: 'include' })
-        if (!r.ok) { setAuthChecked(true); return }
-        const data = await r.json()
-        setIsLoggedIn(true)
-        const viewerEmail = data.user?.email?.toLowerCase?.().trim?.() || null
-        const ownerEmailNormalized = ownerEmail?.toLowerCase?.().trim?.() || null
-        if (data.user?.id === footprint.user_id || (viewerEmail && ownerEmailNormalized && viewerEmail === ownerEmailNormalized)) {
-          setIsOwner(true)
+        const r = await fetch(`/api/footprint/${encodeURIComponent(footprint.username)}`, {
+          credentials: 'include',
+          cache: 'no-store',
+        })
+        if (r.status === 200) {
+          const data = await r.json()
+          if (data.owned) {
+            setIsLoggedIn(true)
+            setIsOwner(true)
+          }
         }
       } catch {
-        // Silent — visitor path: CTA stays visible
+        // Silent — visitor path
       } finally {
         setAuthChecked(true)
       }
     })()
-  }, [footprint.user_id, ownerEmail])
+  }, [footprint.username])
 
   // Navigate to room
   const goToRoom = useCallback((roomId: string | null) => {

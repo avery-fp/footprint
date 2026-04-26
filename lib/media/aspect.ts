@@ -22,6 +22,8 @@ export function resolveAspect(
   if (stored && stored !== 'square') return stored
   if (stored === 'square') return 'square'
   if (type === 'spotify') return 'portrait'
+  if (type === 'tiktok') return 'tall'
+  if (url?.includes('/shorts/')) return 'tall'
   if (type === 'youtube' || type === 'vimeo') return 'wide'
   // Uploaded videos — square by default (most phone content is portrait/square).
   // Stored aspect overrides this (handled above).

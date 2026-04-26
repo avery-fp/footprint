@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { getUserIdFromRequest } from '@/lib/auth'
+import { getEditAuthForFootprintId } from '@/lib/edit-auth'
 
 /**
  * POST /api/upload
@@ -27,12 +27,6 @@ const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
 
 export async function POST(request: NextRequest) {
   try {
-    // Get user ID from middleware
-    const userId = await getUserIdFromRequest(request)
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     // Parse the form data
     const formData = await request.formData()
     const file = formData.get('file') as File | null
@@ -44,6 +38,11 @@ export async function POST(request: NextRequest) {
 
     if (!footprintId) {
       return NextResponse.json({ error: 'footprint_id required' }, { status: 400 })
+    }
+
+    const auth = await getEditAuthForFootprintId(request, footprintId)
+    if (!auth.ok) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     // Validate file type (client-reported MIME first, then magic bytes)
@@ -79,20 +78,16 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
-    // Verify user owns this footprint
     const { data: footprint } = await supabase
       .from('footprints')
-      .select('user_id, username')
+      .select('username')
       .eq('id', footprintId)
       .single()
 
-    if (!footprint || footprint.user_id !== userId) {
-      return NextResponse.json({ error: 'Not your footprint' }, { status: 403 })
-    }
-
     // Generate a unique filename
+    const ownerKey = auth.userId ?? footprintId
     const ext = file.name.split('.').pop() || 'jpg'
-    const filename = `${userId}/${footprintId}-${Date.now()}.${ext}`
+    const filename = `${ownerKey}/${footprintId}-${Date.now()}.${ext}`
 
     // Convert File to ArrayBuffer then to Buffer for upload
     const arrayBuffer = await file.arrayBuffer()
@@ -129,7 +124,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to save avatar' }, { status: 500 })
     }
 
-    if (footprint.username) revalidatePath(`/${footprint.username}`)
+    if (footprint?.username) revalidatePath(`/${footprint.username}`)
 
     return NextResponse.json({
       success: true,

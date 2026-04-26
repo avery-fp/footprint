@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { parseURL } from '@/lib/parser'
-import { getUserIdFromRequest } from '@/lib/auth'
+import { getEditAuth } from '@/lib/edit-auth'
 import { tilesPostSchema, tilesDeleteSchema, tilesPutSchema, tilesPatchSchema, containerPostSchema } from '@/lib/schemas'
 import { validateBody } from '@/lib/validate'
 import { routeLogger } from '@/lib/logger'
@@ -12,26 +12,25 @@ import { PROVIDER_RENDER_DEFAULTS, contentTypeToKind, contentTypeToProvider } fr
 const log = routeLogger('MULTI', '/api/tiles')
 
 /**
- * Get serial_number from slug + verify the requesting user owns it.
- * Returns null if not found or not owned.
+ * Verify the request carries a valid edit_token for `slug` and return the
+ * footprint's serial_number. Returns null if auth fails or the slug is
+ * unknown.
  */
 async function getSerialNumber(
   request: NextRequest,
   supabase: ReturnType<typeof createServerSupabaseClient>,
   slug: string
 ): Promise<number | null> {
-  const userId = await getUserIdFromRequest(request)
-  if (!userId) return null
+  const auth = await getEditAuth(request, slug)
+  if (!auth.ok) return null
 
   const { data: footprint } = await supabase
     .from('footprints')
-    .select('serial_number, user_id')
+    .select('serial_number')
     .eq('username', slug)
     .single()
 
-  if (!footprint || footprint.user_id !== userId) return null
-
-  return footprint.serial_number
+  return footprint?.serial_number ?? null
 }
 
 /**
@@ -348,7 +347,24 @@ export async function POST(request: NextRequest) {
     }
 
     if (error) {
-      return NextResponse.json({ error: 'Internal error' }, { status: 500 })
+      log.error({
+        op: 'tiles_POST_insert',
+        slug,
+        isImage,
+        code: (error as any).code,
+        message: (error as any).message,
+        details: (error as any).details,
+        hint: (error as any).hint,
+      }, 'Tile insert failed')
+      return NextResponse.json(
+        {
+          error: 'Internal error',
+          code: (error as any).code || null,
+          detail: (error as any).message || null,
+          hint: (error as any).hint || null,
+        },
+        { status: 500 }
+      )
     }
 
     // Normalize response to match what edit page expects
@@ -380,12 +396,19 @@ export async function POST(request: NextRequest) {
       media_id: tile.media_id || null,
     }
 
-    revalidatePath(`/${slug}`)
+    try { revalidatePath(`/${slug}`) } catch (e) { log.warn({ err: e, slug }, 'revalidatePath failed (non-fatal)') }
     return NextResponse.json({ tile: normalizedTile })
 
-  } catch (error) {
-    log.error({ err: error }, 'Add tile failed')
-    return NextResponse.json({ error: 'Failed to add tile' }, { status: 500 })
+  } catch (error: any) {
+    log.error({
+      err: error,
+      message: error?.message,
+      stack: error?.stack,
+    }, 'Add tile failed')
+    return NextResponse.json(
+      { error: 'Failed to add tile', detail: error?.message || null },
+      { status: 500 }
+    )
   }
 }
 

@@ -1,59 +1,51 @@
-import { cookies } from 'next/headers'
-import { redirect } from 'next/navigation'
-import { verifySessionToken, SESSION_COOKIE_NAME } from '@/lib/auth'
-import { createServerSupabaseClient } from '@/lib/supabase'
-import HomeEntry from './HomeEntry'
+'use client'
 
-export const dynamic = 'force-dynamic'
+import { useEffect, useRef, useState } from 'react'
 
-/**
- * /home — the single entry point.
- *
- * Authenticated + has footprint → redirect to /{slug}/home
- * Authenticated + no footprint → redirect to /{slug}/home (callback creates it)
- * Unauthenticated → render minimal Google auth page
- */
-export default async function HomeResolver() {
-  const cookieStore = await cookies()
-  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value
+export default function HomeDraftStartPage() {
+  const startedRef = useRef(false)
+  const [error, setError] = useState(false)
 
-  if (token) {
-    const session = await verifySessionToken(token)
-    if (session) {
-      const db = createServerSupabaseClient()
-      // Pivot through email to resolve the canonical internal user id —
-      // the same path /auth/callback and lib/auth.ts#getUserIdentityFromRequest
-      // use. JWT.userId alone is not reliable: historical tokens can carry an
-      // id that no longer matches footprints.user_id, stranding an authed
-      // user here on the sign-in card. Email is the stable key.
-      const email = session.email?.toLowerCase().trim()
-      if (email) {
-        const { data: user } = await db
-          .from('users')
-          .select('id')
-          .ilike('email', email)
-          .single()
+  useEffect(() => {
+    if (startedRef.current) return
+    startedRef.current = true
 
-        if (user?.id) {
-          const { data: footprint } = await db
-            .from('footprints')
-            .select('username')
-            .eq('user_id', user.id)
-            .order('is_primary', { ascending: false })
-            .order('created_at', { ascending: true })
-            .limit(1)
-            .maybeSingle()
-
-          if (footprint?.username) {
-            redirect(`/${footprint.username}/home`)
-          }
+    async function startDraft() {
+      try {
+        const res = await fetch('/api/draft/create', { method: 'POST' })
+        const data = await res.json()
+        if (res.ok && data?.tempSlug) {
+          window.location.href = `/${data.tempSlug}/home`
+          return
         }
+      } catch {
+        // Fall through to the quiet retry state.
       }
-      // Authenticated but no footprint — shouldn't happen after callback fix,
-      // but fall through to render auth page which will re-trigger the flow
+      setError(true)
     }
-  }
 
-  // Unauthenticated — render the entry page
-  return <HomeEntry />
+    startDraft()
+  }, [])
+
+  return (
+    <main className="min-h-[100dvh] bg-[#050505] text-white flex items-center justify-center px-6 font-mono">
+      <div className="text-center space-y-4">
+        <div className="mx-auto h-6 w-6 rounded-full border border-white/10 border-t-white/50 animate-spin" />
+        <p className="text-sm text-white/35">{error ? 'try again' : 'preparing your draft'}</p>
+        {error && (
+          <button
+            type="button"
+            onClick={() => {
+              setError(false)
+              startedRef.current = false
+              window.location.reload()
+            }}
+            className="border border-white/10 bg-white/[0.06] px-4 py-2 text-xs text-white/50 transition hover:bg-white/[0.10] hover:text-white/75"
+          >
+            restart
+          </button>
+        )}
+      </div>
+    </main>
+  )
 }

@@ -6,7 +6,7 @@ import { AUTH_ENTRY, withParams } from '@/lib/routes'
 /**
  * PREVIEW TEMPLATE — shows what a footprint COULD look like.
  *
- * Used in ARO emails: fp.onl/preview?name=Sal's Pizza&city=Brooklyn
+ * Used in ARO emails: footprint.onl/preview?name=Sal's Pizza&city=Brooklyn
  * Not a real page. A ghost plate — illuminated, waiting to be claimed.
  *
  * Shows: name as masthead, ghost glass tiles (dimmed, pulsing),

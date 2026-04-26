@@ -3,168 +3,152 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { AUTH_ENTRY } from '@/lib/routes'
 
 const DM = "'DM Sans', sans-serif"
 const MONO = "'JetBrains Mono', monospace"
 
 /**
- * NOT FOUND → $10 CLAIM PAGE
+ * Unclaimed-slug page.
  *
- * When someone visits an unclaimed slug (fp.onl/john), show a compelling
- * claim page with the slug, price, and CTA.
+ * If the URL carries a session_id (post-payment redirect that landed
+ * here because the slug isn't published yet) we send the user straight
+ * to /claim/success — that route owns the synchronous claim path and
+ * we don't want to flash the visitor copy at a paying customer.
  *
- * Auth guard prevents flash for owners of unpublished pages.
+ * If an owner with an edit-token cookie hits this page (slug isn't
+ * published yet, but they hold the token), we bounce them to /home.
+ *
+ * Otherwise: soft "not claimed yet" copy with a quiet 'make yours →'.
  */
 export default function NotFound() {
   const pathname = usePathname()
-  const [authState, setAuthState] = useState<'loading' | 'owner' | 'not-owner'>('loading')
-  const [price, setPrice] = useState('$10')
-  const [visible, setVisible] = useState(false)
-
-  // Extract slug from path
   const segments = pathname?.split('/').filter(Boolean)
   const displaySlug = segments?.[0] || ''
 
-  // Auth guard — redirect owners to their editor
+  const [visible, setVisible] = useState(false)
+  const [claimLoading, setClaimLoading] = useState(false)
+  const [claimError, setClaimError] = useState<string | null>(null)
+
+  // Post-payment hijack: if we have a session_id, /claim/success handles it.
   useEffect(() => {
-    if (!displaySlug) {
-      setAuthState('not-owner')
-      return
+    const sp = new URLSearchParams(window.location.search)
+    const sessionId = sp.get('session_id')
+    if (sessionId) {
+      window.location.replace(`/claim/success?session_id=${encodeURIComponent(sessionId)}`)
     }
-
-    let cancelled = false
-
-    async function checkAuth() {
-      try {
-        const res = await fetch('/api/footprint-for-user', { credentials: 'include' })
-        if (cancelled) return
-
-        if (res.ok) {
-          const data = await res.json()
-          if (data.slug && data.slug === displaySlug) {
-            window.location.href = `/${data.slug}/home`
-            return
-          }
-        }
-      } catch {
-        // Auth check failed — fall through to unclaimed
-      }
-
-      if (!cancelled) {
-        setAuthState('not-owner')
-      }
-    }
-
-    checkAuth()
-    return () => { cancelled = true }
-  }, [displaySlug])
-
-  // Geo pricing
-  useEffect(() => {
-    fetch('/api/geo')
-      .then(r => r.json())
-      .then(d => { if (d.price) setPrice(d.price) })
-      .catch(() => {})
   }, [])
 
-  // Staggered entrance
+  // Owner with edit-token cookie → bounce to editor.
   useEffect(() => {
-    if (authState === 'not-owner') {
-      const t = setTimeout(() => setVisible(true), 100)
-      return () => clearTimeout(t)
+    if (!displaySlug) return
+    const sp = new URLSearchParams(window.location.search)
+    if (sp.get('session_id')) return
+    const hasEditCookie = document.cookie.split('; ').some(c => c.startsWith(`fp_edit_${displaySlug}=`))
+    if (hasEditCookie) {
+      window.location.href = `/${displaySlug}/home`
     }
-  }, [authState])
+  }, [displaySlug])
 
-  // Loading / owner redirect
-  if (authState === 'loading' || authState === 'owner') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#080808]">
-        <div className="w-5 h-5 border-2 border-white/10 border-t-white/30 rounded-full animate-spin" />
-      </div>
-    )
+  useEffect(() => {
+    const t = setTimeout(() => setVisible(true), 80)
+    return () => clearTimeout(t)
+  }, [])
+
+  const handleClaim = async () => {
+    if (claimLoading) return
+    setClaimLoading(true)
+    setClaimError(null)
+    try {
+      const res = await fetch('/api/draft/create', { method: 'POST' })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data?.tempSlug) {
+        window.location.href = `/${data.tempSlug}/home`
+        return
+      }
+      setClaimError(data?.error || 'could not start — try again')
+    } catch {
+      setClaimError('network error — try again')
+    } finally {
+      setClaimLoading(false)
+    }
   }
-
-  // CTA always routes through the canonical auth entry. The previous
-  // document.cookie check was structurally broken — fp_session is HttpOnly,
-  // so the check was always false and the CTA always pointed at /login,
-  // which 404'd back here in an infinite loop.
-  //
-  // We deliberately do NOT use authEntryFor(displaySlug) here. displaySlug
-  // is unclaimed by definition (we're rendering the not-found page), so
-  // /{displaySlug}?claim=1 would 404 right back into this same component.
-  // Pre-filling the desired username inside SovereignTile is a PR #2 polish.
-  const claimHref = AUTH_ENTRY
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-[#080808] relative overflow-hidden">
-      {/* Subtle radial glow */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.03) 0%, transparent 70%)',
+          background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.025) 0%, transparent 70%)',
         }}
       />
 
-      <div className="relative z-10 max-w-md text-center">
-        {/* Slug display */}
+      <div className="relative z-10 max-w-sm text-center">
         <p
           className="transition-all duration-700 ease-out"
           style={{
             fontFamily: MONO,
-            fontSize: '13px',
+            fontSize: '12px',
             letterSpacing: '0.04em',
-            color: 'rgba(255,255,255,0.35)',
+            color: 'rgba(255,255,255,0.30)',
             marginBottom: '20px',
             opacity: visible ? 1 : 0,
-            transform: visible ? 'translateY(0)' : 'translateY(8px)',
+            transform: visible ? 'translateY(0)' : 'translateY(6px)',
           }}
         >
-          fp.onl/{displaySlug}
+          footprint.onl/{displaySlug}
         </p>
 
-        {/* Price — the anchor */}
         <p
           className="transition-all duration-700 ease-out"
           style={{
             fontFamily: DM,
-            fontSize: 'clamp(40px, 8vw, 56px)',
+            fontSize: '15px',
             fontWeight: 300,
-            letterSpacing: '-0.02em',
-            color: 'rgba(255,255,255,0.9)',
-            lineHeight: 1,
-            marginBottom: '12px',
+            letterSpacing: '-0.005em',
+            color: 'rgba(255,255,255,0.70)',
+            lineHeight: 1.5,
+            marginBottom: '28px',
             opacity: visible ? 1 : 0,
-            transform: visible ? 'translateY(0)' : 'translateY(8px)',
-            transitionDelay: '150ms',
+            transform: visible ? 'translateY(0)' : 'translateY(6px)',
+            transitionDelay: '120ms',
           }}
         >
-          {price}
+          This footprint hasn&rsquo;t been claimed yet.
         </p>
 
-        {/* CTA */}
         <div
-          className="flex flex-col items-center gap-5 transition-all duration-700 ease-out"
+          className="flex flex-col items-center gap-4 transition-all duration-700 ease-out"
           style={{
             opacity: visible ? 1 : 0,
-            transform: visible ? 'translateY(0)' : 'translateY(8px)',
-            transitionDelay: '450ms',
+            transform: visible ? 'translateY(0)' : 'translateY(6px)',
+            transitionDelay: '280ms',
           }}
         >
-          <a
-            href={claimHref}
-            className="rounded-full px-8 py-3 bg-white text-black/90 hover:bg-white/90 transition-all duration-200 text-sm font-medium"
-            style={{ fontFamily: DM }}
+          <button
+            type="button"
+            onClick={handleClaim}
+            disabled={claimLoading}
+            className="text-white/70 hover:text-white/95 transition-colors duration-200 text-[14px] disabled:opacity-50 disabled:cursor-default"
+            style={{ fontFamily: DM, background: 'none', border: 'none', cursor: claimLoading ? 'default' : 'pointer' }}
           >
-            claim this page
-          </a>
+            {claimLoading ? 'preparing…' : 'make yours →'}
+          </button>
+
+          {claimError && (
+            <p
+              className="text-red-400/70 text-[11px]"
+              style={{ fontFamily: MONO, letterSpacing: '0.02em' }}
+            >
+              {claimError}
+            </p>
+          )}
 
           <Link
             href="/ae"
-            className="text-white/15 hover:text-white/35 transition-colors duration-300 text-sm"
+            className="text-white/20 hover:text-white/45 transition-colors duration-300 text-[12px]"
             style={{ fontFamily: DM }}
           >
-            see one
+            see example
           </Link>
         </div>
       </div>

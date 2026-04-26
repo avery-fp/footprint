@@ -8,6 +8,7 @@ import AnalyticsTracker from '@/components/AnalyticsTracker'
 import ShareEngine from '@/components/ShareEngine'
 import EventTracker from '@/components/EventTracker'
 import ReferralBanner from '@/components/ReferralBanner'
+import ClaimOverlay from '@/components/ClaimOverlay'
 import PublicPage from './PublicPage'
 
 // ISR — cache page at the edge, revalidate every 5 seconds while we debug
@@ -93,6 +94,7 @@ export default async function FootprintPage({ params }: Props) {
       <EventTracker footprintId={footprint.user_id} />
       <ReferralBanner serial={serial} />
       <ShareEngine slug={params.slug} />
+      <ClaimOverlay slug={params.slug} />
       <PublicPage
         footprint={footprint}
         content={content}
