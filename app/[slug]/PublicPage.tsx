@@ -786,12 +786,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             className="group inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.03] text-white/[0.22] transition-colors duration-500 hover:bg-white/[0.07] hover:text-white/[0.54] touch-manipulation"
             aria-label="Copy Footprint link"
           >
-            <span className="relative block h-4 w-4" aria-hidden="true">
-              <svg className="absolute left-1 top-1 h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
-                <rect x="8" y="8" width="11" height="11" rx="2.5" />
-              </svg>
-              <svg className="absolute left-0 top-0 h-3.5 w-3.5 text-current opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
-                <path d="M15 6.5V5a2 2 0 0 0-2-2H6A3 3 0 0 0 3 6v7a2 2 0 0 0 2 2h1.5" />
+            <span className="relative block h-5 w-5" aria-hidden="true">
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
+                <ellipse cx="9" cy="15.2" rx="2.35" ry="4.2" transform="rotate(-18 9 15.2)" opacity="0.74" />
+                <ellipse cx="15.1" cy="8.8" rx="2.35" ry="4.2" transform="rotate(18 15.1 8.8)" opacity="0.92" />
               </svg>
             </span>
           </button>
