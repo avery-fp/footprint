@@ -83,7 +83,14 @@ export async function sendEditAccessCodeEmail(email: string, slug: string, code:
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: 'Footprint <hello@footprint.onl>',
+      // TEMPORARY: footprint.onl is not yet verified in Resend, so sends
+      // from hello@footprint.onl 403. Use Resend's always-on test sender
+      // so 6-digit editor codes can land today. Welcome / recovery / gift
+      // paths are intentionally NOT changed — domain verification is the
+      // real fix and they revert together.
+      // TODO revert to 'Footprint <hello@footprint.onl>' once footprint.onl
+      //      is verified at https://resend.com/domains.
+      from: 'Footprint <onboarding@resend.dev>',
       to: email,
       subject: `your editor code: ${code}`,
       html: `
