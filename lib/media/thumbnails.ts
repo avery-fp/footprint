@@ -30,17 +30,24 @@ export function getYouTubeThumbnailCandidates(input: { url?: string | null; medi
     return dedupe([input.thumbnail_url, input.thumbnail_url_hq])
   }
 
+  const maxres = `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`
+  const sd = `https://i.ytimg.com/vi/${id}/sddefault.jpg`
+  const hq = `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
+  const mq = `https://i.ytimg.com/vi/${id}/mqdefault.jpg`
+  const fallback = `https://i.ytimg.com/vi/${id}/default.jpg`
+  const isRawLowResYtimg = (url?: string | null) =>
+    Boolean(url && /i\.ytimg\.com\/vi\//.test(url) && !url.includes('/maxresdefault.'))
+
   return dedupe([
-    // Cached Supabase copy wins when present — cached precisely because
-    // YouTube's maxresdefault 404s for many videos. Hitting ytimg first
-    // means broken tiles on those videos. Our cache is the reliable source.
+    input.thumbnail_url_hq && !isRawLowResYtimg(input.thumbnail_url_hq) ? input.thumbnail_url_hq : null,
+    input.thumbnail_url && !isRawLowResYtimg(input.thumbnail_url) ? input.thumbnail_url : null,
+    maxres,
     input.thumbnail_url_hq,
+    sd,
+    hq,
+    mq,
+    fallback,
     input.thumbnail_url,
-    `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`,
-    `https://i.ytimg.com/vi/${id}/sddefault.jpg`,
-    `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
-    `https://i.ytimg.com/vi/${id}/mqdefault.jpg`,
-    `https://i.ytimg.com/vi/${id}/default.jpg`,
   ])
 }
 

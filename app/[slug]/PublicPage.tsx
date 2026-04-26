@@ -79,6 +79,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [serialFlyout, setSerialFlyout] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [roomFade, setRoomFade] = useState<'visible' | 'out' | 'in'>('visible')
+  const [roomNavDocked, setRoomNavDocked] = useState(false)
 
   // ── Integrated Void Transition ──
   const [claimActive, setClaimActive] = useState(false)
@@ -223,6 +224,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     const t = setTimeout(() => setShowToast(false), 2000)
     return () => clearTimeout(t)
   }, [showToast])
+
+  useEffect(() => {
+    if (visibleRooms.length <= 1) return
+    const updateDocked = () => setRoomNavDocked(window.scrollY > 160)
+    updateDocked()
+    window.addEventListener('scroll', updateDocked, { passive: true })
+    return () => window.removeEventListener('scroll', updateDocked)
+  }, [visibleRooms.length])
 
   // Command layer — scroll to tile on search result selection
   const handleTileNavigate = useCallback((tileId: string, roomId: string) => {
@@ -509,7 +518,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   ) : gridInner
 
   return (
-    <div className="relative flex min-h-[100dvh] w-full flex-col overflow-x-hidden" style={{ background: theme.colors.background, color: theme.colors.text, '--fp-glass': theme.colors.glass, '--fp-text-muted': theme.colors.textMuted } as React.CSSProperties}>
+    <div className="relative flex min-h-[100dvh] w-full flex-col overflow-x-clip" style={{ background: theme.colors.background, color: theme.colors.text, '--fp-glass': theme.colors.glass, '--fp-text-muted': theme.colors.textMuted } as React.CSSProperties}>
       {/* Wallpaper layer — GPU composited for 60fps scroll */}
       {footprint.background_url && (
         <div className="fixed inset-0 z-0 fp-wallpaper-gpu">
@@ -607,8 +616,12 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
         {/* Room nav — sticky on scroll */}
         {visibleRooms.length > 1 && (
-          <div className="sticky top-0 z-20 flex items-center justify-center mb-4 md:mb-6 px-4 py-2">
-            <div className="flex items-center gap-0 font-mono overflow-x-auto hide-scrollbar">
+          <div className="relative mb-4 h-12 md:mb-6">
+            <div
+              className={`${roomNavDocked ? 'fixed inset-x-0' : 'absolute inset-x-0'} z-30 flex items-center justify-center px-4 py-2 transition-[top,background-color] duration-300`}
+              style={{ top: roomNavDocked ? 'calc(env(safe-area-inset-top, 0px) + 8px)' : 0 }}
+            >
+              <div className="flex max-w-full items-center gap-0 overflow-x-auto hide-scrollbar rounded-full border border-white/[0.08] bg-black/[0.24] px-4 font-mono shadow-[0_12px_34px_rgba(0,0,0,0.18)] backdrop-blur-md">
               {visibleRooms.map((room, i) => (
                 <span key={room.id} className="flex items-center whitespace-nowrap">
                   {i > 0 && <span className="mx-2.5" style={{ color: 'rgba(255,255,255,0.2)', fontSize: '8px' }}>·</span>}
@@ -633,6 +646,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                   </button>
                 </span>
               ))}
+              </div>
             </div>
           </div>
         )}
@@ -765,19 +779,19 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         {/* Floor */}
         <div style={{ height: '40px' }} />
 
-        {/* Footer — copy link with footprint icon */}
+        {/* Footer — copy link */}
         <div className="py-10 flex items-center justify-center">
           <button
             onClick={handleShare}
-            className="group p-3 text-white/[0.12] hover:text-white/40 transition-colors duration-500 touch-manipulation"
-            aria-label="Copy link"
+            className="group inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.03] text-white/[0.22] transition-colors duration-500 hover:bg-white/[0.07] hover:text-white/[0.54] touch-manipulation"
+            aria-label="Copy Footprint link"
           >
-            <span className="relative inline-flex items-end gap-0.5">
-              <svg className="w-3.5 h-3.5 -rotate-6" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C10.5 2 9.5 3.5 9.5 5c0 1 .3 2 .8 2.8L9 9.5C8 10 7.2 11 7 12.2c-.3 1.5.2 3 1.2 4l.5.5c-.3.8-.5 1.8-.5 2.8 0 1.5.5 3 1.5 3.5.5.3 1 .3 1.5 0 1-.5 1.5-2 1.5-3.5 0-1-.2-2-.5-2.8l.5-.5c1-1 1.5-2.5 1.2-4C13.8 11 13 10 12 9.5l-1.3-1.7c.5-.8.8-1.8.8-2.8 0-1.5-1-3-2.5-3h3z"/>
+            <span className="relative block h-4 w-4" aria-hidden="true">
+              <svg className="absolute left-1 top-1 h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                <rect x="8" y="8" width="11" height="11" rx="2.5" />
               </svg>
-              <svg className="w-3.5 h-3.5 rotate-6 -translate-y-1" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C10.5 2 9.5 3.5 9.5 5c0 1 .3 2 .8 2.8L9 9.5C8 10 7.2 11 7 12.2c-.3 1.5.2 3 1.2 4l.5.5c-.3.8-.5 1.8-.5 2.8 0 1.5.5 3 1.5 3.5.5.3 1 .3 1.5 0 1-.5 1.5-2 1.5-3.5 0-1-.2-2-.5-2.8l.5-.5c1-1 1.5-2.5 1.2-4C13.8 11 13 10 12 9.5l-1.3-1.7c.5-.8.8-1.8.8-2.8 0-1.5-1-3-2.5-3h3z"/>
+              <svg className="absolute left-0 top-0 h-3.5 w-3.5 text-current opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                <path d="M15 6.5V5a2 2 0 0 0-2-2H6A3 3 0 0 0 3 6v7a2 2 0 0 0 2 2h1.5" />
               </svg>
             </span>
           </button>
