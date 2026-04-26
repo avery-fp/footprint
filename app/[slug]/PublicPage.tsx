@@ -75,8 +75,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [isOwner, setIsOwner] = useState(false)
   const [authChecked, setAuthChecked] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [showToast, setShowToast] = useState(false)
-  const [serialFlyout, setSerialFlyout] = useState(false)
+  const [serialCopied, setSerialCopied] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [roomFade, setRoomFade] = useState<'visible' | 'out' | 'in'>('visible')
   const [roomNavDocked, setRoomNavDocked] = useState(false)
@@ -114,12 +113,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     if (!authChecked || isOwner || !wantsClaim.current) return
     setClaimActive(true)
   }, [authChecked, isOwner])
-
-  const activateClaim = useCallback(() => {
-    if (isOwner) return
-    setSerialFlyout(false)
-    setClaimActive(true)
-  }, [isOwner])
 
   // ── Depth expansion — containers only ──
   const { expanded, showOverlay, children: containerChildren, loadingChildren, expand, collapse, registerRef } = useDepthExpansion()
@@ -164,12 +157,29 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const isSoundRoom = activeRoom?.name?.toLowerCase() === 'sound'
   const { filter: wallpaperFilter, overlay: overlayColor } = getRoomAtmosphere(activeRoomIndex, isSoundRoom)
 
-  const handleShare = () => {
-    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://footprint.onl'
-    const fpUrl = `${baseUrl}/${footprint.username}`
-    navigator.clipboard.writeText(fpUrl)
-    setShowToast(true)
-  }
+  const handleSerialCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(pageUrl)
+    } catch {
+      let el: HTMLTextAreaElement | null = null
+      try {
+        el = document.createElement('textarea')
+        el.value = pageUrl
+        el.setAttribute('readonly', '')
+        el.style.position = 'fixed'
+        el.style.opacity = '0'
+        document.body.appendChild(el)
+        el.select()
+        document.execCommand('copy')
+      } catch {
+        // Clipboard can be denied in some embedded browser contexts.
+      } finally {
+        if (el) document.body.removeChild(el)
+      }
+    } finally {
+      setSerialCopied(true)
+    }
+  }, [pageUrl])
 
   // Mobile detection (debounced)
   useEffect(() => {
@@ -220,10 +230,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   }, [activeRoomId, roomFade])
 
   useEffect(() => {
-    if (!showToast) return
-    const t = setTimeout(() => setShowToast(false), 2000)
+    if (!serialCopied) return
+    const t = setTimeout(() => setSerialCopied(false), 1400)
     return () => clearTimeout(t)
-  }, [showToast])
+  }, [serialCopied])
 
   useEffect(() => {
     if (visibleRooms.length <= 1) return
@@ -777,25 +787,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         )}
 
         {/* Floor */}
-        <div style={{ height: '40px' }} />
-
-        {/* Footer — copy link */}
-        <div className="py-10 flex items-center justify-center">
-          <button
-            onClick={handleShare}
-            className="group inline-flex h-9 w-12 items-center justify-center text-white/[0.26] transition-colors duration-500 hover:text-white/[0.58] touch-manipulation"
-            aria-label="Copy Footprint link"
-          >
-            <span className="block h-6 w-6" aria-hidden="true">
-              <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z" opacity="0.68" />
-                <path d="M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z" opacity="0.9" />
-                <path d="M16 17h4" opacity="0.9" />
-                <path d="M4 13h4" opacity="0.68" />
-              </svg>
-            </span>
-          </button>
-        </div>
+        <div style={{ height: '96px' }} />
       </div>
 
       {/* Rolodex drawer */}
@@ -815,74 +807,40 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </>
       )}
 
-      {/* Serial number — fixed bottom-left, tappable for visitors */}
+      {/* Serial number — canonical copy link */}
       {!isDraft && serial && !claimActive && (
         <div
-          className="fixed bottom-4 left-4 font-mono"
+          className="fixed left-1/2 font-mono"
           style={{
-            zIndex: expanded ? 60 : 20,
+            bottom: 'calc(20px + env(safe-area-inset-bottom, 0px))',
+            zIndex: 35,
+            transform: 'translateX(-50%)',
             transition: 'opacity 0.3s ease',
           }}
         >
           <button
-            onClick={() => { if (!isOwner) setSerialFlyout(v => !v) }}
-            className="select-none touch-manipulation"
+            onClick={handleSerialCopy}
+            className={`select-none touch-manipulation font-mono transition-colors duration-300 ${serialCopied ? 'text-white' : 'text-white/70 hover:text-white'}`}
             style={{
-              color: 'rgba(255,255,255,0.15)',
               fontSize: '11px',
               fontWeight: 300,
-              opacity: expanded ? 0.2 : 0.4,
+              letterSpacing: '0.12em',
+              opacity: expanded ? 0.28 : 1,
               background: 'none',
               border: 'none',
-              padding: '4px 0',
-              cursor: isOwner ? 'default' : 'pointer',
-              transition: 'opacity 0.3s ease',
+              padding: '8px 10px',
+              cursor: 'default',
+              transition: 'opacity 0.25s ease',
             }}
           >
-            #{String(serial).padStart(4, '0')}
+            {serialCopied ? 'copied' : `#${String(serial).padStart(4, '0')}`}
           </button>
-
-          {/* Claim flyout */}
-          {serialFlyout && !isOwner && (
-            <>
-            <div className="fixed inset-0" onClick={() => setSerialFlyout(false)} />
-            <div
-              className="absolute bottom-full left-0 mb-2"
-              style={{ animation: 'fadeInUp 0.25s ease' }}
-            >
-              <button
-                onClick={activateClaim}
-                className="flex items-center touch-manipulation font-mono"
-                style={{
-                  ...glassStyle,
-                  borderRadius: '12px',
-                  padding: '12px 16px',
-                  color: 'rgba(255,255,255,0.6)',
-                  fontSize: '12px',
-                  fontWeight: 400,
-                  letterSpacing: '0.04em',
-                  whiteSpace: 'nowrap',
-                  cursor: 'pointer',
-                }}
-              >
-                footprint.onl {'\u2192'}
-              </button>
-            </div>
-            </>
-          )}
         </div>
       )}
 
       {/* Floating CTA bar — viewers only, hidden for owner and during claim */}
       {!isDraft && !claimActive && authChecked && !isOwner && (
         <FloatingCtaBar isOwner={isOwner} />
-      )}
-
-      {/* Copied toast */}
-      {showToast && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-white/[0.08] backdrop-blur-sm rounded-md px-5 py-2 text-white/60 text-sm materialize">
-          copied.
-        </div>
       )}
 
       {/* The Sovereign Tile — self-contained claim flow */}
