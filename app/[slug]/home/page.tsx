@@ -16,6 +16,7 @@ import GiftModal from '@/components/GiftModal'
 import { humanUsernameReason } from '@/lib/errors'
 import LayoutToggle from '@/components/LayoutToggle'
 import ClaimPlaque from '@/components/ClaimPlaque'
+import EditAccessScreen from '@/components/EditAccessScreen'
 import { type RoomLayout, getGridLayout } from '@/lib/grid-layouts'
 import { getRoomAtmosphere } from '@/lib/roomAtmosphere'
 import { getFootprintDisplayTitle } from '@/lib/footprint'
@@ -407,6 +408,7 @@ export default function EditPage() {
   const [editingThoughtText, setEditingThoughtText] = useState('')
   const [swapSourceId, setSwapSourceId] = useState<string | null>(null)
   const [isOwner, setIsOwner] = useState(false)
+  const [accessRequired, setAccessRequired] = useState(false)
   const [tileSources, setTileSources] = useState<Record<string, 'library' | 'links'>>({})
   const [rooms, setRooms] = useState<any[]>([])
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
@@ -707,9 +709,12 @@ export default function EditPage() {
           next: { revalidate: 0 },
         })
 
-        // No valid edit_token for this slug → drop to public page.
+        // No valid edit_token for this slug → render the same-page email-
+        // code login. Stops dumping owners onto the public page just because
+        // their cookie expired.
         if (res.status === 401 || res.status === 403) {
-          window.location.href = `/${encodeURIComponent(slug)}`
+          setAccessRequired(true)
+          setIsLoading(false)
           return
         }
 
@@ -1708,6 +1713,10 @@ export default function EditPage() {
   }) || slug
 
   // ── Render ──
+
+  if (accessRequired) {
+    return <EditAccessScreen slug={slug} />
+  }
 
   if (isLoading || !draft) {
     return (
