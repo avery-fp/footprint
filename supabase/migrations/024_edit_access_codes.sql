@@ -25,3 +25,12 @@ CREATE INDEX IF NOT EXISTS idx_edit_access_codes_lookup
 
 CREATE INDEX IF NOT EXISTS idx_edit_access_codes_expires
   ON edit_access_codes (expires_at);
+
+-- Lock the table down. Code hashes plus (slug, email) pairs are
+-- mid-flight authentication state — anon/authenticated roles must not
+-- see them or write them. The service role bypasses RLS, so the
+-- /api/edit-access/* routes (which use SUPABASE_SERVICE_ROLE_KEY) keep
+-- full access. No policies are defined: with RLS enabled and zero
+-- policies, all non-service-role access is denied. Idempotent on
+-- re-run; no-op if already enabled.
+ALTER TABLE edit_access_codes ENABLE ROW LEVEL SECURITY;
