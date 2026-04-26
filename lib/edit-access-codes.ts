@@ -76,6 +76,11 @@ export async function sendEditAccessCodeEmail(email: string, slug: string, code:
     }
     return
   }
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.footprint.onl'
+  // Return link drops the user back on the code-entry screen, with their
+  // email remembered. NOT a magic-auth link — they still type the code.
+  // The access screen reads ?email=…&sent=1 and skips step 1.
+  const editorUrl = `${baseUrl}/${slug}/home?email=${encodeURIComponent(email)}&sent=1`
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -100,10 +105,18 @@ export async function sendEditAccessCodeEmail(email: string, slug: string, code:
               editor access
             </p>
             <p style="margin: 40px 0 0 0; font-family: 'DM Mono', 'Courier New', monospace; font-size: 13px; line-height: 1.7; font-weight: 300; color: #777780; letter-spacing: 0.02em;">
-              enter this code on footprint.onl/${slug}/home
+              your 6-digit code
             </p>
-            <p style="margin: 28px 0 0 0; font-family: 'DM Mono', 'Courier New', monospace; font-size: 36px; line-height: 1.1; font-weight: 400; color: #d4c5a9; letter-spacing: 0.32em;">
+            <p style="margin: 20px 0 0 0; font-family: 'DM Mono', 'Courier New', monospace; font-size: 36px; line-height: 1.1; font-weight: 400; color: #d4c5a9; letter-spacing: 0.32em;">
               ${code}
+            </p>
+            <div style="margin: 36px 0 0 0;">
+              <a href="${editorUrl}" style="display: inline-block; padding: 12px 28px; background-color: #d4c5a9; color: #0c0c10; font-family: 'DM Mono', 'Courier New', monospace; font-size: 13px; font-weight: 500; text-decoration: none; letter-spacing: 0.04em; border-radius: 3px; text-transform: lowercase;">
+                open editor →
+              </a>
+            </div>
+            <p style="margin: 20px 16px 0 16px; font-family: 'DM Mono', 'Courier New', monospace; font-size: 11px; line-height: 1.7; font-weight: 300; color: #777780; letter-spacing: 0.02em;">
+              <a href="${editorUrl}" style="color: #777780; text-decoration: none;">${editorUrl}</a>
             </p>
             <p style="margin: 36px 16px 0 16px; font-family: 'DM Mono', 'Courier New', monospace; font-size: 11px; line-height: 1.7; font-weight: 300; color: #555560; letter-spacing: 0.02em;">
               expires in 10 minutes. if you didn't request this, ignore this email.
