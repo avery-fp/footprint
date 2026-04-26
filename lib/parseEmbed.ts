@@ -175,7 +175,7 @@ export function buildYouTubeEmbedUrl(
     autoplay: autoplay ? '1' : '0',
     mute: mute ? '1' : '0',
     enablejsapi: '1',
-    controls: '1',
+    controls: '0',
     rel: '0',
     modestbranding: '1',
     iv_load_policy: '3',
