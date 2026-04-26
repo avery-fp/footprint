@@ -97,6 +97,7 @@ export default function EditAccessScreen({ slug }: { slug: string }) {
   const [code, setCode] = useState<string>(initial.current.code)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [resendNotice, setResendNotice] = useState<string | null>(null)
   const firstWrite = useRef(true)
 
   // Strip URL params after the first paint so a refresh doesn't keep
@@ -185,6 +186,33 @@ export default function EditAccessScreen({ slug }: { slug: string }) {
     setStep('email')
     setCode('')
     setError(null)
+    setResendNotice(null)
+  }
+
+  // One-click "send a new code" without leaving step 2. We already have
+  // the email persisted, so just re-fire start. Server is rate-limited
+  // (3 codes / 10 min per slug+email), so spam is bounded.
+  async function resendCode() {
+    if (busy) return
+    const trimmed = email.trim().toLowerCase()
+    if (!trimmed) return
+    setBusy(true)
+    setError(null)
+    setResendNotice(null)
+    setCode('')
+    try {
+      const res = await fetch('/api/edit-access/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug, email: trimmed }),
+      })
+      await res.json().catch(() => ({}))
+      setResendNotice('new code sent. check your email.')
+    } catch {
+      setError('Network error. Try again.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   // ── styles ──
@@ -326,7 +354,20 @@ export default function EditAccessScreen({ slug }: { slug: string }) {
               {busy ? 'verifying…' : 'continue'}
             </button>
             {error && (
-              <p style={{ ...labelStyle, marginTop: 16, color: '#c87878' }}>{error}</p>
+              <div style={{ marginTop: 16 }}>
+                <p style={{ ...labelStyle, margin: 0, color: '#c87878' }}>{error}</p>
+                <button
+                  type="button"
+                  onClick={resendCode}
+                  disabled={busy}
+                  style={{ ...linkStyle, marginTop: 8 }}
+                >
+                  send a new code
+                </button>
+              </div>
+            )}
+            {resendNotice && !error && (
+              <p style={{ ...labelStyle, marginTop: 16, color: '#888890' }}>{resendNotice}</p>
             )}
             <div
               style={{

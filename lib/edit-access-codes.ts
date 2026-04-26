@@ -11,7 +11,10 @@ import { normalizeEmail } from './auth'
  * email, get the edit_token cookie, edit. No magic links, no Supabase auth.
  */
 
-export const CODE_TTL_MS = 10 * 60 * 1000   // 10 minutes
+// 20 min — the user has to switch to their inbox tab, find the email
+// (sometimes Promotions/Spam), and type 6 digits back. 10 min was too
+// tight in practice; the code expired between send and submit.
+export const CODE_TTL_MS = 20 * 60 * 1000
 export const MAX_ATTEMPTS = 5
 export const CODE_LENGTH = 6
 
@@ -119,7 +122,7 @@ export async function sendEditAccessCodeEmail(email: string, slug: string, code:
               <a href="${editorUrl}" style="color: #777780; text-decoration: none;">${editorUrl}</a>
             </p>
             <p style="margin: 36px 16px 0 16px; font-family: 'DM Mono', 'Courier New', monospace; font-size: 11px; line-height: 1.7; font-weight: 300; color: #555560; letter-spacing: 0.02em;">
-              expires in 10 minutes. if you didn't request this, ignore this email.
+              expires in 20 minutes. if you didn't request this, ignore this email.
             </p>
           </div>
         </div>
