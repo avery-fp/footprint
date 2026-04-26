@@ -618,10 +618,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         {visibleRooms.length > 1 && (
           <div className="relative mb-4 h-12 md:mb-6">
             <div
-              className={`${roomNavDocked ? 'fixed inset-x-0' : 'absolute inset-x-0'} z-30 flex items-center justify-center px-4 py-2 transition-[top,background-color] duration-300`}
+              className={`${roomNavDocked ? 'fixed inset-x-0' : 'absolute inset-x-0'} z-30 flex items-center justify-center px-4 py-2 transition-[top] duration-300`}
               style={{ top: roomNavDocked ? 'calc(env(safe-area-inset-top, 0px) + 8px)' : 0 }}
             >
-              <div className="flex max-w-full items-center gap-0 overflow-x-auto hide-scrollbar rounded-full border border-white/[0.08] bg-black/[0.24] px-4 font-mono shadow-[0_12px_34px_rgba(0,0,0,0.18)] backdrop-blur-md">
+              <div className="flex max-w-full items-center gap-0 overflow-x-auto hide-scrollbar px-1 font-mono">
               {visibleRooms.map((room, i) => (
                 <span key={room.id} className="flex items-center whitespace-nowrap">
                   {i > 0 && <span className="mx-2.5" style={{ color: 'rgba(255,255,255,0.2)', fontSize: '8px' }}>·</span>}
