@@ -1,28 +1,137 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 /**
  * Same-page email-code login for the editor. Rendered by /[slug]/home when
  * no fp_edit_{slug} cookie is present and no ?token= unlock is in the URL.
  *
- * Step 1: enter owner email → POST /api/edit-access/start (always returns
- *          generic success; never leaks ownership).
- * Step 2: enter 6-digit code → POST /api/edit-access/verify; on success the
- *          cookie is set server-side and the page reloads into the editor.
+ * The screen is supposed to hold state for the user across the inevitable
+ * tab-switch to their inbox. So:
+ *
+ *  - URL params take first priority on first paint:
+ *      ?email=…          prefill the email
+ *      ?email=…&sent=1   jump directly to step 2 (code entry)
+ *      ?code=…           prefill the code (does not auto-submit)
+ *    After the first paint we strip these from the URL so a refresh
+ *    doesn't keep re-applying stale params.
+ *  - sessionStorage is the secondary source: if you submit your email,
+ *    the page remembers (slug, email, step) until verify succeeds. A
+ *    refresh, an inbox tab-switch, or a parent re-render that briefly
+ *    unmounts this component all return you to the code-entry screen
+ *    with email remembered.
+ *  - Defaults if neither URL nor sessionStorage carry state: step 1.
+ *
+ * Fixed in this version:
+ *  - The previous two-useEffect (restore + persist) pattern raced on
+ *    mount: the persist effect fired with the old default state before
+ *    the restore effect's setState landed, clobbering sessionStorage.
+ *    Now state is initialized synchronously via useState's lazy init,
+ *    and a useRef gates the first persist write so we never overwrite
+ *    a freshly-read value with the defaults.
+ *  - The two forms now have distinct keys so React fully unmounts the
+ *    email form before mounting the code form. No DOM reuse, no autofill
+ *    confusion, no stale focus.
  */
+const SS_KEY = (slug: string) => `fp_edit_access:${slug}`
+
+type Persisted = { step: 'email' | 'code'; email: string }
+
+function readSession(slug: string): Persisted | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = sessionStorage.getItem(SS_KEY(slug))
+    if (!raw) return null
+    const p = JSON.parse(raw)
+    if (p && (p.step === 'email' || p.step === 'code') && typeof p.email === 'string') return p
+  } catch {}
+  return null
+}
+
+function writeSession(slug: string, p: Persisted) {
+  if (typeof window === 'undefined') return
+  try { sessionStorage.setItem(SS_KEY(slug), JSON.stringify(p)) } catch {}
+}
+
+function clearSession(slug: string) {
+  if (typeof window === 'undefined') return
+  try { sessionStorage.removeItem(SS_KEY(slug)) } catch {}
+}
+
+type InitialState = {
+  step: 'email' | 'code'
+  email: string
+  code: string
+  hadUrlParams: boolean
+}
+
+function initialState(slug: string): InitialState {
+  if (typeof window === 'undefined') {
+    return { step: 'email', email: '', code: '', hadUrlParams: false }
+  }
+  const params = new URL(window.location.href).searchParams
+  const urlEmail = (params.get('email') || '').trim().toLowerCase()
+  const urlSent = params.get('sent') === '1'
+  const urlCode = (params.get('code') || '').replace(/\D/g, '').slice(0, 6)
+  const hadUrlParams = !!(urlEmail || urlSent || urlCode)
+
+  const ss = readSession(slug)
+
+  // URL is the freshest signal (the user just clicked a link in their
+  // inbox). Honor it. sessionStorage fills in anything URL didn't say.
+  const email = urlEmail || ss?.email || ''
+  const step: 'email' | 'code' =
+    urlSent ? 'code' :
+    ss?.step === 'code' && (urlEmail ? urlEmail === ss.email : true) ? 'code' :
+    'email'
+
+  return { step, email, code: urlCode, hadUrlParams }
+}
+
 export default function EditAccessScreen({ slug }: { slug: string }) {
-  const [step, setStep] = useState<'email' | 'code'>('email')
-  const [email, setEmail] = useState('')
-  const [code, setCode] = useState('')
+  const initial = useRef<InitialState>(undefined as unknown as InitialState)
+  if (initial.current === undefined) initial.current = initialState(slug)
+
+  const [step, setStep] = useState<'email' | 'code'>(initial.current.step)
+  const [email, setEmail] = useState<string>(initial.current.email)
+  const [code, setCode] = useState<string>(initial.current.code)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
+  const firstWrite = useRef(true)
+
+  // Strip URL params after the first paint so a refresh doesn't keep
+  // re-applying them, and keep the address bar clean.
+  useEffect(() => {
+    if (!initial.current.hadUrlParams) return
+    const u = new URL(window.location.href)
+    let changed = false
+    for (const k of ['email', 'sent', 'code']) {
+      if (u.searchParams.has(k)) { u.searchParams.delete(k); changed = true }
+    }
+    if (changed) window.history.replaceState({}, '', u.toString())
+  }, [])
+
+  // Persist on every step/email change. Skip the very first run so the
+  // initial render's defaults can never overwrite a freshly-read
+  // sessionStorage value (which would happen if the lazy init somehow
+  // didn't pick it up — defensive). Subsequent writes carry through
+  // every actual transition.
+  useEffect(() => {
+    if (firstWrite.current) {
+      firstWrite.current = false
+      // If we have a non-default initial state, mirror it into ss now
+      // so a strict-mode unmount/remount finds it.
+      if (step !== 'email' || email !== '') writeSession(slug, { step, email })
+      return
+    }
+    writeSession(slug, { step, email })
+  }, [slug, step, email])
 
   async function sendCode(e: React.FormEvent) {
     e.preventDefault()
+    e.stopPropagation()
     if (busy) return
-    const trimmed = email.trim()
+    const trimmed = email.trim().toLowerCase()
     if (!trimmed) return
     setBusy(true)
     setError(null)
@@ -32,8 +141,11 @@ export default function EditAccessScreen({ slug }: { slug: string }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ slug, email: trimmed }),
       })
-      const data = await res.json().catch(() => ({}))
-      setNotice(data?.message || 'If this email owns this Footprint, we sent a code.')
+      // start always returns 200 generic on the happy path; we move to
+      // step 2 unconditionally so the user can paste a code if one
+      // arrives, regardless of whether they were the actual owner.
+      await res.json().catch(() => ({}))
+      setEmail(trimmed)
       setStep('code')
     } catch {
       setError('Network error. Try again.')
@@ -44,6 +156,7 @@ export default function EditAccessScreen({ slug }: { slug: string }) {
 
   async function verifyCode(e: React.FormEvent) {
     e.preventDefault()
+    e.stopPropagation()
     if (busy) return
     const trimmed = code.trim()
     if (!trimmed) return
@@ -53,9 +166,10 @@ export default function EditAccessScreen({ slug }: { slug: string }) {
       const res = await fetch('/api/edit-access/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug, email: email.trim(), code: trimmed }),
+        body: JSON.stringify({ slug, email: email.trim().toLowerCase(), code: trimmed }),
       })
       if (res.ok) {
+        clearSession(slug)
         window.location.href = `/${encodeURIComponent(slug)}/home`
         return
       }
@@ -71,9 +185,9 @@ export default function EditAccessScreen({ slug }: { slug: string }) {
     setStep('email')
     setCode('')
     setError(null)
-    setNotice(null)
   }
 
+  // ── styles ──
   const inputStyle: React.CSSProperties = {
     width: '100%',
     padding: '14px 16px',
@@ -85,6 +199,7 @@ export default function EditAccessScreen({ slug }: { slug: string }) {
     fontSize: 14,
     letterSpacing: '0.04em',
     outline: 'none',
+    boxSizing: 'border-box',
   }
   const buttonStyle: React.CSSProperties = {
     width: '100%',
@@ -100,6 +215,7 @@ export default function EditAccessScreen({ slug }: { slug: string }) {
     cursor: busy ? 'wait' : 'pointer',
     opacity: busy ? 0.6 : 1,
     textTransform: 'lowercase',
+    boxSizing: 'border-box',
   }
   const labelStyle: React.CSSProperties = {
     fontFamily: "'DM Mono', 'Courier New', monospace",
@@ -107,6 +223,23 @@ export default function EditAccessScreen({ slug }: { slug: string }) {
     letterSpacing: '0.06em',
     color: '#777780',
     textTransform: 'lowercase',
+  }
+  const titleStyle: React.CSSProperties = {
+    margin: 0,
+    fontFamily: "'DM Mono', 'Courier New', monospace",
+    fontSize: 18,
+    lineHeight: 1.3,
+    color: '#d4c5a9',
+    letterSpacing: '0.02em',
+    textTransform: 'lowercase',
+  }
+  const subtitleStyle: React.CSSProperties = {
+    margin: '8px 0 24px 0',
+    fontFamily: "'DM Mono', 'Courier New', monospace",
+    fontSize: 13,
+    lineHeight: 1.6,
+    color: '#888890',
+    letterSpacing: '0.02em',
   }
   const linkStyle: React.CSSProperties = {
     fontFamily: "'DM Mono', 'Courier New', monospace",
@@ -121,6 +254,7 @@ export default function EditAccessScreen({ slug }: { slug: string }) {
     letterSpacing: '0.04em',
   }
 
+  // ── render ──
   return (
     <div
       style={{
@@ -134,22 +268,16 @@ export default function EditAccessScreen({ slug }: { slug: string }) {
     >
       <div style={{ maxWidth: 380, width: '100%' }}>
         {step === 'email' ? (
-          <form onSubmit={sendCode}>
-            <p style={{ ...labelStyle, margin: 0 }}>edit footprint</p>
-            <p
-              style={{
-                margin: '12px 0 28px 0',
-                fontFamily: "'DM Mono', 'Courier New', monospace",
-                fontSize: 14,
-                lineHeight: 1.6,
-                color: '#d4c5a9',
-                letterSpacing: '0.02em',
-              }}
-            >
-              enter the email used to claim footprint.onl/{slug}.
+          <form key="step-email" onSubmit={sendCode} noValidate>
+            <p style={{ ...labelStyle, margin: '0 0 12px 0' }}>edit footprint</p>
+            <h1 style={titleStyle}>enter your email</h1>
+            <p style={subtitleStyle}>
+              the email used to claim footprint.onl/{slug}.
             </p>
             <input
+              key="email-input"
               type="email"
+              name="email"
               autoComplete="email"
               autoFocus
               required
@@ -171,22 +299,18 @@ export default function EditAccessScreen({ slug }: { slug: string }) {
             </div>
           </form>
         ) : (
-          <form onSubmit={verifyCode}>
-            <p style={{ ...labelStyle, margin: 0 }}>enter code</p>
-            <p
-              style={{
-                margin: '12px 0 28px 0',
-                fontFamily: "'DM Mono', 'Courier New', monospace",
-                fontSize: 14,
-                lineHeight: 1.6,
-                color: '#d4c5a9',
-                letterSpacing: '0.02em',
-              }}
-            >
-              {notice || 'check your email for the 6-digit code.'}
+          <form key="step-code" onSubmit={verifyCode} noValidate>
+            <p style={{ ...labelStyle, margin: '0 0 12px 0' }}>edit footprint</p>
+            <h1 style={titleStyle}>enter code</h1>
+            <p style={subtitleStyle}>
+              {email
+                ? <>we sent a 6-digit code to <span style={{ color: '#d4c5a9' }}>{email}</span>.</>
+                : 'enter the 6-digit code from your email.'}
             </p>
             <input
+              key="code-input"
               type="text"
+              name="otp"
               inputMode="numeric"
               pattern="[0-9]*"
               maxLength={6}
