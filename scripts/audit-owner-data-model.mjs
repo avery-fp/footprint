@@ -64,9 +64,12 @@ for (const tbl of ['payments', 'claims', 'magic_links', 'recovery_attempts', 'sl
 }
 
 console.log('\n── migration 024 safety ──')
-const { error: t1 } = await supabase.from('edit_access_codes').select('id', { head: true, count: 'exact' })
+// HEAD count returns 204 even for non-existent tables in some PostgREST
+// configs — false positive on table existence. Use a real GET so the
+// schema cache is actually consulted.
+const { error: t1 } = await supabase.from('edit_access_codes').select('id').limit(1)
 out('edit_access_codes table',
-  t1 ? (t1.code === 'PGRST205' || /does not exist/i.test(t1.message || '') ? 'NOT EXIST (safe to create)' : `error: ${t1.code} ${t1.message}`)
+  t1 ? (t1.code === 'PGRST205' || /does not exist|schema cache/i.test(t1.message || '') ? 'NOT EXIST (run migration 024)' : `error: ${t1.code} ${t1.message}`)
      : 'EXISTS (migration uses IF NOT EXISTS, idempotent)')
 
 console.log('\n── done ──')
