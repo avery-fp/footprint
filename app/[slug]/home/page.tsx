@@ -16,6 +16,7 @@ import GiftModal from '@/components/GiftModal'
 import { humanUsernameReason } from '@/lib/errors'
 import LayoutToggle from '@/components/LayoutToggle'
 import ClaimPlaque from '@/components/ClaimPlaque'
+import EmptyHomeOrigin from '@/components/EmptyHomeOrigin'
 import EditAccessScreen from '@/components/EditAccessScreen'
 import { type RoomLayout, getGridLayout } from '@/lib/grid-layouts'
 import { getRoomAtmosphere } from '@/lib/roomAtmosphere'
@@ -1883,10 +1884,11 @@ export default function EditPage() {
     : draft.content
 
   const theme = getTheme(draft.theme)
+  const isEmptyHomeOrigin = isOwner && !isPublished && !isArranging && !wallpaperUrl && draft.content.length === 0
 
   return (
     <ErrorBoundary context="editor">
-    <div className="relative min-h-[100dvh] w-full overflow-x-hidden pb-32" style={{ background: wallpaperUrl ? 'transparent' : theme.colors.background, color: theme.colors.text }}>
+    <div className="relative min-h-[100dvh] w-full overflow-x-hidden pb-32" style={{ background: isEmptyHomeOrigin ? '#f6f1e8' : wallpaperUrl ? 'transparent' : theme.colors.background, color: isEmptyHomeOrigin ? '#211a10' : theme.colors.text }}>
       {/* Wallpaper layer */}
       {wallpaperUrl && (
         <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
@@ -1899,12 +1901,38 @@ export default function EditPage() {
         </div>
       )}
 
+      {isEmptyHomeOrigin && (
+        <EmptyHomeOrigin
+          serialNumber={serialNumber}
+          title={draft.display_title || ''}
+          goLiveLoading={goLiveLoading}
+          onTitleChange={(nextValue) => {
+            setDraft(prev => prev ? {
+              ...prev,
+              display_title: nextValue,
+              updated_at: Date.now(),
+            } : null)
+          }}
+          onTitleBlur={(nextValue) => {
+            const trimmedValue = nextValue.trim()
+            if (trimmedValue === (draft.display_title || '')) return
+            setDraft(prev => prev ? {
+              ...prev,
+              display_title: trimmedValue,
+              updated_at: Date.now(),
+            } : null)
+          }}
+          onChooseWallpaper={() => bgFileInputRef.current?.click()}
+          onGoLive={handleGoLive}
+        />
+      )}
+
       {/* ═══ CLAIM PLAQUE (desktop) ═══
           Fixed top-right, sits above the header. Hidden on mobile — the mobile
           slot renders the same plaque inline in the header action row. Gated
           to draft-only, non-arrange state so the chrome stays clean once the
           room is live or being rearranged. */}
-      {!isPublished && !isArranging && (
+      {!isEmptyHomeOrigin && !isPublished && !isArranging && (
         <ClaimPlaque
           onClick={handleGoLive}
           loading={goLiveLoading}
@@ -1913,6 +1941,7 @@ export default function EditPage() {
       )}
 
       {/* ═══ HEADER ═══ */}
+      {!isEmptyHomeOrigin && (
       <div className="fixed top-0 left-0 right-0 z-50 bg-black/60 backdrop-blur-sm border-b border-white/[0.06]"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="flex items-center justify-between px-4 pt-4 pb-2" style={{ minHeight: '52px' }}>
@@ -2104,10 +2133,12 @@ export default function EditPage() {
           </button>
         </div>
       </div>
+      )}
 
 
 
       {/* ═══ TILE GRID ═══ */}
+      {!isEmptyHomeOrigin && (
       <div className="max-w-7xl mx-auto px-3 md:px-6 pt-36 pb-32 relative z-10"
         onClick={(e) => {
           // Tap background to deselect swap
@@ -2247,6 +2278,7 @@ export default function EditPage() {
           </div>
         )}
       </div>
+      )}
 
       {/* Hidden file inputs */}
       <input
