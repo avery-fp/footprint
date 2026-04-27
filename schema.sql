@@ -166,6 +166,7 @@ CREATE TABLE library (
     image_url TEXT NOT NULL,
     title VARCHAR(500),
     caption TEXT,
+    caption_hidden BOOLEAN DEFAULT FALSE,
     position INTEGER DEFAULT 0,
     size INTEGER DEFAULT 1,
     aspect VARCHAR(10),

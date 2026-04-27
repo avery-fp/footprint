@@ -39,6 +39,7 @@ export interface Tile {
   size: number
   aspect: string | null
   caption?: string | null
+  caption_hidden?: boolean | null
   render_mode?: string
   artist?: string | null
   thumbnail_url_hq?: string | null
@@ -99,6 +100,7 @@ function mapLibraryRow(row: any): Tile {
     size: row.size || 1,
     aspect: row.aspect || null,
     caption: row.caption || null,
+    caption_hidden: row.caption_hidden ?? false,
     playback_url: row.playback_url || null,
     poster_url: row.poster_url || null,
     status: row.status || null,
@@ -152,37 +154,46 @@ export async function loadFootprint(
   }
 
   const serial = footprint.serial_number
+  // .limit(2000) is load-bearing: supabase-js v2.39 silently truncates
+  // .select('*').order('position') results around 64 rows. Without an explicit
+  // limit, the most recently created tiles disappear from the editor and the
+  // public page. PostgREST returns the full set; the SDK drops the tail.
   const [imagesRes, linksRes, roomsRes, childImagesRes, childLinksRes] = await Promise.all([
     supabase
       .from('library')
       .select('*')
       .eq('serial_number', serial)
       .is('parent_tile_id', null)
-      .order('position'),
+      .order('position')
+      .limit(2000),
     supabase
       .from('links')
       .select('*')
       .eq('serial_number', serial)
       .is('parent_tile_id', null)
-      .order('position'),
+      .order('position')
+      .limit(2000),
     supabase
       .from('rooms')
       .select('*')
       .eq('serial_number', serial)
       .neq('hidden', true)
-      .order('position'),
+      .order('position')
+      .limit(2000),
     supabase
       .from('library')
       .select('id, parent_tile_id, image_url, position')
       .eq('serial_number', serial)
       .not('parent_tile_id', 'is', null)
-      .order('position'),
+      .order('position')
+      .limit(2000),
     supabase
       .from('links')
       .select('id, parent_tile_id, thumbnail, thumbnail_url_hq, position')
       .eq('serial_number', serial)
       .not('parent_tile_id', 'is', null)
-      .order('position'),
+      .order('position')
+      .limit(2000),
   ])
 
   const content = [

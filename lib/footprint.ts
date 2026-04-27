@@ -29,6 +29,7 @@ export interface FootprintStateTileSnapshot {
   size?: number
   aspect?: string | null
   caption?: string | null
+  caption_hidden?: boolean | null
   render_mode?: string | null
   artist?: string | null
   thumbnail_url_hq?: string | null
@@ -150,6 +151,7 @@ export function normalizeFootprintStateSnapshot(input: unknown): FootprintStateS
           size: numberOr(value.size, 1),
           aspect: stringOrNull(value.aspect),
           caption: stringOrNull(value.caption),
+          caption_hidden: typeof value.caption_hidden === 'boolean' ? value.caption_hidden : false,
           render_mode: stringOrNull(value.render_mode),
           artist: stringOrNull(value.artist),
           thumbnail_url_hq: stringOrNull(value.thumbnail_url_hq),
