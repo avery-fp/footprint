@@ -36,7 +36,7 @@ export default function VideoTile({ src, playbackUrl, posterUrl, status, onWides
   const videoId = useRef(`video-${src}-${Math.random()}`).current
   const reducedMotion = useReducedMotion()
 
-  const { mode, escalate, collapse, isExpanded } = useVideoExpansion(theatreContainerRef)
+  const { mode, collapse, isExpanded } = useVideoExpansion(theatreContainerRef)
 
   // The actual source to play — prefer HLS playback URL when ready
   const effectiveSrc = (status === 'ready' && playbackUrl) ? playbackUrl : src
@@ -338,61 +338,11 @@ export default function VideoTile({ src, playbackUrl, posterUrl, status, onWides
                 </div>
               )}
 
-              {/* Unmuted indicator dot — tile mode only */}
-              {!isMuted && isReady && !isExpanded && (
-                <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60" />
-              )}
-
               {/* Scrub bar — theatre/fullscreen only */}
               {isExpanded && (
                 <VideoScrubBar videoRef={videoRef} />
               )}
 
-              {/* Maximize button */}
-              {isReady && mode !== 'fullscreen' && (
-                <button
-                  className="absolute group/btn"
-                  style={{
-                    bottom: isExpanded ? '32px' : '6px',
-                    right: '6px',
-                    width: '28px',
-                    height: '28px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderRadius: '6px',
-                    background: isExpanded ? 'rgba(0,0,0,0.3)' : 'transparent',
-                    backdropFilter: isExpanded ? 'blur(8px)' : 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    opacity: isExpanded ? 0.7 : 0,
-                    transition: 'opacity 0.2s ease, background 0.2s ease',
-                    zIndex: 11,
-                    padding: 0,
-                  }}
-                  onClick={(e) => { e.stopPropagation(); escalate() }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.opacity = '0.8' }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.opacity = isExpanded ? '0.7' : '0' }}
-                  onTouchStart={(e) => {
-                    e.stopPropagation()
-                    ;(e.currentTarget as HTMLElement).style.opacity = '0.8'
-                  }}
-                  aria-label={mode === 'tile' ? 'Theatre mode' : 'Fullscreen'}
-                >
-                  {mode === 'tile' ? (
-                    // Expand icon — two diagonal arrows
-                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-white/80">
-                      <path d="M1 5V1h4M9 1h4v4M13 9v4H9M5 13H1V9" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  ) : (
-                    // Fullscreen icon — corner brackets
-                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-white/80">
-                      <path d="M1 5V1h4M9 1h4v4M13 9v4H9M5 13H1V9" strokeLinecap="round" strokeLinejoin="round"/>
-                      <rect x="4" y="4" width="6" height="6" rx="0.5" strokeWidth="1"/>
-                    </svg>
-                  )}
-                </button>
-              )}
             </div>
 
             {/* Placeholder when video is moved to theatre */}
