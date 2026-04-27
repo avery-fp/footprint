@@ -8,7 +8,7 @@ import { mediaTypeFromUrl } from '@/lib/media'
 // Used by client-side video uploads that bypass Vercel's body limit.
 export async function POST(request: NextRequest) {
   try {
-    const { slug, url, room_id, aspect, content_type } = await request.json()
+    const { slug, url, room_id, aspect, content_type, caption, caption_hidden } = await request.json()
 
     if (!slug || !url) {
       return NextResponse.json({ error: 'slug and url required' }, { status: 400 })
@@ -51,6 +51,8 @@ export async function POST(request: NextRequest) {
         position: nextPosition,
         room_id: room_id || null,
         ...(aspect ? { aspect } : {}),
+        ...(caption ? { caption } : {}),
+        ...(caption_hidden !== undefined ? { caption_hidden: !!caption_hidden } : {}),
       })
       .select()
       .single()
@@ -76,6 +78,8 @@ export async function POST(request: NextRequest) {
         source: 'library',
         room_id: tile.room_id || null,
         aspect: tile.aspect || aspect || null,
+        caption: tile.caption || null,
+        caption_hidden: tile.caption_hidden ?? false,
       }
     })
   } catch (error) {

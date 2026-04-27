@@ -1,6 +1,6 @@
 'use client'
 
-import { memo } from 'react'
+import { memo, useState } from 'react'
 import ContentCardBase from '@/components/ContentCard'
 import GhostTileBase from '@/components/GhostTile'
 import TileImage from '@/components/TileImage'
@@ -70,6 +70,8 @@ interface UnifiedTileProps {
     poster_url?: string | null
     status?: string | null
     media_kind?: string | null
+    caption?: string | null
+    caption_hidden?: boolean | null
   }
   index: number
   size: number
@@ -115,6 +117,10 @@ export default function UnifiedTile({
   childCount,
   firstChildThumb,
 }: UnifiedTileProps) {
+  const caption = item.caption || null
+  const captionHidden = item.caption_hidden ?? false
+  const [captionVisible, setCaptionVisible] = useState(!captionHidden && !!caption)
+
   // ── Container tile — a door, not a window ──
   if (item.type === 'container') {
     return (
@@ -298,21 +304,47 @@ export default function UnifiedTile({
     if (mode === 'public') {
       return (
         <div
-          className={isAuto && layout === 'editorial' ? 'w-full' : 'w-full h-full'}
+          className={`${isAuto && layout === 'editorial' ? 'w-full' : 'w-full h-full'} relative`}
           data-tile-id={item.id}
           data-tile-type="image"
         >
-          <ZoomableImage>
-            <TileImage
-              src={item.url}
-              alt={item.title || ''}
-              sizes="(max-width: 768px) 50vw, 440px"
-              index={index}
-              aspect={aspect}
-              layout={layout}
-              size={size}
-            />
-          </ZoomableImage>
+          {caption ? (
+            <div
+              className="w-full h-full"
+              onClick={(e) => { e.stopPropagation(); setCaptionVisible(v => !v) }}
+              style={{ cursor: 'pointer' }}
+            >
+              <TileImage
+                src={item.url}
+                alt={item.title || ''}
+                sizes="(max-width: 768px) 50vw, 440px"
+                index={index}
+                aspect={aspect}
+                layout={layout}
+                size={size}
+              />
+              {captionVisible && (
+                <div
+                  className="absolute bottom-0 inset-x-0 p-3 bg-black/70 backdrop-blur-sm"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <p className="text-white/90 text-xs font-mono leading-relaxed m-0">{caption}</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <ZoomableImage>
+              <TileImage
+                src={item.url}
+                alt={item.title || ''}
+                sizes="(max-width: 768px) 50vw, 440px"
+                index={index}
+                aspect={aspect}
+                layout={layout}
+                size={size}
+              />
+            </ZoomableImage>
+          )}
         </div>
       )
     }

@@ -82,6 +82,9 @@ function SortableTile({
   const [isMuted, setIsMuted] = useState(true)
   const [isLoaded, setIsLoaded] = useState(false)
   const [videoVisible, setVideoVisible] = useState(false)
+  const [captionVisible, setCaptionVisible] = useState(
+    !!(content as any).caption && !((content as any).caption_hidden ?? false)
+  )
   const videoRef = useRef<HTMLVideoElement>(null)
   const tileRef = useRef<HTMLDivElement>(null)
   const audioIdRef = useRef(`edit-${id}`)
@@ -378,6 +381,20 @@ function SortableTile({
             )}
           </div>
         )}
+        {/* Caption overlay — tap to reveal/hide */}
+        {(content as any).caption && !isTemp && (
+          <div
+            className="absolute inset-0 z-[5]"
+            onClick={(e) => { if (isArranging) return; e.stopPropagation(); setCaptionVisible(v => !v) }}
+            style={{ cursor: isArranging ? 'default' : 'pointer' }}
+          >
+            {captionVisible && (
+              <div className="absolute bottom-0 inset-x-0 p-2.5 bg-black/70 backdrop-blur-sm pointer-events-none">
+                <p className="text-white/90 text-[11px] font-mono leading-relaxed m-0">{(content as any).caption}</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </motion.div>
   )
@@ -421,6 +438,9 @@ export default function EditPage() {
   const [statusToast, setStatusToast] = useState<string | null>(null)
   const [pasteUrl, setPasteUrl] = useState('')
   const [thoughtText, setThoughtText] = useState('')
+  const [thoughtImage, setThoughtImage] = useState<File | null>(null)
+  const [thoughtImagePreview, setThoughtImagePreview] = useState<string | null>(null)
+  const [thoughtCaptionHidden, setThoughtCaptionHidden] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
   // Go Live state
   const [showGoLive, setShowGoLive] = useState(false)
@@ -554,6 +574,7 @@ export default function EditPage() {
   const thoughtInputRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const bgFileInputRef = useRef<HTMLInputElement>(null)
+  const thoughtFileInputRef = useRef<HTMLInputElement>(null)
   const [bgPulse, setBgPulse] = useState(true)
   const [tooLarge, setTooLarge] = useState(false)
 
@@ -745,6 +766,7 @@ export default function EditPage() {
               size: tile.size || 1,
               aspect: tile.aspect || null,
               caption: tile.caption || null,
+              caption_hidden: tile.caption_hidden ?? false,
               render_mode: tile.render_mode || 'embed',
               artist: tile.artist || null,
               thumbnail_url_hq: tile.thumbnail_url_hq || null,
@@ -959,9 +981,97 @@ export default function EditPage() {
   }
 
   async function handleAddThought() {
-    if (!thoughtText.trim() || !draft) return
+    if (!thoughtImage && !thoughtText.trim()) return
+    if (!draft) return
+    if (thoughtImage && !serialNumber) return
     setIsAdding(true)
     try {
+      if (thoughtImage) {
+        // ── Image + optional caption path ──
+        let detectedAspect = 'square'
+        try { detectedAspect = await detectImageAspect(thoughtImage) } catch {}
+        let uploadFile: File
+        try { uploadFile = await resizeImage(thoughtImage) } catch { uploadFile = thoughtImage }
+        const filename = `${serialNumber}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`
+        const contentType = uploadFile.type || 'image/jpeg'
+        const tempId = `temp-${Date.now()}`
+        setDraft(prev => prev ? {
+          ...prev,
+          content: [...prev.content, {
+            id: tempId,
+            url: thoughtImagePreview || '',
+            type: 'image' as any,
+            title: null,
+            description: null,
+            thumbnail_url: null,
+            embed_html: null,
+            position: prev.content.length,
+            room_id: activeRoomId || null,
+            aspect: null,
+            _temp: true,
+            _progress: 0,
+          }],
+          updated_at: Date.now(),
+        } : null)
+        const publicUrl = await uploadWithProgress(
+          new File([uploadFile], uploadFile.name, { type: contentType }),
+          filename,
+          (pct) => setDraft(prev => prev ? {
+            ...prev,
+            content: prev.content.map(c => c.id === tempId ? { ...c, _progress: pct } : c),
+          } : null),
+          slug,
+        )
+        const res = await fetch('/api/upload/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            slug,
+            url: publicUrl,
+            room_id: activeRoomId,
+            aspect: detectedAspect,
+            content_type: contentType,
+            caption: thoughtText.trim() || null,
+            caption_hidden: thoughtCaptionHidden,
+          }),
+        })
+        if (!res.ok) throw new Error('Register failed')
+        const data = await res.json()
+        if (data.tile) {
+          setTileSources(prev => ({ ...prev, [data.tile.id]: 'library' }))
+          setDraft(prev => prev ? {
+            ...prev,
+            content: prev.content.map(c => c.id === tempId ? {
+              id: data.tile.id,
+              url: data.tile.url,
+              type: data.tile.type,
+              title: null,
+              description: null,
+              thumbnail_url: null,
+              embed_html: null,
+              position: data.tile.position,
+              room_id: data.tile.room_id || null,
+              size: 1,
+              aspect: data.tile.aspect || detectedAspect || null,
+              caption: data.tile.caption || null,
+              caption_hidden: data.tile.caption_hidden ?? false,
+              render_mode: 'embed',
+              artist: null,
+              thumbnail_url_hq: null,
+              media_id: null,
+            } : c),
+            updated_at: Date.now(),
+          } : null)
+        }
+        if (thoughtImagePreview?.startsWith('blob:')) URL.revokeObjectURL(thoughtImagePreview)
+        setThoughtImage(null)
+        setThoughtImagePreview(null)
+        setThoughtCaptionHidden(true)
+        setThoughtText('')
+        stopAdding()
+        return
+      }
+      // ── Text-only thought (existing behavior) ──
       const res = await fetch('/api/tiles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1072,6 +1182,7 @@ export default function EditPage() {
           size: tile.size || 1,
           aspect: tile.aspect || null,
           caption: tile.caption || null,
+          caption_hidden: tile.caption_hidden ?? false,
           render_mode: tile.render_mode || 'embed',
           artist: tile.artist || null,
           thumbnail_url_hq: tile.thumbnail_url_hq || null,
@@ -2153,6 +2264,20 @@ export default function EditPage() {
         className="hidden"
         onChange={handleBgFileUpload}
       />
+      <input
+        ref={thoughtFileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          if (!file) return
+          if (thoughtImagePreview?.startsWith('blob:')) URL.revokeObjectURL(thoughtImagePreview)
+          setThoughtImage(file)
+          setThoughtImagePreview(URL.createObjectURL(file))
+          e.target.value = ''
+        }}
+      />
 
 
       {/* ═══ TILE ACTION SHEET ═══ */}
@@ -2495,16 +2620,56 @@ export default function EditPage() {
               className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl font-mono text-sm focus:border-white/30 focus:outline-none text-white placeholder:text-white/30 resize-none"
             />
             <p className="text-[10px] text-white/20 font-mono mt-1 px-1">⌘+enter to save</p>
+            {/* Image attach row */}
+            <div className="flex items-center gap-2 mt-2">
+              {thoughtImagePreview ? (
+                <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-white/10">
+                  <img src={thoughtImagePreview} alt="" className="w-full h-full object-cover" />
+                  <button
+                    onClick={() => {
+                      setThoughtImage(null)
+                      if (thoughtImagePreview?.startsWith('blob:')) URL.revokeObjectURL(thoughtImagePreview)
+                      setThoughtImagePreview(null)
+                    }}
+                    className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/70 text-white/70 text-[9px] flex items-center justify-center"
+                  >✕</button>
+                </div>
+              ) : null}
+              <button
+                onClick={() => thoughtFileInputRef.current?.click()}
+                className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/10 hover:bg-white/20 text-white/50 hover:text-white/80 text-sm transition flex-shrink-0"
+                title="Attach image"
+              >+</button>
+              {thoughtImage && (
+                <div className="flex items-center gap-1.5 ml-auto">
+                  <span className="text-[10px] text-white/40 font-mono">hide until tapped</span>
+                  <button
+                    type="button"
+                    onClick={() => setThoughtCaptionHidden(v => !v)}
+                    className={`w-8 h-4 rounded-full transition-colors relative flex-shrink-0 ${thoughtCaptionHidden ? 'bg-white/40' : 'bg-white/10'}`}
+                  >
+                    <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${thoughtCaptionHidden ? 'left-[18px]' : 'left-0.5'}`} />
+                  </button>
+                </div>
+              )}
+            </div>
             <div className="flex gap-2 mt-2">
               <button
                 onClick={handleAddThought}
-                disabled={isAdding || !thoughtText.trim()}
+                disabled={isAdding || (!thoughtText.trim() && !thoughtImage)}
                 className="flex-1 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl font-mono text-xs transition disabled:opacity-50"
               >
                 {isAdding ? 'adding...' : 'add'}
               </button>
               <button
-                onClick={() => { stopAdding(); setThoughtText('') }}
+                onClick={() => {
+                  stopAdding()
+                  setThoughtText('')
+                  if (thoughtImagePreview?.startsWith('blob:')) URL.revokeObjectURL(thoughtImagePreview)
+                  setThoughtImage(null)
+                  setThoughtImagePreview(null)
+                  setThoughtCaptionHidden(true)
+                }}
                 className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white/60 rounded-xl font-mono text-xs transition"
               >
                 ×
