@@ -73,12 +73,12 @@ export function getGridClass(size: number, aspect: string | null | undefined, is
   if (aspect === 'tall' || aspect === 'portrait') {
     if (size >= 3) return 'col-span-1 row-span-3 md:col-span-2 md:row-span-3 aspect-[3/4]'
     if (size >= 2) return 'col-span-1 row-span-2 md:col-span-2 md:row-span-2 aspect-[3/4]'
-    return 'col-span-1 row-span-2 aspect-[3/4]'
+    return 'col-span-2 row-span-2 aspect-[3/4]'
   }
   // 3-state topology: S (1×1 square) → M (2×1 landscape) → L (2×2 square)
   if (size >= 3) return 'col-span-2 row-span-2 aspect-square'
   if (size >= 2) return 'col-span-2 row-span-1 aspect-[4/3]'
-  return 'aspect-square'
+  return 'col-span-2 aspect-square'
 }
 
 /**
@@ -105,12 +105,12 @@ export function getGridClassHome(size: number, aspect: string, isVideo = false):
   if (aspect === 'tall' || aspect === 'portrait') {
     if (size >= 3) return 'col-span-1 row-span-3 md:col-span-2 md:row-span-3'
     if (size >= 2) return 'col-span-1 row-span-2 md:col-span-2 md:row-span-2'
-    return 'col-span-1 row-span-2'
+    return 'col-span-2 row-span-2'
   }
   // 3-state topology: S (1×1) → M (2×1) → L (2×2)
   if (size >= 3) return 'col-span-2 row-span-2'
   if (size >= 2) return 'col-span-2 row-span-1'
-  return ''
+  return 'col-span-2'
 }
 
 /**
