@@ -22,7 +22,7 @@ const GhostTile = memo(GhostTileBase)
 /**
  * UNIFIED TILE — layout-aware rendering
  *
- * grid: square crop, fill + object-cover
+ * grid: fill + object-cover; S tile container is aspect-shaped before reaching here
  * editorial: edit-page-style, width/height Image with aspect-aware positioning
  *
  * MIME-type contract:
