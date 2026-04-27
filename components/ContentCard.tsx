@@ -222,7 +222,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     // YouTube activated state — mute=1 for reliable autoplay, postMessage unmutes after load
     const ytActivatedSrc = buildYouTubeEmbedUrl(youtubeId)
     return (
-      <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative" style={{ background: '#000' }}>
+      <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative group" style={{ background: '#000' }}>
         <FieldBackground imageUrl={youtubeThumbCandidates[0]} intensity="embed" />
         <iframe
           src={ytActivatedSrc}
@@ -233,21 +233,41 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           referrerPolicy="strict-origin-when-cross-origin"
           onLoad={handleYTLoad}
         />
+        {/* Permanent corner vignette — blocks YouTube watermark visually + click-through */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            right: 0,
+            width: 80,
+            height: 46,
+            zIndex: 2,
+            background: 'linear-gradient(225deg, rgba(0,0,0,0.82) 0%, transparent 78%)',
+            pointerEvents: 'auto',
+          }}
+        />
+        {/* Footprint-owned expand button — visible only on hover, disappears immediately on leave */}
         <button
           type="button"
           aria-label="Fullscreen"
           onClick={requestTileFullscreen}
-          className="absolute bottom-0 right-0 text-white/80 backdrop-blur-sm flex items-center justify-center opacity-80 hover:opacity-100 transition"
+          className="absolute opacity-0 group-hover:opacity-100 flex items-center justify-center text-white/75"
           style={{
-            width: 76,
-            height: 42,
+            bottom: 8,
+            right: 8,
+            width: 28,
+            height: 28,
             zIndex: 3,
-            background: 'rgba(0,0,0,0.72)',
-            borderTopLeftRadius: 8,
+            background: 'rgba(255,255,255,0.08)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            borderRadius: 6,
+            border: '1px solid rgba(255,255,255,0.10)',
+            transition: 'opacity 0.075s ease',
             pointerEvents: 'auto',
           }}
         >
-          <svg width="15" height="15" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
             <path d="M1 5V1h4M9 1h4v4M13 9v4H9M5 13H1V9" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </button>
