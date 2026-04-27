@@ -468,7 +468,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           ? 'col-span-2 row-span-2 aspect-square'
           : isSpotify ? 'col-span-1 aspect-[3/4]'
           : isAudioEmbed ? 'col-span-2 aspect-video'
-          : isEmbedVid ? 'col-span-2 aspect-video'
+          : isEmbedVid ? 'col-span-2 aspect-[4/3]'
           : sAspectClass ?? getGridClass(tileSize, tileAspect, false)
 
         const isContainer = item.type === 'container'
