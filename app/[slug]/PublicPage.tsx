@@ -165,9 +165,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const { filter: wallpaperFilter, overlay: overlayColor } = getRoomAtmosphere(activeRoomIndex, isSoundRoom)
 
   const handleShare = () => {
-    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://footprint.onl'
-    const fpUrl = `${baseUrl}/${footprint.username}`
-    navigator.clipboard.writeText(fpUrl)
+    navigator.clipboard.writeText(pageUrl)
     setShowToast(true)
   }
 
@@ -783,15 +781,25 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         <div className="py-10 flex items-center justify-center">
           <button
             onClick={handleShare}
-            className="group inline-flex h-9 w-12 items-center justify-center text-white/[0.26] transition-colors duration-500 hover:text-white/[0.58] touch-manipulation"
-            aria-label="Copy Footprint link"
+            className="font-mono text-white/60 transition-colors duration-300 hover:text-white/80 touch-manipulation"
+            aria-label={`Copy Footprint #${String(serial).padStart(4, '0')} link`}
+            style={{
+              fontSize: '11px',
+              fontWeight: 300,
+              letterSpacing: '0.12em',
+              background: 'none',
+              border: 'none',
+              borderRadius: 0,
+              boxShadow: 'none',
+              outline: 'none',
+              padding: 0,
+              cursor: 'default',
+              appearance: 'none',
+              WebkitAppearance: 'none',
+              WebkitTapHighlightColor: 'transparent',
+            }}
           >
-            <span className="block h-6 w-8" aria-hidden="true">
-              <svg viewBox="0 0 32 24" className="h-6 w-8" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M10.8 20.2c-2.8-.8-4.8-3.5-4.1-6.2.5-2.1 2.2-4 3.4-5.8.9-1.4 1.2-2.7 1.1-4.3 3.7.8 5.1 4.5 4.3 8.1-.8 3.4-1.7 6.6-4.7 8.2Z" opacity="0.68" />
-                <path d="M21.2 16.8c2.8-.8 4.8-3.5 4.1-6.2-.5-2.1-2.2-4-3.4-5.8-.9-1.4-1.2-2.7-1.1-4.3-3.7.8-5.1 4.5-4.3 8.1.8 3.4 1.7 6.6 4.7 8.2Z" opacity="0.9" />
-              </svg>
-            </span>
+            #{String(serial).padStart(4, '0')}
           </button>
         </div>
       </div>
