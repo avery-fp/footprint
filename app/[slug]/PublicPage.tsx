@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Image from 'next/image'
 import UnifiedTile from '@/components/UnifiedTile'
+import SAspectShell from '@/components/SAspectShell'
 
 import WeatherEffect from '@/components/WeatherEffect'
 import { RemoveBubble } from '@/components/RemoveBubble'
@@ -449,12 +450,26 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         // Sound room: hero first tile + square others
         // Spotify = portrait. SoundCloud = wide. Embed videos = wide.
         // Uploaded videos / Instagram / images = use their actual aspect.
+        //
+        // S image tiles in grid mode: SAspectShell detects natural dimensions on load
+        // and reshapes the cell to portrait/landscape/square accordingly.
+        // resolvedSAspect seeds the initial state so stored aspects apply immediately.
+        const resolvedSAspect = (tileSize === 1 && !isMix)
+          ? resolveAspect(item.aspect, item.type, item.url)
+          : null
+
+        const sAspectClass = resolvedSAspect != null
+          ? (resolvedSAspect === 'wide' || resolvedSAspect === 'landscape' ? 'aspect-[4/3]'
+            : resolvedSAspect === 'tall' || resolvedSAspect === 'portrait' ? 'aspect-[3/4]'
+            : 'aspect-square')
+          : null
+
         const gridClass = isSoundRoom && idx === 0
           ? 'col-span-2 row-span-2 aspect-square'
           : isSpotify ? 'col-span-1 aspect-[3/4]'
           : isAudioEmbed ? 'col-span-2 aspect-video'
           : isEmbedVid ? 'col-span-2 aspect-video'
-          : getGridClass(tileSize, tileAspect, false)
+          : sAspectClass ?? getGridClass(tileSize, tileAspect, false)
 
         const isContainer = item.type === 'container'
         const isThisExpanded = expanded?.id === item.id
@@ -465,7 +480,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             style={getDepthStyle(item.id)}
           >
             <div
-              className={`relative w-full overflow-hidden fp-tile-hover h-full rounded-2xl${isSoundRoom ? ' fp-sound-tile' : ''}`}
+              className={`relative w-full overflow-hidden fp-tile-hover h-full ${tileSize === 1 ? 'rounded-xl' : 'rounded-2xl'}${isSoundRoom ? ' fp-sound-tile' : ''}`}
               style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)' }}
             >
               <UnifiedTile
@@ -494,6 +509,17 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             <SortableTileWrapper key={item.id} item={item} idx={idx} className={gridClass} disabled={!!expanded}>
               {tileInner}
             </SortableTileWrapper>
+          )
+        }
+
+        // S image tiles (grid + mix): SAspectShell manages the outer cell class.
+        // Starts from stored/resolved aspect, updates on image load via context.
+        // resolvedSAspect covers grid mode; tileAspect covers mix mode (already resolved).
+        if (tileSize === 1 && !isSoundRoom && item.type === 'image') {
+          return (
+            <SAspectShell key={item.id} initialAspect={resolvedSAspect ?? tileAspect}>
+              {tileInner}
+            </SAspectShell>
           )
         }
 
