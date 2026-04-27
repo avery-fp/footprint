@@ -63,12 +63,12 @@ export function getGridClass(size: number, aspect: string | null | undefined, is
     if (aspect === 'tall' || aspect === 'portrait') {
       return 'col-span-1 row-span-2 aspect-[9/16]'
     }
-    return 'col-span-2 row-span-1 aspect-video'
+    return 'col-span-2 row-span-1 aspect-[4/3]'
   }
   if (aspect === 'wide' || aspect === 'landscape') {
-    if (size >= 3) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-2 aspect-video'
-    if (size >= 2) return 'col-span-2 row-span-1 md:col-span-2 md:row-span-1 aspect-video'
-    return 'col-span-2 row-span-1 aspect-video'
+    if (size >= 3) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-2 aspect-[4/3]'
+    if (size >= 2) return 'col-span-2 row-span-1 md:col-span-2 md:row-span-1 aspect-[4/3]'
+    return 'col-span-2 row-span-1 aspect-[4/3]'
   }
   if (aspect === 'tall' || aspect === 'portrait') {
     if (size >= 3) return 'col-span-1 row-span-3 md:col-span-2 md:row-span-3 aspect-[3/4]'
