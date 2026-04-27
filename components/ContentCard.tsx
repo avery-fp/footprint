@@ -150,6 +150,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
 
   // ════════════════════════════════════════
   // YOUTUBE — FACADE: thumbnail first, iframe on tap
+  // Surface-ownership law: YouTube iframe ONLY mounts after explicit user tap.
+  // No isExpanded shortcut. No hover preview. No delayed activation.
   // ════════════════════════════════════════
   // Detect YouTube by URL, not just stored type — catches mistyped tiles
   const youtubeId = extractYouTubeId(content.url)
@@ -174,26 +176,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       }, 800)
     }
 
-    // isExpanded: skip facade, render iframe immediately (used in lightbox)
-    if (isExpanded) {
-      const thumbSrc = youtubeThumbCandidates[0]
-      const ytSrc = buildYouTubeEmbedUrl(youtubeId)
-      return (
-        <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative" style={{ background: '#000' }}>
-          <FieldBackground imageUrl={thumbSrc} intensity="embed" />
-          <iframe
-            src={ytSrc}
-            className="w-full h-full relative"
-            style={{ border: 'none', zIndex: 1 }}
-            allow="autoplay; encrypted-media; fullscreen"
-            allowFullScreen
-            referrerPolicy="strict-origin-when-cross-origin"
-            onLoad={handleYTLoad}
-          />
-        </div>
-      )
-    }
-    // Facade — always shows a thumbnail, never collapses
+    // Facade — always shown first. isExpanded has no effect on YouTube:
+    // the wall is Footprint-owned and the iframe only mounts on explicit tap.
     if (!isActivated) {
       const thumbSrc = youtubeThumbCandidates[0]
       return (
@@ -240,6 +224,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           referrerPolicy="strict-origin-when-cross-origin"
           onLoad={handleYTLoad}
         />
+        {/* Block YouTube watermark link — bottom-right corner */}
+        <div style={{ position: 'absolute', bottom: 0, right: 0, width: 50, height: 40, zIndex: 2, pointerEvents: 'auto' }} />
       </div>
     )
   }

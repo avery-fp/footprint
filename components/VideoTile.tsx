@@ -23,6 +23,9 @@ export default function VideoTile({ src, playbackUrl, posterUrl, status, onWides
   const [isNear, setIsNear] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
   const [isReady, setIsReady] = useState(false)
+  // Tracks whether the user has explicitly activated this tile (tapped to unmute).
+  // Once true, the video stays playing/mounted independent of viewport position.
+  const [isUserActivated, setIsUserActivated] = useState(false)
   const [hasFailed, setHasFailed] = useState(false)
   const [showTapFeedback, setShowTapFeedback] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -83,7 +86,10 @@ export default function VideoTile({ src, playbackUrl, posterUrl, status, onWides
     }
   }, [effectiveSrc])
 
-  // Play only when visible (or expanded), pause when off-screen.
+  // Play when visible, expanded, or user-explicitly-activated; pause dormant off-screen only.
+  // AudioManager is NOT called here — auto-play into viewport must not deactivate
+  // other user-activated tiles (GhostTile, ContentCard YouTube). Only handleClick
+  // takes AudioManager focus, because only explicit user action warrants it.
   useEffect(() => {
     const v = videoRef.current
     if (!v) return
@@ -92,34 +98,31 @@ export default function VideoTile({ src, playbackUrl, posterUrl, status, onWides
       if (cancelled || !videoRef.current) return
       videoRef.current.muted = false
       setIsMuted(false)
-      audioManager.play(videoId)
+      // No audioManager.play() here — unlock fires on any page gesture, not
+      // necessarily a direct tap on this tile.
       cleanup()
     }
     const cleanup = () => {
       document.removeEventListener('click', unlock)
       document.removeEventListener('touchstart', unlock)
     }
-    // When expanded, always play regardless of IntersectionObserver
-    const shouldPlay = isExpanded || isVisible
+    // User-activated tiles stay playing regardless of viewport position.
+    const shouldPlay = isExpanded || isVisible || isUserActivated
     if (shouldPlay) {
-      v.play().then(() => {
-        if (cancelled) return
-        v.muted = false
-        setIsMuted(false)
-        audioManager.play(videoId)
-      }).catch(() => {
+      v.play().catch(() => {
         if (cancelled) return
         document.addEventListener('click', unlock, { once: true })
         document.addEventListener('touchstart', unlock, { once: true })
       })
     } else {
-      v.pause()
+      // Only pause if user hasn't explicitly activated — dormant auto-play only.
+      if (!isUserActivated) v.pause()
     }
     return () => {
       cancelled = true
       cleanup()
     }
-  }, [isVisible, isReady, isExpanded, videoId])
+  }, [isVisible, isReady, isExpanded, videoId, isUserActivated])
 
   // Loop control: loop in tile mode, no loop in theatre/fullscreen
   useEffect(() => {
@@ -168,6 +171,8 @@ export default function VideoTile({ src, playbackUrl, posterUrl, status, onWides
       setTimeout(() => setShowTapFeedback(false), 400)
 
       if (isMuted) {
+        // Explicit user activation — take AudioManager focus and pin active state.
+        setIsUserActivated(true)
         audioManager.play(videoId)
         videoRef.current.muted = false
         setIsMuted(false)
