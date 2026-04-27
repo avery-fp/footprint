@@ -310,9 +310,9 @@ export default function UnifiedTile({
         >
           {caption ? (
             <div
-              className="w-full h-full"
+              className="w-full h-full outline-none"
               onClick={(e) => { e.stopPropagation(); setCaptionVisible(v => !v) }}
-              style={{ cursor: 'pointer' }}
+              style={{ cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
             >
               <TileImage
                 src={item.url}
@@ -325,10 +325,10 @@ export default function UnifiedTile({
               />
               {captionVisible && (
                 <div
-                  className="absolute bottom-0 inset-x-0 p-3 bg-black/70 backdrop-blur-sm"
+                  className="absolute bottom-0 inset-x-0 px-4 py-2.5 bg-black/35 backdrop-blur-md"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <p className="text-white/90 text-xs font-mono leading-relaxed m-0">{caption}</p>
+                  <p className="text-white/70 text-xs font-mono leading-relaxed m-0">{caption}</p>
                 </div>
               )}
             </div>

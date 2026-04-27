@@ -384,13 +384,13 @@ function SortableTile({
         {/* Caption overlay — tap to reveal/hide */}
         {(content as any).caption && !isTemp && (
           <div
-            className="absolute inset-0 z-[5]"
+            className="absolute inset-0 z-[5] outline-none"
             onClick={(e) => { if (isArranging) return; e.stopPropagation(); setCaptionVisible(v => !v) }}
-            style={{ cursor: isArranging ? 'default' : 'pointer' }}
+            style={{ cursor: isArranging ? 'default' : 'pointer', WebkitTapHighlightColor: 'transparent' }}
           >
             {captionVisible && (
-              <div className="absolute bottom-0 inset-x-0 p-2.5 bg-black/70 backdrop-blur-sm pointer-events-none">
-                <p className="text-white/90 text-[11px] font-mono leading-relaxed m-0">{(content as any).caption}</p>
+              <div className="absolute bottom-0 inset-x-0 px-3.5 py-2 bg-black/35 backdrop-blur-md pointer-events-none">
+                <p className="text-white/70 text-[11px] font-mono leading-relaxed m-0">{(content as any).caption}</p>
               </div>
             )}
           </div>
