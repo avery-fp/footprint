@@ -141,15 +141,6 @@ export default function GhostTile({
     }
   }, [isPlaying, handlePlay])
 
-  const requestTileFullscreen = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    const el = tileRef.current as (HTMLDivElement & { webkitRequestFullscreen?: () => Promise<void> | void }) | null
-    const request = el?.requestFullscreen || el?.webkitRequestFullscreen
-    try {
-      request?.call(el)
-    } catch {}
-  }
-
   // Thumbnail URL
   const thumbCandidates = getThumbnailCandidates({
     type: platform,
@@ -394,27 +385,6 @@ export default function GhostTile({
             }}
             onError={() => { setIframeFailed(true) }}
           />
-          {/* Replace the YouTube watermark hit area with our fullscreen control. */}
-          {platform === 'youtube' && (
-            <button
-              type="button"
-              aria-label="Fullscreen"
-              onClick={requestTileFullscreen}
-              className="absolute bottom-0 right-0 text-white/80 backdrop-blur-sm flex items-center justify-center opacity-80 hover:opacity-100 transition"
-              style={{
-                width: 76,
-                height: 42,
-                zIndex: 3,
-                background: 'rgba(0,0,0,0.72)',
-                borderTopLeftRadius: 8,
-                pointerEvents: 'auto',
-              }}
-            >
-              <svg width="15" height="15" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-                <path d="M1 5V1h4M9 1h4v4M13 9v4H9M5 13H1V9" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-          )}
         </div>
       )}
     </div>
