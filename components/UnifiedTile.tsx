@@ -8,6 +8,7 @@ import ZoomableImage from '@/components/ZoomableImage'
 import ContainerTileBase from '@/components/ContainerTile'
 import PreviewCardTileBase from '@/components/PreviewCardTile'
 import { getImageSizes } from '@/lib/media/aspect'
+import { getThumbnailCandidates } from '@/lib/media/thumbnails'
 import { mediaTypeFromUrl } from '@/lib/media'
 import { extractYouTubeId } from '@/lib/parseEmbed'
 import TextExpandTile from '@/components/TextExpandTile'
@@ -34,6 +35,7 @@ const GhostTile = memo(GhostTileBase)
 const IMAGE_EXT = /\.(jpg|jpeg|png|gif|webp|heic|avif|svg)($|\?)/i
 
 const EMBED_URL = /(?:youtube\.com|youtu\.be|vimeo\.com|soundcloud\.com|open\.spotify\.com|bandcamp\.com)/i
+const VIDEO_PREVIEW_URL = /(?:youtube\.com|youtu\.be|vimeo\.com|tiktok\.com|instagram\.com)/i
 
 function resolveCanonicalType(type: string, url: string, mediaKind?: string | null): 'video' | 'image' | 'thought' | 'content' {
   if (type === 'thought') return 'thought'
@@ -47,6 +49,20 @@ function resolveCanonicalType(type: string, url: string, mediaKind?: string | nu
   if (IMAGE_EXT.test(url)) return 'image'
   if (type === 'image') return 'image'
   return 'content'
+}
+
+function shouldCropPreviewThumbnail(type: string, url: string, mediaKind?: string | null): boolean {
+  return type === 'video' || mediaKind === 'video' || Boolean(extractYouTubeId(url)) || VIDEO_PREVIEW_URL.test(url)
+}
+
+function getPreviewThumbnailCandidates(item: Pick<UnifiedTileProps['item'], 'type' | 'url' | 'media_id' | 'thumbnail_url_hq' | 'thumbnail_url'>): string[] {
+  return getThumbnailCandidates({
+    type: item.type,
+    url: item.url,
+    media_id: item.media_id,
+    thumbnail_url_hq: item.thumbnail_url_hq,
+    thumbnail_url: item.thumbnail_url,
+  })
 }
 
 export type TileMode = 'public' | 'editor' | 'sandbox'
@@ -212,13 +228,16 @@ export default function UnifiedTile({
           </div>
         )
       case 'preview_card':
+        const previewThumbnailCandidates = getPreviewThumbnailCandidates(item)
         return (
           <div className="w-full h-full" data-tile-id={item.id} data-tile-type="preview-card">
             <PreviewCardTileBase
               url={item.url}
-              thumbnailUrl={item.thumbnail_url_hq || item.thumbnail_url}
+              thumbnailUrl={previewThumbnailCandidates[0] || item.thumbnail_url_hq || item.thumbnail_url}
               title={item.title}
               subtitle={item.artist || null}
+              cropThumbnail={shouldCropPreviewThumbnail(item.type, item.url, item.media_kind)}
+              thumbnailCandidates={previewThumbnailCandidates}
             />
           </div>
         )
