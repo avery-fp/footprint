@@ -1,5 +1,7 @@
 'use client'
 
+import { applyNextThumbnailFallback, applyThumbnailLoadGuard } from '@/lib/media/thumbnails'
+
 /**
  * PREVIEW CARD TILE — Universal fallback rendering
  *
@@ -16,6 +18,8 @@ interface PreviewCardTileProps {
   thumbnailUrl: string | null
   title: string | null
   subtitle: string | null
+  cropThumbnail?: boolean
+  thumbnailCandidates?: string[]
 }
 
 export default function PreviewCardTile({
@@ -23,9 +27,14 @@ export default function PreviewCardTile({
   thumbnailUrl,
   title,
   subtitle,
+  cropThumbnail = false,
+  thumbnailCandidates = [],
 }: PreviewCardTileProps) {
+  const candidates = thumbnailCandidates.length > 0 ? thumbnailCandidates : thumbnailUrl ? [thumbnailUrl] : []
+  const thumbSrc = candidates[0] || thumbnailUrl
+
   // ── With thumbnail: visual card ──
-  if (thumbnailUrl) {
+  if (thumbSrc) {
     return (
       <a
         href={url}
@@ -34,15 +43,23 @@ export default function PreviewCardTile({
         className="block w-full h-full relative overflow-hidden"
         style={{ borderRadius: 'inherit' }}
       >
-        {/* Album art / thumbnail — full bleed */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={thumbnailUrl}
-          alt=""
-          className="absolute inset-0 w-full h-full object-cover"
-          loading="lazy"
-          decoding="async"
-        />
+        <div className={cropThumbnail ? 'fp-resting-video-frame' : 'absolute inset-0'}>
+          {/* Album art / thumbnail — full bleed */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={thumbSrc}
+            alt=""
+            className={cropThumbnail ? 'fp-resting-video-media' : 'absolute inset-0 w-full h-full object-cover'}
+            loading="lazy"
+            decoding="async"
+            onLoad={(e) => {
+              applyThumbnailLoadGuard(e.currentTarget, candidates)
+            }}
+            onError={(e) => {
+              applyNextThumbnailFallback(e.currentTarget, candidates)
+            }}
+          />
+        </div>
 
         {/* Bottom gradient — text readability */}
         <div

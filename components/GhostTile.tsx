@@ -307,7 +307,7 @@ export default function GhostTile({
         clipPath: 'inset(0 round var(--fp-tile-radius, 0px))',
       }}
     >
-      <ThumbnailBg src={thumbUrl} candidates={thumbCandidates} />
+      <ThumbnailBg src={thumbUrl} candidates={thumbCandidates} cropBars />
 
       <div
         className="absolute inset-0 flex items-center justify-center cursor-pointer"
@@ -335,9 +335,9 @@ export default function GhostTile({
 
       {/* Fallback: if iframe fails or times out, show a graceful link-out */}
       {isPlaying && iframeFailed && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/80" style={{ zIndex: 3 }}>
+        <div className="fp-open-source-fallback absolute inset-0 flex flex-col items-center justify-center gap-2" style={{ zIndex: 3 }}>
           <a href={url} target="_blank" rel="noopener noreferrer"
-            className="text-white/60 hover:text-white/90 text-sm underline transition-colors">
+            className="fp-open-source-link transition-colors">
             open source ↗
           </a>
         </div>
@@ -450,17 +450,17 @@ function TwitterEmbed({ url }: { url: string }) {
   )
 }
 
-function ThumbnailBg({ src, candidates }: { src: string | null; candidates: string[] }) {
+function ThumbnailBg({ src, candidates, cropBars = false }: { src: string | null; candidates: string[]; cropBars?: boolean }) {
   if (!src) return (
     <div className="absolute inset-0" style={{ background: 'rgba(0, 0, 0, 0.6)' }} />
   )
   return (
-    <>
+    <div className={cropBars ? 'fp-resting-video-frame' : 'absolute inset-0'}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={src}
         alt=""
-        className="absolute inset-0 w-full h-full object-cover"
+        className={cropBars ? 'fp-resting-video-media' : 'absolute inset-0 w-full h-full object-cover'}
         style={{}}
         loading="lazy"
         decoding="async"
@@ -471,7 +471,7 @@ function ThumbnailBg({ src, candidates }: { src: string | null; candidates: stri
           applyNextThumbnailFallback(e.currentTarget, candidates)
         }}
       />
-    </>
+    </div>
   )
 }
 

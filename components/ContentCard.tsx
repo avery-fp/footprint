@@ -186,20 +186,22 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           className="w-full h-full fp-tile overflow-hidden cursor-pointer relative group bg-black"
           onClick={handleActivate}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={thumbSrc}
-            alt=""
-            className="w-full h-full object-cover"
-            loading="lazy"
-            decoding="async"
-            onLoad={(e) => {
-              applyThumbnailLoadGuard(e.currentTarget, youtubeThumbCandidates)
-            }}
-            onError={(e) => {
-              applyNextThumbnailFallback(e.currentTarget, youtubeThumbCandidates)
-            }}
-          />
+          <div className="fp-resting-video-frame">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={thumbSrc}
+              alt=""
+              className="fp-resting-video-media"
+              loading="lazy"
+              decoding="async"
+              onLoad={(e) => {
+                applyThumbnailLoadGuard(e.currentTarget, youtubeThumbCandidates)
+              }}
+              onError={(e) => {
+                applyNextThumbnailFallback(e.currentTarget, youtubeThumbCandidates)
+              }}
+            />
+          </div>
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center opacity-60 group-hover:opacity-100 group-hover:scale-110 transition-all duration-200">
               <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
@@ -558,15 +560,17 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           style={{ background: 'rgba(255,255,255,0.04)' }}
         >
           {thumbSrc && (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              src={thumbSrc}
-              alt=""
-              className="w-full h-full object-cover absolute inset-0 z-[1]"
-              loading="lazy"
-              decoding="async"
-              onError={() => setSocialThumbFailed(true)}
-            />
+            <div className="fp-resting-video-frame z-[1]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={thumbSrc}
+                alt=""
+                className="fp-resting-video-media"
+                loading="lazy"
+                decoding="async"
+                onError={() => setSocialThumbFailed(true)}
+              />
+            </div>
           )}
           {/* Text overlay — caption atop thumb, readable via text-shadow */}
           <div className="absolute inset-0 flex flex-col items-center justify-center p-5">
@@ -622,15 +626,17 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           style={{ background: 'rgba(255,255,255,0.04)' }}
         >
           {thumbSrc && (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              src={thumbSrc}
-              alt=""
-              className="w-full h-full object-cover absolute inset-0 z-[1]"
-              loading="lazy"
-              decoding="async"
-              onError={() => setSocialThumbFailed(true)}
-            />
+            <div className="fp-resting-video-frame z-[1]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={thumbSrc}
+                alt=""
+                className="fp-resting-video-media"
+                loading="lazy"
+                decoding="async"
+                onError={() => setSocialThumbFailed(true)}
+              />
+            </div>
           )}
           {/* Text overlay — caption atop thumb */}
           <div className="absolute inset-0 flex flex-col items-center justify-center p-5">

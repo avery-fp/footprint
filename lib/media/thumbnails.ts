@@ -30,20 +30,26 @@ export function getYouTubeThumbnailCandidates(input: { url?: string | null; medi
     return dedupe([input.thumbnail_url, input.thumbnail_url_hq])
   }
 
+  const maxresWebp = `https://i.ytimg.com/vi_webp/${id}/maxresdefault.webp`
   const maxres = `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`
+  const sdWebp = `https://i.ytimg.com/vi_webp/${id}/sddefault.webp`
   const sd = `https://i.ytimg.com/vi/${id}/sddefault.jpg`
+  const hqWebp = `https://i.ytimg.com/vi_webp/${id}/hqdefault.webp`
   const hq = `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
   const mq = `https://i.ytimg.com/vi/${id}/mqdefault.jpg`
   const fallback = `https://i.ytimg.com/vi/${id}/default.jpg`
   const isRawLowResYtimg = (url?: string | null) =>
-    Boolean(url && /i\.ytimg\.com\/vi\//.test(url) && !url.includes('/maxresdefault.'))
+    Boolean(url && /i\.ytimg\.com\/(?:vi|vi_webp)\//.test(url) && !url.includes('/maxresdefault.'))
 
   return dedupe([
     input.thumbnail_url_hq && !isRawLowResYtimg(input.thumbnail_url_hq) ? input.thumbnail_url_hq : null,
     input.thumbnail_url && !isRawLowResYtimg(input.thumbnail_url) ? input.thumbnail_url : null,
+    maxresWebp,
     maxres,
     input.thumbnail_url_hq,
+    sdWebp,
     sd,
+    hqWebp,
     hq,
     mq,
     fallback,
@@ -85,7 +91,7 @@ function isInsufficientYouTubeThumbnail(img: HTMLImageElement): boolean {
   const current = img.currentSrc || img.src
   const width = img.naturalWidth || 0
 
-  if (!/ytimg\.com\/vi\//.test(current)) return false
+  if (!/ytimg\.com\/(?:vi|vi_webp)\//.test(current)) return false
   if (current.includes('/maxresdefault.') && width > 0 && width < 1280) return true
   if (current.includes('/sddefault.') && width > 0 && width < 640) return true
   if (current.includes('/hqdefault.') && width > 0 && width < 480) return true

@@ -331,7 +331,20 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const layoutConfig = getGridLayout(roomLayout)
   const isMix = roomLayout === 'mix' || roomLayout === 'editorial'
   const isRail = layoutConfig.isRail === true
+  const isPuzzleGrid = roomLayout === 'grid'
   const displayContent = isOwner ? localContent : content
+
+  const getPuzzleGridClass = (tileSize: number) => {
+    if (tileSize >= 3) return 'col-span-2 row-span-2 aspect-square'
+    if (tileSize >= 2) return 'col-span-2 row-span-1 aspect-[2/1]'
+    return 'col-span-1 row-span-1 aspect-square'
+  }
+
+  const getPuzzleTileClass = (tileSize: number) => {
+    if (tileSize >= 3) return 'fp-puzzle-tile-l'
+    if (tileSize >= 2) return 'fp-puzzle-tile-m'
+    return 'fp-puzzle-tile-s'
+  }
 
   const fadeStyle = {
     opacity: roomFade === 'out' ? 0 : 1,
@@ -451,9 +464,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         // Spotify = portrait. SoundCloud = wide. Embed videos = wide.
         // Uploaded videos / Instagram / images = use their actual aspect.
         //
-        // S image tiles in grid mode: SAspectShell detects natural dimensions on load
-        // and reshapes the cell to portrait/landscape/square accordingly.
-        // resolvedSAspect seeds the initial state so stored aspects apply immediately.
+        // S image tiles outside puzzle grid: SAspectShell detects natural dimensions
+        // on load and reshapes the cell to portrait/landscape/square accordingly.
+        // Puzzle grid keeps S tiles locked to square cells.
         const resolvedSAspect = (tileSize === 1 && !isMix)
           ? resolveAspect(item.aspect, item.type, item.url)
           : null
@@ -464,8 +477,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             : 'aspect-square')
           : null
 
-        const gridClass = isSoundRoom && idx === 0
-          ? 'col-span-2 row-span-2 aspect-square'
+        const gridClass = isPuzzleGrid
+          ? getPuzzleGridClass(tileSize)
+          : isSoundRoom && idx === 0 ? 'col-span-2 row-span-2 aspect-square'
           : isSpotify ? 'col-span-1 aspect-[3/4]'
           : isAudioEmbed ? 'col-span-2 aspect-video'
           : isEmbedVid ? 'col-span-2 aspect-video'
@@ -480,8 +494,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             style={getDepthStyle(item.id)}
           >
             <div
-              className={`relative w-full overflow-hidden fp-tile-hover h-full ${tileSize === 1 ? 'rounded-xl' : 'rounded-2xl'}${isSoundRoom ? ' fp-sound-tile' : ''}`}
-              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)' }}
+              className={`relative w-full overflow-hidden fp-tile-hover h-full ${isPuzzleGrid ? `fp-puzzle-tile ${getPuzzleTileClass(tileSize)} rounded-2xl` : tileSize === 1 ? 'rounded-xl' : 'rounded-2xl'}${isSoundRoom ? ' fp-sound-tile' : ''}`}
+              style={isPuzzleGrid
+                ? undefined
+                : { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)' }}
             >
               <UnifiedTile
                 item={item}
@@ -512,10 +528,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           )
         }
 
-        // S image tiles (grid + mix): SAspectShell manages the outer cell class.
+        // S image tiles outside puzzle grid: SAspectShell manages the outer cell class.
         // Starts from stored/resolved aspect, updates on image load via context.
         // resolvedSAspect covers grid mode; tileAspect covers mix mode (already resolved).
-        if (tileSize === 1 && !isSoundRoom && item.type === 'image') {
+        if (tileSize === 1 && !isPuzzleGrid && !isSoundRoom && item.type === 'image') {
           return (
             <SAspectShell key={item.id} initialAspect={resolvedSAspect ?? tileAspect}>
               {tileInner}
@@ -542,7 +558,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   ) : gridInner
 
   return (
-    <div className="relative flex min-h-[100dvh] w-full flex-col overflow-x-clip" style={{ background: theme.colors.background, color: theme.colors.text, '--fp-glass': theme.colors.glass, '--fp-text-muted': theme.colors.textMuted } as React.CSSProperties}>
+    <div className={`relative flex min-h-[100dvh] w-full flex-col overflow-x-clip${isPuzzleGrid ? ' fp-puzzle-page' : ''}`} style={{ background: theme.colors.background, color: theme.colors.text, '--fp-glass': theme.colors.glass, '--fp-text-muted': theme.colors.textMuted } as React.CSSProperties}>
       {/* Wallpaper layer — GPU composited for 60fps scroll */}
       {footprint.background_url && (
         <div className="fixed inset-0 z-0 fp-wallpaper-gpu">
@@ -616,7 +632,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
         {/* Masthead */}
         <RemoveBubble slug={footprint.slug}>
-          <header className="pb-4 md:pb-5 flex flex-col items-center px-4">
+          <header className={`pb-4 md:pb-5 flex flex-col items-center px-4${isPuzzleGrid ? ' fp-puzzle-masthead' : ''}`}>
             <h1
               className={`${
                 displayTitle.length <= 3
@@ -626,7 +642,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                   : displayTitle.length <= 12
                   ? 'text-3xl md:text-5xl tracking-[0.14em] font-normal'
                   : 'text-2xl md:text-4xl tracking-[0.06em] font-light'
-              }`}
+              }${isPuzzleGrid ? ' fp-puzzle-title' : ''}`}
               style={{
                 color: theme.colors.text,
                 opacity: 0.92,
@@ -677,8 +693,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
         {/* Grid */}
         <div
-          className={`fp-grid-arrive ${isRail ? 'w-full' : 'fp-grid-container mx-auto w-full px-3 md:px-4'}`}
-          style={isRail ? undefined : { maxWidth: '880px' }}
+          className={`fp-grid-arrive ${isRail ? 'w-full' : `fp-grid-container mx-auto w-full ${isPuzzleGrid ? 'fp-puzzle-frame px-5 md:px-8' : 'px-3 md:px-4'}`}`}
+          style={isRail ? undefined : { maxWidth: isPuzzleGrid ? '900px' : '880px' }}
         >
           {activeGrid}
         </div>
@@ -803,31 +819,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         {/* Floor */}
         <div style={{ height: '40px' }} />
 
-        {/* Footer — copy link */}
-        <div className="py-10 flex items-center justify-center">
-          <button
-            onClick={handleShare}
-            className="font-mono text-white/60 transition-colors duration-300 hover:text-white/80 touch-manipulation"
-            aria-label={`Copy Footprint #${String(serial).padStart(4, '0')} link`}
-            style={{
-              fontSize: '11px',
-              fontWeight: 300,
-              letterSpacing: '0.12em',
-              background: 'none',
-              border: 'none',
-              borderRadius: 0,
-              boxShadow: 'none',
-              outline: 'none',
-              padding: 0,
-              cursor: 'default',
-              appearance: 'none',
-              WebkitAppearance: 'none',
-              WebkitTapHighlightColor: 'transparent',
-            }}
-          >
-            #{String(serial).padStart(4, '0')}
-          </button>
-        </div>
       </div>
 
       {/* Rolodex drawer */}
