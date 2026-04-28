@@ -589,6 +589,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         theme={theme}
         isMobile={isMobile}
         isOwner={isOwner}
+        showCreateButton={isOwner}
         activeRoomId={activeRoomId}
         onNavigateToTile={handleTileNavigate}
         onNavigateToRoom={goToRoom}
