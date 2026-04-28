@@ -424,6 +424,8 @@ export default function EditPage() {
   const [draggingTileId, setDraggingTileId] = useState<string | null>(null)
   const [editingThought, setEditingThought] = useState<string | null>(null)
   const [editingThoughtText, setEditingThoughtText] = useState('')
+  const [editingLinkTitle, setEditingLinkTitle] = useState<string | null>(null)
+  const [editingLinkTitleText, setEditingLinkTitleText] = useState('')
   const [swapSourceId, setSwapSourceId] = useState<string | null>(null)
   const [isOwner, setIsOwner] = useState(false)
   const [accessRequired, setAccessRequired] = useState(false)
@@ -596,7 +598,7 @@ export default function EditPage() {
   const openTileMenu = (tileId: string) => {
     setMode({ type: 'tile_menu', tileId })
   }
-  const closeTileMenu = () => { setEditingThought(null); setMode({ type: 'arranging' }) }
+  const closeTileMenu = () => { setEditingThought(null); setEditingLinkTitle(null); setMode({ type: 'arranging' }) }
   const startAdding = (method: 'url' | 'thought' | 'container') => setMode({ type: 'adding', method })
   const stopAdding = () => setMode({ type: 'arranging' })
 
@@ -2437,6 +2439,59 @@ export default function EditPage() {
                     className="w-full text-left text-sm text-white/50 hover:text-white/80 transition font-mono py-3 border-b border-white/[0.06] flex items-center gap-2"
                   >
                     <span className="text-white/30 text-xs">Aa</span> edit text
+                  </button>
+                )
+              )}
+
+              {/* Edit link label */}
+              {tileSources[mode.tileId] === 'links' && selectedTile.type !== 'thought' && selectedTile.type !== 'container' && (
+                editingLinkTitle === mode.tileId ? (
+                  <div className="py-3 border-b border-white/[0.06]">
+                    <input
+                      autoFocus
+                      type="text"
+                      value={editingLinkTitleText}
+                      onChange={(e) => setEditingLinkTitleText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const text = editingLinkTitleText.trim()
+                          if (text) updateThoughtText(mode.tileId, text)
+                          setEditingLinkTitle(null)
+                        }
+                        if (e.key === 'Escape') setEditingLinkTitle(null)
+                      }}
+                      className="w-full bg-white/[0.06] text-white text-sm rounded-lg px-3 py-2.5 border border-white/10 outline-none font-mono placeholder:text-white/20"
+                      maxLength={200}
+                      placeholder="tile label..."
+                    />
+                    <div className="flex items-center justify-end gap-2 mt-2">
+                      <button
+                        onClick={() => setEditingLinkTitle(null)}
+                        className="px-3 py-1 rounded-md text-xs font-mono text-white/40 hover:text-white/60 transition"
+                      >
+                        cancel
+                      </button>
+                      <button
+                        onClick={() => {
+                          const text = editingLinkTitleText.trim()
+                          if (text) updateThoughtText(mode.tileId, text)
+                          setEditingLinkTitle(null)
+                        }}
+                        className="px-3 py-1 rounded-md text-xs font-mono bg-white/[0.12] text-white/70 hover:bg-white/20 hover:text-white transition"
+                      >
+                        save
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setEditingLinkTitle(mode.tileId)
+                      setEditingLinkTitleText(selectedTile.title || '')
+                    }}
+                    className="w-full text-left text-sm text-white/50 hover:text-white/80 transition font-mono py-3 border-b border-white/[0.06] flex items-center gap-2"
+                  >
+                    <span className="text-white/30 text-xs">T</span> edit label
                   </button>
                 )
               )}
