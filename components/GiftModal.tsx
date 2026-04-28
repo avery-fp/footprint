@@ -6,9 +6,10 @@ interface GiftModalProps {
   onClose: () => void
   giftsRemaining: number
   onGiftSent: (remaining: number) => void
+  slug: string
 }
 
-export default function GiftModal({ onClose, giftsRemaining, onGiftSent }: GiftModalProps) {
+export default function GiftModal({ onClose, giftsRemaining, onGiftSent, slug }: GiftModalProps) {
   const [email1, setEmail1] = useState('')
   const [email2, setEmail2] = useState('')
   const [loading, setLoading] = useState(false)
@@ -38,7 +39,7 @@ export default function GiftModal({ onClose, giftsRemaining, onGiftSent }: GiftM
       const res = await fetch('/api/gifts/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ emails }),
+        body: JSON.stringify({ emails, slug }),
       })
 
       const data = await res.json()

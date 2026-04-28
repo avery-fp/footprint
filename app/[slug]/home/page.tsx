@@ -748,7 +748,7 @@ export default function EditPage() {
           setBackgroundBlur(data.footprint.background_blur ?? true)
           setIsPublished(data.footprint.published !== false)
           // Fetch gift count
-          fetch('/api/gifts/remaining').then(r => r.json()).then(d => {
+          fetch(`/api/gifts/remaining?slug=${encodeURIComponent(slug)}`).then(r => r.json()).then(d => {
             setGiftsRemaining(d.remaining || 0)
           }).catch(() => {})
           const sources: Record<string, 'library' | 'links'> = {}
@@ -2972,6 +2972,7 @@ export default function EditPage() {
           onClose={() => setShowGiftModal(false)}
           giftsRemaining={giftsRemaining}
           onGiftSent={(remaining) => setGiftsRemaining(remaining)}
+          slug={slug}
         />
       )}
     </div>
