@@ -78,7 +78,7 @@ export function getGridClass(size: number, aspect: string | null | undefined, is
   // 3-state topology: S (1×1 square) → M (2×1 landscape) → L (2×2 square)
   if (size >= 3) return 'col-span-2 row-span-2 aspect-square'
   if (size >= 2) return 'col-span-2 row-span-1 aspect-[4/3]'
-  return 'col-span-2 aspect-square'
+  return 'col-span-2 row-span-2 aspect-[3/4]'
 }
 
 /**
