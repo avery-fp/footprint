@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { audioManager } from '@/lib/audio-manager'
 import { parseEmbed, buildYouTubeEmbedUrl } from '@/lib/parseEmbed'
-import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getThumbnailCandidates } from '@/lib/media/thumbnails'
+import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getThumbnailCandidates, isBadOrMissingThumbnail } from '@/lib/media/thumbnails'
 
 // ════════════════════════════════════════
 // GHOST TILE — de-branded media renderer
@@ -53,6 +53,7 @@ export default function GhostTile({
   const [isPlaying, setIsPlaying] = useState(false)
   const [iframeLoaded, setIframeLoaded] = useState(false)
   const [iframeFailed, setIframeFailed] = useState(false)
+  const [thumbnailExhausted, setThumbnailExhausted] = useState(false)
   const iframeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const tileRef = useRef<HTMLDivElement | null>(null)
   const tileId = useRef(`ghost-${media_id}-${Math.random().toString(36).slice(2, 6)}`)
@@ -266,8 +267,16 @@ export default function GhostTile({
   // YouTube clip support: convert ms → integer seconds for start/end params.
   const ytClipStart = clip_start_ms ? Math.floor(clip_start_ms / 1000) : 0
   const ytClipEnd = clip_end_ms ? Math.ceil(clip_end_ms / 1000) : 0
+  // When the thumbnail facade can't render (empty url / chain lands on
+  // ytimg `default.jpg`), skip the dormant grey state and mount the
+  // YouTube embed directly so the tile shows YouTube's own player UI.
+  const shouldAutoActivateEmbed =
+    platform === 'youtube' && (isBadOrMissingThumbnail(thumbUrl) || thumbnailExhausted)
+  const effectiveActivated = isPlaying || shouldAutoActivateEmbed
   const iframeSrc = platform === 'youtube'
-    ? buildYouTubeEmbedUrl(media_id, { start: ytClipStart, end: ytClipEnd, hd: true })
+    // Auto-activated path: autoplay off so YouTube renders its own
+    // thumbnail/play UI. User-click path keeps autoplay+mute (mobile-Safari).
+    ? buildYouTubeEmbedUrl(media_id, { autoplay: isPlaying, mute: isPlaying, start: ytClipStart, end: ytClipEnd, hd: true })
     : platform === 'vimeo'
     // Vimeo respects `quality` param: "1080p" | "720p" | ... | "auto"
     ? `https://player.vimeo.com/video/${media_id}?title=0&byline=0&portrait=0&badge=0&dnt=1&autoplay=1&quality=1080p`
@@ -318,13 +327,17 @@ export default function GhostTile({
         clipPath: 'inset(0 round var(--fp-tile-radius, 0px))',
       }}
     >
-      <ThumbnailBg src={thumbUrl} candidates={thumbCandidates} />
+      <ThumbnailBg
+        src={thumbUrl}
+        candidates={thumbCandidates}
+        onExhausted={platform === 'youtube' ? () => setThumbnailExhausted(true) : undefined}
+      />
 
       <div
         className="absolute inset-0 flex items-center justify-center cursor-pointer"
         style={{
-          opacity: isPlaying ? 0 : 1,
-          pointerEvents: isPlaying ? 'none' : 'auto',
+          opacity: effectiveActivated ? 0 : 1,
+          pointerEvents: effectiveActivated ? 'none' : 'auto',
           transition: 'opacity 0.4s ease',
           zIndex: 2,
         }}
@@ -345,7 +358,7 @@ export default function GhostTile({
       </div>
 
       {/* Fallback: if iframe fails or times out, show a graceful link-out */}
-      {isPlaying && iframeFailed && (
+      {effectiveActivated && iframeFailed && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/80" style={{ zIndex: 3 }}>
           <a href={url} target="_blank" rel="noopener noreferrer"
             className="text-white/60 hover:text-white/90 text-sm underline transition-colors">
@@ -354,7 +367,7 @@ export default function GhostTile({
         </div>
       )}
 
-      {isPlaying && iframeSrc && !iframeFailed && (
+      {effectiveActivated && iframeSrc && !iframeFailed && (
         <div
           className="absolute inset-0"
           style={{
@@ -468,7 +481,7 @@ function TwitterEmbed({ url }: { url: string }) {
   )
 }
 
-function ThumbnailBg({ src, candidates }: { src: string | null; candidates: string[] }) {
+function ThumbnailBg({ src, candidates, onExhausted }: { src: string | null; candidates: string[]; onExhausted?: () => void }) {
   if (!src) return (
     <div className="absolute inset-0" style={{ background: 'rgba(0, 0, 0, 0.6)' }} />
   )
@@ -484,9 +497,16 @@ function ThumbnailBg({ src, candidates }: { src: string | null; candidates: stri
         decoding="async"
         onLoad={(e) => {
           applyThumbnailLoadGuard(e.currentTarget, candidates)
+          // Chain landed on the lowest-res `/default.jpg` — every higher-res
+          // ytimg variant returned the grey unavailable placeholder.
+          const finalSrc = e.currentTarget.currentSrc || e.currentTarget.src
+          if (onExhausted && /\/vi\/[^/]+\/default\.jpg/.test(finalSrc)) {
+            onExhausted()
+          }
         }}
         onError={(e) => {
-          applyNextThumbnailFallback(e.currentTarget, candidates)
+          const advanced = applyNextThumbnailFallback(e.currentTarget, candidates)
+          if (!advanced) onExhausted?.()
         }}
       />
     </>
