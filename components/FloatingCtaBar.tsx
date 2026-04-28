@@ -1,18 +1,25 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 /**
- * FloatingCtaBar — visitor-facing "Make yours →" CTA at the bottom of
- * every public footprint. Clicking creates an anonymous draft footprint
- * and drops the visitor into /{tempSlug}/home to start building.
+ * FloatingCtaBar — quiet "Make yours →" CTA on every public footprint.
+ * Hidden at the top of the page; fades in once the visitor has scrolled past
+ * an early threshold so it never competes with the first impression.
  */
 export default function FloatingCtaBar({ isOwner = false }: { isOwner?: boolean }) {
-  const [dismissed, setDismissed] = useState(false)
   const [loading, setLoading] = useState(false)
-  const visible = true
+  const [visible, setVisible] = useState(false)
 
-  if (isOwner || dismissed) return null
+  useEffect(() => {
+    if (isOwner) return
+    const onScroll = () => setVisible(window.scrollY > 80)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [isOwner])
+
+  if (isOwner) return null
 
   const handleMakeYours = async () => {
     if (loading) return
@@ -38,51 +45,40 @@ export default function FloatingCtaBar({ isOwner = false }: { isOwner?: boolean 
         left: 0,
         right: 0,
         zIndex: 40,
-        padding: '16px 20px calc(16px + env(safe-area-inset-bottom, 0px))',
-        background: 'rgba(10, 10, 10, 0.85)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+        paddingBottom: 'calc(20px + env(safe-area-inset-bottom, 0px))',
+        paddingTop: '64px',
+        background: 'linear-gradient(to top, rgba(8,8,10,0.78) 0%, rgba(8,8,10,0.45) 50%, rgba(8,8,10,0) 100%)',
         opacity: visible ? 1 : 0,
-        transform: visible ? 'translateY(0)' : 'translateY(100%)',
-        transition: 'opacity 0.4s ease, transform 0.4s ease',
-        pointerEvents: visible ? 'auto' : 'none',
+        transform: visible ? 'translateY(0)' : 'translateY(8px)',
+        transition: 'opacity 0.5s ease, transform 0.5s ease',
+        pointerEvents: 'none',
+        display: 'flex',
+        justifyContent: 'center',
       }}
     >
-      <div style={{ maxWidth: '400px', margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-        <button
-          onClick={handleMakeYours}
-          disabled={loading}
-          style={{
-            width: '100%',
-            padding: '14px',
-            borderRadius: '12px',
-            background: '#d4c5a9',
-            color: '#0c0c10',
-            fontSize: '14px',
-            fontWeight: 500,
-            letterSpacing: '0.02em',
-            border: 'none',
-            cursor: loading ? 'default' : 'pointer',
-            opacity: loading ? 0.6 : 1,
-          }}
-        >
-          {loading ? 'preparing…' : 'make yours →'}
-        </button>
-        <button
-          onClick={() => setDismissed(true)}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            color: 'rgba(255,255,255,0.3)',
-            fontSize: '11px',
-            letterSpacing: '0.08em',
-            cursor: 'pointer',
-          }}
-        >
-          not now
-        </button>
-      </div>
+      <button
+        onClick={handleMakeYours}
+        disabled={loading}
+        style={{
+          pointerEvents: visible ? 'auto' : 'none',
+          background: 'transparent',
+          border: 'none',
+          padding: '8px 14px',
+          fontFamily: "'DM Sans', sans-serif",
+          fontSize: '14px',
+          fontWeight: 400,
+          letterSpacing: '0.01em',
+          color: 'rgba(244, 236, 222, 0.78)',
+          textShadow: '0 0 24px rgba(244, 236, 222, 0.18)',
+          cursor: loading ? 'default' : 'pointer',
+          opacity: loading ? 0.55 : 1,
+          transition: 'opacity 0.2s ease, color 0.2s ease',
+        }}
+        onMouseEnter={(e) => { if (!loading) (e.currentTarget as HTMLElement).style.color = 'rgba(244, 236, 222, 1)' }}
+        onMouseLeave={(e) => { if (!loading) (e.currentTarget as HTMLElement).style.color = 'rgba(244, 236, 222, 0.78)' }}
+      >
+        {loading ? 'preparing…' : 'make yours →'}
+      </button>
     </div>
   )
 }
