@@ -104,3 +104,11 @@ export function applyThumbnailLoadGuard(img: HTMLImageElement, candidates: strin
   if (!isInsufficientYouTubeThumbnail(img)) return false
   return applyNextThumbnailFallback(img, candidates)
 }
+
+// True when the thumbnail URL is empty or points at the lowest-res ytimg
+// `default.jpg` endpoint — the place the fallback chain lands when every
+// higher-res variant returned the grey "video unavailable" placeholder.
+export function isBadOrMissingThumbnail(url: string | null | undefined): boolean {
+  if (!url) return true
+  return /(?:i\.ytimg\.com|img\.youtube\.com)\/vi\/[^/]+\/default\.jpg/.test(url)
+}
