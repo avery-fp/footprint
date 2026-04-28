@@ -247,7 +247,7 @@ function SortableTile({
               : 'tile-arranging tile-jiggle'
             : ''
         } ${selected ? 'ring-2 ring-white/60' : ''}`}
-        style={{ ...(revealStyle || {}), background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
+        style={{ ...(revealStyle || {}), background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.03)' }}
         {...tileHandlers}
         {...touchHandlers}
         onContextMenu={(e) => e.preventDefault()}
@@ -1648,6 +1648,13 @@ export default function EditPage() {
     const files = Array.from(e.target.files || [])
     if (files.length === 0 || !draft || !serialNumber) return
 
+    if (files.length > 10) {
+      setStatusToast('Max 10 files at a time.')
+      setTimeout(() => setStatusToast(null), 3000)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+
     // Size limit: 10MB images
     const oversizedImages = files.filter(f => f.size > 10 * 1024 * 1024)
     if (oversizedImages.length > 0) {
@@ -2004,7 +2011,7 @@ export default function EditPage() {
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               {isPublished ? (
                 <>
                   {/* Published/draft toggle — only for published rooms */}
@@ -2081,8 +2088,8 @@ export default function EditPage() {
               maxLength={120}
               className="w-full bg-transparent border-0 px-2 text-center text-white placeholder:text-white/30 outline-none"
               style={{
-                fontSize: resolvedDisplayTitle.length > 18 ? '1.25rem' : resolvedDisplayTitle.length > 10 ? '1.6rem' : '2rem',
-                letterSpacing: resolvedDisplayTitle.length <= 3 ? '0em' : resolvedDisplayTitle.length > 12 ? '0.02em' : '0.08em',
+                fontSize: resolvedDisplayTitle.length > 18 ? '1.05rem' : resolvedDisplayTitle.length > 10 ? '1.35rem' : '1.7rem',
+                letterSpacing: resolvedDisplayTitle.length <= 3 ? '0em' : resolvedDisplayTitle.length > 12 ? '0.04em' : '0.1em',
                 fontWeight: 300,
                 lineHeight: 1.1,
               }}
@@ -2094,7 +2101,7 @@ export default function EditPage() {
           <div className="relative flex items-center justify-center">
             <p className="font-mono text-[12px] tracking-[0.01em] transition-opacity duration-700 text-center">
               <span className="text-white/20">footprint.onl/</span>
-              <span className={isPublished ? 'text-white/70' : 'text-white/[0.15]'}>{slug}</span>
+              <span className={isPublished ? 'text-white/35' : 'text-white/[0.15]'}>{slug}</span>
             </p>
 
           </div>
@@ -2183,7 +2190,7 @@ export default function EditPage() {
                       background: wallpaperUrl
                         ? `url(${wallpaperUrl}) center/cover`
                         : 'rgba(255,255,255,0.04)',
-                      border: '1px solid rgba(255,255,255,0.08)',
+                      border: '1px solid rgba(255,255,255,0.04)',
                       animation: bgPulse && !wallpaperUrl ? 'fp-bg-pulse 2s ease-in-out' : undefined,
                     }}
                   >
@@ -2251,7 +2258,7 @@ export default function EditPage() {
                 background: wallpaperUrl
                   ? `url(${wallpaperUrl}) center/cover`
                   : 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.08)',
+                border: '1px solid rgba(255,255,255,0.04)',
                 animation: bgPulse && !wallpaperUrl ? 'fp-bg-pulse 2s ease-in-out' : undefined,
               }}
             >
