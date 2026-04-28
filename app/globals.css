@@ -669,3 +669,13 @@ input:-webkit-autofill:focus {
     filter: brightness(0.3) !important;
   }
 }
+
+/* ═══ Grid Puzzle (option 1 only) — premium bento surface ═══
+ * Scoped to .fp-grid-puzzle — does NOT affect mix or rail containers.
+ * Slight zoom-in bias: images fill the tile with 3% crop, avoiding
+ * edge collisions and awkward subject cuts at the frame boundary.
+ */
+.fp-grid-puzzle .fp-tile-hover img {
+  transform: scale(1.03);
+  transform-origin: center;
+}

@@ -24,7 +24,7 @@ interface LayoutConfig {
 
 const LAYOUTS: Record<RoomLayout, LayoutConfig> = {
   grid: {
-    containerClass: 'grid grid-cols-2 md:grid-cols-4 gap-3',
+    containerClass: 'grid grid-cols-2 md:grid-cols-4 gap-2 fp-grid-puzzle',
     tileClass: 'aspect-square relative overflow-hidden rounded-2xl',
     useFillMode: true,
     perTileSizing: false,

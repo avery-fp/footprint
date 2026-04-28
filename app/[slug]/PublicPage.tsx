@@ -481,7 +481,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           >
             <div
               className={`relative w-full overflow-hidden fp-tile-hover h-full ${tileSize === 1 ? 'rounded-xl' : 'rounded-2xl'}${isSoundRoom ? ' fp-sound-tile' : ''}`}
-              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)' }}
+              style={{
+                background: !isMix ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.06)',
+                boxShadow: !isMix ? 'inset 0 1px 0 rgba(255,255,255,0.05)' : undefined,
+              }}
             >
               <UnifiedTile
                 item={item}
@@ -616,7 +620,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
         {/* Masthead */}
         <RemoveBubble slug={footprint.slug}>
-          <header className="pb-4 md:pb-5 flex flex-col items-center px-4">
+          <header className="pb-5 md:pb-7 flex flex-col items-center px-4">
             <h1
               className={`${
                 displayTitle.length <= 3
