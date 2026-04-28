@@ -7,7 +7,6 @@ import SAspectShell from '@/components/SAspectShell'
 
 import WeatherEffect from '@/components/WeatherEffect'
 import { RemoveBubble } from '@/components/RemoveBubble'
-import { RolodexDrawer } from '@/components/RolodexDrawer'
 import FloatingCtaBar from '@/components/FloatingCtaBar'
 import SovereignTile from '@/components/SovereignTile'
 import CommandLayer from '@/components/CommandLayer'
@@ -72,10 +71,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   }, [rooms])
 
   const [wallpaperLoaded, setWallpaperLoaded] = useState(false)
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [isOwner, setIsOwner] = useState(false)
   const [authChecked, setAuthChecked] = useState(false)
-  const [drawerOpen, setDrawerOpen] = useState(false)
   const [showToast, setShowToast] = useState(false)
   const [serialFlyout, setSerialFlyout] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
@@ -195,7 +192,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         if (r.status === 200) {
           const data = await r.json()
           if (data.owned) {
-            setIsLoggedIn(true)
             setIsOwner(true)
           }
         }
@@ -592,6 +588,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         footprint={footprint}
         theme={theme}
         isMobile={isMobile}
+        isOwner={isOwner}
         activeRoomId={activeRoomId}
         onNavigateToTile={handleTileNavigate}
         onNavigateToRoom={goToRoom}
@@ -820,23 +817,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         <div style={{ height: '40px' }} />
 
       </div>
-
-      {/* Rolodex drawer */}
-      {isLoggedIn && (
-        <>
-          <div className="fixed inset-x-0 bottom-3 z-50 flex justify-center px-4 pointer-events-none">
-            <button
-              onClick={() => setDrawerOpen(true)}
-              aria-label="Open saved footprints"
-              className="pointer-events-auto flex items-center justify-center w-14 h-8 touch-manipulation"
-              style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
-            >
-              <span className="block w-10 h-[3px] rounded-full bg-white/[0.10] hover:bg-white/[0.20] transition-all duration-300 hover:w-12" />
-            </button>
-          </div>
-          <RolodexDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
-        </>
-      )}
 
       {/* Serial number — fixed bottom-left, tappable for visitors */}
       {!isDraft && serial && !claimActive && (
