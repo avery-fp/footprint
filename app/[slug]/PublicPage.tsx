@@ -459,16 +459,16 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           : null
 
         const sAspectClass = resolvedSAspect != null
-          ? (resolvedSAspect === 'wide' || resolvedSAspect === 'landscape' ? 'aspect-[4/3]'
+          ? `col-span-2 ${resolvedSAspect === 'wide' || resolvedSAspect === 'landscape' ? 'aspect-[4/3]'
             : resolvedSAspect === 'tall' || resolvedSAspect === 'portrait' ? 'aspect-[3/4]'
-            : 'aspect-square')
+            : 'aspect-square'}`
           : null
 
         const gridClass = isSoundRoom && idx === 0
           ? 'col-span-2 row-span-2 aspect-square'
           : isSpotify ? 'col-span-1 aspect-[3/4]'
           : isAudioEmbed ? 'col-span-2 aspect-video'
-          : isEmbedVid ? 'col-span-2 aspect-video'
+          : isEmbedVid ? 'col-span-2 aspect-[4/3]'
           : sAspectClass ?? getGridClass(tileSize, tileAspect, false)
 
         const isContainer = item.type === 'container'
