@@ -19,11 +19,16 @@ export function resolveAspect(
   type: string,
   url?: string
 ): string {
+  // Deterministic vertical sources win over stored aspect.
+  // TikTok and YouTube Shorts URLs are always 9:16 — stored 'square' or 'wide'
+  // on these rows is residue from earlier defaults and should not override
+  // the native body shape.
+  if (type === 'tiktok') return 'tall'
+  if (url?.includes('/shorts/')) return 'tall'
+
   if (stored && stored !== 'square') return stored
   if (stored === 'square') return 'square'
   if (type === 'spotify') return 'portrait'
-  if (type === 'tiktok') return 'tall'
-  if (url?.includes('/shorts/')) return 'tall'
   if (type === 'youtube' || type === 'vimeo') return 'wide'
   // Uploaded videos — square by default (most phone content is portrait/square).
   // Stored aspect overrides this (handled above).
