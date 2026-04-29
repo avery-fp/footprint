@@ -24,6 +24,7 @@ import {
   resolveAspect as resolveAspectShared,
   getGridClass as getGridClassShared,
   getObjectFit as getObjectFitShared,
+  isVideoTile,
 } from '@/lib/media/aspect'
 import {
   isHEIC,
@@ -110,7 +111,10 @@ function SortableTile({
     opacity: isDragging ? 1 : deleting ? 0.5 : anyDragging ? 0.9 : 1,
   }
 
-  const isVideo = content.type === 'video' || (content.type === 'image' && /\.(mp4|mov|webm|m4v|3gp|3gpp|mkv)($|\?)/i.test(content.url || ''))
+  // Use shared isVideoTile helper so YouTube/Vimeo are recognized as video.
+  // Local re-implementation previously omitted them, which sent YouTube tiles
+  // through the non-video grid path and broke aspect-[9/16] for Shorts.
+  const isVideo = isVideoTile(content.type, content.url || '')
   const thumbnailCandidates = getThumbnailCandidates(content)
   const preferredThumbnailUrl = thumbnailCandidates[0] || null
 
