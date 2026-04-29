@@ -459,6 +459,7 @@ export default function EditPage() {
   const [claimChecking, setClaimChecking] = useState(false)
   const [claimReason, setClaimReason] = useState('')
   const [claimLoading, setClaimLoading] = useState(false)
+  const [claimError, setClaimError] = useState('')
   // Gift state
   const [showGiftModal, setShowGiftModal] = useState(false)
   const [giftsRemaining, setGiftsRemaining] = useState(0)
@@ -524,10 +525,12 @@ export default function EditPage() {
     if (!claimUsername.trim() || claimUsername.length < 2) {
       setClaimAvailable(null)
       setClaimReason('')
+      setClaimError('')
       return
     }
     const timer = setTimeout(async () => {
       setClaimChecking(true)
+      setClaimError('')
       try {
         const res = await fetch('/api/check-username', {
           method: 'POST',
@@ -547,7 +550,13 @@ export default function EditPage() {
   }, [claimUsername])
 
   const handleClaimSubmit = async () => {
-    if (!claimUsername.trim() || !claimAvailable || claimLoading) return
+    const desiredSlug = claimUsername.trim()
+    if (claimLoading) return
+    if (!desiredSlug || !claimAvailable) {
+      setClaimError('choose an available name first')
+      return
+    }
+    setClaimError('')
     setClaimLoading(true)
     try {
       const res = await fetch('/api/checkout', {
@@ -555,20 +564,18 @@ export default function EditPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           draft_slug: slug,
-          desired_slug: claimUsername.trim(),
+          desired_slug: desiredSlug,
         }),
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
       if (res.ok && data.url) {
         window.location.href = data.url
       } else {
-        setStatusToast(data.error || 'something went wrong')
-        setTimeout(() => setStatusToast(null), 3000)
+        setClaimError(data.error || 'could not start checkout')
         setClaimLoading(false)
       }
-    } catch {
-      setStatusToast('connection lost')
-      setTimeout(() => setStatusToast(null), 3000)
+    } catch (error) {
+      setClaimError('connection lost')
       setClaimLoading(false)
     }
   }
@@ -926,7 +933,10 @@ export default function EditPage() {
       }
       return
     }
-    setClaimUsername(slug)
+    setClaimUsername(slug.startsWith('draft-') || slug.startsWith('pending-') ? '' : slug)
+    setClaimAvailable(null)
+    setClaimReason('')
+    setClaimError('')
     setClaimOverlay('claim')
   }, [serialNumber, slug, draft, saveData])
 
@@ -1866,7 +1876,7 @@ export default function EditPage() {
                   <form onSubmit={(e) => { e.preventDefault(); handleClaimSubmit() }}>
                   <div className="flex items-center gap-0 rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
                     <span className="text-white/20 text-[13px] pl-4 shrink-0">footprint.onl/</span>
-                    <input type="text" value={claimUsername} onChange={(e) => { setClaimUsername(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, '')); setClaimAvailable(null) }} placeholder="username" aria-label="Username" className="flex-1 min-w-0 bg-transparent py-3.5 pr-2 text-white/90 placeholder:text-white/20 focus:outline-none text-[14px]" autoFocus />
+                    <input type="text" value={claimUsername} onChange={(e) => { setClaimUsername(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')); setClaimAvailable(null); setClaimError('') }} placeholder="username" aria-label="Username" className="flex-1 min-w-0 bg-transparent py-3.5 pr-2 text-white/90 placeholder:text-white/20 focus:outline-none text-[14px]" autoFocus />
                     <button type="submit" disabled={claimLoading || !claimAvailable || !claimUsername.trim()} className="shrink-0 px-4 py-3.5 text-white/80 text-[20px] hover:text-white transition-colors disabled:opacity-25 disabled:cursor-not-allowed" aria-label="Submit">{claimLoading ? '\u2026' : '\u2192'}</button>
                   </div>
                   </form>
@@ -1874,6 +1884,9 @@ export default function EditPage() {
                     <div className="mt-1.5 px-1">
                       {claimChecking ? <p className="text-white/20 text-[11px]">checking...</p> : claimAvailable === true ? <p className="text-green-400/70 text-[11px]">available</p> : claimAvailable === false ? <p className="text-red-400/70 text-[11px]">{claimReason ? humanUsernameReason(claimReason) : 'taken'}</p> : null}
                     </div>
+                  )}
+                  {claimError && (
+                    <p className="mt-1.5 px-1 text-red-400/70 text-[11px]">{claimError}</p>
                   )}
                 </div>
                 <p className="text-center text-white/30 text-[11px] mt-4 font-mono leading-relaxed">
@@ -2894,8 +2907,9 @@ export default function EditPage() {
                       type="text"
                       value={claimUsername}
                       onChange={(e) => {
-                        setClaimUsername(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ''))
+                        setClaimUsername(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))
                         setClaimAvailable(null)
+                        setClaimError('')
                       }}
                       placeholder="username"
                       aria-label="Username"
@@ -2924,6 +2938,9 @@ export default function EditPage() {
                         </p>
                       ) : null}
                     </div>
+                  )}
+                  {claimError && (
+                    <p className="mt-1.5 px-1 text-red-400/70 text-[11px]">{claimError}</p>
                   )}
                 </div>
 
