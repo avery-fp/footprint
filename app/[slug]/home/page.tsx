@@ -31,6 +31,7 @@ import {
   uploadWithProgress as uploadWithProgressShared,
   resizeImage as resizeImageShared,
   detectImageAspect as detectImageAspectShared,
+  detectVideoAspect as detectVideoAspectShared,
 } from '@/lib/upload'
 import { applyNextThumbnailFallback, getBestThumbnailUrl, getThumbnailCandidates } from '@/lib/media/thumbnails'
 
@@ -1656,6 +1657,16 @@ export default function EditPage() {
   const uploadWithProgress = uploadWithProgressShared
   const resizeImage = resizeImageShared
   const detectImageAspect = detectImageAspectShared
+  const detectVideoAspect = detectVideoAspectShared
+
+  // Normalize the upload detector's aspect output to the canonical set the
+  // grid+resolver expect: square | wide | tall. portrait collapses to tall,
+  // landscape collapses to wide. Anything else falls back to square.
+  function normalizeUploadAspect(detected: string | null | undefined): 'square' | 'wide' | 'tall' {
+    if (detected === 'tall' || detected === 'portrait') return 'tall'
+    if (detected === 'wide' || detected === 'landscape') return 'wide'
+    return 'square'
+  }
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || [])
@@ -1707,13 +1718,21 @@ export default function EditPage() {
       const tempId = tempIds[idx]
 
       try {
-        // Detect aspect ratio before resize (preserves original ratio)
+        // Detect aspect ratio before resize (preserves original ratio).
+        // Branch by MIME so video uploads read videoWidth/videoHeight via
+        // detectVideoAspect instead of falling through to the image detector
+        // (which short-circuits to 'square' for non-image MIME types).
         let detectedAspect: string
         try {
-          detectedAspect = await detectImageAspect(file)
+          if (file.type.startsWith('video/')) {
+            detectedAspect = await detectVideoAspect(file)
+          } else {
+            detectedAspect = await detectImageAspect(file)
+          }
         } catch {
           detectedAspect = 'square'
         }
+        detectedAspect = normalizeUploadAspect(detectedAspect)
 
         // ── IMAGE LANE: Supabase Storage ──
         let uploadFile: File
@@ -2306,7 +2325,7 @@ export default function EditPage() {
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/*,video/*"
         multiple
         className="hidden"
         onChange={handleFileUpload}
