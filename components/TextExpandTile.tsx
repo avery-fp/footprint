@@ -101,13 +101,42 @@ export default function TextExpandTile({
     setOverflows(el.scrollHeight > el.clientHeight + 1)
   }, [isExpanded, text])
 
+  useLayoutEffect(() => {
+    if (!isPublicView || !isExpanded) return
+
+    const shell = rootRef.current?.closest<HTMLElement>('.fp-text-tile-shell')
+    const chrome = rootRef.current?.closest<HTMLElement>('.fp-tile-hover')
+    if (!shell || !chrome) return
+
+    const previous = {
+      shellBackground: shell.style.background,
+      chromeOverflow: chrome.style.overflow,
+      chromeBackground: chrome.style.background,
+      chromeBorderColor: chrome.style.borderColor,
+    }
+
+    // Expanded text should carry its own glass chrome instead of inheriting
+    // the fixed-aspect media cell underneath it.
+    shell.style.background = 'transparent'
+    chrome.style.overflow = 'visible'
+    chrome.style.background = 'transparent'
+    chrome.style.borderColor = 'transparent'
+
+    return () => {
+      shell.style.background = previous.shellBackground
+      chrome.style.overflow = previous.chromeOverflow
+      chrome.style.background = previous.chromeBackground
+      chrome.style.borderColor = previous.chromeBorderColor
+    }
+  }, [isPublicView, isExpanded])
+
   const dormantSurface = isPublicView
     ? {
         background: 'rgba(255, 255, 255, 0.06)',
         backdropFilter: 'blur(20px) saturate(120%)',
         WebkitBackdropFilter: 'blur(20px) saturate(120%)',
         border: '1px solid rgba(255, 255, 255, 0.08)',
-        minHeight: '200px',
+        minHeight: isExpanded ? undefined : '200px',
       }
     : undefined
 
@@ -136,6 +165,7 @@ export default function TextExpandTile({
       role="button"
       tabIndex={0}
       aria-expanded={isExpanded}
+      data-text-expanded={isExpanded ? 'true' : 'false'}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onClick={onClick}

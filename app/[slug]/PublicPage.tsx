@@ -691,7 +691,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
         {/* Grid */}
         <div
-          className={`fp-grid-arrive ${isRail ? 'w-full' : `fp-grid-container mx-auto w-full ${isPuzzleGrid ? 'fp-puzzle-frame px-5 md:px-8' : 'px-3 md:px-4'}`}`}
+          className={`fp-grid-arrive pb-[clamp(140px,18vh,240px)] ${isRail ? 'w-full' : `fp-grid-container mx-auto w-full ${isPuzzleGrid ? 'fp-puzzle-frame px-5 md:px-8' : 'px-3 md:px-4'}`}`}
           style={isRail ? undefined : { maxWidth: isPuzzleGrid ? '900px' : '880px' }}
         >
           {activeGrid}
