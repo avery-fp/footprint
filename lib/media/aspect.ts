@@ -131,12 +131,13 @@ export function getAspectClass(aspect: string): string {
 
 /**
  * Object-fit class for content within a tile.
- * M-state (size 2) forces cover so portrait content fills the landscape frame
- * instead of letterboxing with empty bars.
+ * Doctrine: cover everywhere. Tile = poster, poster fills the frame.
+ * If the tile shape is wrong for the content (e.g. uploaded vertical video
+ * forced into aspect-video), edges crop — preferable to dead container bars.
+ * Native-body shape selection is the follow-up.
  */
-export function getObjectFit(_aspect: string, size?: number): string {
-  if (size === 2) return 'object-cover'
-  return 'object-contain'
+export function getObjectFit(_aspect?: string, _size?: number): string {
+  return 'object-cover'
 }
 
 /**
