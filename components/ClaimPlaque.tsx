@@ -69,17 +69,6 @@ export default function ClaimPlaque({
       }}
     >
       <span
-        className="text-white/[0.50] group-hover:text-white/[0.65] transition-colors duration-150 ease-out"
-        style={{
-          fontSize: '10.5px',
-          fontWeight: 500,
-          letterSpacing: '0.02em',
-          lineHeight: 1,
-        }}
-      >
-        Draft
-      </span>
-      <span
         className="text-white/[0.85] group-hover:text-white transition-colors duration-150 ease-out"
         style={{
           fontSize: '13px',
@@ -88,7 +77,7 @@ export default function ClaimPlaque({
           lineHeight: 1.15,
         }}
       >
-        {loading ? '...' : 'Go live  $10'}
+        {loading ? '...' : 'go live \u2192 $10'}
       </span>
     </button>
   )

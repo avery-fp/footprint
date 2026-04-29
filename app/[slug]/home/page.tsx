@@ -1945,13 +1945,13 @@ export default function EditPage() {
         <ClaimPlaque
           onClick={handleGoLive}
           loading={goLiveLoading}
-          className="hidden md:flex fixed top-[14px] right-[88px] z-[60]"
+          className="hidden md:flex fixed top-[14px] right-4 md:right-6 z-[60]"
         />
       )}
 
       {/* ═══ HEADER ═══ */}
       {!isEmptyHomeOrigin && (
-      <div className="fixed top-0 left-0 right-0 z-50 bg-black/60 backdrop-blur-sm border-b border-white/[0.06]"
+      <div className="fixed top-0 left-0 right-0 z-50 bg-black/45 backdrop-blur-sm border-b border-white/[0.035]"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="flex items-center justify-between px-4 pt-4 pb-2" style={{ minHeight: '52px' }}>
           <div className="flex items-center gap-1">
@@ -2051,14 +2051,6 @@ export default function EditPage() {
                   className="md:hidden"
                 />
               )}
-              {/* Edit button */}
-              <button
-                onClick={enterEdit}
-                className="text-sm text-white/90 hover:text-white transition font-mono flex items-center justify-center px-5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20"
-                style={{ minHeight: '44px', minWidth: '44px' }}
-              >
-                edit
-              </button>
             </div>
           )}
         </div>
