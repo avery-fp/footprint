@@ -100,13 +100,7 @@ function isInsufficientYouTubeThumbnail(img: HTMLImageElement): boolean {
   return false
 }
 
-function applyAspectAwareFit(img: HTMLImageElement): void {
-  img.style.objectFit = 'cover'
-  img.style.objectPosition = 'center'
-}
-
 export function applyThumbnailLoadGuard(img: HTMLImageElement, candidates: string[]): boolean {
-  applyAspectAwareFit(img)
   if (!isInsufficientYouTubeThumbnail(img)) return false
   return applyNextThumbnailFallback(img, candidates)
 }
