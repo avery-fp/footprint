@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { MOTION } from '@/lib/motion'
 import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getThumbnailCandidates } from '@/lib/media/thumbnails'
+import { useRolodex } from '@/store/useRolodex'
 
 interface Room {
   id: string
@@ -17,6 +18,8 @@ interface CommandLayerProps {
   footprint: { display_name: string; username: string }
   theme: any
   isMobile: boolean
+  isOwner: boolean
+  showCreateButton?: boolean
   activeRoomId: string | null
   onNavigateToTile: (tileId: string, roomId: string) => void
   onNavigateToRoom: (roomId: string | null) => void
@@ -67,21 +70,30 @@ export default function CommandLayer({
   footprint,
   theme,
   isMobile,
+  isOwner,
+  showCreateButton = true,
   activeRoomId,
   onNavigateToTile,
   onNavigateToRoom,
 }: CommandLayerProps) {
   const [open, setOpen] = useState(false)
+  const [peopleOpen, setPeopleOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
+  const peopleInputRef = useRef<HTMLInputElement>(null)
   const reducedMotion = useReducedMotion()
   const { command } = MOTION
+  const { slugs, loaded: rolodexLoaded, hydrate: hydrateRolodex, has, add } = useRolodex()
 
   // People search
   const [peopleQuery, setPeopleQuery] = useState('')
   const [peopleResults, setPeopleResults] = useState<PersonResult[]>([])
   const peopleDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const currentSlug = footprint.username
+  const currentSaved = rolodexLoaded && has(currentSlug)
+
+  useEffect(() => { hydrateRolodex() }, [hydrateRolodex])
 
   useEffect(() => {
     const q = peopleQuery.trim()
@@ -174,6 +186,10 @@ export default function CommandLayer({
     }
   }, [open])
 
+  useEffect(() => {
+    if (!peopleOpen) setPeopleQuery('')
+  }, [peopleOpen])
+
   // Reset selection when results change
   useEffect(() => {
     setSelectedIndex(0)
@@ -185,6 +201,12 @@ export default function CommandLayer({
       requestAnimationFrame(() => inputRef.current?.focus())
     }
   }, [open])
+
+  useEffect(() => {
+    if (peopleOpen) {
+      requestAnimationFrame(() => peopleInputRef.current?.focus())
+    }
+  }, [peopleOpen])
 
   // Global keyboard: `/` to open, Escape to close
   useEffect(() => {
@@ -198,10 +220,20 @@ export default function CommandLayer({
       if (e.key === 'Escape' && open) {
         setOpen(false)
       }
+      if (e.key === 'Escape' && peopleOpen) {
+        setPeopleOpen(false)
+      }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [open])
+  }, [open, peopleOpen])
+
+  const handlePeopleOpen = useCallback(async () => {
+    setPeopleOpen(true)
+    if (!isOwner && currentSlug && !currentSaved) {
+      await add(currentSlug)
+    }
+  }, [add, currentSaved, currentSlug, isOwner])
 
   // Group results by room + stable flat indices (computed in useMemo, not mutated during render)
   const { groups, flatResults } = useMemo(() => {
@@ -241,57 +273,127 @@ export default function CommandLayer({
     }
   }, [flatResults, selectedIndex, onNavigateToTile, activeRoomId])
 
-  // No render on mobile
-  if (isMobile) return null
-
   return (
     <>
-      {/* People search — left side */}
-      <div
-        className="fixed left-4 z-30 hidden md:flex flex-col"
-        style={{ top: '45%', transform: 'translateY(-50%)' }}
-      >
-        <input
-          type="text"
-          value={peopleQuery}
-          onChange={e => setPeopleQuery(e.target.value)}
-          placeholder="find people"
-          className="bg-transparent border-b border-white/[0.10] text-[11px] text-white/35 placeholder:text-white/15 font-mono outline-none py-1 focus:border-white/30 focus:text-white/60 transition-all duration-300"
-          style={{ width: '120px', letterSpacing: '0.06em' }}
-          autoComplete="off"
-          autoCorrect="off"
-          spellCheck={false}
-        />
-        {peopleResults.length > 0 && (
-          <div className="flex flex-col gap-1 mt-2">
-            {peopleResults.map(r => (
-              <a
-                key={r.username}
-                href={`/${r.username}`}
-                className="group flex flex-col"
-                style={{ textDecoration: 'none' }}
-              >
-                <span
-                  className="text-[11px] font-mono text-white/40 group-hover:text-white/70 transition-colors duration-200 truncate"
-                  style={{ letterSpacing: '0.04em', maxWidth: '140px' }}
-                >
-                  {r.display_name || r.username}
-                </span>
-                <span
-                  className="text-[10px] font-mono text-white/15 group-hover:text-white/30 transition-colors duration-200"
-                  style={{ letterSpacing: '0.03em' }}
-                >
-                  /{r.username}
-                </span>
-              </a>
-            ))}
-          </div>
+      {/* People memory — system layer */}
+      {showCreateButton && (
+        <div className="fixed left-4 top-4 z-40 md:left-6 md:top-5">
+          <button
+            type="button"
+            onClick={handlePeopleOpen}
+            aria-label={currentSaved ? 'Open people' : 'Remember this place'}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-[18px] leading-none text-white/28 outline-none transition-colors duration-200 hover:text-white/55 focus-visible:ring-2 focus-visible:ring-white/20"
+            style={{
+              background: 'transparent',
+              fontWeight: 300,
+            }}
+          >
+            +
+          </button>
+        </div>
+      )}
+
+      <AnimatePresence>
+        {peopleOpen && (
+          <>
+            <motion.div
+              key="people-layer-backdrop"
+              className="fixed inset-0 z-[55]"
+              style={{
+                background:
+                  'radial-gradient(circle at 18% 22%, rgba(255,255,255,0.035), transparent 30%), rgba(0,0,0,0.12)',
+                backdropFilter: 'blur(7px) saturate(108%)',
+                WebkitBackdropFilter: 'blur(7px) saturate(108%)',
+              }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1, transition: { duration: 0.18 } }}
+              exit={{ opacity: 0, transition: { duration: 0.14 } }}
+              onClick={() => setPeopleOpen(false)}
+              aria-hidden="true"
+            />
+            <motion.div
+              key="people-layer-sheet"
+              role="dialog"
+              aria-label="People"
+              aria-modal="true"
+              className="fixed z-[56]"
+              style={{
+                left: 'clamp(24px, 9vw, 128px)',
+                top: 'clamp(86px, 18vh, 150px)',
+                width: 'min(430px, calc(100vw - 48px))',
+              }}
+              initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
+              animate={reducedMotion ? { opacity: 1 } : { opacity: 1, y: 0, transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] } }}
+              exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: -4, transition: { duration: 0.12 } }}
+            >
+              <input
+                ref={peopleInputRef}
+                type="text"
+                value={peopleQuery}
+                onChange={e => setPeopleQuery(e.target.value)}
+                placeholder="name, @handle, or #number"
+                className="w-full appearance-none rounded-none bg-transparent border-0 border-b border-white/[0.075] px-0 pb-2 pt-1 font-mono text-[12px] text-white/48 placeholder:text-white/18 outline-none ring-0 transition-colors duration-200 focus:border-white/[0.16] focus:text-white/62 focus:outline-none focus:ring-0"
+                style={{ outline: 'none', boxShadow: 'none' }}
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
+              />
+
+              {peopleQuery.trim() && (
+                <div className="mt-5 flex flex-col gap-2">
+                  {peopleResults.length === 0 ? (
+                    <div className="font-mono text-[12px] text-white/18">nothing</div>
+                  ) : (
+                    peopleResults.map(r => (
+                      <a
+                        key={r.username}
+                        href={`/${r.username}`}
+                        onClick={() => setPeopleOpen(false)}
+                        className="group flex flex-col py-1"
+                        style={{ textDecoration: 'none' }}
+                      >
+                        <span className="truncate font-mono text-[13px] text-white/58 transition-colors duration-200 group-hover:text-white/82">
+                          {r.display_name || r.username}
+                        </span>
+                        <span className="font-mono text-[11px] text-white/24 transition-colors duration-200 group-hover:text-white/38">
+                          /{r.username}
+                        </span>
+                      </a>
+                    ))
+                  )}
+                </div>
+              )}
+
+              <div className="mt-8">
+                <div className="mb-4 font-mono text-[10px] lowercase tracking-[0.24em] text-white/30">
+                  saved
+                </div>
+                {rolodexLoaded && slugs.length > 0 ? (
+                  <div className="flex flex-col gap-3">
+                    {slugs.map(slug => (
+                      <a
+                        key={slug}
+                        href={`/${slug}`}
+                        onClick={() => setPeopleOpen(false)}
+                        className="font-mono text-[15px] text-white/62 transition-colors duration-200 hover:text-white/86"
+                        style={{ textDecoration: 'none' }}
+                      >
+                        /{slug}
+                      </a>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="font-mono text-[14px] text-white/26">empty</div>
+                )}
+              </div>
+            </motion.div>
+          </>
         )}
-      </div>
+      </AnimatePresence>
 
       {/* Panel + backdrop */}
       <AnimatePresence>
-        {open && (
+        {open && !isMobile && (
           <>
             {/* Backdrop */}
             <motion.div

@@ -182,7 +182,7 @@ export default function UnifiedTile({
   if (item.type === 'thought') {
     return (
       <div
-        className="w-full h-full"
+        className="fp-text-tile-shell w-full h-full"
         style={{ background: 'rgba(255,255,255,0.04)' }}
         data-tile-id={item.id}
         data-tile-type="thought"
@@ -308,7 +308,7 @@ export default function UnifiedTile({
     const text = item.title || ''
     return (
       <div
-        className="w-full h-full"
+        className="fp-text-tile-shell w-full h-full"
         style={{ background: 'rgba(255,255,255,0.04)' }}
         data-tile-id={item.id}
         data-tile-type="thought"

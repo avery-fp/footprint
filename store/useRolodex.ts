@@ -6,6 +6,22 @@
 import { create } from 'zustand'
 import { localStorageAdapter, type RolodexAdapter } from '@/lib/rolodexAdapters'
 
+const ORIGIN_SLUG = 'ae'
+
+function withOrigin(slugs: string[]): string[] {
+  const seen = new Set<string>()
+  const result = [ORIGIN_SLUG]
+  seen.add(ORIGIN_SLUG)
+
+  for (const slug of slugs) {
+    if (!slug || seen.has(slug)) continue
+    seen.add(slug)
+    result.push(slug)
+  }
+
+  return result
+}
+
 interface RolodexState {
   slugs: string[]
   loaded: boolean
@@ -27,10 +43,14 @@ export const useRolodex = create<RolodexState>((set, get) => ({
   async hydrate() {
     if (get().loaded) return
     try {
-      const slugs = await get().adapter.load()
+      const loadedSlugs = await get().adapter.load()
+      const slugs = withOrigin(loadedSlugs)
       set({ slugs, loaded: true })
+      if (slugs.length !== loadedSlugs.length || slugs[0] !== ORIGIN_SLUG) {
+        await get().adapter.save(slugs)
+      }
     } catch {
-      set({ loaded: true })
+      set({ slugs: withOrigin([]), loaded: true })
     }
   },
 
@@ -39,11 +59,11 @@ export const useRolodex = create<RolodexState>((set, get) => ({
   },
 
   async add(slug: string) {
-    const prev = get().slugs
+    const prev = withOrigin(get().slugs)
     if (prev.includes(slug)) return
 
     // Optimistic update
-    const next = [...prev, slug]
+    const next = withOrigin([...prev, slug])
     set({ slugs: next })
 
     try {
@@ -55,11 +75,11 @@ export const useRolodex = create<RolodexState>((set, get) => ({
   },
 
   async remove(slug: string) {
-    const prev = get().slugs
+    const prev = withOrigin(get().slugs)
     if (!prev.includes(slug)) return
 
     // Optimistic update
-    const next = prev.filter(s => s !== slug)
+    const next = withOrigin(prev.filter(s => s !== slug))
     set({ slugs: next })
 
     try {

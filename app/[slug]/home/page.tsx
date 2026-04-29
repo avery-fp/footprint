@@ -246,7 +246,7 @@ function SortableTile({
               : 'tile-arranging tile-jiggle'
             : ''
         } ${selected ? 'ring-2 ring-white/60' : ''}`}
-        style={{ ...(revealStyle || {}), background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
+        style={{ ...(revealStyle || {}), background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.03)' }}
         {...tileHandlers}
         {...touchHandlers}
         onContextMenu={(e) => e.preventDefault()}
@@ -423,6 +423,8 @@ export default function EditPage() {
   const [draggingTileId, setDraggingTileId] = useState<string | null>(null)
   const [editingThought, setEditingThought] = useState<string | null>(null)
   const [editingThoughtText, setEditingThoughtText] = useState('')
+  const [editingLinkTitle, setEditingLinkTitle] = useState<string | null>(null)
+  const [editingLinkTitleText, setEditingLinkTitleText] = useState('')
   const [swapSourceId, setSwapSourceId] = useState<string | null>(null)
   const [isOwner, setIsOwner] = useState(false)
   const [accessRequired, setAccessRequired] = useState(false)
@@ -595,7 +597,7 @@ export default function EditPage() {
   const openTileMenu = (tileId: string) => {
     setMode({ type: 'tile_menu', tileId })
   }
-  const closeTileMenu = () => { setEditingThought(null); setMode({ type: 'arranging' }) }
+  const closeTileMenu = () => { setEditingThought(null); setEditingLinkTitle(null); setMode({ type: 'arranging' }) }
   const startAdding = (method: 'url' | 'thought' | 'container') => setMode({ type: 'adding', method })
   const stopAdding = () => setMode({ type: 'arranging' })
 
@@ -747,7 +749,7 @@ export default function EditPage() {
           setBackgroundBlur(data.footprint.background_blur ?? true)
           setIsPublished(data.footprint.published !== false)
           // Fetch gift count
-          fetch('/api/gifts/remaining').then(r => r.json()).then(d => {
+          fetch(`/api/gifts/remaining?slug=${encodeURIComponent(slug)}`).then(r => r.json()).then(d => {
             setGiftsRemaining(d.remaining || 0)
           }).catch(() => {})
           const sources: Record<string, 'library' | 'links'> = {}
@@ -1645,6 +1647,13 @@ export default function EditPage() {
     const files = Array.from(e.target.files || [])
     if (files.length === 0 || !draft || !serialNumber) return
 
+    if (files.length > 10) {
+      setStatusToast('Max 10 files at a time.')
+      setTimeout(() => setStatusToast(null), 3000)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+
     // Size limit: 10MB images
     const oversizedImages = files.filter(f => f.size > 10 * 1024 * 1024)
     if (oversizedImages.length > 0) {
@@ -1986,7 +1995,7 @@ export default function EditPage() {
 
       {/* ═══ HEADER ═══ */}
       {!isEmptyHomeOrigin && (
-      <div className="fixed top-0 left-0 right-0 z-50 bg-black/60 backdrop-blur-sm border-b border-white/[0.06]"
+      <div className="fixed top-0 left-0 right-0 z-50 bg-black/45 backdrop-blur-sm border-b border-white/[0.035]"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="flex items-center justify-between px-4 pt-4 pb-2" style={{ minHeight: '52px' }}>
           <div className="flex items-center gap-1">
@@ -2075,8 +2084,8 @@ export default function EditPage() {
               maxLength={120}
               className="w-full bg-transparent border-0 px-2 text-center text-white placeholder:text-white/30 outline-none"
               style={{
-                fontSize: resolvedDisplayTitle.length > 18 ? '1.25rem' : resolvedDisplayTitle.length > 10 ? '1.6rem' : '2rem',
-                letterSpacing: resolvedDisplayTitle.length <= 3 ? '0em' : resolvedDisplayTitle.length > 12 ? '0.02em' : '0.08em',
+                fontSize: resolvedDisplayTitle.length > 18 ? '1.05rem' : resolvedDisplayTitle.length > 10 ? '1.35rem' : '1.7rem',
+                letterSpacing: resolvedDisplayTitle.length <= 3 ? '0em' : resolvedDisplayTitle.length > 12 ? '0.04em' : '0.1em',
                 fontWeight: 300,
                 lineHeight: 1.1,
               }}
@@ -2088,7 +2097,7 @@ export default function EditPage() {
           <div className="relative flex items-center justify-center">
             <p className="font-mono text-[12px] tracking-[0.01em] transition-opacity duration-700 text-center">
               <span className="text-white/20">footprint.onl/</span>
-              <span className={isPublished ? 'text-white/70' : 'text-white/[0.15]'}>{slug}</span>
+              <span className={isPublished ? 'text-white/35' : 'text-white/[0.15]'}>{slug}</span>
             </p>
 
           </div>
@@ -2177,7 +2186,7 @@ export default function EditPage() {
                       background: wallpaperUrl
                         ? `url(${wallpaperUrl}) center/cover`
                         : 'rgba(255,255,255,0.04)',
-                      border: '1px solid rgba(255,255,255,0.08)',
+                      border: '1px solid rgba(255,255,255,0.04)',
                       animation: bgPulse && !wallpaperUrl ? 'fp-bg-pulse 2s ease-in-out' : undefined,
                     }}
                   >
@@ -2245,7 +2254,7 @@ export default function EditPage() {
                 background: wallpaperUrl
                   ? `url(${wallpaperUrl}) center/cover`
                   : 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.08)',
+                border: '1px solid rgba(255,255,255,0.04)',
                 animation: bgPulse && !wallpaperUrl ? 'fp-bg-pulse 2s ease-in-out' : undefined,
               }}
             >
@@ -2433,6 +2442,59 @@ export default function EditPage() {
                     className="w-full text-left text-sm text-white/50 hover:text-white/80 transition font-mono py-3 border-b border-white/[0.06] flex items-center gap-2"
                   >
                     <span className="text-white/30 text-xs">Aa</span> edit text
+                  </button>
+                )
+              )}
+
+              {/* Edit link label */}
+              {tileSources[mode.tileId] === 'links' && selectedTile.type !== 'thought' && selectedTile.type !== 'container' && (
+                editingLinkTitle === mode.tileId ? (
+                  <div className="py-3 border-b border-white/[0.06]">
+                    <input
+                      autoFocus
+                      type="text"
+                      value={editingLinkTitleText}
+                      onChange={(e) => setEditingLinkTitleText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const text = editingLinkTitleText.trim()
+                          if (text) updateThoughtText(mode.tileId, text)
+                          setEditingLinkTitle(null)
+                        }
+                        if (e.key === 'Escape') setEditingLinkTitle(null)
+                      }}
+                      className="w-full bg-white/[0.06] text-white text-sm rounded-lg px-3 py-2.5 border border-white/10 outline-none font-mono placeholder:text-white/20"
+                      maxLength={200}
+                      placeholder="tile label..."
+                    />
+                    <div className="flex items-center justify-end gap-2 mt-2">
+                      <button
+                        onClick={() => setEditingLinkTitle(null)}
+                        className="px-3 py-1 rounded-md text-xs font-mono text-white/40 hover:text-white/60 transition"
+                      >
+                        cancel
+                      </button>
+                      <button
+                        onClick={() => {
+                          const text = editingLinkTitleText.trim()
+                          if (text) updateThoughtText(mode.tileId, text)
+                          setEditingLinkTitle(null)
+                        }}
+                        className="px-3 py-1 rounded-md text-xs font-mono bg-white/[0.12] text-white/70 hover:bg-white/20 hover:text-white transition"
+                      >
+                        save
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setEditingLinkTitle(mode.tileId)
+                      setEditingLinkTitleText(selectedTile.title || '')
+                    }}
+                    className="w-full text-left text-sm text-white/50 hover:text-white/80 transition font-mono py-3 border-b border-white/[0.06] flex items-center gap-2"
+                  >
+                    <span className="text-white/30 text-xs">T</span> edit label
                   </button>
                 )
               )}
@@ -2968,6 +3030,7 @@ export default function EditPage() {
           onClose={() => setShowGiftModal(false)}
           giftsRemaining={giftsRemaining}
           onGiftSent={(remaining) => setGiftsRemaining(remaining)}
+          slug={slug}
         />
       )}
     </div>

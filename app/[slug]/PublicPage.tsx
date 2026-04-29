@@ -7,7 +7,6 @@ import SAspectShell from '@/components/SAspectShell'
 
 import WeatherEffect from '@/components/WeatherEffect'
 import { RemoveBubble } from '@/components/RemoveBubble'
-import { RolodexDrawer } from '@/components/RolodexDrawer'
 import FloatingCtaBar from '@/components/FloatingCtaBar'
 import SovereignTile from '@/components/SovereignTile'
 import CommandLayer from '@/components/CommandLayer'
@@ -72,10 +71,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   }, [rooms])
 
   const [wallpaperLoaded, setWallpaperLoaded] = useState(false)
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [isOwner, setIsOwner] = useState(false)
   const [authChecked, setAuthChecked] = useState(false)
-  const [drawerOpen, setDrawerOpen] = useState(false)
   const [showToast, setShowToast] = useState(false)
   const [serialFlyout, setSerialFlyout] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
@@ -195,7 +192,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         if (r.status === 200) {
           const data = await r.json()
           if (data.owned) {
-            setIsLoggedIn(true)
             setIsOwner(true)
           }
         }
@@ -472,9 +468,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           : null
 
         const sAspectClass = resolvedSAspect != null
-          ? (resolvedSAspect === 'wide' || resolvedSAspect === 'landscape' ? 'aspect-[4/3]'
+          ? `col-span-2 ${resolvedSAspect === 'wide' || resolvedSAspect === 'landscape' ? 'aspect-[4/3]'
             : resolvedSAspect === 'tall' || resolvedSAspect === 'portrait' ? 'aspect-[3/4]'
-            : 'aspect-square')
+            : 'aspect-square'}`
           : null
 
         const gridClass = isPuzzleGrid
@@ -482,7 +478,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           : isSoundRoom && idx === 0 ? 'col-span-2 row-span-2 aspect-square'
           : isSpotify ? 'col-span-1 aspect-[3/4]'
           : isAudioEmbed ? 'col-span-2 aspect-video'
-          : isEmbedVid ? 'col-span-2 aspect-video'
+          : isEmbedVid ? 'col-span-2 aspect-[4/3]'
           : sAspectClass ?? getGridClass(tileSize, tileAspect, false)
 
         const isContainer = item.type === 'container'
@@ -592,6 +588,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         footprint={footprint}
         theme={theme}
         isMobile={isMobile}
+        isOwner={isOwner}
+        showCreateButton={isOwner}
         activeRoomId={activeRoomId}
         onNavigateToTile={handleTileNavigate}
         onNavigateToRoom={goToRoom}
@@ -693,7 +691,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
         {/* Grid */}
         <div
-          className={`fp-grid-arrive ${isRail ? 'w-full' : `fp-grid-container mx-auto w-full ${isPuzzleGrid ? 'fp-puzzle-frame px-5 md:px-8' : 'px-3 md:px-4'}`}`}
+          className={`fp-grid-arrive pb-[clamp(140px,18vh,240px)] ${isRail ? 'w-full' : `fp-grid-container mx-auto w-full ${isPuzzleGrid ? 'fp-puzzle-frame px-5 md:px-8' : 'px-3 md:px-4'}`}`}
           style={isRail ? undefined : { maxWidth: isPuzzleGrid ? '900px' : '880px' }}
         >
           {activeGrid}
@@ -820,23 +818,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         <div style={{ height: '40px' }} />
 
       </div>
-
-      {/* Rolodex drawer */}
-      {isLoggedIn && (
-        <>
-          <div className="fixed inset-x-0 bottom-3 z-50 flex justify-center px-4 pointer-events-none">
-            <button
-              onClick={() => setDrawerOpen(true)}
-              aria-label="Open saved footprints"
-              className="pointer-events-auto flex items-center justify-center w-14 h-8 touch-manipulation"
-              style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
-            >
-              <span className="block w-10 h-[3px] rounded-full bg-white/[0.10] hover:bg-white/[0.20] transition-all duration-300 hover:w-12" />
-            </button>
-          </div>
-          <RolodexDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
-        </>
-      )}
 
       {/* Serial number — fixed bottom-left, tappable for visitors */}
       {!isDraft && serial && !claimActive && (
