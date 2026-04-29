@@ -15,7 +15,6 @@ import ErrorBoundary from '@/components/ErrorBoundary'
 import GiftModal from '@/components/GiftModal'
 import { humanUsernameReason } from '@/lib/errors'
 import LayoutToggle from '@/components/LayoutToggle'
-import ClaimPlaque from '@/components/ClaimPlaque'
 import EmptyHomeOrigin from '@/components/EmptyHomeOrigin'
 import EditAccessScreen from '@/components/EditAccessScreen'
 import { type RoomLayout, getGridLayout } from '@/lib/grid-layouts'
@@ -1936,17 +1935,62 @@ export default function EditPage() {
         />
       )}
 
-      {/* ═══ CLAIM PLAQUE (desktop) ═══
-          Fixed top-right, sits above the header. Hidden on mobile — the mobile
-          slot renders the same plaque inline in the header action row. Gated
-          to draft-only, non-arrange state so the chrome stays clean once the
-          room is live or being rearranged. */}
-      {!isEmptyHomeOrigin && !isPublished && !isArranging && (
-        <ClaimPlaque
-          onClick={handleGoLive}
-          loading={goLiveLoading}
-          className="hidden md:flex fixed top-[14px] right-4 md:right-6 z-[60]"
-        />
+      {/* Owner quick actions — a quiet device layer above the room. */}
+      {!isEmptyHomeOrigin && !isArranging && (
+        <div
+          className="fixed z-[60] inline-flex min-h-10 items-center gap-0.5 rounded-full border border-white/[0.06] bg-black/[0.24] px-1 py-1 shadow-[0_8px_28px_rgba(0,0,0,0.16)] backdrop-blur-md"
+          style={{
+            top: 'calc(env(safe-area-inset-top) + 14px)',
+            right: 'calc(env(safe-area-inset-right) + 14px)',
+            WebkitBackdropFilter: 'blur(18px) saturate(120%)',
+          }}
+        >
+          {isPublished ? (
+            <button
+              onClick={togglePublished}
+              className="flex h-8 w-8 items-center justify-center rounded-full text-white/40 transition hover:bg-white/[0.06] hover:text-white/65 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/15"
+              title="Published - tap to set draft"
+              aria-label="Published - tap to set draft"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleGoLive}
+              disabled={goLiveLoading}
+              aria-label="Go live — $10"
+              className="group flex h-8 items-center gap-2 rounded-full px-2.5 font-mono text-[11px] leading-none transition hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/15 disabled:cursor-default disabled:opacity-60"
+            >
+              <span className="text-white/35 transition group-hover:text-white/50">draft</span>
+              <span className="text-white/72 transition group-hover:text-white/85">{goLiveLoading ? '...' : 'go live'}</span>
+              <span className="text-white/30 transition group-hover:text-white/42">$10</span>
+            </button>
+          )}
+          {isPublished && giftsRemaining > 0 && (
+            <button
+              onClick={() => setShowGiftModal(true)}
+              className="flex h-8 items-center justify-center gap-1 rounded-full px-2 text-white/40 transition hover:bg-white/[0.06] hover:text-white/65 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/15"
+              title={`Gift a footprint (${giftsRemaining} left)`}
+              aria-label={`Gift a footprint (${giftsRemaining} left)`}
+            >
+              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 12v10H4V12" /><path d="M2 7h20v5H2z" /><path d="M12 22V7" /><path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z" /><path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z" />
+              </svg>
+              <span className="font-mono text-[9px] leading-none">{giftsRemaining}</span>
+            </button>
+          )}
+          <button
+            onClick={enterEdit}
+            className="flex h-8 items-center justify-center rounded-full px-2.5 font-mono text-[11px] leading-none text-white/42 transition hover:bg-white/[0.06] hover:text-white/68 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/15"
+            style={{ minWidth: '40px' }}
+          >
+            edit
+          </button>
+        </div>
       )}
 
       {/* ═══ HEADER ═══ */}
@@ -2011,47 +2055,7 @@ export default function EditPage() {
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-3">
-              {isPublished ? (
-                <>
-                  {/* Published/draft toggle — only for published rooms */}
-                  <button
-                    onClick={togglePublished}
-                    className="flex items-center justify-center rounded-full bg-white/[0.06] hover:bg-white/[0.12] transition"
-                    style={{ minHeight: '44px', minWidth: '44px' }}
-                    title="Published — tap to set draft"
-                  >
-                    <svg className="w-4 h-4 text-white/60" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                  </button>
-                  {/* Gift button — subtle, only when gifts available */}
-                  {giftsRemaining > 0 && (
-                    <button
-                      onClick={() => setShowGiftModal(true)}
-                      className="flex items-center justify-center gap-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] transition text-white/40 hover:text-white/60 px-3"
-                      style={{ minHeight: '44px' }}
-                      title={`Gift a footprint (${giftsRemaining} left)`}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M20 12v10H4V12" /><path d="M2 7h20v5H2z" /><path d="M12 22V7" /><path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z" /><path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z" />
-                      </svg>
-                      <span className="text-[10px] font-mono">{giftsRemaining}</span>
-                    </button>
-                  )}
-                </>
-              ) : (
-                /* Draft → Go live plaque. Mobile-only here; desktop renders a
-                   fixed top-right instance as a sibling of the header so the
-                   object reads as its own register rather than a peer pill. */
-                <ClaimPlaque
-                  onClick={handleGoLive}
-                  loading={goLiveLoading}
-                  className="md:hidden"
-                />
-              )}
-            </div>
+            <div className="h-11 w-24 shrink-0" aria-hidden="true" />
           )}
         </div>
         <div className="px-4 pb-3">
