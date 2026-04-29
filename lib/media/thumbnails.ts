@@ -91,7 +91,7 @@ function isInsufficientYouTubeThumbnail(img: HTMLImageElement): boolean {
   const current = img.currentSrc || img.src
   const width = img.naturalWidth || 0
 
-  if (!/ytimg\.com\/(?:vi|vi_webp)\//.test(current)) return false
+  if (!/(?:ytimg\.com\/(?:vi|vi_webp)\/|img\.youtube\.com\/vi\/)/.test(current)) return false
   if (current.includes('/maxresdefault.') && width > 0 && width < 1280) return true
   if (current.includes('/sddefault.') && width > 0 && width < 640) return true
   if (current.includes('/hqdefault.') && width > 0 && width < 480) return true
@@ -100,7 +100,21 @@ function isInsufficientYouTubeThumbnail(img: HTMLImageElement): boolean {
   return false
 }
 
+function applyAspectAwareFit(img: HTMLImageElement): void {
+  const { naturalWidth: w, naturalHeight: h } = img
+  if (!w || !h) return
+
+  if (w <= h) {
+    img.style.objectFit = 'cover'
+    img.style.objectPosition = 'center'
+  } else {
+    img.style.objectFit = ''
+    img.style.objectPosition = ''
+  }
+}
+
 export function applyThumbnailLoadGuard(img: HTMLImageElement, candidates: string[]): boolean {
+  applyAspectAwareFit(img)
   if (!isInsufficientYouTubeThumbnail(img)) return false
   return applyNextThumbnailFallback(img, candidates)
 }

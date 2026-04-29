@@ -19,7 +19,6 @@ interface CommandLayerProps {
   theme: any
   isMobile: boolean
   isOwner: boolean
-  showCreateButton?: boolean
   activeRoomId: string | null
   onNavigateToTile: (tileId: string, roomId: string) => void
   onNavigateToRoom: (roomId: string | null) => void
@@ -71,7 +70,6 @@ export default function CommandLayer({
   theme,
   isMobile,
   isOwner,
-  showCreateButton = true,
   activeRoomId,
   onNavigateToTile,
   onNavigateToRoom,
@@ -276,22 +274,20 @@ export default function CommandLayer({
   return (
     <>
       {/* People memory — system layer */}
-      {showCreateButton && (
-        <div className="fixed left-4 top-4 z-40 md:left-6 md:top-5">
-          <button
-            type="button"
-            onClick={handlePeopleOpen}
-            aria-label={currentSaved ? 'Open people' : 'Remember this place'}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-[18px] leading-none text-white/28 outline-none transition-colors duration-200 hover:text-white/55 focus-visible:ring-2 focus-visible:ring-white/20"
-            style={{
-              background: 'transparent',
-              fontWeight: 300,
-            }}
-          >
-            +
-          </button>
-        </div>
-      )}
+      <div className="fixed left-4 top-4 z-40 md:left-6 md:top-5">
+        <button
+          type="button"
+          onClick={handlePeopleOpen}
+          aria-label={currentSaved ? 'Open people' : 'Remember this place'}
+          className="flex h-8 w-8 items-center justify-center rounded-full text-[18px] leading-none text-white/28 outline-none transition-colors duration-200 hover:text-white/55 focus-visible:ring-2 focus-visible:ring-white/20"
+          style={{
+            background: 'transparent',
+            fontWeight: 300,
+          }}
+        >
+          +
+        </button>
+      </div>
 
       <AnimatePresence>
         {peopleOpen && (

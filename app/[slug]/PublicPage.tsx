@@ -468,9 +468,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           : null
 
         const sAspectClass = resolvedSAspect != null
-          ? `col-span-2 ${resolvedSAspect === 'wide' || resolvedSAspect === 'landscape' ? 'aspect-[4/3]'
+          ? (resolvedSAspect === 'wide' || resolvedSAspect === 'landscape' ? 'aspect-[4/3]'
             : resolvedSAspect === 'tall' || resolvedSAspect === 'portrait' ? 'aspect-[3/4]'
-            : 'aspect-square'}`
+            : 'aspect-square')
           : null
 
         const gridClass = isPuzzleGrid
@@ -478,7 +478,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           : isSoundRoom && idx === 0 ? 'col-span-2 row-span-2 aspect-square'
           : isSpotify ? 'col-span-1 aspect-[3/4]'
           : isAudioEmbed ? 'col-span-2 aspect-video'
-          : isEmbedVid ? 'col-span-2 aspect-[4/3]'
+          : isEmbedVid ? 'col-span-2 aspect-video'
           : sAspectClass ?? getGridClass(tileSize, tileAspect, false)
 
         const isContainer = item.type === 'container'
@@ -589,7 +589,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         theme={theme}
         isMobile={isMobile}
         isOwner={isOwner}
-        showCreateButton={isOwner}
         activeRoomId={activeRoomId}
         onNavigateToTile={handleTileNavigate}
         onNavigateToRoom={goToRoom}
@@ -691,7 +690,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
         {/* Grid */}
         <div
-          className={`fp-grid-arrive pb-[clamp(140px,18vh,240px)] ${isRail ? 'w-full' : `fp-grid-container mx-auto w-full ${isPuzzleGrid ? 'fp-puzzle-frame px-5 md:px-8' : 'px-3 md:px-4'}`}`}
+          className={`fp-grid-arrive ${isRail ? 'w-full' : `fp-grid-container mx-auto w-full ${isPuzzleGrid ? 'fp-puzzle-frame px-5 md:px-8' : 'px-3 md:px-4'}`}`}
           style={isRail ? undefined : { maxWidth: isPuzzleGrid ? '900px' : '880px' }}
         >
           {activeGrid}

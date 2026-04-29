@@ -262,7 +262,7 @@ function parseYouTube(url: string, match: RegExpMatchArray): ParsedContent {
     external_id: videoId,
     title: 'YouTube Video',
     description: null,
-    thumbnail_url: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+    thumbnail_url: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
     // Legacy looping embed — helper covers the common de-branding params;
     // loop/playlist/controls/fs/disablekb are appended because they're
     // specific to this background-player mode, not the general embed shape.

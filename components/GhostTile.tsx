@@ -476,6 +476,7 @@ function ThumbnailBg({
         style={{}}
         loading="lazy"
         decoding="async"
+        referrerPolicy="no-referrer"
         onLoad={(e) => {
           applyThumbnailLoadGuard(e.currentTarget, candidates)
           // Chain landed on the lowest-res `/default.jpg` — every higher-res

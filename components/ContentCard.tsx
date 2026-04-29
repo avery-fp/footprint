@@ -194,6 +194,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               className="fp-resting-video-media"
               loading="lazy"
               decoding="async"
+              referrerPolicy="no-referrer"
               onLoad={(e) => {
                 applyThumbnailLoadGuard(e.currentTarget, youtubeThumbCandidates)
               }}
