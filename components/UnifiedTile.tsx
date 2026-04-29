@@ -19,7 +19,7 @@ const GhostTile = memo(GhostTileBase)
 /**
  * UNIFIED TILE — layout-aware rendering
  *
- * grid: square crop, fill + object-cover
+ * grid: fixed tile body, media contained
  * editorial: edit-page-style, width/height Image with aspect-aware positioning
  *
  * MIME-type contract:
@@ -55,6 +55,8 @@ interface UnifiedTileProps {
     artist?: string | null
     thumbnail_url_hq?: string | null
     media_id?: string | null
+    thumbnail_width?: number | null
+    thumbnail_height?: number | null
     container_label?: string | null
     container_cover_url?: string | null
   }
@@ -155,7 +157,7 @@ export default function UnifiedTile({
       <div className="w-full h-full" data-tile-id={item.id} data-tile-type="video">
         <video
           src={item.url}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-contain"
           muted
           loop
           playsInline
@@ -220,6 +222,9 @@ export default function UnifiedTile({
           title={item.title || undefined}
           artist={item.artist || undefined}
           thumbnail_url={item.thumbnail_url_hq || item.thumbnail_url || undefined}
+          thumbnail_width={item.thumbnail_width ?? undefined}
+          thumbnail_height={item.thumbnail_height ?? undefined}
+          aspect={aspect}
         />
       </div>
     )

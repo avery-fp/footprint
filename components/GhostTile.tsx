@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, type CSSProperties } from 'react'
 import { audioManager } from '@/lib/audio-manager'
 import { parseEmbed } from '@/lib/parseEmbed'
 import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getThumbnailCandidates } from '@/lib/media/thumbnails'
+import { bodyToAspectRatio, classifyEmbedBody, classifyMediaBodyFromDimensions, type MediaBody } from '@/lib/media/body'
 
 // ════════════════════════════════════════
 // GHOST TILE — de-branded media renderer
@@ -31,6 +32,9 @@ interface GhostTileProps {
   title?: string
   artist?: string
   thumbnail_url?: string
+  thumbnail_width?: number
+  thumbnail_height?: number
+  aspect?: string
 
   onPlay?: () => void
 }
@@ -42,10 +46,14 @@ export default function GhostTile({
   title,
   artist,
   thumbnail_url,
+  thumbnail_width,
+  thumbnail_height,
+  aspect,
   onPlay,
 }: GhostTileProps) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [iframeLoaded, setIframeLoaded] = useState(false)
+  const [measuredBody, setMeasuredBody] = useState<MediaBody | null>(null)
   const tileId = useRef(`ghost-${media_id}-${Math.random().toString(36).slice(2, 6)}`)
 
 
@@ -99,6 +107,21 @@ export default function GhostTile({
     thumbnail_url,
   })
   const thumbUrl = thumbCandidates[0] || null
+  const mediaBody = measuredBody || classifyEmbedBody({
+    type: platform,
+    url,
+    thumbnailWidth: thumbnail_width,
+    thumbnailHeight: thumbnail_height,
+    aspect,
+  })
+  const mediaFrameStyle: CSSProperties = {
+    aspectRatio: bodyToAspectRatio(mediaBody),
+    width: mediaBody === 'portrait' ? 'auto' : '100%',
+    height: mediaBody === 'portrait' ? '100%' : 'auto',
+    maxWidth: '100%',
+    maxHeight: '100%',
+    position: 'relative',
+  }
 
   // ════════════════════════════════════════
   // SPOTIFY — share card. No iframe. No embed.
@@ -116,13 +139,16 @@ export default function GhostTile({
       >
         {/* Album art — full bleed */}
         {thumbnail_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={thumbnail_url}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover"
-            loading="lazy"
-          />
+          <>
+            <ThumbnailBg src={thumbnail_url} candidates={thumbCandidates} onMeasure={setMeasuredBody} />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={thumbnail_url}
+              alt=""
+              className="absolute inset-0 w-full h-full object-contain"
+              loading="lazy"
+            />
+          </>
         ) : (
           <div className="absolute inset-0 bg-black" />
         )}
@@ -150,7 +176,7 @@ export default function GhostTile({
   if (archetype === 'audio') {
     return (
       <div className="w-full h-full relative overflow-hidden fp-tile" style={{ borderRadius: 'inherit' }}>
-        <ThumbnailBg src={thumbUrl} candidates={thumbCandidates} />
+        <ThumbnailBg src={thumbUrl} candidates={thumbCandidates} onMeasure={setMeasuredBody} />
         <div
           className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer"
           style={{ zIndex: 2 }}
@@ -196,7 +222,7 @@ export default function GhostTile({
         clipPath: 'inset(0 round var(--fp-tile-radius, 0px))',
       }}
     >
-      <ThumbnailBg src={thumbUrl} candidates={thumbCandidates} />
+      <ThumbnailBg src={thumbUrl} candidates={thumbCandidates} onMeasure={setMeasuredBody} />
 
       <div
         className="absolute inset-0 flex items-center justify-center cursor-pointer"
@@ -224,37 +250,39 @@ export default function GhostTile({
 
       {isPlaying && iframeSrc && (
         <div
-          className="absolute inset-0"
+          className="absolute inset-0 flex items-center justify-center"
           style={{
             opacity: iframeLoaded ? 1 : 0,
             transition: 'opacity 0.25s ease',
             zIndex: 1,
           }}
         >
-          <iframe
-            src={iframeSrc}
-            className="w-full h-full"
-            style={{ border: 'none' }}
-            allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-            allowFullScreen
-            referrerPolicy="strict-origin-when-cross-origin"
-            loading="lazy"
-            onLoad={(e) => { setIframeLoaded(true); handleYTLoad(e) }}
-          />
-          {/* Block clicks on YouTube watermark area */}
-          {platform === 'youtube' && (
-            <div
-              style={{
-                position: 'absolute',
-                bottom: 0,
-                right: 0,
-                width: 50,
-                height: 40,
-                zIndex: 2,
-                pointerEvents: 'auto',
-              }}
+          <div style={mediaFrameStyle}>
+            <iframe
+              src={iframeSrc}
+              className="w-full h-full"
+              style={{ border: 'none', display: 'block' }}
+              allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+              allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
+              loading="lazy"
+              onLoad={(e) => { setIframeLoaded(true); handleYTLoad(e) }}
             />
-          )}
+            {/* Block clicks on YouTube watermark area */}
+            {platform === 'youtube' && (
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  right: 0,
+                  width: 50,
+                  height: 40,
+                  zIndex: 2,
+                  pointerEvents: 'auto',
+                }}
+              />
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -265,7 +293,15 @@ export default function GhostTile({
 // SUB-COMPONENTS
 // ════════════════════════════════════════
 
-function ThumbnailBg({ src, candidates }: { src: string | null; candidates: string[] }) {
+function ThumbnailBg({
+  src,
+  candidates,
+  onMeasure,
+}: {
+  src: string | null
+  candidates: string[]
+  onMeasure?: (body: MediaBody) => void
+}) {
   if (!src) return (
     <div className="absolute inset-0" style={{ background: 'rgba(0, 0, 0, 0.6)' }} />
   )
@@ -275,17 +311,21 @@ function ThumbnailBg({ src, candidates }: { src: string | null; candidates: stri
       <img
         src={src}
         alt=""
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{}}
+        className="fp-media-ambient absolute inset-0 w-full h-full object-cover"
+        style={{ filter: 'blur(24px) brightness(0.34) saturate(115%)', transform: 'scale(1.14)' }}
         loading="lazy"
         decoding="async"
         onLoad={(e) => {
+          const img = e.currentTarget
+          const body = classifyMediaBodyFromDimensions(img.naturalWidth, img.naturalHeight)
+          if (body) onMeasure?.(body)
           applyThumbnailLoadGuard(e.currentTarget, candidates)
         }}
         onError={(e) => {
           applyNextThumbnailFallback(e.currentTarget, candidates)
         }}
       />
+      <div className="absolute inset-0 bg-black/20" />
     </>
   )
 }

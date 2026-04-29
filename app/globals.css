@@ -216,12 +216,12 @@ input:-webkit-autofill:focus {
   transition: border-radius 350ms ease-out;
 }
 
-/* ═══ Resize behavior: fill the tile edge to edge ═══ */
-.tile-container img,
-.tile-container video {
+/* ═══ Resize behavior: preserve media body inside the tile ═══ */
+.tile-container img:not(.fp-media-ambient),
+.tile-container video:not(.fp-media-ambient) {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   object-position: center center;
   transition: transform 0.3s ease;
 }

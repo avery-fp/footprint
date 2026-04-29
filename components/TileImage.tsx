@@ -26,7 +26,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout }: Ti
       <img
         src={src}
         alt={alt}
-        className="w-full h-full object-cover"
+        className="w-full h-full object-contain"
         loading={index < 4 ? 'eager' : 'lazy'}
         decoding="async"
       />
@@ -57,7 +57,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout }: Ti
     )
   }
 
-  // grid (default) → Next.js Image fill + object-cover (square crop)
+  // grid (default) → tile size changes presence, not the media crop.
   return (
     <>
       {shimmer}
@@ -66,7 +66,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout }: Ti
         alt={alt}
         fill
         sizes={sizes}
-        className={`object-cover transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+        className={`object-contain transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
         loading={index < 4 ? 'eager' : 'lazy'}
         priority={index < 2}
         quality={90}

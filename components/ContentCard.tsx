@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, type CSSProperties } from 'react'
 import Image from 'next/image'
 import type { ContentType } from '@/lib/parser'
 import { audioManager } from '@/lib/audio-manager'
@@ -9,6 +9,7 @@ import type { EmbedResult } from '@/lib/parseEmbed'
 import GlassEmbedFrameExtracted, { GLASS_STYLE as GLASS_STYLE_IMPORTED, GlassPlaceholder as GlassPlaceholderExtracted } from '@/components/GlassEmbedFrame'
 import { transformImageUrl } from '@/lib/image'
 import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getBestThumbnailUrl, getYouTubeThumbnailCandidates } from '@/lib/media/thumbnails'
+import { bodyToAspectRatio, classifyEmbedBody, classifyMediaBodyFromDimensions, type MediaBody } from '@/lib/media/body'
 
 // ════════════════════════════════════════
 // Glass Embed Frame — imported from extracted component
@@ -70,6 +71,8 @@ interface ContentCardProps {
     external_id?: string | null
     artist?: string | null
     thumbnail_url_hq?: string | null
+    thumbnail_width?: number | null
+    thumbnail_height?: number | null
   }
   onWidescreen?: () => void
   isMobile?: boolean
@@ -90,11 +93,12 @@ interface ContentCardProps {
  */
 export default function ContentCard({ content, onWidescreen, isMobile = false, tileSize = 1, aspect = 'square', isPublicView = false, isExpanded = false }: ContentCardProps) {
   const aspectClass = aspect === 'wide' ? 'aspect-video' : aspect === 'tall' ? 'aspect-[9/16]' : aspect === 'portrait' ? 'aspect-[3/4]' : 'aspect-square'
-  const fitClass = 'object-cover'
+  const fitClass = 'object-contain'
   const [isActivated, setIsActivated] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
   const [isInView, setIsInView] = useState(false)
   const [iframeFailed, setIframeFailed] = useState(false)
+  const [measuredYoutubeBody, setMeasuredYoutubeBody] = useState<MediaBody | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const audioIdRef = useRef(`card-${content.id}`)
 
@@ -145,6 +149,22 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       })
     : []
   if (content.type === 'youtube' && youtubeId && !iframeFailed) {
+    const youtubeBody = measuredYoutubeBody || classifyEmbedBody({
+      type: 'youtube',
+      url: content.url,
+      thumbnailWidth: content.thumbnail_width,
+      thumbnailHeight: content.thumbnail_height,
+      aspect,
+    })
+    const youtubeFrameStyle: CSSProperties = {
+      aspectRatio: bodyToAspectRatio(youtubeBody),
+      width: youtubeBody === 'portrait' ? 'auto' : '100%',
+      height: youtubeBody === 'portrait' ? '100%' : 'auto',
+      maxWidth: '100%',
+      maxHeight: '100%',
+    }
+    const thumbSrc = youtubeThumbCandidates[0]
+
     // postMessage unmute — mobile Safari enforces mute on iframe autoplay
     // even after user gesture. enablejsapi=1 + postMessage bypasses this.
     const handleYTLoad = (e: React.SyntheticEvent<HTMLIFrameElement>) => {
@@ -164,44 +184,52 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       const ytSrc = `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=1&enablejsapi=1&controls=0&modestbranding=1&rel=0&iv_load_policy=3&playsinline=1&fs=0&disablekb=1&vq=hd1080&hd=1`
       return (
         <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative bg-black">
-          <iframe
-            src={ytSrc}
-            className="w-full h-full"
-            style={{ border: 'none' }}
-            allow="autoplay; encrypted-media; fullscreen"
-            allowFullScreen
-            referrerPolicy="strict-origin-when-cross-origin"
-            onLoad={handleYTLoad}
-          />
-          {/* Block clicks on YouTube watermark area */}
-          <div style={{ position: 'absolute', bottom: 0, right: 0, width: 50, height: 40, zIndex: 2, pointerEvents: 'auto' }} />
+          <AmbientImage src={thumbSrc} onMeasure={setMeasuredYoutubeBody} />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div style={youtubeFrameStyle}>
+              <iframe
+                src={ytSrc}
+                className="w-full h-full"
+                style={{ border: 'none', display: 'block' }}
+                allow="autoplay; encrypted-media; fullscreen"
+                allowFullScreen
+                referrerPolicy="strict-origin-when-cross-origin"
+                onLoad={handleYTLoad}
+              />
+              {/* Block clicks on YouTube watermark area */}
+              <div style={{ position: 'absolute', bottom: 0, right: 0, width: 50, height: 40, zIndex: 2, pointerEvents: 'auto' }} />
+            </div>
+          </div>
         </div>
       )
     }
     // Facade — always shows a thumbnail, never collapses
     if (!isActivated) {
-      const thumbSrc = youtubeThumbCandidates[0]
       return (
         <div
           ref={containerRef}
           className="w-full h-full fp-tile overflow-hidden cursor-pointer relative group bg-black"
           onClick={handleActivate}
         >
+          <AmbientImage src={thumbSrc} onMeasure={setMeasuredYoutubeBody} />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={thumbSrc}
             alt=""
-            className="w-full h-full object-cover"
+            className="relative z-[1] w-full h-full object-contain"
             loading="lazy"
             decoding="async"
             onLoad={(e) => {
-              applyThumbnailLoadGuard(e.currentTarget, youtubeThumbCandidates)
+              const img = e.currentTarget
+              const body = classifyMediaBodyFromDimensions(img.naturalWidth, img.naturalHeight)
+              if (body) setMeasuredYoutubeBody(body)
+              applyThumbnailLoadGuard(img, youtubeThumbCandidates)
             }}
             onError={(e) => {
               applyNextThumbnailFallback(e.currentTarget, youtubeThumbCandidates)
             }}
           />
-          <div className="absolute inset-0 flex items-center justify-center">
+          <div className="absolute inset-0 z-[2] flex items-center justify-center">
             <div className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center opacity-60 group-hover:opacity-100 group-hover:scale-110 transition-all duration-200">
               <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M8 5v14l11-7z"/>
@@ -215,17 +243,22 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     const ytSrc = `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=1&enablejsapi=1&controls=0&modestbranding=1&rel=0&iv_load_policy=3&playsinline=1&fs=0&disablekb=1&vq=hd1080&hd=1`
     return (
       <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative bg-black">
-        <iframe
-          src={ytSrc}
-          className="w-full h-full"
-          style={{ border: 'none' }}
-          allow="autoplay; encrypted-media; fullscreen"
-          allowFullScreen
-          referrerPolicy="strict-origin-when-cross-origin"
-          onLoad={handleYTLoad}
-        />
-        {/* Block clicks on YouTube watermark area */}
-        <div style={{ position: 'absolute', bottom: 0, right: 0, width: 50, height: 40, zIndex: 2, pointerEvents: 'auto' }} />
+        <AmbientImage src={thumbSrc} onMeasure={setMeasuredYoutubeBody} />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div style={youtubeFrameStyle}>
+            <iframe
+              src={ytSrc}
+              className="w-full h-full"
+              style={{ border: 'none', display: 'block' }}
+              allow="autoplay; encrypted-media; fullscreen"
+              allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
+              onLoad={handleYTLoad}
+            />
+            {/* Block clicks on YouTube watermark area */}
+            <div style={{ position: 'absolute', bottom: 0, right: 0, width: 50, height: 40, zIndex: 2, pointerEvents: 'auto' }} />
+          </div>
+        </div>
       </div>
     )
   }
@@ -247,13 +280,16 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       >
         {/* Album art — full bleed */}
         {thumbSrc ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={thumbSrc}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover"
-            loading="lazy"
-          />
+          <>
+            <AmbientImage src={thumbSrc} />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={thumbSrc}
+              alt=""
+              className="absolute inset-0 w-full h-full object-contain"
+              loading="lazy"
+            />
+          </>
         ) : (
           <div className="absolute inset-0 bg-black" />
         )}
@@ -426,7 +462,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             width={600}
             height={800}
             sizes="(max-width: 768px) 50vw, 25vw"
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
             loading="lazy"
             quality={90}
             onLoad={(e) => {
@@ -552,7 +588,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             <img
               src={thumbSrc}
               alt={content.title || ''}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
               loading="lazy"
               decoding="async"
             />
@@ -589,7 +625,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           <img
             src={thumbSrc}
             alt={content.title || ''}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
             loading="lazy"
             decoding="async"
           />
@@ -634,7 +670,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           alt={content.title || ''}
           fill
           sizes={tileSize >= 2 ? '(max-width: 768px) 100vw, 50vw' : '(max-width: 768px) 50vw, 25vw'}
-          className="object-cover"
+          className="object-contain"
           loading="lazy"
           quality={90}
           onLoad={() => setIsLoaded(true)}
@@ -652,6 +688,39 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       isInView={isInView}
       aspectClass={aspectClass}
     />
+  )
+}
+
+function AmbientImage({
+  src,
+  onMeasure,
+}: {
+  src?: string | null
+  onMeasure?: (body: MediaBody) => void
+}) {
+  if (!src) return <div className="absolute inset-0 bg-black/70" />
+
+  return (
+    <>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt=""
+        className="fp-media-ambient absolute inset-0 h-full w-full object-cover"
+        style={{
+          filter: 'blur(24px) brightness(0.34) saturate(115%)',
+          transform: 'scale(1.14)',
+        }}
+        loading="lazy"
+        decoding="async"
+        onLoad={(e) => {
+          const img = e.currentTarget
+          const body = classifyMediaBodyFromDimensions(img.naturalWidth, img.naturalHeight)
+          if (body) onMeasure?.(body)
+        }}
+      />
+      <div className="absolute inset-0 bg-black/20" />
+    </>
   )
 }
 
@@ -771,7 +840,7 @@ function LinkCard({
         <img
           src={ogImage}
           alt=""
-          className="w-full h-full object-cover"
+          className="w-full h-full object-contain"
           loading="lazy"
         />
       </a>

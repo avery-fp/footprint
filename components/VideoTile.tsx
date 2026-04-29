@@ -123,13 +123,28 @@ export default function VideoTile({ src, onWidescreen }: { src: string; onWidesc
   }
 
   return (
-    <div ref={containerRef} className="relative w-full h-full aspect-video">
+    <div
+      ref={containerRef}
+      className="relative w-full h-full overflow-hidden"
+      style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.26))' }}
+    >
       {isNear ? (
         <>
           <video
+            src={src}
+            className="fp-media-ambient pointer-events-none absolute inset-0 h-full w-full object-cover opacity-45 blur-2xl scale-110"
+            aria-hidden="true"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+          />
+          <div className="absolute inset-0 bg-black/20" />
+          <video
             ref={videoRef}
             src={src}
-            className="w-full h-full object-cover cursor-pointer"
+            className="relative z-[1] w-full h-full object-contain cursor-pointer"
             autoPlay
             muted
             loop

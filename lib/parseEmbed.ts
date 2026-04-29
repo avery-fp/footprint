@@ -189,5 +189,15 @@ export function extractYouTubeId(url: string): string | null {
  */
 export function getYouTubeThumbnail(url: string): string | null {
   const id = extractYouTubeId(url)
-  return id ? `https://i.ytimg.com/vi/${id}/maxresdefault.jpg` : null
+  return id ? getYouTubeThumbnailCandidates(id)[0] : null
+}
+
+export function getYouTubeThumbnailCandidates(idOrUrl: string): string[] {
+  const id = idOrUrl.length === 11 ? idOrUrl : extractYouTubeId(idOrUrl)
+  if (!id) return []
+  return [
+    `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`,
+    `https://i.ytimg.com/vi/${id}/sddefault.jpg`,
+    `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+  ]
 }
