@@ -57,8 +57,10 @@ const USERNAME_REASONS: Record<string, string> = {
   'reserved': 'That name is reserved.',
   '2-20 characters': 'Names must be 2-20 characters.',
   '2-30 characters': 'Names must be 2-30 characters.',
+  '2-40 characters': 'Names must be 2-40 characters.',
   'lowercase letters, numbers, underscores only': 'Names can only contain letters, numbers, and underscores.',
   'letters, numbers, dots, dashes only': 'Names can only contain letters, numbers, dots, and dashes.',
+  'letters, numbers, dashes only': 'Names can only contain letters, numbers, and dashes.',
 }
 
 /**

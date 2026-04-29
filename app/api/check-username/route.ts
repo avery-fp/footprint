@@ -17,15 +17,19 @@ export async function POST(request: NextRequest) {
 
     const clean = username.toLowerCase().trim()
 
-    if (clean.length < 2 || clean.length > 30) {
-      return NextResponse.json({ available: false, reason: '2-30 characters' })
+    if (clean.length < 2 || clean.length > 40) {
+      return NextResponse.json({ available: false, reason: '2-40 characters' })
     }
 
-    if (!/^[a-z0-9][a-z0-9._-]*[a-z0-9]$/.test(clean) && clean.length > 1) {
-      return NextResponse.json({ available: false, reason: 'letters, numbers, dots, dashes only' })
+    if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(clean) && clean.length > 1) {
+      return NextResponse.json({ available: false, reason: 'letters, numbers, dashes only' })
     }
 
-    if ((RESERVED_SLUGS as readonly string[]).includes(clean)) {
+    if (
+      (RESERVED_SLUGS as readonly string[]).includes(clean) ||
+      clean.startsWith('draft-') ||
+      clean.startsWith('pending-')
+    ) {
       return NextResponse.json({ available: false, reason: 'reserved' })
     }
 
