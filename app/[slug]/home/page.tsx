@@ -65,7 +65,7 @@ const getObjectFit = getObjectFitShared
 
 function SortableTile({
   id, content, deleting, size, aspect, isArranging, isViewing, isMobile, selected, anyDragging, onTap,
-  onLongPressStart, onLongPressMove, onLongPressEnd, onPinchResize, onDelete,
+  onLongPressStart, onLongPressMove, onLongPressEnd, onPinchResize, onDelete, onAutoHealAspect,
 }: {
   id: string
   content: any
@@ -83,6 +83,7 @@ function SortableTile({
   onLongPressEnd: () => void
   onPinchResize: (direction: 'up' | 'down') => void
   onDelete?: () => void
+  onAutoHealAspect?: (tileId: string, detected: 'square' | 'wide' | 'tall') => void
 }) {
   const [isMuted, setIsMuted] = useState(true)
   const [isLoaded, setIsLoaded] = useState(false)
@@ -113,6 +114,28 @@ function SortableTile({
       willChange: 'transform',
     } : {}),
     opacity: isDragging ? 1 : deleting ? 0.5 : anyDragging ? 0.9 : 1,
+  }
+
+  // Auto-heal: when the actual media reports its natural dimensions, snap
+  // them to the canonical 3-shape vocabulary (square|wide|tall) and notify
+  // the parent if it disagrees with the stored aspect. Three-shape doctrine:
+  //   ratio < 0.9 → tall (vertical)
+  //   ratio > 1.1 → wide (widescreen)
+  //   otherwise   → square
+  // Thresholds align with normalizeUploadAspect (portrait collapses to tall,
+  // landscape collapses to wide).
+  const detectAspectFromDims = (w: number, h: number): 'square' | 'wide' | 'tall' | null => {
+    if (!w || !h) return null
+    const r = w / h
+    if (r < 0.9) return 'tall'
+    if (r > 1.1) return 'wide'
+    return 'square'
+  }
+  const maybeHealFromDims = (w: number, h: number) => {
+    const detected = detectAspectFromDims(w, h)
+    if (detected && detected !== (content as any).aspect && onAutoHealAspect) {
+      onAutoHealAspect(content.id, detected)
+    }
   }
 
   // Use shared isVideoTile helper so YouTube/Vimeo are recognized as video.
@@ -308,7 +331,31 @@ function SortableTile({
                   playsInline
                   preload="metadata"
                   onClick={handleVideoClick}
-                  onLoadedData={() => setIsLoaded(true)}
+                  onLoadedMetadata={(e) => {
+                    // Auto-heal: read intrinsic dims and reconcile with stored
+                    // aspect. Caveat: videoWidth/videoHeight ignore rotation
+                    // metadata; the createImageBitmap pass in the onLoadedData
+                    // hook below corrects rotated iPhone files.
+                    const v = e.currentTarget
+                    if (v.videoWidth && v.videoHeight) {
+                      maybeHealFromDims(v.videoWidth, v.videoHeight)
+                    }
+                  }}
+                  onLoadedData={async (e) => {
+                    setIsLoaded(true)
+                    // Stronger heal: createImageBitmap reflects displayed
+                    // orientation (post-rotation) on modern browsers, which
+                    // catches iPhone vertical files that report intrinsic
+                    // landscape via videoWidth/videoHeight.
+                    try {
+                      const v = e.currentTarget
+                      const bitmap = await createImageBitmap(v)
+                      if (bitmap.width > 0 && bitmap.height > 0) {
+                        maybeHealFromDims(bitmap.width, bitmap.height)
+                      }
+                      bitmap.close()
+                    } catch { /* fallback already fired in onLoadedMetadata */ }
+                  }}
                   onError={() => setIsLoaded(true)}
                 />
               ) : null}
@@ -334,6 +381,13 @@ function SortableTile({
               loading="lazy"
               decoding="async"
               quality={75}
+              onLoad={(e) => {
+                // Auto-heal aspect from natural image dimensions.
+                const img = e.target as HTMLImageElement
+                if (img.naturalWidth && img.naturalHeight) {
+                  maybeHealFromDims(img.naturalWidth, img.naturalHeight)
+                }
+              }}
               onError={(e) => {
                 const img = e.target as HTMLImageElement
                 img.style.opacity = '0'
@@ -739,6 +793,32 @@ export default function EditPage() {
       : (current <= 1 ? 3 : current - 1)
     setTileSize(tileId, next)
   }, [draft])
+
+  // Auto-heal aspect — fired by SortableTile when the actual media's natural
+  // dimensions disagree with the stored aspect. The system observes the real
+  // pixels, recognizes the lie in its own metadata, and corrects it once.
+  // The next render uses the corrected shape. Permanently. No re-upload.
+  const healingTilesRef = useRef<Set<string>>(new Set())
+  const handleAutoHealAspect = useCallback((tileId: string, detected: 'square' | 'wide' | 'tall') => {
+    // Skip temp uploads (still in flight); skip if already healing this id.
+    if (tileId.startsWith('temp-')) return
+    if (healingTilesRef.current.has(tileId)) return
+    const source = tileSources[tileId]
+    if (!source) return
+    healingTilesRef.current.add(tileId)
+    // Optimistic local update first — UI reflects corrected shape immediately.
+    setDraft(prev => prev ? {
+      ...prev,
+      content: prev.content.map(c => c.id === tileId ? ({ ...c, aspect: detected } as any) : c),
+    } : null)
+    // Fire-and-forget persist. If it fails the local state still shows the
+    // right shape; next page load will re-detect and re-heal.
+    fetch('/api/tiles', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: tileId, source, slug, aspect: detected }),
+    }).catch(() => { /* best-effort heal */ })
+  }, [tileSources, slug])
 
   // Desktop: click-and-drag. Mobile: tap-to-swap (no dnd-kit touch sensor).
   const mouseSensor = useSensor(MouseSensor, { activationConstraint: { distance: 4 } })
@@ -2315,6 +2395,7 @@ export default function EditPage() {
                     onLongPressEnd={handleTouchEnd}
                     onPinchResize={(direction) => handlePinchResize(item.id, direction)}
                     onDelete={() => { handleDelete(item.id); closeTileMenu() }}
+                    onAutoHealAspect={handleAutoHealAspect}
                   />
                 ))}
               </motion.div>

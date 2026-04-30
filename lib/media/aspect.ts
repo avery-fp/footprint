@@ -63,13 +63,29 @@ export function isVideoTile(type: string, url?: string): boolean {
  * Pass isVideo=true for video tile dominance: videos always get col-span-2 row-span-1.
  */
 export function getGridClass(size: number, aspect: string | null | undefined, isVideo = false): string {
-  // Video dominance — always prominent
+  // Doctrine: shape from aspect, presence from size. Two orthogonal axes.
+  // Three shapes: tall (9:16 video, 3:4 image) | wide (16:9) | square (1:1).
+  // Size only varies col/row span — never converts shape.
+
   if (isVideo) {
+    // Vertical video — locked 9:16 across S/M/L.
     if (aspect === 'tall' || aspect === 'portrait') {
+      if (size >= 3) return 'col-span-2 row-span-3 md:col-span-2 md:row-span-3 aspect-[9/16]'
+      if (size >= 2) return 'col-span-1 row-span-2 md:col-span-2 md:row-span-3 aspect-[9/16]'
       return 'col-span-1 row-span-2 aspect-[9/16]'
     }
+    // Square video — locked 1:1 across S/M/L. (Was silently widescreen.)
+    if (aspect === 'square') {
+      if (size >= 3) return 'col-span-3 row-span-3 aspect-square'
+      if (size >= 2) return 'col-span-2 row-span-2 aspect-square'
+      return 'col-span-1 row-span-1 aspect-square'
+    }
+    // Widescreen video (default for video).
+    if (size >= 3) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-2 aspect-video'
+    if (size >= 2) return 'col-span-2 row-span-1 md:col-span-2 md:row-span-1 aspect-video'
     return 'col-span-2 row-span-1 aspect-video'
   }
+
   if (aspect === 'wide' || aspect === 'landscape') {
     if (size >= 3) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-2 aspect-video'
     if (size >= 2) return 'col-span-2 row-span-1 md:col-span-2 md:row-span-1 aspect-video'
@@ -80,10 +96,12 @@ export function getGridClass(size: number, aspect: string | null | undefined, is
     if (size >= 2) return 'col-span-1 row-span-2 md:col-span-2 md:row-span-2 aspect-[3/4]'
     return 'col-span-1 row-span-2 aspect-[3/4]'
   }
-  // 3-state topology: S (1×1 square) → M (2×1 landscape) → L (2×2 square)
+  // Square (also the fallback for unset/unknown aspect).
+  // Previously: S→3:4 portrait, M→4:3 landscape — size shape-shifted the
+  // tile. That violated the orthogonal-axes doctrine. Now locked 1:1.
   if (size >= 3) return 'col-span-2 row-span-2 aspect-square'
-  if (size >= 2) return 'col-span-2 row-span-1 aspect-[4/3]'
-  return 'col-span-1 row-span-2 aspect-[3/4]'
+  if (size >= 2) return 'col-span-2 row-span-2 aspect-square'
+  return 'col-span-1 row-span-1 aspect-square'
 }
 
 /**
@@ -95,11 +113,21 @@ export function getGridClass(size: number, aspect: string | null | undefined, is
  * Pass isVideo=true for video tile dominance.
  */
 export function getGridClassHome(size: number, aspect: string, isVideo = false): string {
-  // Video dominance — always prominent
+  // Same doctrine as getGridClass — shape from aspect, presence from size.
+  // This variant returns spans only (no aspect class baked in).
   if (isVideo) {
     if (aspect === 'tall' || aspect === 'portrait') {
+      if (size >= 3) return 'col-span-2 row-span-3 md:col-span-2 md:row-span-3'
+      if (size >= 2) return 'col-span-1 row-span-2 md:col-span-2 md:row-span-3'
       return 'col-span-1 row-span-2'
     }
+    if (aspect === 'square') {
+      if (size >= 3) return 'col-span-3 row-span-3'
+      if (size >= 2) return 'col-span-2 row-span-2'
+      return 'col-span-1 row-span-1'
+    }
+    if (size >= 3) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-2'
+    if (size >= 2) return 'col-span-2 row-span-1 md:col-span-2 md:row-span-1'
     return 'col-span-2 row-span-1'
   }
   if (aspect === 'wide' || aspect === 'landscape') {
@@ -112,10 +140,10 @@ export function getGridClassHome(size: number, aspect: string, isVideo = false):
     if (size >= 2) return 'col-span-1 row-span-2 md:col-span-2 md:row-span-2'
     return 'col-span-1 row-span-2'
   }
-  // 3-state topology: S (1×1) → M (2×1) → L (2×2)
+  // Square — locked across S/M/L (was previously size-shape-shifted).
   if (size >= 3) return 'col-span-2 row-span-2'
-  if (size >= 2) return 'col-span-2 row-span-1'
-  return ''
+  if (size >= 2) return 'col-span-2 row-span-2'
+  return 'col-span-1 row-span-1'
 }
 
 /**
