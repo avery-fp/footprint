@@ -1684,9 +1684,18 @@ export default function EditPage() {
       return
     }
 
-    // Size limit: 10MB images
-    const oversizedImages = files.filter(f => f.size > 10 * 1024 * 1024)
-    if (oversizedImages.length > 0) {
+    // Size limits — split by media kind. Images stay at the original 10MB
+    // ceiling. Videos get a sane V1 ceiling of 50MB so normal phone clips
+    // (10–30s vertical iPhone video is typically 30–80MB) actually fit.
+    // Truly huge files (4K HDR camera-roll) still get rejected with clear
+    // copy. Architecture is already direct-to-storage — no API body, no
+    // base64 — so raising the gate here is the only knob to turn.
+    const IMAGE_MAX_BYTES = 10 * 1024 * 1024
+    const VIDEO_MAX_BYTES = 50 * 1024 * 1024
+    const oversized = files.filter(f =>
+      isVideoFile(f) ? f.size > VIDEO_MAX_BYTES : f.size > IMAGE_MAX_BYTES
+    )
+    if (oversized.length > 0) {
       setTooLarge(true)
       setTimeout(() => setTooLarge(false), 3000)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -1746,8 +1755,12 @@ export default function EditPage() {
         detectedAspect = normalizeUploadAspect(detectedAspect)
 
         // ── IMAGE LANE: Supabase Storage ──
+        // Videos go up as-is; resizeImage is image-only and on a video
+        // it just sits in a 10s timeout before failing. Skip it.
         let uploadFile: File
-        if (file.type === 'image/heic' || file.type === 'image/heif' || /\.heic$/i.test(file.name)) {
+        if (isVideoFile(file)) {
+          uploadFile = file
+        } else if (file.type === 'image/heic' || file.type === 'image/heif' || /\.heic$/i.test(file.name)) {
           try {
             uploadFile = await resizeImage(new File([file], file.name.replace(/\.heic$/i, '.jpg'), { type: 'image/jpeg' }), 2400)
           } catch {
