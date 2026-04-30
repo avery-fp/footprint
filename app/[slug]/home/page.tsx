@@ -36,6 +36,8 @@ import {
 } from '@/lib/upload'
 import { applyNextThumbnailFallback, getBestThumbnailUrl, getThumbnailCandidates } from '@/lib/media/thumbnails'
 
+const OWNER_KEY_RE = /^\d{6,8}$/
+
 interface TileContent extends DraftContent {
   source?: 'library' | 'links'
 }
@@ -464,6 +466,7 @@ export default function EditPage() {
   // Auth/claim overlay state
   const [claimOverlay, setClaimOverlay] = useState<'closed' | 'claim'>('closed')
   const [claimUsername, setClaimUsername] = useState('')
+  const [claimOwnerKey, setClaimOwnerKey] = useState('')
   const [claimAvailable, setClaimAvailable] = useState<boolean | null>(null)
   const [claimChecking, setClaimChecking] = useState(false)
   const [claimReason, setClaimReason] = useState('')
@@ -565,6 +568,10 @@ export default function EditPage() {
       setClaimError('choose an available name first')
       return
     }
+    if (!OWNER_KEY_RE.test(claimOwnerKey)) {
+      setClaimError('owner key must be 6-8 digits')
+      return
+    }
     setClaimError('')
     setClaimLoading(true)
     try {
@@ -574,6 +581,7 @@ export default function EditPage() {
         body: JSON.stringify({
           draft_slug: slug,
           desired_slug: desiredSlug,
+          owner_key: claimOwnerKey,
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -1923,8 +1931,23 @@ export default function EditPage() {
                   <div className="flex items-center gap-0 rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
                     <span className="text-white/20 text-[13px] pl-4 shrink-0">footprint.onl/</span>
                     <input type="text" value={claimUsername} onChange={(e) => { setClaimUsername(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')); setClaimAvailable(null); setClaimError('') }} placeholder="username" aria-label="Username" className="flex-1 min-w-0 bg-transparent py-3.5 pr-2 text-white/90 placeholder:text-white/20 focus:outline-none text-[14px]" autoFocus />
-                    <button type="submit" disabled={claimLoading || !claimAvailable || !claimUsername.trim()} className="shrink-0 px-4 py-3.5 text-white/80 text-[20px] hover:text-white transition-colors disabled:opacity-25 disabled:cursor-not-allowed" aria-label="Submit">{claimLoading ? '\u2026' : '\u2192'}</button>
+                    <button type="submit" disabled={claimLoading || !claimAvailable || !claimUsername.trim() || !OWNER_KEY_RE.test(claimOwnerKey)} className="shrink-0 px-4 py-3.5 text-white/80 text-[20px] hover:text-white transition-colors disabled:opacity-25 disabled:cursor-not-allowed" aria-label="Submit">{claimLoading ? '\u2026' : '\u2192'}</button>
                   </div>
+                  <label className="block mt-4 mb-1.5 px-1 text-white/35 text-[11px] font-mono lowercase tracking-[0.04em]">
+                    owner key
+                  </label>
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={claimOwnerKey}
+                    onChange={(e) => { setClaimOwnerKey(e.target.value.replace(/\D/g, '').slice(0, 8)); setClaimError('') }}
+                    placeholder="6-8 digits"
+                    aria-label="owner key"
+                    autoComplete="off"
+                    className="w-full rounded-xl bg-white/[0.04] border border-white/[0.08] px-4 py-3.5 text-white/90 placeholder:text-white/20 focus:outline-none text-[14px]"
+                  />
+                  <p className="mt-1.5 px-1 text-white/25 text-[11px]">Your key opens this Footprint later.</p>
                   </form>
                   {claimUsername.length >= 2 && (
                     <div className="mt-1.5 px-1">
@@ -2969,13 +2992,31 @@ export default function EditPage() {
                     />
                     <button
                       type="submit"
-                      disabled={claimLoading || !claimAvailable || !claimUsername.trim()}
+                      disabled={claimLoading || !claimAvailable || !claimUsername.trim() || !OWNER_KEY_RE.test(claimOwnerKey)}
                       className="shrink-0 px-4 py-3.5 text-white/80 text-[20px] hover:text-white transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
                       aria-label="Submit"
                     >
                       {claimLoading ? '\u2026' : '\u2192'}
                     </button>
                   </div>
+                  <label className="block mt-4 mb-1.5 px-1 text-white/35 text-[11px] font-mono lowercase tracking-[0.04em]">
+                    owner key
+                  </label>
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={claimOwnerKey}
+                    onChange={(e) => {
+                      setClaimOwnerKey(e.target.value.replace(/\D/g, '').slice(0, 8))
+                      setClaimError('')
+                    }}
+                    placeholder="6-8 digits"
+                    aria-label="owner key"
+                    autoComplete="off"
+                    className="w-full rounded-xl bg-white/[0.04] border border-white/[0.08] px-4 py-3.5 text-white/90 placeholder:text-white/20 focus:outline-none text-[14px]"
+                  />
+                  <p className="mt-1.5 px-1 text-white/25 text-[11px]">Your key opens this Footprint later.</p>
                   </form>
                   {claimUsername.length >= 2 && (
                     <div className="mt-1.5 px-1">

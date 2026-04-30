@@ -105,18 +105,16 @@ describe('eventsSchema', () => {
 })
 
 describe('checkoutSchema', () => {
-  it('accepts minimal body (slug validation is enforced at route level)', () => {
-    // With Stripe-as-identity, the schema is intentionally permissive — the
-    // route layer validates desired_slug / draft_slug shape and normalizes.
-    expect(checkoutSchema.safeParse({}).success).toBe(true)
+  it('rejects missing owner_key before route-level slug validation', () => {
+    expect(checkoutSchema.safeParse({}).success).toBe(false)
   })
 
-  it('accepts draft_slug + desired_slug', () => {
-    expect(checkoutSchema.safeParse({ draft_slug: 'draft-abc', desired_slug: 'alice' }).success).toBe(true)
+  it('accepts draft_slug + desired_slug with owner_key', () => {
+    expect(checkoutSchema.safeParse({ draft_slug: 'draft-abc', desired_slug: 'alice', owner_key: '123456' }).success).toBe(true)
   })
 
-  it('accepts legacy slug field', () => {
-    expect(checkoutSchema.safeParse({ slug: 'alice' }).success).toBe(true)
+  it('accepts legacy slug field with owner_key', () => {
+    expect(checkoutSchema.safeParse({ slug: 'alice', owner_key: '123456' }).success).toBe(true)
   })
 })
 
