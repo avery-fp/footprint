@@ -295,7 +295,11 @@ function SortableTile({
                 <video
                   ref={videoRef}
                   src={content.url.includes('#') ? content.url : `${content.url}#t=0.1`}
-                  className={`absolute inset-0 w-full h-full object-cover cursor-pointer ${isArranging ? 'pointer-events-none' : ''}`}
+                  className={`absolute inset-0 w-full h-full cursor-pointer ${isArranging ? 'pointer-events-none' : ''}`}
+                  // Inline objectFit cover — guarantees fill regardless of any
+                  // class specificity conflict. Resting uploaded video must
+                  // cover its tile body, not letterbox inside it.
+                  style={{ objectFit: 'cover', objectPosition: 'center' }}
                   muted
                   loop
                   playsInline
