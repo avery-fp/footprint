@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server'
 import { createServerSupabaseClient } from './supabase'
+import { verifyOwnerSession } from './owner-return'
 
 /**
  * edit-token auth — the only auth this app has.
@@ -132,6 +133,21 @@ export async function verifyEditToken(slug: string, token: string | null): Promi
  * Entry point: verify a request is authorized to edit {slug}.
  */
 export async function getEditAuth(request: NextRequest | Request, slug: string): Promise<EditAuthResult> {
+  const ownerSession = verifyOwnerSession(request, slug)
+  if (ownerSession) {
+    const db = createServerSupabaseClient()
+    const { data, error } = await db
+      .from('footprints')
+      .select('user_id, username, edit_token')
+      .eq('username', slug)
+      .eq('serial_number', ownerSession.serial)
+      .maybeSingle()
+
+    if (!error && data?.user_id && data?.edit_token) {
+      return { ok: true, userId: data.user_id, slug, isDraft: false }
+    }
+  }
+
   const token = extractEditToken(request, slug)
   return verifyEditToken(slug, token)
 }

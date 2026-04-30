@@ -103,6 +103,7 @@ export const eventsSchema = z.object({
 
 export const checkoutSchema = z.object({
   email: z.string().optional(),
+  owner_key: z.string({ error: 'owner key must be 6-8 digits' }).regex(/^\d{6,8}$/, 'owner key must be 6-8 digits'),
   // Legacy: a single slug param (claim-by-name pre-draft flow). Accepted for
   // compatibility with any caller that hasn't switched to draft_slug yet.
   slug: z.string().optional(),
