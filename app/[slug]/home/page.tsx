@@ -28,6 +28,7 @@ import {
 } from '@/lib/media/aspect'
 import {
   isHEIC,
+  isVideoFile,
   uploadWithProgress as uploadWithProgressShared,
   resizeImage as resizeImageShared,
   detectImageAspect as detectImageAspectShared,
@@ -1728,7 +1729,13 @@ export default function EditPage() {
         // (which short-circuits to 'square' for non-image MIME types).
         let detectedAspect: string
         try {
-          if (file.type.startsWith('video/')) {
+          // Use the helper that recognizes video by MIME OR by file extension.
+          // file.type.startsWith('video/') misses files that arrive without
+          // a populated MIME type (some browsers/sources don't set it for
+          // .mov/.mkv/etc.) — those would fall to detectImageAspect, which
+          // short-circuits to 'square' for non-image MIME, then video
+          // dominance forces aspect-video at render time.
+          if (isVideoFile(file)) {
             detectedAspect = await detectVideoAspect(file)
           } else {
             detectedAspect = await detectImageAspect(file)

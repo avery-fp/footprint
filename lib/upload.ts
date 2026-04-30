@@ -297,15 +297,45 @@ export function detectImageAspect(file: File): Promise<string> {
 export function detectVideoAspect(file: File): Promise<string> {
   return new Promise((resolve) => {
     const video = document.createElement('video')
-    video.preload = 'metadata'
-    video.onloadedmetadata = () => {
-      const preset = snapToPreset(video.videoWidth, video.videoHeight)
-      URL.revokeObjectURL(video.src)
+    video.preload = 'auto' // need first frame loaded for createImageBitmap
+    video.muted = true
+    video.playsInline = true
+
+    let resolved = false
+    const finish = (preset: string) => {
+      if (resolved) return
+      resolved = true
+      try { URL.revokeObjectURL(video.src) } catch {}
       resolve(preset)
     }
-    video.onerror = () => {
-      resolve('square')
+
+    // Primary path: createImageBitmap from the first decoded frame.
+    // The bitmap reflects DISPLAYED orientation including any rotation
+    // metadata in the container (iPhone vertical videos are encoded as
+    // 1920x1080 landscape with a rotation matrix; videoWidth/videoHeight
+    // return the intrinsic landscape dims and would misclassify the
+    // file as 'wide'). Bitmap dims are post-rotation.
+    video.onloadeddata = async () => {
+      try {
+        const bitmap = await createImageBitmap(video)
+        if (bitmap.width > 0 && bitmap.height > 0) {
+          finish(snapToPreset(bitmap.width, bitmap.height))
+          bitmap.close()
+          return
+        }
+      } catch { /* fall through */ }
+      finish(snapToPreset(video.videoWidth, video.videoHeight))
     }
+
+    // Fallback if onloadeddata never fires (codec issue, etc.) — give it
+    // ~3s after metadata, then read intrinsic dims rather than hang.
+    video.onloadedmetadata = () => {
+      setTimeout(() => {
+        finish(snapToPreset(video.videoWidth, video.videoHeight))
+      }, 3000)
+    }
+
+    video.onerror = () => finish('square')
     video.src = URL.createObjectURL(file)
   })
 }
