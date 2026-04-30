@@ -299,11 +299,22 @@ export function detectVideoAspect(file: File): Promise<string> {
     const video = document.createElement('video')
     video.preload = 'metadata'
     video.onloadedmetadata = () => {
-      const preset = snapToPreset(video.videoWidth, video.videoHeight)
+      const w = video.videoWidth
+      const h = video.videoHeight
+      const preset = snapToPreset(w, h)
+      // [FP-DIAG] Trace point 1: detectVideoAspect intrinsic dims + preset.
+      // iPhone vertical videos are encoded landscape (e.g. 1920x1080) with
+      // rotation metadata; videoWidth/videoHeight return intrinsic, NOT
+      // displayed. If w > h on a video that displays vertical, that's the
+      // bug surface.
+      // eslint-disable-next-line no-console
+      console.log('[FP-DIAG] detectVideoAspect', { fileName: file.name, fileType: file.type, fileSize: file.size, videoWidth: w, videoHeight: h, ratio: h ? (w / h).toFixed(3) : 'n/a', preset })
       URL.revokeObjectURL(video.src)
       resolve(preset)
     }
     video.onerror = () => {
+      // eslint-disable-next-line no-console
+      console.log('[FP-DIAG] detectVideoAspect ERROR', { fileName: file.name, fileType: file.type })
       resolve('square')
     }
     video.src = URL.createObjectURL(file)

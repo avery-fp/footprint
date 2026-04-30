@@ -173,6 +173,25 @@ function SortableTile({
   // getGridClass bundles aspect ratios, so no separate aspectClass needed.
   const sizeClass = getGridClass(size, aspect, isVideo)
 
+  // [FP-DIAG] Trace point 4: render-time inputs to getGridClass.
+  // Only log video tiles to avoid console noise on every image render.
+  // Logs once per render — when sizeClass contains 'aspect-video' for a
+  // tile that should be tall, that's the visible failure on screen.
+  if (isVideo) {
+    // eslint-disable-next-line no-console
+    console.log('[FP-DIAG] SortableTile render', {
+      tileId: id,
+      contentType: content.type,
+      contentUrlTail: (content.url || '').slice(-40),
+      storedAspect: (content as any).aspect,
+      resolvedAspect: aspect,
+      size,
+      isVideo,
+      sizeClass,
+      bodyShape: sizeClass.includes('aspect-[9/16]') ? 'vertical' : sizeClass.includes('aspect-video') ? 'wide' : sizeClass.includes('aspect-square') ? 'square' : sizeClass.includes('aspect-[3/4]') ? 'portrait' : sizeClass.includes('aspect-[4/3]') ? 'landscape' : 'unknown',
+    })
+  }
+
   // Polaroid reveal — tile develops from frosted to crystal clear
   const isTemp = id.toString().startsWith('temp-')
   const progress = (content as any)?._progress ?? 0
@@ -1727,16 +1746,26 @@ export default function EditPage() {
         // detectVideoAspect instead of falling through to the image detector
         // (which short-circuits to 'square' for non-image MIME types).
         let detectedAspect: string
+        const isVideoMime = file.type.startsWith('video/')
+        // [FP-DIAG] Trace point 2: which detector branch is taken.
+        // eslint-disable-next-line no-console
+        console.log('[FP-DIAG] handleFileUpload pre-detect', { fileName: file.name, fileType: file.type, isVideoMime, branch: isVideoMime ? 'detectVideoAspect' : 'detectImageAspect' })
         try {
-          if (file.type.startsWith('video/')) {
+          if (isVideoMime) {
             detectedAspect = await detectVideoAspect(file)
           } else {
             detectedAspect = await detectImageAspect(file)
           }
-        } catch {
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.log('[FP-DIAG] detect threw', e)
           detectedAspect = 'square'
         }
+        const rawAspect = detectedAspect
         detectedAspect = normalizeUploadAspect(detectedAspect)
+        // [FP-DIAG] Trace point 3: raw vs normalized aspect being sent.
+        // eslint-disable-next-line no-console
+        console.log('[FP-DIAG] handleFileUpload post-detect', { rawAspect, normalizedAspect: detectedAspect, willSendToApi: detectedAspect })
 
         // ── IMAGE LANE: Supabase Storage ──
         let uploadFile: File
