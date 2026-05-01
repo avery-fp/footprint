@@ -33,10 +33,14 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
   // React's synthetic onLoad won't fire for img elements that finished loading before
   // the event listener was attached. We check once after mount and fire immediately.
   useEffect(() => {
-    if (!onAspectDetected || !containerRef.current) return
+    if (!containerRef.current) return
     const img = containerRef.current.querySelector('img')
-    if (!img || !img.complete || !img.naturalWidth || !img.naturalHeight) return
-    onAspectDetected(inferAspect(img.naturalWidth / img.naturalHeight))
+    if (!img || !img.complete || !img.naturalWidth) return
+    // Image already loaded from cache before onLoad could attach — show it now.
+    setLoaded(true)
+    if (onAspectDetected && img.naturalHeight) {
+      onAspectDetected(inferAspect(img.naturalWidth / img.naturalHeight))
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // intentionally empty — one-time mount check only
 
