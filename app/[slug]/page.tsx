@@ -77,12 +77,18 @@ export default async function FootprintPage({ params }: Props) {
   // Public page expects rooms with their content already grouped in.
   // Tiles with room_id=null (orphans — typically uploads that landed before
   // a room was assigned, or rows where the room was deleted) are included
-  // in the FIRST visible room so they remain reachable. Without this, an
+  // in the first VISIBLE room so they remain reachable. Without this, an
   // orphan never matches any room and silently disappears from every view.
-  const rooms = roomsFlat.map((room, idx) => ({
+  // Targeting the first named room (vs the raw first row) ensures orphans
+  // don't get parked in a hidden room — PublicPage filters out empty-name
+  // rooms client-side, which would re-orphan them.
+  const orphanTargetRoomId =
+    roomsFlat.find(r => r.name && r.name.trim().length > 0)?.id ?? null
+  const rooms = roomsFlat.map(room => ({
     ...room,
     content: content.filter(item =>
-      item.room_id === room.id || (idx === 0 && !item.room_id)
+      item.room_id === room.id ||
+      (room.id === orphanTargetRoomId && !item.room_id)
     ),
   }))
 
