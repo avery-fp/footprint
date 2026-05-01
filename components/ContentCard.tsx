@@ -107,6 +107,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // Spec: AE Presentation Layer — Task 3. Thumb 404 → FallbackCard, not gray box.
   const [socialThumbFailed, setSocialThumbFailed] = useState(false)
   const [isVideoPlaying, setIsVideoPlaying] = useState(false)
+  const [isVideoError, setIsVideoError] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const audioIdRef = useRef(`card-${content.id}`)
 
@@ -400,7 +401,9 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     const videoSrc = content.url && !content.url.includes('#') ? `${content.url}#t=0.1` : content.url
     return (
       <div ref={containerRef} className="fp-tile overflow-hidden relative group">
-        {isInView ? (
+        {isVideoError ? (
+          <GlassPlaceholder aspectClass={aspectClass || 'aspect-video'} />
+        ) : isInView ? (
           <>
             <video
               src={videoSrc}
@@ -414,6 +417,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               onLoadedData={(e) => { setIsLoaded(true); (e.target as HTMLVideoElement).play().catch(() => {}) }}
               onPlay={() => setIsVideoPlaying(true)}
               onPause={() => setIsVideoPlaying(false)}
+              onError={() => setIsVideoError(true)}
               onClick={(e) => {
                 const v = e.currentTarget as HTMLVideoElement
                 if (v.paused) v.play().catch(() => {})
