@@ -334,6 +334,35 @@ export default function UnifiedTile({
     )
   }
 
+  // ── Video (library-sourced .mp4/.mov files) ──
+  if (canonicalType === 'video') {
+    return (
+      <div className="w-full h-full relative" data-tile-id={item.id} data-tile-type="video">
+        <div className="absolute inset-0 cursor-pointer" onClick={(e) => {
+          const v = e.currentTarget.querySelector('video')
+          if (!v) return
+          v.muted = !v.muted
+          const dot = e.currentTarget.querySelector('[data-mute-dot]') as HTMLElement
+          if (dot) dot.style.opacity = v.muted ? '0.35' : '0.9'
+        }}>
+          <video
+            src={item.url}
+            className="w-full h-full object-cover"
+            muted
+            loop
+            playsInline
+            autoPlay
+            preload="metadata"
+            onError={() => onBroken?.()}
+          />
+          <div data-mute-dot className="absolute bottom-2.5 right-2.5 pointer-events-none transition-opacity duration-300" style={{ opacity: 0.35 }}>
+            <div className="w-2 h-2 rounded-full" style={{ background: '#fff' }} />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   // ── Image ──
   if (canonicalType === 'image') {
     if (mode === 'public') {
