@@ -48,9 +48,10 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
   const isAuto = aspect === 'auto'
 
   if (failed) {
+    const rawSrc = src.replace('/render/image/public/', '/object/public/').replace(/\?width=\d+&quality=\d+$/, '')
     return (
       <video
-        src={src}
+        src={rawSrc}
         className="w-full h-full object-cover"
         muted
         loop

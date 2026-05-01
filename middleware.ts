@@ -25,6 +25,7 @@ function withSecurityHeaders(response: NextResponse) {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' https: data: blob:",
+    "media-src 'self' https://*.supabase.co blob:",
     "frame-src https://www.youtube.com https://www.youtube-nocookie.com https://open.spotify.com https://player.vimeo.com https://w.soundcloud.com https://bandcamp.com https://maps.google.com https://codepen.io https://www.are.na https://www.figma.com https://embed.music.apple.com https://www.tiktok.com https://www.instagram.com https://platform.twitter.com https://syndication.twitter.com https://twitter.com",
     "connect-src 'self' https://*.supabase.co https://api.stripe.com",
     "object-src 'none'",
