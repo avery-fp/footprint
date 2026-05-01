@@ -13,6 +13,7 @@ interface TileImageProps {
   aspect?: string
   layout?: string
   size?: number
+  onBroken?: () => void
 }
 
 /** Compute aspect from a natural ratio. */
@@ -20,10 +21,17 @@ function inferAspect(r: number): 'portrait' | 'landscape' | 'square' {
   return r > 1.2 ? 'landscape' : r < 0.8 ? 'portrait' : 'square'
 }
 
-export default function TileImage({ src, alt, sizes, index, aspect, layout, size }: TileImageProps) {
+export default function TileImage({ src, alt, sizes, index, aspect, layout, size, onBroken }: TileImageProps) {
   const [failed, setFailed] = useState(false)
+  const [videoFailed, setVideoFailed] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const onAspectDetected = useAspectDetection()
+
+  useEffect(() => {
+    setFailed(false)
+    setVideoFailed(false)
+    setLoaded(false)
+  }, [src])
 
   // Ref for the grid-mode wrapper div. Used in the mount-time fallback to detect
   // images that were already complete (cached/priority) before onLoad could fire.
@@ -36,7 +44,6 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
     if (!containerRef.current) return
     const img = containerRef.current.querySelector('img')
     if (!img || !img.complete || !img.naturalWidth) return
-    // Image already loaded from cache before onLoad could attach — show it now.
     setLoaded(true)
     if (onAspectDetected && img.naturalHeight) {
       onAspectDetected(inferAspect(img.naturalWidth / img.naturalHeight))
@@ -46,6 +53,8 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
 
   const isEditorial = layout === 'editorial'
   const isAuto = aspect === 'auto'
+
+  if (failed && videoFailed) return null
 
   if (failed) {
     const rawSrc = src.replace('/render/image/public/', '/object/public/').replace(/\?width=\d+&quality=\d+$/, '')
@@ -72,6 +81,10 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
                 onAspectDetected(inferAspect(v.videoWidth / v.videoHeight))
               }
             }
+          }}
+          onError={() => {
+            setVideoFailed(true)
+            onBroken?.()
           }}
         />
         <div data-mute-dot className="absolute bottom-2.5 right-2.5 pointer-events-none transition-opacity duration-300" style={{ opacity: 0.35 }}>
@@ -106,9 +119,6 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
   }
 
   // grid (default) → Next.js Image fill + object-cover.
-  // containerRef wraps the output so useEffect can find the underlying img element
-  // for the cached-image fallback. SAspectShell (if in tree) reshapes the S tile
-  // container to match detected orientation, then cover fills naturally.
   return (
     <div ref={containerRef} className="absolute inset-0">
       {shimmer}
