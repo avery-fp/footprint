@@ -101,6 +101,7 @@ interface UnifiedTileProps {
   isSoundRoom?: boolean
   childCount?: number
   firstChildThumb?: string | null
+  onBroken?: () => void
 }
 
 // ── Recovery Tile — renders when type is unknown or media fails ──
@@ -134,6 +135,7 @@ export default function UnifiedTile({
   isSoundRoom = false,
   childCount,
   firstChildThumb,
+  onBroken,
 }: UnifiedTileProps) {
   const caption = item.caption || null
   const captionHidden = item.caption_hidden ?? false
@@ -215,7 +217,7 @@ export default function UnifiedTile({
       case 'native_video':
         return (
           <div className="w-full h-full" data-tile-id={item.id} data-tile-type="native-video">
-            <video src={item.url && !item.url.includes('#') ? `${item.url}#t=0.1` : item.url} className="w-full h-full object-cover" muted loop playsInline preload="metadata" autoPlay />
+            <video src={item.url && !item.url.includes('#') ? `${item.url}#t=0.1` : item.url} className="w-full h-full object-cover" muted loop playsInline preload="metadata" autoPlay onError={() => onBroken?.()} />
           </div>
         )
       case 'embed':
@@ -355,6 +357,7 @@ export default function UnifiedTile({
                 aspect={aspect}
                 layout={layout}
                 size={size}
+                onBroken={onBroken}
               />
               {captionVisible && (
                 <div
@@ -375,6 +378,7 @@ export default function UnifiedTile({
                 aspect={aspect}
                 layout={layout}
                 size={size}
+                onBroken={onBroken}
               />
             </ZoomableImage>
           )}
@@ -389,6 +393,7 @@ export default function UnifiedTile({
           sizes={getImageSizes(size)}
           index={index}
           size={size}
+          onBroken={onBroken}
         />
       </div>
     )
