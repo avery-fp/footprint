@@ -48,7 +48,6 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
   const isAuto = aspect === 'auto'
 
   if (failed) {
-    // Undo transformImageUrl: the render/image endpoint can't serve video bytes.
     const rawSrc = src.replace('/render/image/public/', '/object/public/').replace(/\?width=\d+&quality=\d+$/, '')
     return (
       <video
