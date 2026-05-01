@@ -75,9 +75,15 @@ export default async function FootprintPage({ params }: Props) {
     .maybeSingle()
 
   // Public page expects rooms with their content already grouped in.
-  const rooms = roomsFlat.map(room => ({
+  // Tiles with room_id=null (orphans — typically uploads that landed before
+  // a room was assigned, or rows where the room was deleted) are included
+  // in the FIRST visible room so they remain reachable. Without this, an
+  // orphan never matches any room and silently disappears from every view.
+  const rooms = roomsFlat.map((room, idx) => ({
     ...room,
-    content: content.filter(item => item.room_id === room.id),
+    content: content.filter(item =>
+      item.room_id === room.id || (idx === 0 && !item.room_id)
+    ),
   }))
 
   const serial = footprint.serial_number.toString().padStart(4, '0')
