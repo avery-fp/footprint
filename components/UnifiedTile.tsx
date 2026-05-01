@@ -14,6 +14,8 @@ import { extractYouTubeId } from '@/lib/parseEmbed'
 import TextExpandTile from '@/components/TextExpandTile'
 import { isNewStyleRenderMode } from '@/lib/media/types'
 import type { RenderMode } from '@/lib/media/types'
+import DepthTile from '@/components/DepthTile'
+import { matchDepthProvider } from '@/lib/depth-providers'
 
 const ContainerTile = memo(ContainerTileBase)
 
@@ -190,6 +192,18 @@ export default function UnifiedTile({
         <TextExpandTile text={item.title || ''} isPublicView={mode === 'public'} />
       </div>
     )
+  }
+
+  // ── Depth Tile — flag-gated portal tiles (Grailed et al.) ──
+  if (item.url) {
+    const depthProvider = matchDepthProvider(item.url)
+    if (depthProvider) {
+      return (
+        <div className="w-full h-full" data-tile-id={item.id} data-tile-type="depth">
+          <DepthTile provider={depthProvider} url={item.url} />
+        </div>
+      )
+    }
   }
 
   // ── RenderMode-driven dispatch (new-style tiles) ──
