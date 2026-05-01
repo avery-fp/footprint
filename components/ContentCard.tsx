@@ -108,6 +108,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const [socialThumbFailed, setSocialThumbFailed] = useState(false)
   const [isVideoPlaying, setIsVideoPlaying] = useState(false)
   const [isVideoError, setIsVideoError] = useState(false)
+  const [isVideoMuted, setIsVideoMuted] = useState(true)
   const containerRef = useRef<HTMLDivElement>(null)
   const audioIdRef = useRef(`card-${content.id}`)
 
@@ -407,7 +408,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           <>
             <video
               src={videoSrc}
-              muted
+              muted={isVideoMuted}
               autoPlay
               loop
               playsInline
@@ -420,30 +421,24 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               onError={() => setIsVideoError(true)}
               onClick={(e) => {
                 const v = e.currentTarget as HTMLVideoElement
-                if (v.paused) v.play().catch(() => {})
-                else v.pause()
+                setIsVideoMuted(!v.muted)
+                v.muted = !v.muted
               }}
               onMouseEnter={(e) => {
                 const v = e.currentTarget as HTMLVideoElement
                 if (v.paused) v.play().catch(() => {})
               }}
             />
-            {/* Subtle hover play affordance — only when paused */}
-            {!isVideoPlaying && (
+            {/* Mute state dot — lower right */}
+            <div
+              className="absolute bottom-2.5 right-2.5 pointer-events-none transition-opacity duration-300"
+              style={{ opacity: isVideoMuted ? 0.35 : 0.9 }}
+            >
               <div
-                className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200"
-                aria-hidden="true"
-              >
-                <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center"
-                  style={{ background: 'rgba(0,0,0,0.28)', backdropFilter: 'blur(8px)' }}
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="text-white/75" style={{ transform: 'translateX(1px)' }}>
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                </div>
-              </div>
-            )}
+                className="w-2 h-2 rounded-full"
+                style={{ background: isVideoMuted ? 'rgba(255,255,255,0.6)' : '#fff' }}
+              />
+            </div>
           </>
         ) : (
           <div className={`w-full ${aspectClass || 'aspect-video'}`} style={{ background: 'rgba(0,0,0,0.3)' }} />

@@ -50,23 +50,34 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
   if (failed) {
     const rawSrc = src.replace('/render/image/public/', '/object/public/').replace(/\?width=\d+&quality=\d+$/, '')
     return (
-      <video
-        src={rawSrc}
-        className="w-full h-full object-cover"
-        muted
-        loop
-        playsInline
-        autoPlay
-        preload="metadata"
-        onLoadedMetadata={(e) => {
-          if (onAspectDetected) {
-            const v = e.currentTarget
-            if (v.videoWidth && v.videoHeight) {
-              onAspectDetected(inferAspect(v.videoWidth / v.videoHeight))
+      <div className="absolute inset-0 cursor-pointer" onClick={(e) => {
+        const v = e.currentTarget.querySelector('video')
+        if (!v) return
+        v.muted = !v.muted
+        const dot = e.currentTarget.querySelector('[data-mute-dot]') as HTMLElement
+        if (dot) dot.style.opacity = v.muted ? '0.35' : '0.9'
+      }}>
+        <video
+          src={rawSrc}
+          className="w-full h-full object-cover"
+          muted
+          loop
+          playsInline
+          autoPlay
+          preload="metadata"
+          onLoadedMetadata={(e) => {
+            if (onAspectDetected) {
+              const v = e.currentTarget
+              if (v.videoWidth && v.videoHeight) {
+                onAspectDetected(inferAspect(v.videoWidth / v.videoHeight))
+              }
             }
-          }
-        }}
-      />
+          }}
+        />
+        <div data-mute-dot className="absolute bottom-2.5 right-2.5 pointer-events-none transition-opacity duration-300" style={{ opacity: 0.35 }}>
+          <div className="w-2 h-2 rounded-full" style={{ background: '#fff' }} />
+        </div>
+      </div>
     )
   }
 
