@@ -81,15 +81,16 @@ function normalizeRoomLayout(raw: unknown): Room['layout'] {
 }
 
 function mapLibraryRow(row: any): Tile {
-  const isVideo = mediaTypeFromUrl(row.image_url || '', row.media_kind) === 'video'
+  const rawUrl = (row.image_url || '').replace(/[\n\r]/g, '')
+  const isVideo = mediaTypeFromUrl(rawUrl, row.media_kind) === 'video'
   const usePlaybackUrl = isVideo && row.playback_url && row.status === 'ready'
   return {
     id: row.id,
     url: usePlaybackUrl
       ? row.playback_url
       : isVideo
-      ? row.image_url
-      : transformImageUrl(row.image_url || '') || row.image_url || null,
+      ? rawUrl
+      : transformImageUrl(rawUrl) || rawUrl || null,
     type: isVideo ? 'video' : 'image',
     title: row.title || null,
     description: null,

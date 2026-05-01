@@ -53,8 +53,14 @@ export async function POST(request: NextRequest) {
 
     const serialNumber = footprint.serial_number
 
-    // Generate unique filename
-    const ext = file.name.split('.').pop() || 'jpg'
+    // Generate unique filename — derive extension from MIME type for videos
+    // so a video/mp4 file named "clip.jpg" gets stored as .mp4, not .jpg.
+    const VIDEO_MIME_EXT: Record<string, string> = {
+      'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm',
+      'video/x-m4v': 'm4v', 'video/mov': 'mov', 'video/3gpp': '3gp',
+      'video/3gpp2': '3gp', 'video/x-matroska': 'mkv',
+    }
+    const ext = (isVideo && VIDEO_MIME_EXT[file.type]) || file.name.split('.').pop() || 'jpg'
     const filename = `${serialNumber}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
 
     // Upload to storage

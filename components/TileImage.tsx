@@ -22,6 +22,7 @@ function inferAspect(r: number): 'portrait' | 'landscape' | 'square' {
 
 export default function TileImage({ src, alt, sizes, index, aspect, layout, size }: TileImageProps) {
   const [failed, setFailed] = useState(false)
+  const [tryVideo, setTryVideo] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const onAspectDetected = useAspectDetection()
 
@@ -48,6 +49,19 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
   const isAuto = aspect === 'auto'
 
   if (failed) {
+    if (tryVideo) {
+      return (
+        <video
+          src={src}
+          muted
+          autoPlay
+          loop
+          playsInline
+          preload="auto"
+          className="w-full h-full object-cover"
+        />
+      )
+    }
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
@@ -62,6 +76,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
             onAspectDetected(inferAspect(img.naturalWidth / img.naturalHeight))
           }
         }}
+        onError={() => setTryVideo(true)}
       />
     )
   }
