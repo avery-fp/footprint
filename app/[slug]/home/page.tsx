@@ -87,6 +87,12 @@ function SortableTile({
   const [isMuted, setIsMuted] = useState(true)
   const [isLoaded, setIsLoaded] = useState(false)
   const [videoVisible, setVideoVisible] = useState(false)
+  // Render-side recovery: when the Image element fails to decode (because
+  // the underlying file is actually video bytes served at a .jpg URL —
+  // legacy uploads from before the filename-extension fix), flip to a
+  // <video> element. The browser uses the response Content-Type header
+  // (video/mp4) for actual decoding, regardless of URL extension.
+  const [imageDecodeFailed, setImageDecodeFailed] = useState(false)
   const [captionVisible, setCaptionVisible] = useState(
     !!(content as any).caption && !((content as any).caption_hidden ?? false)
   )
@@ -292,7 +298,12 @@ function SortableTile({
         )}
         {/* Tile content — absolute fill, object-fit based on aspect */}
         {(content.type === 'image' || content.type === 'video') ? (
-          isVideo ? (
+          // isVideo OR imageDecodeFailed — the second clause heals legacy
+          // uploads where video bytes were stored at .jpg URLs. The browser
+          // uses Content-Type (video/mp4) for actual decoding regardless of
+          // URL extension, so a <video> tag plays the file even when the
+          // URL ends in .jpg. Future uploads land at .mp4 directly.
+          (isVideo || imageDecodeFailed) ? (
             <>
               {content.url ? (
                 <video
@@ -334,17 +345,12 @@ function SortableTile({
               loading="lazy"
               decoding="async"
               quality={75}
-              onError={(e) => {
-                const img = e.target as HTMLImageElement
-                img.style.opacity = '0'
-                const parent = img.parentElement
-                if (parent && !parent.querySelector('.tile-fallback')) {
-                  const fallback = document.createElement('div')
-                  fallback.className = 'tile-fallback absolute inset-0 flex items-center justify-center'
-                  fallback.style.background = 'rgba(255,255,255,0.06)'
-                  fallback.innerHTML = '<span style="color:rgba(255,255,255,0.2);font-size:1.5rem">⊞</span>'
-                  parent.appendChild(fallback)
-                }
+              onError={() => {
+                // Image decode failed — flip to <video> render. Most common
+                // cause: legacy upload stored video bytes at a .jpg URL. If
+                // the file really isn't a video either, the <video> element's
+                // own onError shows the play-button placeholder cleanly.
+                setImageDecodeFailed(true)
               }}
             />
           ) : (
@@ -1782,8 +1788,18 @@ export default function EditPage() {
           }
         }
 
-        const filename = `${serialNumber}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`
-        const contentType = uploadFile.type || 'image/jpeg'
+        // Filename extension drives downstream media-kind detection.
+        // mediaTypeFromUrl() reads the URL extension when media_kind is null;
+        // hardcoding .jpg made every uploaded video render through the image
+        // path and break (browser tries to decode video bytes as image,
+        // returns naturalWidth=0). Pick a video extension when the file is
+        // a video so the URL itself carries the truth.
+        const videoExtMatch = isVideoFile(uploadFile)
+          ? (uploadFile.name.match(/\.(mp4|mov|webm|m4v|3gp|mkv)$/i)?.[0] || '.mp4')
+          : null
+        const ext = videoExtMatch || '.jpg'
+        const filename = `${serialNumber}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`
+        const contentType = uploadFile.type || (videoExtMatch ? 'video/mp4' : 'image/jpeg')
 
         const publicUrl = await uploadWithProgress(
           new File([uploadFile], uploadFile.name, { type: contentType }),

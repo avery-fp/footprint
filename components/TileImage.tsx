@@ -44,18 +44,29 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
   const isAuto = aspect === 'auto'
 
   if (failed) {
+    // Render-side recovery for legacy uploads where video bytes were stored
+    // at .jpg URLs (filename was hardcoded before the upload-extension fix).
+    // The browser uses the response Content-Type (video/mp4) for actual
+    // decoding, ignoring URL extension — so a <video> tag plays the file
+    // when the original Image element couldn't decode it.
+    // If the file genuinely is a broken image (not video), the <video>
+    // shows an empty player rather than the broken-image icon — same
+    // visual outcome but quieter.
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
+      <video
         src={src}
-        alt={alt}
         className="w-full h-full object-cover"
-        loading={index < 4 ? 'eager' : 'lazy'}
-        decoding="async"
-        onLoad={(e) => {
+        muted
+        loop
+        playsInline
+        autoPlay
+        preload="metadata"
+        onLoadedMetadata={(e) => {
           if (onAspectDetected) {
-            const img = e.currentTarget
-            onAspectDetected(inferAspect(img.naturalWidth / img.naturalHeight))
+            const v = e.currentTarget
+            if (v.videoWidth && v.videoHeight) {
+              onAspectDetected(inferAspect(v.videoWidth / v.videoHeight))
+            }
           }
         }}
       />
