@@ -1,18 +1,21 @@
 'use client'
 
 /**
- * ARTIFACT TILE — museum-wall fallback for any external URL
+ * ARTIFACT TILE — dignified object for any external URL
  *
- * Resting: title or domain, provider label, optional image, "open →"
+ * Two layout paths:
+ *   image-backed  → full-bleed photo, gradient, bottom-anchored text
+ *   text-only     → centered owner label, quiet source footer, no void
+ *
+ * Owner title is always the headline. Source/domain stays quiet underneath.
  * No broken image placeholders. No raw iframes. No undefined labels.
- * This is the default for Twitter/X and all unsupported links.
  */
 
 import { useState } from 'react'
 
 interface ArtifactTileProps {
-  title: string      // pre-sanitized, never empty
-  provider: string   // pre-sanitized, never empty
+  title: string      // pre-sanitized, never empty — owner label when set
+  provider: string   // pre-sanitized, never empty — source stays quiet
   image: string | null
   description: string | null
   actionUrl: string
@@ -30,7 +33,7 @@ export default function ArtifactTile({
   const [imgFailed, setImgFailed] = useState(false)
   const showImage = !!image && !imgFailed
   // Suppress provider label when it's the same string as the title
-  // (happens for unknown URLs with no OG title — domain appears twice).
+  // (happens when no OG title — provider name becomes the title).
   const showProvider = provider !== title
 
   return (
@@ -69,36 +72,69 @@ export default function ArtifactTile({
         </>
       )}
 
-      <div className="absolute inset-0 flex flex-col items-center justify-end p-4 gap-1">
-        {showProvider && (
+      {showImage ? (
+        /* ── Image-backed: bottom-anchored, text over gradient ── */
+        <div className="absolute inset-0 flex flex-col items-center justify-end p-4 gap-1">
+          {showProvider && (
+            <span
+              className="text-white/35 uppercase tracking-widest font-mono text-center"
+              style={{ fontSize: '9px', fontWeight: 500, lineHeight: 1.2 }}
+            >
+              {provider}
+            </span>
+          )}
           <span
-            className="text-white/35 uppercase tracking-widest font-mono text-center"
-            style={{ fontSize: '9px', fontWeight: 500, lineHeight: 1.2 }}
+            className="text-white/80 line-clamp-2 text-center fp-text-shadow"
+            style={{ fontSize: '13px', fontWeight: 500, lineHeight: 1.35 }}
           >
-            {provider}
+            {title}
           </span>
-        )}
-        <span
-          className="text-white/80 line-clamp-2 text-center fp-text-shadow"
-          style={{ fontSize: '13px', fontWeight: 500, lineHeight: 1.35 }}
-        >
-          {title}
-        </span>
-        {!showImage && description && (
           <span
-            className="text-white/35 line-clamp-2 text-center mt-0.5"
-            style={{ fontSize: '10px', lineHeight: 1.4 }}
+            className="text-white/25 group-hover:text-white/55 transition-colors duration-200 mt-1.5"
+            style={{ fontSize: '9px', fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase' }}
           >
-            {description}
+            open →
           </span>
-        )}
-        <span
-          className="text-white/25 group-hover:text-white/55 transition-colors duration-200 mt-1.5"
-          style={{ fontSize: '9px', fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase' }}
-        >
-          open →
-        </span>
-      </div>
+        </div>
+      ) : (
+        /* ── Text-only: owner label centered, source quiet at bottom ── */
+        <div className="absolute inset-0 flex flex-col p-5">
+          {/* Owner truth — centered, readable */}
+          <div className="flex-1 flex flex-col items-center justify-center gap-2 min-w-0">
+            <span
+              className="text-white/85 line-clamp-3 text-center fp-text-shadow"
+              style={{ fontSize: '15px', fontWeight: 500, lineHeight: 1.35 }}
+            >
+              {title}
+            </span>
+            {description && (
+              <span
+                className="text-white/45 line-clamp-2 text-center"
+                style={{ fontSize: '11px', lineHeight: 1.45 }}
+              >
+                {description}
+              </span>
+            )}
+          </div>
+          {/* Source truth — quiet, below */}
+          <div className="flex flex-col items-center gap-1">
+            {showProvider && (
+              <span
+                className="text-white/25 uppercase tracking-widest font-mono text-center"
+                style={{ fontSize: '8px', fontWeight: 500, letterSpacing: '0.16em' }}
+              >
+                {provider}
+              </span>
+            )}
+            <span
+              className="text-white/25 group-hover:text-white/55 transition-colors duration-200"
+              style={{ fontSize: '9px', fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase' }}
+            >
+              open →
+            </span>
+          </div>
+        </div>
+      )}
     </a>
   )
 }
