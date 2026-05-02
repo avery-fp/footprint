@@ -112,15 +112,49 @@ describe('resolveCanonicalType', () => {
     expect(resolveCanonicalType('link', 'https://pic.twitter.com/P4SpIrsXtO')).toBe('content')
   })
 
-  it('generic URL with type=link resolves to image (mediaTypeFromUrl default)', () => {
-    // mediaTypeFromUrl returns 'image' for non-video URLs, which fires before
-    // the 'content' fallback. In UnifiedTile, these reach the image branch,
-    // then fall through to ContentCard via the url/thumbnail/embed check.
-    expect(resolveCanonicalType('link', 'https://example.com/article')).toBe('image')
+  it('generic URL with type=link resolves to content (type signal → ContentCard)', () => {
+    expect(resolveCanonicalType('link', 'https://example.com/article')).toBe('content')
   })
 
-  it('empty URL with type=link resolves to image (mediaTypeFromUrl default)', () => {
-    expect(resolveCanonicalType('link', '')).toBe('image')
+  it('empty URL with type=link resolves to content (type signal → ContentCard)', () => {
+    expect(resolveCanonicalType('link', '')).toBe('content')
+  })
+
+  // ── Article platform routing (must reach ContentCard, not TileImage) ──
+
+  it('Substack URL resolves to content', () => {
+    expect(resolveCanonicalType('link', 'https://substack.com')).toBe('content')
+  })
+
+  it('blog.substack.com URL resolves to content', () => {
+    expect(resolveCanonicalType('link', 'https://blog.substack.com/p/article')).toBe('content')
+  })
+
+  it('Medium URL resolves to content', () => {
+    expect(resolveCanonicalType('link', 'https://medium.com/@author/article-slug')).toBe('content')
+  })
+
+  it('mirror.xyz URL resolves to content', () => {
+    expect(resolveCanonicalType('link', 'https://mirror.xyz/0xabc/article-slug')).toBe('content')
+  })
+
+  // ── Type signal routing ──
+
+  it('type=link with extensionless URL resolves to content', () => {
+    expect(resolveCanonicalType('link', 'https://example.com/page')).toBe('content')
+  })
+
+  it('type=image with extensionless URL still resolves to image', () => {
+    // type='image' is not a link-type signal, so falls through to mediaTypeFromUrl default
+    expect(resolveCanonicalType('image', 'https://supabase.co/storage/v1/object/public/content/12345')).toBe('image')
+  })
+
+  it('type=link with .jpg URL still resolves to image (image extension wins)', () => {
+    expect(resolveCanonicalType('link', 'https://example.com/photo.jpg')).toBe('image')
+  })
+
+  it('type=link with .png URL still resolves to image (image extension wins)', () => {
+    expect(resolveCanonicalType('link', 'https://example.com/photo.png')).toBe('image')
   })
 
   // ── Critical regression: .mp4 must never resolve to content ──
