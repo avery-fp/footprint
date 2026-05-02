@@ -28,8 +28,7 @@
     "typecheck": "tsc --noEmit",
     "screenshot:grid": "node scripts/screenshot-grid.js",
     "test": "vitest run",
-    "test:e2e": "playwright test",
-    "cleanup:ghosts": "npx tsx scripts/cleanup-ghost-tiles.ts"
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.1.0",

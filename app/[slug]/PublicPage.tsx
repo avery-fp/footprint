@@ -61,15 +61,6 @@ interface PublicPageProps {
 
 export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl, isDraft, containerMeta = {}, ownerEmail = null }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
-  const [brokenTiles, setBrokenTiles] = useState<Set<string>>(new Set())
-  const markBroken = useCallback((id: string) => {
-    setBrokenTiles((prev) => {
-      if (prev.has(id)) return prev
-      const next = new Set(prev)
-      next.add(id)
-      return next
-    })
-  }, [])
 
   // Default to first room
   useEffect(() => {
@@ -161,9 +152,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     ? visibleRooms.find(r => r.id === activeRoomId)?.content || []
     : validContent
 
-  const content = useMemo(() =>
-    baseContent.filter((item: any) => !brokenTiles.has(item.id)),
-    [baseContent, brokenTiles])
+  const content = baseContent
 
   // Wallpaper filter + overlay come from the shared room-atmosphere table
   // so the editor renders the same room with the same atmosphere.
@@ -413,7 +402,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 isExpanded={isThisExpanded}
                 childCount={containerMeta[item.id]?.childCount}
                 firstChildThumb={containerMeta[item.id]?.firstThumb}
-                onBroken={() => markBroken(item.id)}
               />
             </div>
             {/* Container click interceptor — only containers are doors */}
@@ -518,7 +506,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 isExpanded={isThisExpanded}
                 childCount={containerMeta[item.id]?.childCount}
                 firstChildThumb={containerMeta[item.id]?.firstThumb}
-                onBroken={() => markBroken(item.id)}
               />
             </div>
             {/* Container click interceptor — only containers are doors */}
@@ -806,7 +793,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                             mode="public"
                             layout="rail"
                             isMobile={isMobile}
-                            onBroken={() => markBroken(child.id)}
                           />
                         </div>
                       ))}

@@ -13,7 +13,6 @@ interface TileImageProps {
   aspect?: string
   layout?: string
   size?: number
-  onBroken?: () => void
 }
 
 /** Compute aspect from a natural ratio. */
@@ -21,7 +20,7 @@ function inferAspect(r: number): 'portrait' | 'landscape' | 'square' {
   return r > 1.2 ? 'landscape' : r < 0.8 ? 'portrait' : 'square'
 }
 
-export default function TileImage({ src, alt, sizes, index, aspect, layout, size, onBroken }: TileImageProps) {
+export default function TileImage({ src, alt, sizes, index, aspect, layout, size }: TileImageProps) {
   const [failed, setFailed] = useState(false)
   const [videoFailed, setVideoFailed] = useState(false)
   const [loaded, setLoaded] = useState(false)
@@ -84,7 +83,6 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
           }}
           onError={() => {
             setVideoFailed(true)
-            onBroken?.()
           }}
         />
         <div data-mute-dot className="absolute bottom-2.5 right-2.5 pointer-events-none transition-opacity duration-300" style={{ opacity: 0.35 }}>
