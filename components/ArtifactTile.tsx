@@ -43,7 +43,7 @@ export default function ArtifactTile({
         showImage
           ? { background: '#000' }
           : {
-              background: 'rgba(255,255,255,0.07)',
+              background: 'rgba(255,255,255,0.09)',
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
             }

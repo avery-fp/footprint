@@ -100,6 +100,18 @@ describe('resolveCanonicalType', () => {
     expect(resolveCanonicalType('link', 'https://artist.bandcamp.com/album/thing')).toBe('content')
   })
 
+  it('Twitter URL resolves to content (sealed from TileImage branch)', () => {
+    expect(resolveCanonicalType('twitter', 'https://twitter.com/user/status/123')).toBe('content')
+  })
+
+  it('X.com URL resolves to content', () => {
+    expect(resolveCanonicalType('link', 'https://x.com/user/status/456')).toBe('content')
+  })
+
+  it('pic.twitter.com URL resolves to content', () => {
+    expect(resolveCanonicalType('link', 'https://pic.twitter.com/P4SpIrsXtO')).toBe('content')
+  })
+
   it('generic URL with type=link resolves to image (mediaTypeFromUrl default)', () => {
     // mediaTypeFromUrl returns 'image' for non-video URLs, which fires before
     // the 'content' fallback. In UnifiedTile, these reach the image branch,
