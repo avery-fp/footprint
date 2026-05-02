@@ -101,6 +101,7 @@ interface UnifiedTileProps {
   isSoundRoom?: boolean
   childCount?: number
   firstChildThumb?: string | null
+  onBroken?: () => void
 }
 
 // ── Recovery Tile — renders when type is unknown or media fails ──
@@ -134,6 +135,7 @@ export default function UnifiedTile({
   isSoundRoom = false,
   childCount,
   firstChildThumb,
+  onBroken,
 }: UnifiedTileProps) {
   const caption = item.caption || null
   const captionHidden = item.caption_hidden ?? false
@@ -215,7 +217,7 @@ export default function UnifiedTile({
       case 'native_video':
         return (
           <div className="w-full h-full" data-tile-id={item.id} data-tile-type="native-video">
-            <video src={item.url && !item.url.includes('#') ? `${item.url}#t=0.1` : item.url} className="w-full h-full object-cover" muted loop playsInline preload="metadata" autoPlay />
+            <video src={item.url && !item.url.includes('#') ? `${item.url}#t=0.1` : item.url} className="w-full h-full object-cover" muted loop playsInline preload="metadata" autoPlay onError={() => onBroken?.()} />
           </div>
         )
       case 'embed':
@@ -332,6 +334,35 @@ export default function UnifiedTile({
     )
   }
 
+  // ── Video (library-sourced .mp4/.mov files) ──
+  if (canonicalType === 'video' && item.url) {
+    return (
+      <div className="w-full h-full relative" data-tile-id={item.id} data-tile-type="video">
+        <div className="absolute inset-0 cursor-pointer" onClick={(e) => {
+          const v = e.currentTarget.querySelector('video')
+          if (!v) return
+          v.muted = !v.muted
+          const dot = e.currentTarget.querySelector('[data-mute-dot]') as HTMLElement
+          if (dot) dot.style.opacity = v.muted ? '0.35' : '0.9'
+        }}>
+          <video
+            src={item.url}
+            className="w-full h-full object-cover"
+            muted
+            loop
+            playsInline
+            autoPlay
+            preload="metadata"
+            onError={() => onBroken?.()}
+          />
+          <div data-mute-dot className="absolute bottom-2.5 right-2.5 pointer-events-none transition-opacity duration-300" style={{ opacity: 0.35 }}>
+            <div className="w-2 h-2 rounded-full" style={{ background: '#fff' }} />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   // ── Image ──
   if (canonicalType === 'image') {
     if (mode === 'public') {
@@ -355,6 +386,7 @@ export default function UnifiedTile({
                 aspect={aspect}
                 layout={layout}
                 size={size}
+                onBroken={onBroken}
               />
               {captionVisible && (
                 <div
@@ -375,6 +407,7 @@ export default function UnifiedTile({
                 aspect={aspect}
                 layout={layout}
                 size={size}
+                onBroken={onBroken}
               />
             </ZoomableImage>
           )}
@@ -389,6 +422,7 @@ export default function UnifiedTile({
           sizes={getImageSizes(size)}
           index={index}
           size={size}
+          onBroken={onBroken}
         />
       </div>
     )
