@@ -137,6 +137,107 @@ describe('sanitizeLinkMeta', () => {
     expect(r.title).toBe('link')
   })
 
+  // ── Domain-only title stripping ──
+
+  it('stored "music.apple.com" title is treated as empty → Apple Music', () => {
+    const r = sanitizeLinkMeta({ title: 'music.apple.com' }, 'https://music.apple.com/us/album/x/1')
+    expect(r.title).toBe('Apple Music')
+  })
+
+  it('stored "open.spotify.com" title is treated as empty → Spotify', () => {
+    const r = sanitizeLinkMeta({ title: 'open.spotify.com' }, 'https://open.spotify.com/track/abc')
+    expect(r.title).toBe('Spotify')
+  })
+
+  it('stored "twitter.com" title is treated as empty → X', () => {
+    const r = sanitizeLinkMeta({ title: 'twitter.com' }, 'https://twitter.com/user/status/123')
+    expect(r.title).toBe('X')
+  })
+
+  it('stored "x.com" title is treated as empty → X', () => {
+    const r = sanitizeLinkMeta({ title: 'x.com' }, 'https://x.com/user/status/456')
+    expect(r.title).toBe('X')
+  })
+
+  it('stored "blog.substack.com" title for Substack URL is treated as empty → Substack', () => {
+    const r = sanitizeLinkMeta({ title: 'blog.substack.com' }, 'https://blog.substack.com/p/article')
+    expect(r.title).toBe('Substack')
+  })
+
+  it('stored "pic.twitter.com" title is treated as empty → X', () => {
+    const r = sanitizeLinkMeta({ title: 'pic.twitter.com' }, 'https://pic.twitter.com/P4SpIrsXtO')
+    expect(r.title).toBe('X')
+  })
+
+  // ── Generic auto-phrase stripping ──
+
+  it('"Spotify track" is treated as non-meaningful → Spotify', () => {
+    const r = sanitizeLinkMeta({ title: 'Spotify track' }, 'https://open.spotify.com/track/abc')
+    expect(r.title).toBe('Spotify')
+  })
+
+  it('"Apple Music track" is treated as non-meaningful → Apple Music', () => {
+    const r = sanitizeLinkMeta({ title: 'Apple Music track' }, 'https://music.apple.com/us/album/x/1')
+    expect(r.title).toBe('Apple Music')
+  })
+
+  it('"Apple Music song" is treated as non-meaningful → Apple Music', () => {
+    const r = sanitizeLinkMeta({ title: 'Apple Music song' }, 'https://music.apple.com/us/album/x/1')
+    expect(r.title).toBe('Apple Music')
+  })
+
+  it('"Music track" is treated as non-meaningful', () => {
+    const r = sanitizeLinkMeta({ title: 'Music track' }, 'https://open.spotify.com/track/abc')
+    expect(r.title).toBe('Spotify')
+  })
+
+  it('"link" stored title is treated as non-meaningful', () => {
+    const r = sanitizeLinkMeta({ title: 'link' }, 'https://open.spotify.com/track/abc')
+    expect(r.title).toBe('Spotify')
+  })
+
+  it('"untitled" stored title is treated as non-meaningful', () => {
+    const r = sanitizeLinkMeta({ title: 'untitled' }, 'https://example.com/article')
+    expect(r.title).toBe('example.com')
+  })
+
+  it('real song title is not stripped (not a generic phrase)', () => {
+    const r = sanitizeLinkMeta({ title: 'Bohemian Rhapsody' }, 'https://open.spotify.com/track/abc')
+    expect(r.title).toBe('Bohemian Rhapsody')
+  })
+
+  // ── HTML entity decoding ──
+
+  it('&quot; in title is decoded to double-quote', () => {
+    const r = sanitizeLinkMeta({ title: '&quot;Hello&quot;' }, 'https://example.com')
+    expect(r.title).toBe('"Hello"')
+  })
+
+  it("&#39; in title is decoded to apostrophe", () => {
+    const r = sanitizeLinkMeta({ title: "It&#39;s Alive" }, 'https://example.com')
+    expect(r.title).toBe("It's Alive")
+  })
+
+  it('&amp; in title is decoded', () => {
+    const r = sanitizeLinkMeta({ title: 'Rock &amp; Roll' }, 'https://example.com')
+    expect(r.title).toBe('Rock & Roll')
+  })
+
+  it('&lt; and &gt; in title are decoded', () => {
+    const r = sanitizeLinkMeta({ title: '&lt;3' }, 'https://example.com')
+    expect(r.title).toBe('<3')
+  })
+
+  it('HTML entities in description are decoded', () => {
+    const r = sanitizeLinkMeta({ description: 'He said &quot;yes&quot;' }, 'https://example.com')
+    expect(r.description).toBe('He said "yes"')
+  })
+
+  it('HTML entities in creator are decoded', () => {
+    const r = sanitizeLinkMeta({ creator: 'O&#39;Brien' }, 'https://example.com')
+    expect(r.creator).toBe("O'Brien")
+  })
+
   it('valid https image URL is returned', () => {
     const r = sanitizeLinkMeta({ image: 'https://cdn.example.com/img.jpg' }, 'https://example.com')
     expect(r.image).toBe('https://cdn.example.com/img.jpg')
