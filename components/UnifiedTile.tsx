@@ -100,7 +100,7 @@ function VideoTile({ url, id }: { url: string; id: string }) {
           obs.disconnect()
         }
       },
-      { rootMargin: '0px' }
+      { rootMargin: '200px' }
     )
     obs.observe(el)
     return () => obs.disconnect()
