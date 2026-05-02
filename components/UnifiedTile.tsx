@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useState } from 'react'
+import { memo, useState, useRef, useEffect } from 'react'
 import ContentCardBase from '@/components/ContentCard'
 import GhostTileBase from '@/components/GhostTile'
 import TileImage from '@/components/TileImage'
@@ -84,6 +84,52 @@ interface UnifiedTileProps {
   isSoundRoom?: boolean
   childCount?: number
   firstChildThumb?: string | null
+}
+
+function VideoTile({ url, id }: { url: string; id: string }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [isInView, setIsInView] = useState(false)
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsInView(true)
+          obs.disconnect()
+        }
+      },
+      { rootMargin: '0px' }
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
+
+  return (
+    <div ref={containerRef} className="w-full h-full relative" data-tile-id={id} data-tile-type="video">
+      <div className="absolute inset-0 cursor-pointer" onClick={(e) => {
+        const v = e.currentTarget.querySelector('video')
+        if (!v) return
+        v.muted = !v.muted
+        const dot = e.currentTarget.querySelector('[data-mute-dot]') as HTMLElement
+        if (dot) dot.style.opacity = v.muted ? '0.35' : '0.9'
+      }}>
+        <video
+          src={isInView ? url : undefined}
+          className="w-full h-full object-cover"
+          muted
+          loop
+          playsInline
+          autoPlay={isInView}
+          preload={isInView ? 'metadata' : 'none'}
+        />
+        <div data-mute-dot className="absolute bottom-2.5 right-2.5 pointer-events-none transition-opacity duration-300" style={{ opacity: 0.35 }}>
+          <div className="w-2 h-2 rounded-full" style={{ background: '#fff' }} />
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default function UnifiedTile({
@@ -298,30 +344,7 @@ export default function UnifiedTile({
 
   // ── Video (library-sourced .mp4/.mov files) ──
   if (canonicalType === 'video' && item.url) {
-    return (
-      <div className="w-full h-full relative" data-tile-id={item.id} data-tile-type="video">
-        <div className="absolute inset-0 cursor-pointer" onClick={(e) => {
-          const v = e.currentTarget.querySelector('video')
-          if (!v) return
-          v.muted = !v.muted
-          const dot = e.currentTarget.querySelector('[data-mute-dot]') as HTMLElement
-          if (dot) dot.style.opacity = v.muted ? '0.35' : '0.9'
-        }}>
-          <video
-            src={item.url}
-            className="w-full h-full object-cover"
-            muted
-            loop
-            playsInline
-            autoPlay
-            preload="metadata"
-          />
-          <div data-mute-dot className="absolute bottom-2.5 right-2.5 pointer-events-none transition-opacity duration-300" style={{ opacity: 0.35 }}>
-            <div className="w-2 h-2 rounded-full" style={{ background: '#fff' }} />
-          </div>
-        </div>
-      </div>
-    )
+    return <VideoTile url={item.url} id={item.id} />
   }
 
   // ── Image ──
