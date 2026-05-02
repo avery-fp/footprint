@@ -455,7 +455,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   if (/(?:twitter\.com|x\.com)/i.test(content.url)) {
     const { title, creator, image, description, provider } = sanitizeLinkMeta(
-      { title: content.title, creator: content.artist, image: getBestThumbnailUrl(content) },
+      { title: content.title, creator: content.artist, image: getBestThumbnailUrl(content), description: content.description },
       content.url
     )
     return (
