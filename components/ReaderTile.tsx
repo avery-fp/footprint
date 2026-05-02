@@ -31,6 +31,8 @@ export default function ReaderTile({
 }: ReaderTileProps) {
   const [imgFailed, setImgFailed] = useState(false)
   const showImage = !!image && !imgFailed
+  // Suppress publication label when it would duplicate the headline (no OG title → both are provider name)
+  const showPublication = publication !== title || !!author
 
   return (
     <a
@@ -67,13 +69,15 @@ export default function ReaderTile({
       )}
 
       <div className="absolute inset-0 flex flex-col justify-end p-4 gap-1">
-        {/* Publication / author */}
-        <span
-          className="text-white/35 uppercase tracking-widest font-mono"
-          style={{ fontSize: '9px', fontWeight: 500, lineHeight: 1.2 }}
-        >
-          {author ? `${publication} · ${author}` : publication}
-        </span>
+        {/* Publication / author — suppressed when it would duplicate the headline */}
+        {showPublication && (
+          <span
+            className="text-white/35 uppercase tracking-widest font-mono"
+            style={{ fontSize: '9px', fontWeight: 500, lineHeight: 1.2 }}
+          >
+            {author ? `${publication} · ${author}` : publication}
+          </span>
+        )}
 
         {/* Headline */}
         <span

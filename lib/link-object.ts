@@ -107,11 +107,13 @@ export function sanitizeLinkMeta(
   image: string | null
   provider: string
 } {
-  const title = raw.title?.trim() || getCleanDomain(url) || 'link'
+  const provider = getProviderName(url)
+  const domain = getCleanDomain(url)
+  // Prefer clean provider name over raw domain when they differ (e.g. 'Apple Music' > 'music.apple.com')
+  const title = raw.title?.trim() || (provider !== domain ? provider : domain) || 'link'
   const creator = raw.author?.trim() || raw.creator?.trim() || null
   const description = raw.description?.trim() || null
   const image = isValidImageUrl(raw.image) ? raw.image!.trim() : null
-  const provider = getProviderName(url)
 
   return { title, creator, description, image, provider }
 }
