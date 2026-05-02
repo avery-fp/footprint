@@ -29,6 +29,9 @@ export default function ArtifactTile({
 }: ArtifactTileProps) {
   const [imgFailed, setImgFailed] = useState(false)
   const showImage = !!image && !imgFailed
+  // Suppress provider label when it's the same string as the title
+  // (happens for unknown URLs with no OG title — domain appears twice).
+  const showProvider = provider !== title
 
   return (
     <a
@@ -40,7 +43,7 @@ export default function ArtifactTile({
         showImage
           ? { background: '#000' }
           : {
-              background: 'rgba(255,255,255,0.04)',
+              background: 'rgba(255,255,255,0.07)',
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
             }
@@ -60,19 +63,21 @@ export default function ArtifactTile({
             className="absolute inset-0"
             style={{
               background:
-                'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.15) 55%, transparent 100%)',
+                'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.15) 55%, transparent 100%)',
             }}
           />
         </>
       )}
 
       <div className="absolute inset-0 flex flex-col items-center justify-end p-4 gap-1">
-        <span
-          className="text-white/35 uppercase tracking-widest font-mono text-center"
-          style={{ fontSize: '9px', fontWeight: 500, lineHeight: 1.2 }}
-        >
-          {provider}
-        </span>
+        {showProvider && (
+          <span
+            className="text-white/35 uppercase tracking-widest font-mono text-center"
+            style={{ fontSize: '9px', fontWeight: 500, lineHeight: 1.2 }}
+          >
+            {provider}
+          </span>
+        )}
         <span
           className="text-white/80 line-clamp-2 text-center fp-text-shadow"
           style={{ fontSize: '13px', fontWeight: 500, lineHeight: 1.35 }}
@@ -88,7 +93,7 @@ export default function ArtifactTile({
           </span>
         )}
         <span
-          className="text-white/20 group-hover:text-white/50 transition-colors duration-200 mt-1.5"
+          className="text-white/25 group-hover:text-white/55 transition-colors duration-200 mt-1.5"
           style={{ fontSize: '9px', fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase' }}
         >
           open →

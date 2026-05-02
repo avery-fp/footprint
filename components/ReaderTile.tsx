@@ -39,7 +39,7 @@ export default function ReaderTile({
       rel="noopener noreferrer"
       className={`block w-full ${aspectClass} fp-tile overflow-hidden relative group`}
       style={{
-        background: 'rgba(255,255,255,0.04)',
+        background: 'rgba(255,255,255,0.07)',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
       }}
@@ -94,7 +94,7 @@ export default function ReaderTile({
         )}
 
         <span
-          className="text-white/20 group-hover:text-white/50 transition-colors duration-200 mt-1.5"
+          className="text-white/25 group-hover:text-white/55 transition-colors duration-200 mt-1.5"
           style={{ fontSize: '9px', fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase' }}
         >
           read →

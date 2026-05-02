@@ -41,7 +41,7 @@ export default function MusicTile({
         showArtwork
           ? { background: '#000' }
           : {
-              background: 'rgba(255,255,255,0.06)',
+              background: 'rgba(255,255,255,0.08)',
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
             }
@@ -92,7 +92,7 @@ export default function MusicTile({
         {/* Subtle aura line */}
         <div
           className="mb-2.5"
-          style={{ width: '28px', height: '1px', background: 'rgba(255,255,255,0.18)' }}
+          style={{ width: '32px', height: '1px', background: 'rgba(255,255,255,0.18)' }}
         />
         <span
           className="text-white/85 line-clamp-2 text-center fp-text-shadow px-4"
