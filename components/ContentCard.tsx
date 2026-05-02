@@ -450,9 +450,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
 
   // ════════════════════════════════════════
   // TWITTER / X — ArtifactTile fallback
+  // Matched by URL, not stored type — seals pic.twitter.com and mistyped tiles.
   // Clean object. Tweet text as title. "X" as provider. No embed.
   // ════════════════════════════════════════
-  if (content.type === 'twitter') {
+  if (/(?:twitter\.com|x\.com)/i.test(content.url)) {
     const { title, creator, image, description, provider } = sanitizeLinkMeta(
       { title: content.title, creator: content.artist, image: getBestThumbnailUrl(content) },
       content.url

@@ -69,11 +69,12 @@ export default function MusicTile({
         </>
       )}
 
-      {/* Source badge when no artwork */}
+      {/* Source badge when no artwork — intentional identity surface */}
       {!showArtwork && (
-        <div className="absolute inset-0 flex items-center justify-center">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5">
+          <span className="text-white/25" style={{ fontSize: '18px', lineHeight: 1 }}>♪</span>
           <span
-            className="text-white/20 uppercase tracking-widest font-mono"
+            className="text-white/30 uppercase tracking-widest font-mono text-center"
             style={{ fontSize: '10px', fontWeight: 500, letterSpacing: '0.2em' }}
           >
             {provider}

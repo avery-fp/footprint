@@ -95,17 +95,32 @@ describe('sanitizeLinkMeta', () => {
     expect(r.title).toBe('My Song')
   })
 
-  it('null title falls back to domain', () => {
+  it('null title falls back to domain for unknown provider', () => {
     const r = sanitizeLinkMeta({ title: null }, 'https://example.com/page')
     expect(r.title).toBe('example.com')
   })
 
-  it('undefined title falls back to domain', () => {
+  it('null title for Apple Music falls back to clean provider name, not raw domain', () => {
+    const r = sanitizeLinkMeta({ title: null }, 'https://music.apple.com/us/album/x/1')
+    expect(r.title).toBe('Apple Music')
+  })
+
+  it('null title for Substack falls back to clean provider name, not raw subdomain', () => {
+    const r = sanitizeLinkMeta({ title: null }, 'https://blog.substack.com/p/article')
+    expect(r.title).toBe('Substack')
+  })
+
+  it('null title for Spotify falls back to Spotify, not open.spotify.com', () => {
+    const r = sanitizeLinkMeta({ title: null }, 'https://open.spotify.com/track/abc')
+    expect(r.title).toBe('Spotify')
+  })
+
+  it('undefined title falls back to domain for unknown provider', () => {
     const r = sanitizeLinkMeta({}, 'https://example.com/page')
     expect(r.title).toBe('example.com')
   })
 
-  it('whitespace-only title falls back to domain', () => {
+  it('whitespace-only title falls back to domain for unknown provider', () => {
     const r = sanitizeLinkMeta({ title: '   ' }, 'https://example.com/page')
     expect(r.title).toBe('example.com')
   })
