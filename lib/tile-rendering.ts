@@ -14,7 +14,7 @@ import { mediaTypeFromUrl } from '@/lib/media'
 // ── Regexes (shared with UnifiedTile.tsx) ──
 
 const IMAGE_EXT = /\.(jpg|jpeg|png|gif|webp|heic|avif|svg)($|\?)/i
-const EMBED_URL = /(?:youtube\.com|youtu\.be|vimeo\.com|soundcloud\.com|open\.spotify\.com|bandcamp\.com)/i
+const EMBED_URL = /(?:youtube\.com|youtu\.be|vimeo\.com|soundcloud\.com|open\.spotify\.com|music\.apple\.com|bandcamp\.com)/i
 
 // ── Canonical type resolution ──
 

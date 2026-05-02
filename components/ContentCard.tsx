@@ -15,6 +15,10 @@ import ArtifactShell from '@/components/ArtifactShell'
 import SocialEmbed from '@/components/SocialEmbed'
 import TextExpandTile from '@/components/TextExpandTile'
 import FallbackCard from '@/components/FallbackCard'
+import ArtifactTile from '@/components/ArtifactTile'
+import MusicTile from '@/components/MusicTile'
+import ReaderTile from '@/components/ReaderTile'
+import { sanitizeLinkMeta, normalizeLinkObject } from '@/lib/link-object'
 
 // ════════════════════════════════════════
 // Glass Embed Frame — imported from extracted component
@@ -128,11 +132,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     return () => observer.disconnect()
   }, [])
 
-  let hostname = 'Link'
-  try {
-    hostname = new URL(content.url).hostname.replace('www.', '')
-  } catch {}
-
   // Register audio-producing types with AudioManager
   useEffect(() => {
     const isAudioType = ['youtube', 'soundcloud', 'spotify'].includes(content.type)
@@ -234,59 +233,23 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }
 
   // ════════════════════════════════════════
-  // SPOTIFY — share card. No iframe. No embed.
-  // Album art full bleed + title/artist overlay. Tap opens Spotify.
+  // SPOTIFY — MusicTile. Artwork + title + artist. Tap opens Spotify.
   // ════════════════════════════════════════
   if (content.type === 'spotify') {
     const thumbSrc = getBestThumbnailUrl(content)
-
+    const { title, creator } = sanitizeLinkMeta(
+      { title: content.title, creator: content.artist },
+      content.url
+    )
     return (
-      <a
-        href={content.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block w-full h-full relative overflow-hidden"
-        style={{ borderRadius: 'inherit' }}
-      >
-        {/* Album art — full bleed */}
-        {thumbSrc ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={thumbSrc}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover"
-            loading="lazy"
-          />
-        ) : (
-          <div className="absolute inset-0 bg-black" />
-        )}
-
-        {/* Bottom gradient — text readability */}
-        <div
-          className="absolute inset-x-0 bottom-0"
-          style={{ height: '55%', background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)' }}
-        />
-
-        {/* Title + artist */}
-        <div className="absolute inset-x-0 bottom-0 z-10 p-4 flex flex-col items-center gap-0.5">
-          {content.title && (
-            <span
-              className="text-white/80 line-clamp-2 text-center fp-text-shadow"
-              style={{ fontSize: '13px', fontWeight: 500, lineHeight: 1.35 }}
-            >
-              {content.title}
-            </span>
-          )}
-          {content.artist && (
-            <span
-              className="text-white/40 uppercase tracking-widest truncate max-w-full text-center font-mono"
-              style={{ fontSize: '9px', fontWeight: 500, lineHeight: 1.2 }}
-            >
-              {content.artist}
-            </span>
-          )}
-        </div>
-      </a>
+      <MusicTile
+        title={title}
+        creator={creator}
+        image={thumbSrc}
+        provider="Spotify"
+        actionUrl={content.url}
+        aspectClass={aspectClass}
+      />
     )
   }
 
@@ -486,42 +449,23 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }
 
   // ════════════════════════════════════════
-  // TWITTER / X — minimalist text artifact, never expands
-  // Text-only. Small handle marker. No thumbnail, no shell, no embed.
+  // TWITTER / X — ArtifactTile fallback
+  // Clean object. Tweet text as title. "X" as provider. No embed.
   // ════════════════════════════════════════
   if (content.type === 'twitter') {
-    const tweetMatch = content.url.match(/(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]+)\/status\//)
-    const handleMatch = content.url.match(/(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]+)/)
-    const handle = (tweetMatch?.[1] || handleMatch?.[1]) ? `@${tweetMatch?.[1] || handleMatch?.[1]}` : null
-
-    if (!content.title) {
-      return <FallbackCard platform="x" title={handle ? `Tweet by ${handle}` : null} url={content.url} aspectClass={aspectClass} />
-    }
-
-    const tweetText = content.title
-    const len = tweetText.length
-    const typo = len <= 60
-      ? 'text-[14px] tracking-[-0.01em] leading-snug'
-      : len <= 140
-      ? 'text-[12px] tracking-[-0.005em] leading-relaxed'
-      : 'text-[11px] tracking-normal leading-relaxed'
-
+    const { title, creator, image, description, provider } = sanitizeLinkMeta(
+      { title: content.title, creator: content.artist, image: getBestThumbnailUrl(content) },
+      content.url
+    )
     return (
-      <div
-        className={`block w-full h-full fp-tile overflow-hidden relative flex flex-col items-center justify-center p-5 ${aspectClass}`}
-        style={{ background: 'rgba(255,255,255,0.04)' }}
-      >
-        <span className="absolute top-2.5 right-3 text-[13px] text-white/20 select-none" style={{ fontWeight: 300 }}>𝕏</span>
-        <p
-          className={`whitespace-pre-wrap text-center text-white/80 fp-text-shadow ${typo} line-clamp-6`}
-          style={{ fontWeight: 500 }}
-        >
-          {tweetText}
-        </p>
-        {handle && (
-          <span className="mt-2.5 text-[9px] text-white/40 uppercase tracking-[0.08em] font-mono" style={{ fontWeight: 500 }}>{handle}</span>
-        )}
-      </div>
+      <ArtifactTile
+        title={title}
+        provider={provider}
+        image={image}
+        description={description}
+        actionUrl={content.url}
+        aspectClass={aspectClass}
+      />
     )
   }
 
@@ -658,9 +602,30 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }
 
   // ════════════════════════════════════════
+  // APPLE MUSIC — MusicTile. No native embed; opens Apple Music.
+  // ════════════════════════════════════════
+  if (content.url.includes('music.apple.com') || content.type === 'apple_music') {
+    const thumbSrc = getBestThumbnailUrl(content)
+    const { title, creator } = sanitizeLinkMeta(
+      { title: content.title, creator: content.artist },
+      content.url
+    )
+    return (
+      <MusicTile
+        title={title}
+        creator={creator}
+        image={thumbSrc}
+        provider="Apple Music"
+        actionUrl={content.url}
+        aspectClass={aspectClass}
+      />
+    )
+  }
+
+  // ════════════════════════════════════════
   // UNIVERSAL EMBED ENGINE — Tier 2 platforms
   // Bandcamp, Google Maps, CodePen, Are.na, Figma
-  // Try iframe with 3s timeout → fallback to link card
+  // Try iframe with 3s timeout → fallback to SmartLinkFallback
   // ════════════════════════════════════════
   const embed = parseEmbed(content.url)
   if (embed && !iframeFailed) {
@@ -674,38 +639,16 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }
 
   // ════════════════════════════════════════
-  // LINK CARD — clean fallback for everything else
+  // SMART LINK FALLBACK — ArtifactTile or ReaderTile
+  // Fetches OG metadata, routes to appropriate tile.
   // ════════════════════════════════════════
-  const fallbackThumbSrc = getBestThumbnailUrl(content)
-  if (fallbackThumbSrc) {
-    return (
-      <a
-        href={content.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        ref={containerRef as any}
-        className={`block w-full ${aspectClass} fp-tile overflow-hidden relative`}
-      >
-        <Image
-          src={transformImageUrl(fallbackThumbSrc)}
-          alt={content.title || ''}
-          fill
-          sizes={tileSize >= 2 ? '(max-width: 768px) 100vw, 50vw' : '(max-width: 768px) 50vw, 25vw'}
-          className="object-cover"
-          loading="lazy"
-          quality={90}
-          onLoad={() => setIsLoaded(true)}
-          onError={() => setIsLoaded(true)}
-        />
-      </a>
-    )
-  }
-
   return (
-    <LinkCard
+    <SmartLinkFallback
       url={content.url}
       title={content.title}
-      hostname={hostname}
+      description={content.description}
+      thumbnail={getBestThumbnailUrl(content)}
+      artist={content.artist}
       isInView={isInView}
       aspectClass={aspectClass}
     />
@@ -775,120 +718,73 @@ function Tier2EmbedTile({
 }
 
 // ════════════════════════════════════════════════════════════
-// LINK CARD — frosted glass with OG metadata
+// SMART LINK FALLBACK — ArtifactTile or ReaderTile with OG enrichment
 // ════════════════════════════════════════════════════════════
 
-function LinkCard({
+function SmartLinkFallback({
   url,
-  title: initialTitle,
-  hostname,
+  title,
+  description,
+  thumbnail,
+  artist,
   isInView,
   aspectClass,
 }: {
   url: string
   title: string | null
-  hostname: string
+  description: string | null
+  thumbnail: string | null
+  artist: string | null | undefined
   isInView: boolean
   aspectClass: string
 }) {
-  const [meta, setMeta] = useState<{
+  const [ogMeta, setOgMeta] = useState<{
     title?: string | null
+    description?: string | null
     image?: string | null
   } | null>(null)
-  const [imageLoaded, setImageLoaded] = useState(false)
   const fetched = useRef(false)
 
-  // Fetch OG metadata when tile comes into view
   useEffect(() => {
     if (!isInView || fetched.current) return
     fetched.current = true
-
     const controller = new AbortController()
     fetch(`/api/og-preview?url=${encodeURIComponent(url)}`, { signal: controller.signal })
       .then(r => r.json())
-      .then(data => setMeta(data))
-      .catch(() => {}) // Silent — we already have hostname fallback
+      .then(data => setOgMeta(data))
+      .catch(() => {})
     return () => controller.abort()
   }, [isInView, url])
 
-  const displayTitle = meta?.title || initialTitle || hostname
-  const ogImage = meta?.image
+  const linkObj = normalizeLinkObject(url, {
+    title: title || ogMeta?.title,
+    description: description || ogMeta?.description,
+    image: thumbnail || ogMeta?.image,
+    creator: artist || null,
+  })
 
-  // If we got an OG image, show it as visual tile
-  if (ogImage && imageLoaded) {
+  if (linkObj.renderKind === 'reader') {
     return (
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={`block w-full ${aspectClass} fp-tile overflow-hidden relative`}
-        style={{ background: 'rgba(0,0,0,0.3)' }}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={ogImage}
-          alt=""
-          className="w-full h-full object-cover"
-          loading="lazy"
-        />
-      </a>
+      <ReaderTile
+        title={linkObj.title}
+        publication={linkObj.provider}
+        author={linkObj.creator}
+        image={linkObj.image}
+        description={linkObj.description}
+        actionUrl={linkObj.actionUrl}
+        aspectClass={aspectClass}
+      />
     )
   }
 
-  // Preload OG image in background
-  if (ogImage && !imageLoaded) {
-    return (
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={`block w-full ${aspectClass} fp-tile overflow-hidden relative`}
-        style={{
-          background: 'rgba(0,0,0,0.3)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-        }}
-      >
-        {/* Hidden preloader */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={ogImage}
-          alt=""
-          className="absolute opacity-0"
-          onLoad={() => setImageLoaded(true)}
-          onError={() => setMeta(m => m ? { ...m, image: null } : m)}
-        />
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4">
-          <span
-            className="text-[11px] tracking-wider text-white/60 text-center line-clamp-2"
-            style={{ fontWeight: 500, lineHeight: 1.35 }}
-          >
-            {displayTitle !== hostname ? displayTitle : ''}
-          </span>
-        </div>
-      </a>
-    )
-  }
-
-  // Text-only link card — frosted glass, title only
   return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={`block w-full ${aspectClass} fp-tile overflow-hidden flex flex-col items-center justify-center gap-2 p-4`}
-      style={{
-        background: 'rgba(0,0,0,0.3)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-      }}
-    >
-      <span
-        className="text-[11px] tracking-wider text-white/60 text-center line-clamp-2"
-        style={{ fontWeight: 500, lineHeight: 1.35 }}
-      >
-        {displayTitle !== hostname ? displayTitle : ''}
-      </span>
-    </a>
+    <ArtifactTile
+      title={linkObj.title}
+      provider={linkObj.provider}
+      image={linkObj.image}
+      description={linkObj.description}
+      actionUrl={linkObj.actionUrl}
+      aspectClass={aspectClass}
+    />
   )
 }
