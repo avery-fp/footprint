@@ -13,6 +13,7 @@ import CommandLayer from '@/components/CommandLayer'
 import { getGridLayout } from '@/lib/grid-layouts'
 import { glassStyle } from '@/lib/glass'
 import { useDepthExpansion } from '@/hooks/useDepthExpansion'
+import { moveChild, removeChild } from '@/lib/container-child-ops'
 import { getGridClass, resolveAspect, isVideoTile } from '@/lib/media/aspect'
 import { getFootprintDisplayTitle } from '@/lib/footprint'
 import { getRoomAtmosphere } from '@/lib/roomAtmosphere'
@@ -267,6 +268,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [localContent, setLocalContent] = useState<any[]>([])
   useEffect(() => { setLocalContent(content) }, [content])
 
+  const [localChildren, setLocalChildren] = useState<any[]>([])
+  useEffect(() => { setLocalChildren(containerChildren) }, [containerChildren])
+
   const displayTitle = useMemo(
     () => getFootprintDisplayTitle(footprint) || '\u00e6',
     [footprint]
@@ -299,6 +303,29 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ slug: footprint.username, positions }),
     }).catch(e => console.error('Failed to save tile order:', e))
+  }
+
+  function handleChildDelete(child: any) {
+    setLocalChildren(prev => removeChild(prev, child.id))
+    fetch('/api/tiles', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug: footprint.username, source: child.source, id: child.id }),
+    }).catch(e => console.error('Failed to delete child tile:', e))
+  }
+
+  function handleChildMove(idx: number, dir: -1 | 1) {
+    const next = moveChild(localChildren, idx, dir)
+    if (next === localChildren) return
+    setLocalChildren(next)
+    fetch('/api/tiles', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        slug: footprint.username,
+        positions: next.map((c: any) => ({ id: c.id, source: c.source, position: c.position })),
+      }),
+    }).catch(e => console.error('Failed to reorder child tiles:', e))
   }
 
   // Sortable tile wrapper for owner drag
@@ -750,7 +777,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
                 {/* Child tiles — horizontal rail fills viewport below header */}
                 <div className="flex-1 flex items-center pointer-events-auto" style={{ padding: '12px 0' }}>
-                  {containerChildren.length > 0 ? (
+                  {localChildren.length > 0 ? (
                     <div
                       className="flex flex-row overflow-x-auto gap-4 hide-scrollbar w-full h-full items-center"
                       style={{
@@ -761,7 +788,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                         scrollPaddingLeft: 'max(16px, calc((100vw - min(88vw, 620px)) / 2))',
                       }}
                     >
-                      {containerChildren.map((child: any, idx: number) => (
+                      {localChildren.map((child: any, idx: number) => (
                         <div
                           key={child.id}
                           className="flex-shrink-0 snap-center relative overflow-hidden rounded-2xl"
@@ -794,6 +821,55 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                             layout="rail"
                             isMobile={isMobile}
                           />
+                          {/* Owner-only controls — delete + reorder */}
+                          {isOwner && (
+                            <div className="absolute inset-0 z-10 pointer-events-none">
+                              <button
+                                className="absolute top-2 right-2 pointer-events-auto w-7 h-7 flex items-center justify-center rounded-full touch-manipulation transition-colors hover:bg-red-500/30"
+                                style={{ background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.12)' }}
+                                onClick={() => handleChildDelete(child)}
+                                aria-label="Remove item"
+                              >
+                                <svg className="w-3 h-3 text-white/60" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-2 pointer-events-auto">
+                                <button
+                                  className="w-7 h-7 flex items-center justify-center rounded-full touch-manipulation transition-opacity"
+                                  style={{
+                                    background: 'rgba(0,0,0,0.55)',
+                                    border: '1px solid rgba(255,255,255,0.12)',
+                                    opacity: idx === 0 ? 0.3 : 1,
+                                    cursor: idx === 0 ? 'default' : 'pointer',
+                                  }}
+                                  onClick={() => handleChildMove(idx, -1)}
+                                  disabled={idx === 0}
+                                  aria-label="Move left"
+                                >
+                                  <svg className="w-3 h-3 text-white/60" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                                  </svg>
+                                </button>
+                                <button
+                                  className="w-7 h-7 flex items-center justify-center rounded-full touch-manipulation transition-opacity"
+                                  style={{
+                                    background: 'rgba(0,0,0,0.55)',
+                                    border: '1px solid rgba(255,255,255,0.12)',
+                                    opacity: idx === localChildren.length - 1 ? 0.3 : 1,
+                                    cursor: idx === localChildren.length - 1 ? 'default' : 'pointer',
+                                  }}
+                                  onClick={() => handleChildMove(idx, 1)}
+                                  disabled={idx === localChildren.length - 1}
+                                  aria-label="Move right"
+                                >
+                                  <svg className="w-3 h-3 text-white/60" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
