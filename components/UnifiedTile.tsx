@@ -335,7 +335,7 @@ export default function UnifiedTile({
   }
 
   // ── Video (library-sourced .mp4/.mov files) ──
-  if (canonicalType === 'video') {
+  if (canonicalType === 'video' && item.url) {
     return (
       <div className="w-full h-full relative" data-tile-id={item.id} data-tile-type="video">
         <div className="absolute inset-0 cursor-pointer" onClick={(e) => {
