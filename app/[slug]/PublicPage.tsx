@@ -328,6 +328,38 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     }).catch(e => console.error('Failed to reorder child tiles:', e))
   }
 
+  const [addUrl, setAddUrl] = useState('')
+  const [addPending, setAddPending] = useState(false)
+
+  // Clear add-URL input whenever a different (or no) container is open
+  useEffect(() => {
+    setAddUrl('')
+    setAddPending(false)
+  }, [expanded?.id])
+
+  async function handleChildAdd() {
+    const raw = addUrl.trim()
+    if (!raw || addPending || !expanded) return
+    setAddPending(true)
+    try {
+      const res = await fetch(`/api/containers/${expanded.id}/items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug: footprint.username, url: raw }),
+      })
+      if (!res.ok) return
+      const { child } = await res.json()
+      if (child) {
+        setLocalChildren(prev => [...prev, child])
+        setAddUrl('')
+      }
+    } catch (e) {
+      console.error('Failed to add child tile:', e)
+    } finally {
+      setAddPending(false)
+    }
+  }
+
   // Sortable tile wrapper for owner drag
   function SortableTileWrapper({ item, idx, children, className, style: extraStyle, disabled }: { item: any; idx: number; children: React.ReactNode; className?: string; style?: React.CSSProperties; disabled?: boolean }) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id, disabled })
@@ -879,6 +911,43 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                     </div>
                   ) : null}
                 </div>
+
+                {/* Owner-only add URL footer */}
+                {isOwner && (
+                  <div
+                    className="pointer-events-auto flex-shrink-0 flex items-center gap-2 px-4 py-3"
+                    style={{
+                      ...glassStyle,
+                      border: 'none',
+                      borderTop: '1px solid rgba(255,255,255,0.06)',
+                      borderRadius: 0,
+                    }}
+                  >
+                    <input
+                      type="url"
+                      placeholder="add url…"
+                      value={addUrl}
+                      onChange={e => setAddUrl(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleChildAdd() }}
+                      className="flex-1 bg-transparent text-white/70 placeholder-white/20 outline-none font-mono text-xs"
+                      style={{ minWidth: 0 }}
+                    />
+                    <button
+                      onClick={handleChildAdd}
+                      disabled={!addUrl.trim() || addPending}
+                      className="px-3 py-1 rounded-md font-mono text-xs touch-manipulation"
+                      style={{
+                        background: 'rgba(255,255,255,0.06)',
+                        border: '1px solid rgba(255,255,255,0.10)',
+                        color: 'rgba(255,255,255,0.45)',
+                        opacity: !addUrl.trim() || addPending ? 0.4 : 1,
+                        cursor: !addUrl.trim() || addPending ? 'default' : 'pointer',
+                      }}
+                    >
+                      {addPending ? '…' : 'add'}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </>

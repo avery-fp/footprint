@@ -24,3 +24,15 @@ export function moveChild<T extends Child>(children: T[], idx: number, dir: -1 |
 export function removeChild<T extends Child>(children: T[], id: string): T[] {
   return children.filter(c => c.id !== id)
 }
+
+/**
+ * Extract a readable title from a URL: hostname with www stripped.
+ * Falls back to truncating the raw input if the URL is invalid.
+ */
+export function titleFromUrl(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return url.slice(0, 80)
+  }
+}

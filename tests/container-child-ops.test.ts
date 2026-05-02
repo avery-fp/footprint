@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { moveChild, removeChild } from '@/lib/container-child-ops'
+import { moveChild, removeChild, titleFromUrl } from '@/lib/container-child-ops'
 
 const make = (id: string, position: number) => ({ id, position, source: 'links' as const })
 
@@ -58,5 +58,28 @@ describe('removeChild', () => {
     const arr = [make('a', 0), make('b', 1)]
     removeChild(arr, 'a')
     expect(arr.length).toBe(2)
+  })
+})
+
+describe('titleFromUrl', () => {
+  it('returns hostname without www', () => {
+    expect(titleFromUrl('https://www.example.com/page')).toBe('example.com')
+  })
+
+  it('returns bare hostname when no www', () => {
+    expect(titleFromUrl('https://github.com/user/repo')).toBe('github.com')
+  })
+
+  it('strips www but keeps subdomain', () => {
+    expect(titleFromUrl('https://shop.example.com/item')).toBe('shop.example.com')
+  })
+
+  it('handles invalid url by truncating input', () => {
+    expect(titleFromUrl('not-a-url')).toBe('not-a-url')
+  })
+
+  it('truncates very long invalid input to 80 chars', () => {
+    const long = 'x'.repeat(120)
+    expect(titleFromUrl(long).length).toBe(80)
   })
 })
