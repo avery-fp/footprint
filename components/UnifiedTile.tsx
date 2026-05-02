@@ -9,8 +9,8 @@ import ContainerTileBase from '@/components/ContainerTile'
 import PreviewCardTileBase from '@/components/PreviewCardTile'
 import { getImageSizes } from '@/lib/media/aspect'
 import { getThumbnailCandidates } from '@/lib/media/thumbnails'
-import { mediaTypeFromUrl } from '@/lib/media'
 import { extractYouTubeId } from '@/lib/parseEmbed'
+import { resolveCanonicalType } from '@/lib/tile-rendering'
 import TextExpandTile from '@/components/TextExpandTile'
 import { isNewStyleRenderMode } from '@/lib/media/types'
 import type { RenderMode } from '@/lib/media/types'
@@ -28,30 +28,13 @@ const GhostTile = memo(GhostTileBase)
  * grid: fill + object-cover; S tile container is aspect-shaped before reaching here
  * editorial: edit-page-style, width/height Image with aspect-aware positioning
  *
- * MIME-type contract:
- *   video/* → type='video'   |   image/* → type='image'
- *   Unknown/failed → Recovery Tile (gray glass, never invisible)
+ * Render contract:
+ *   Every canonicalType has an explicit branch. No silent fallthrough.
+ *   Unknown/unrenderable tiles return null — no empty glass shells.
+ *   Dev mode logs dropped tiles for visibility.
  */
 
-// Canonical type resolution — media_kind column first, then URL extension, then stored type
-const IMAGE_EXT = /\.(jpg|jpeg|png|gif|webp|heic|avif|svg)($|\?)/i
-
-const EMBED_URL = /(?:youtube\.com|youtu\.be|vimeo\.com|soundcloud\.com|open\.spotify\.com|bandcamp\.com)/i
 const VIDEO_PREVIEW_URL = /(?:youtube\.com|youtu\.be|vimeo\.com|tiktok\.com|instagram\.com)/i
-
-function resolveCanonicalType(type: string, url: string, mediaKind?: string | null): 'video' | 'image' | 'thought' | 'content' {
-  if (type === 'thought') return 'thought'
-  // Embed URLs are always 'content' — they must reach ContentCard, never TileImage
-  if (EMBED_URL.test(url)) return 'content'
-  // Delegate video/image detection to the shared helper (checks media_kind, then URL extension)
-  const detected = mediaTypeFromUrl(url, mediaKind)
-  if (detected === 'video') return 'video'
-  if (detected === 'image') return 'image'
-  if (type === 'video') return 'video'
-  if (IMAGE_EXT.test(url)) return 'image'
-  if (type === 'image') return 'image'
-  return 'content'
-}
 
 function shouldCropPreviewThumbnail(type: string, url: string, mediaKind?: string | null): boolean {
   return type === 'video' || mediaKind === 'video' || Boolean(extractYouTubeId(url)) || VIDEO_PREVIEW_URL.test(url)
@@ -101,26 +84,6 @@ interface UnifiedTileProps {
   isSoundRoom?: boolean
   childCount?: number
   firstChildThumb?: string | null
-  onBroken?: () => void
-}
-
-// ── Recovery Tile — renders when type is unknown or media fails ──
-function RecoveryTile({ id }: { id: string }) {
-  return (
-    <div
-      className="w-full h-full flex items-center justify-center"
-      style={{
-        background: 'rgba(255,255,255,0.04)',
-        backdropFilter: 'blur(8px)',
-      }}
-      data-tile-id={id}
-      data-tile-type="recovery"
-    >
-      <svg className="w-6 h-6 text-white/20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" />
-      </svg>
-    </div>
-  )
 }
 
 export default function UnifiedTile({
@@ -135,7 +98,6 @@ export default function UnifiedTile({
   isSoundRoom = false,
   childCount,
   firstChildThumb,
-  onBroken,
 }: UnifiedTileProps) {
   const caption = item.caption || null
   const captionHidden = item.caption_hidden ?? false
@@ -217,7 +179,7 @@ export default function UnifiedTile({
       case 'native_video':
         return (
           <div className="w-full h-full" data-tile-id={item.id} data-tile-type="native-video">
-            <video src={item.url && !item.url.includes('#') ? `${item.url}#t=0.1` : item.url} className="w-full h-full object-cover" muted loop playsInline preload="metadata" autoPlay onError={() => onBroken?.()} />
+            <video src={item.url && !item.url.includes('#') ? `${item.url}#t=0.1` : item.url} className="w-full h-full object-cover" muted loop playsInline preload="metadata" autoPlay />
           </div>
         )
       case 'embed':
@@ -353,7 +315,6 @@ export default function UnifiedTile({
             playsInline
             autoPlay
             preload="metadata"
-            onError={() => onBroken?.()}
           />
           <div data-mute-dot className="absolute bottom-2.5 right-2.5 pointer-events-none transition-opacity duration-300" style={{ opacity: 0.35 }}>
             <div className="w-2 h-2 rounded-full" style={{ background: '#fff' }} />
@@ -386,7 +347,6 @@ export default function UnifiedTile({
                 aspect={aspect}
                 layout={layout}
                 size={size}
-                onBroken={onBroken}
               />
               {captionVisible && (
                 <div
@@ -407,7 +367,6 @@ export default function UnifiedTile({
                 aspect={aspect}
                 layout={layout}
                 size={size}
-                onBroken={onBroken}
               />
             </ZoomableImage>
           )}
@@ -422,7 +381,6 @@ export default function UnifiedTile({
           sizes={getImageSizes(size)}
           index={index}
           size={size}
-          onBroken={onBroken}
         />
       </div>
     )
@@ -482,6 +440,14 @@ export default function UnifiedTile({
     )
   }
 
-  // ── Recovery Tile — unknown type, no URL, or broken data ──
-  return <RecoveryTile id={item.id} />
+  // ── Sealed exit — no renderer matched, drop the tile ──
+  if (process.env.NODE_ENV !== 'production') {
+    console.warn('[UnifiedTile] Dropped unrenderable tile', {
+      id: item.id,
+      type: item.type,
+      canonicalType,
+      url: item.url,
+    })
+  }
+  return null
 }
