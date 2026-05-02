@@ -443,7 +443,6 @@ export default function EditPage() {
   const [editingThoughtText, setEditingThoughtText] = useState('')
   const [editingLinkTitle, setEditingLinkTitle] = useState<string | null>(null)
   const [editingLinkTitleText, setEditingLinkTitleText] = useState('')
-  const [swapSourceId, setSwapSourceId] = useState<string | null>(null)
   const [isOwner, setIsOwner] = useState(false)
   const [accessRequired, setAccessRequired] = useState(false)
   const [tileSources, setTileSources] = useState<Record<string, 'library' | 'links'>>({})
@@ -624,7 +623,7 @@ export default function EditPage() {
 
   // Mode transition helpers
   const enterEdit = () => setMode({ type: 'arranging' })
-  const exitEdit = () => { setSwapSourceId(null); setMode({ type: 'viewing' }) }
+  const exitEdit = () => { setMode({ type: 'viewing' }) }
   const openTileMenu = (tileId: string) => {
     setMode({ type: 'tile_menu', tileId })
   }
@@ -706,7 +705,6 @@ export default function EditPage() {
       }, 500)
     } else if (isArranging && tileId) {
       longPressRef.current = setTimeout(() => {
-        setSwapSourceId(null)
         openTileMenu(tileId)
         longPressRef.current = null
         touchStartRef.current = null
@@ -1326,33 +1324,34 @@ export default function EditPage() {
     trackOp(op)
   }
 
-  // ── Tap-to-swap (mobile only) ──
+  // ── Mobile Arrange controls — explicit reorder via tile menu ──
+  // Moves only the selected tile within the current visible/filtered subset.
+  // Non-visible tiles stay exactly where they are. Persists with the same
+  // payload shape as desktop drag-end (handleDragEnd above).
+  function moveSelectedTile(tileId: string, targetVisibleIndex: number) {
+    if (!draft) return
+    const visible = filteredContent
+    const currentIndex = visible.findIndex(t => t.id === tileId)
+    if (currentIndex === -1) return
+    const clamped = Math.max(0, Math.min(visible.length - 1, targetVisibleIndex))
+    if (clamped === currentIndex) return
 
-  function handleTileSwap(tileId: string) {
-    if (!isMobile || !isArranging || !draft) return
+    // Reorder within the visible subset
+    const reorderedVisible = [...visible]
+    const [moved] = reorderedVisible.splice(currentIndex, 1)
+    reorderedVisible.splice(clamped, 0, moved)
 
-    if (!swapSourceId) {
-      setSwapSourceId(tileId)
-      return
-    }
+    // Merge back into full draft.content. Walk the original order; whenever
+    // we see a visible tile, take the next from reorderedVisible. Non-visible
+    // tiles stay in place exactly.
+    const visibleIds = new Set(visible.map(t => t.id))
+    let visIdx = 0
+    const merged = draft.content.map(t => visibleIds.has(t.id) ? reorderedVisible[visIdx++] : t)
+    const repositioned = merged.map((item, index) => ({ ...item, position: index }))
 
-    if (swapSourceId === tileId) {
-      setSwapSourceId(null)
-      return
-    }
+    setDraft({ ...draft, content: repositioned, updated_at: Date.now() })
 
-    const oldIndex = draft.content.findIndex(item => item.id === swapSourceId)
-    const newIndex = draft.content.findIndex(item => item.id === tileId)
-    if (oldIndex === -1 || newIndex === -1) { setSwapSourceId(null); return }
-
-    const newContent = [...draft.content]
-    ;[newContent[oldIndex], newContent[newIndex]] = [newContent[newIndex], newContent[oldIndex]]
-    const reordered = newContent.map((item, index) => ({ ...item, position: index }))
-
-    setDraft({ ...draft, content: reordered, updated_at: Date.now() })
-    setSwapSourceId(null)
-
-    const positions = reordered.map(item => ({
+    const positions = repositioned.map(item => ({
       id: item.id,
       source: tileSources[item.id] || 'library',
       position: item.position,
@@ -1364,6 +1363,7 @@ export default function EditPage() {
     }).catch(e => console.error('Failed to save tile order:', e))
     trackOp(op)
   }
+
 
   // ── Wallpaper from tile ──
 
@@ -2243,14 +2243,7 @@ export default function EditPage() {
 
       {/* ═══ TILE GRID ═══ */}
       {!isEmptyHomeOrigin && (
-      <div className="max-w-7xl mx-auto px-3 md:px-6 pt-36 pb-32 relative z-10"
-        onClick={(e) => {
-          // Tap background to deselect swap
-          if (swapSourceId && (e.target as HTMLElement).closest('[data-tile]') === null) {
-            setSwapSourceId(null)
-          }
-        }}
-      >
+      <div className="max-w-7xl mx-auto px-3 md:px-6 pt-36 pb-32 relative z-10">
 
         {filteredContent.length > 0 ? (
           <LayoutGroup>
@@ -2276,36 +2269,6 @@ export default function EditPage() {
                 opacity: gridFade === 'out' ? 0 : 1,
                 transition: 'opacity 150ms ease-out, gap 350ms ease-out',
               } as React.CSSProperties}>
-                {/* Background tile — first tile, opens photo picker */}
-                {isArranging && (
-                  <div
-                    className="aspect-square rounded-2xl overflow-hidden cursor-pointer group"
-                    onClick={() => bgFileInputRef.current?.click()}
-                    style={{
-                      background: wallpaperUrl
-                        ? `url(${wallpaperUrl}) center/cover`
-                        : 'rgba(255,255,255,0.04)',
-                      border: '1px solid rgba(255,255,255,0.04)',
-                      animation: bgPulse && !wallpaperUrl ? 'fp-bg-pulse 2s ease-in-out' : undefined,
-                    }}
-                  >
-                    <div className={`w-full h-full flex items-center justify-center transition-all ${wallpaperUrl ? 'bg-black/30 group-hover:bg-black/50' : 'group-hover:bg-white/[0.04]'}`}>
-                      <svg
-                        className={`w-5 h-5 transition-all ${wallpaperUrl ? 'text-white/50 group-hover:text-white/80' : 'text-white/15 group-hover:text-white/30'}`}
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <rect x="3" y="3" width="18" height="18" rx="2" />
-                        <circle cx="8.5" cy="8.5" r="1.5" />
-                        <path d="M21 15l-5-5L5 21" />
-                      </svg>
-                    </div>
-                  </div>
-                )}
                 {filteredContent.map(item => (
                   <SortableTile
                     key={item.id}
@@ -2314,15 +2277,9 @@ export default function EditPage() {
                     isArranging={isArranging}
                     isViewing={mode.type === 'viewing'}
                     isMobile={isMobile}
-                    selected={selectedTileId === item.id || swapSourceId === item.id}
+                    selected={selectedTileId === item.id}
                     anyDragging={draggingTileId !== null}
-                    onTap={() => {
-                      if (isMobile && isArranging) {
-                        handleTileSwap(item.id)
-                      } else {
-                        openTileMenu(item.id)
-                      }
-                    }}
+                    onTap={() => openTileMenu(item.id)}
                     deleting={deletingIds.has(item.id)}
                     size={item.size || (['youtube', 'vimeo'].includes(item.type) ? 2 : 1)}
                     aspect={resolveAspect(item.aspect, item.type, item.url)}
@@ -2485,6 +2442,41 @@ export default function EditPage() {
                   {selectedTile.title || selectedTile.type || 'tile'}
                 </p>
               </div>
+
+              {/* Arrange — mobile-only explicit reorder controls.
+                  Desktop reorders via drag; mobile uses these because drag
+                  on mobile fights scroll. Operates on the current visible
+                  filtered set; non-visible tiles are never touched. */}
+              {isMobile && isArranging && (() => {
+                const visible = filteredContent
+                const idx = visible.findIndex(t => t.id === mode.tileId)
+                const atFirst = idx <= 0
+                const atLast = idx === -1 || idx >= visible.length - 1
+                const btn = (label: string, onClick: () => void, disabled: boolean) => (
+                  <button
+                    onClick={onClick}
+                    disabled={disabled}
+                    className={`flex-1 h-9 rounded-lg text-xs font-mono border transition-colors ${
+                      disabled
+                        ? 'bg-white/[0.02] border-white/[0.04] text-white/20 cursor-not-allowed'
+                        : 'bg-white/[0.06] border-white/[0.08] text-white/70 hover:bg-white/[0.1] hover:text-white'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                )
+                return (
+                  <div className="py-3 border-b border-white/[0.06]">
+                    <div className="text-[10px] uppercase tracking-wider text-white/30 font-mono mb-2">arrange</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {btn('earlier', () => moveSelectedTile(mode.tileId, idx - 1), atFirst)}
+                      {btn('later', () => moveSelectedTile(mode.tileId, idx + 1), atLast)}
+                      {btn('top', () => moveSelectedTile(mode.tileId, 0), atFirst)}
+                      {btn('bottom', () => moveSelectedTile(mode.tileId, visible.length - 1), atLast)}
+                    </div>
+                  </div>
+                )
+              })()}
 
               {/* Edit thought text */}
               {selectedTile.type === 'thought' && (
@@ -2737,15 +2729,6 @@ export default function EditPage() {
         </>
       )}
 
-      {/* Swap hint — shown when a tile is selected for swap on mobile */}
-      {isMobile && isArranging && swapSourceId && mode.type !== 'tile_menu' && (
-        <div className="fixed inset-x-0 bottom-28 z-50 flex justify-center px-4 pointer-events-none">
-          <div className="pointer-events-auto max-w-full px-4 py-2 bg-black/70 backdrop-blur-sm rounded-full border border-white/10 animate-overlay-fade">
-            <span className="text-xs text-white/70 font-mono">tap another to swap</span>
-          </div>
-        </div>
-      )}
-
       {/* ═══ BOTTOM BAR — only in arranging/adding ═══ */}
       <div className="fixed inset-x-0 bottom-8 z-50 flex justify-center px-3 pointer-events-none">
         <div className={`pointer-events-auto flex flex-col items-center gap-3 pb-[env(safe-area-inset-bottom)] transition-all duration-300 ${isArranging && mode.type !== 'tile_menu' ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
@@ -2953,6 +2936,22 @@ export default function EditPage() {
               >
                 <svg className="w-4 h-4 text-white/60" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
+                </svg>
+              </button>
+              <div className="w-px h-6 bg-white/10" />
+              <button
+                onClick={() => bgFileInputRef.current?.click()}
+                className="w-14 h-14 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-all"
+                title="Set background"
+              >
+                <svg
+                  className={`w-4 h-4 transition-all ${wallpaperUrl ? 'text-white/80' : 'text-white/40'}`}
+                  viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <path d="M21 15l-5-5L5 21" />
                 </svg>
               </button>
             </div>
