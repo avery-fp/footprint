@@ -13,7 +13,7 @@ import CommandLayer from '@/components/CommandLayer'
 import { getGridLayout } from '@/lib/grid-layouts'
 import { glassStyle } from '@/lib/glass'
 import { useDepthExpansion } from '@/hooks/useDepthExpansion'
-import { moveChild, removeChild } from '@/lib/container-child-ops'
+import { removeChild } from '@/lib/container-child-ops'
 import { getGridClass, resolveAspect, isVideoTile } from '@/lib/media/aspect'
 import { getFootprintDisplayTitle } from '@/lib/footprint'
 import { getRoomAtmosphere } from '@/lib/roomAtmosphere'
@@ -312,52 +312,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ slug: footprint.username, source: child.source, id: child.id }),
     }).catch(e => console.error('Failed to delete child tile:', e))
-  }
-
-  function handleChildMove(idx: number, dir: -1 | 1) {
-    const next = moveChild(localChildren, idx, dir)
-    if (next === localChildren) return
-    setLocalChildren(next)
-    fetch('/api/tiles', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        slug: footprint.username,
-        positions: next.map((c: any) => ({ id: c.id, source: c.source, position: c.position })),
-      }),
-    }).catch(e => console.error('Failed to reorder child tiles:', e))
-  }
-
-  const [addUrl, setAddUrl] = useState('')
-  const [addPending, setAddPending] = useState(false)
-
-  // Clear add-URL input whenever a different (or no) container is open
-  useEffect(() => {
-    setAddUrl('')
-    setAddPending(false)
-  }, [expanded?.id])
-
-  async function handleChildAdd() {
-    const raw = addUrl.trim()
-    if (!raw || addPending || !expanded) return
-    setAddPending(true)
-    try {
-      const res = await fetch(`/api/containers/${expanded.id}/items`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug: footprint.username, url: raw }),
-      })
-      if (!res.ok) return
-      const { child } = await res.json()
-      if (child) {
-        setLocalChildren(prev => [...prev, child])
-        setAddUrl('')
-      }
-    } catch (e) {
-      console.error('Failed to add child tile:', e)
-    } finally {
-      setAddPending(false)
-    }
   }
 
   // Sortable tile wrapper for owner drag
@@ -853,54 +807,17 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                             layout="rail"
                             isMobile={isMobile}
                           />
-                          {/* Owner-only controls — delete + reorder */}
                           {isOwner && (
-                            <div className="absolute inset-0 z-10 pointer-events-none">
-                              <button
-                                className="absolute top-2 right-2 pointer-events-auto w-7 h-7 flex items-center justify-center rounded-full touch-manipulation transition-colors hover:bg-red-500/30"
-                                style={{ background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.12)' }}
-                                onClick={() => handleChildDelete(child)}
-                                aria-label="Remove item"
-                              >
-                                <svg className="w-3 h-3 text-white/60" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                              </button>
-                              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-2 pointer-events-auto">
-                                <button
-                                  className="w-7 h-7 flex items-center justify-center rounded-full touch-manipulation transition-opacity"
-                                  style={{
-                                    background: 'rgba(0,0,0,0.55)',
-                                    border: '1px solid rgba(255,255,255,0.12)',
-                                    opacity: idx === 0 ? 0.3 : 1,
-                                    cursor: idx === 0 ? 'default' : 'pointer',
-                                  }}
-                                  onClick={() => handleChildMove(idx, -1)}
-                                  disabled={idx === 0}
-                                  aria-label="Move left"
-                                >
-                                  <svg className="w-3 h-3 text-white/60" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                                  </svg>
-                                </button>
-                                <button
-                                  className="w-7 h-7 flex items-center justify-center rounded-full touch-manipulation transition-opacity"
-                                  style={{
-                                    background: 'rgba(0,0,0,0.55)',
-                                    border: '1px solid rgba(255,255,255,0.12)',
-                                    opacity: idx === localChildren.length - 1 ? 0.3 : 1,
-                                    cursor: idx === localChildren.length - 1 ? 'default' : 'pointer',
-                                  }}
-                                  onClick={() => handleChildMove(idx, 1)}
-                                  disabled={idx === localChildren.length - 1}
-                                  aria-label="Move right"
-                                >
-                                  <svg className="w-3 h-3 text-white/60" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                                  </svg>
-                                </button>
-                              </div>
-                            </div>
+                            <button
+                              className="absolute top-2 right-2 z-10 w-5 h-5 flex items-center justify-center rounded-full touch-manipulation"
+                              style={{ background: 'rgba(0,0,0,0.30)', color: 'rgba(255,255,255,0.35)' }}
+                              onClick={() => handleChildDelete(child)}
+                              aria-label="Remove"
+                            >
+                              <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
                           )}
                         </div>
                       ))}
@@ -911,43 +828,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                     </div>
                   ) : null}
                 </div>
-
-                {/* Owner-only add URL footer */}
-                {isOwner && (
-                  <div
-                    className="pointer-events-auto flex-shrink-0 flex items-center gap-2 px-4 py-3"
-                    style={{
-                      ...glassStyle,
-                      border: 'none',
-                      borderTop: '1px solid rgba(255,255,255,0.06)',
-                      borderRadius: 0,
-                    }}
-                  >
-                    <input
-                      type="url"
-                      placeholder="add url…"
-                      value={addUrl}
-                      onChange={e => setAddUrl(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') handleChildAdd() }}
-                      className="flex-1 bg-transparent text-white/70 placeholder-white/20 outline-none font-mono text-xs"
-                      style={{ minWidth: 0 }}
-                    />
-                    <button
-                      onClick={handleChildAdd}
-                      disabled={!addUrl.trim() || addPending}
-                      className="px-3 py-1 rounded-md font-mono text-xs touch-manipulation"
-                      style={{
-                        background: 'rgba(255,255,255,0.06)',
-                        border: '1px solid rgba(255,255,255,0.10)',
-                        color: 'rgba(255,255,255,0.45)',
-                        opacity: !addUrl.trim() || addPending ? 0.4 : 1,
-                        cursor: !addUrl.trim() || addPending ? 'default' : 'pointer',
-                      }}
-                    >
-                      {addPending ? '…' : 'add'}
-                    </button>
-                  </div>
-                )}
               </div>
             )}
           </>
