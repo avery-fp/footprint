@@ -107,6 +107,13 @@ function VideoTile({ url, id }: { url: string; id: string }) {
     return () => obs.disconnect()
   }, [])
 
+  // #t=0.1 forces desktop Chrome to paint the first frame as poster.
+  // Without it the tile renders black until autoplay kicks in (and
+  // Chrome increasingly blocks even muted autoplay). Mobile Safari is fine.
+  const videoSrc = isInView
+    ? (url.includes('#') ? url : `${url}#t=0.1`)
+    : undefined
+
   return (
     <div ref={containerRef} className="w-full h-full relative" data-tile-id={id} data-tile-type="video">
       <div className="absolute inset-0 cursor-pointer" onClick={(e) => {
@@ -117,7 +124,7 @@ function VideoTile({ url, id }: { url: string; id: string }) {
         if (dot) dot.style.opacity = v.muted ? '0.35' : '0.9'
       }}>
         <video
-          src={isInView ? url : undefined}
+          src={videoSrc}
           className="w-full h-full object-cover"
           muted
           loop
@@ -311,7 +318,12 @@ export default function UnifiedTile({
       ? item.url.match(/vimeo\.com\/(\d+)/)?.[1] || null
       : null
   const ghostMediaId = item.media_id || derivedGhostMediaId || (item.type === 'spotify' ? item.id : null)
-  if ((item.render_mode === 'ghost' || forceGhost) && ghostMediaId) {
+  // TikTok player URL (tiktok.com/player/v1/{id}) only accepts numeric video
+  // IDs. vm.tiktok.com shortcodes stored as media_id render TikTok's "Server
+  // Error" page. Skip GhostTile and fall through to the preview-card path.
+  const ghostMediaIdValidForPlatform =
+    item.type !== 'tiktok' || (!!ghostMediaId && /^\d+$/.test(ghostMediaId))
+  if ((item.render_mode === 'ghost' || forceGhost) && ghostMediaId && ghostMediaIdValidForPlatform) {
     return (
       <div className="w-full h-full" data-tile-id={item.id} data-tile-type={`ghost-${item.type}`}>
         <GhostTile

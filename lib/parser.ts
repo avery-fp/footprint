@@ -379,17 +379,26 @@ function parseInstagram(url: string, match: RegExpMatchArray): ParsedContent {
 // TIKTOK
 // ============================================
 function parseTikTok(url: string, match: RegExpMatchArray): ParsedContent {
-  const videoId = match[2] || match[1]
+  // match[2] is the numeric video ID from tiktok.com/@user/video/{id}.
+  // match[1] from vm.tiktok.com/{shortcode} is alphanumeric and is NOT
+  // a valid input to TikTok's player URL (https://tiktok.com/player/v1/{id}),
+  // which only accepts numeric video IDs. Storing the shortcode as media_id
+  // makes the GhostTile iframe render TikTok's "Server Error" page.
+  // Leave external_id null for shortcodes so the tile falls through to the
+  // ContentCard preview-card path instead of the broken player iframe.
+  const numericId = match[2] && /^\d+$/.test(match[2]) ? match[2] : null
 
   return {
     type: 'tiktok',
     variant: 'post',
     url,
-    external_id: videoId,
+    external_id: numericId,
     title: 'TikTok Video',
     description: null,
     thumbnail_url: null,
-    embed_html: `<blockquote class="tiktok-embed" data-video-id="${videoId}"><a href="${url}"></a></blockquote>`,
+    embed_html: numericId
+      ? `<blockquote class="tiktok-embed" data-video-id="${numericId}"><a href="${url}"></a></blockquote>`
+      : null,
   }
 }
 
