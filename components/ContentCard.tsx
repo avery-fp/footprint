@@ -5,7 +5,7 @@ import Image from 'next/image'
 import type { ContentType } from '@/lib/parser'
 import { detectVariant } from '@/lib/parser'
 import { audioManager } from '@/lib/audio-manager'
-import { parseEmbed, extractYouTubeId, buildYouTubeEmbedUrl } from '@/lib/parseEmbed'
+import { parseEmbed, extractYouTubeId, extractYouTubeStart, buildYouTubeEmbedUrl } from '@/lib/parseEmbed'
 import type { EmbedResult } from '@/lib/parseEmbed'
 import GlassEmbedFrameExtracted, { GLASS_STYLE as GLASS_STYLE_IMPORTED, GlassPlaceholder as GlassPlaceholderExtracted } from '@/components/GlassEmbedFrame'
 import FieldBackground from '@/components/FieldBackground'
@@ -215,7 +215,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       )
     }
     // YouTube activated state — mute=1 for reliable autoplay, postMessage unmutes after load
-    const ytActivatedSrc = buildYouTubeEmbedUrl(youtubeId)
+    const ytActivatedSrc = buildYouTubeEmbedUrl(youtubeId, { start: extractYouTubeStart(content.url) })
     return (
       <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative" style={{ background: '#000' }}>
         <FieldBackground imageUrl={youtubeThumbCandidates[0]} intensity="embed" />

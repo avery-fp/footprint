@@ -34,4 +34,26 @@ describe('youtube adapter', () => {
     const result = await resolve('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
     expect(result.rawMetadata).toEqual({ videoId: 'dQw4w9WgXcQ' })
   })
+
+  it('honors start time from t= param (integer seconds)', async () => {
+    const result = await resolve('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=120')
+    expect(result.embedUrl).toContain('start=120')
+    expect(result.rawMetadata).toMatchObject({ videoId: 'dQw4w9WgXcQ', start: 120 })
+  })
+
+  it('honors start time from t= param (duration format)', async () => {
+    const result = await resolve('https://youtu.be/dQw4w9WgXcQ?t=1h2m30s')
+    expect(result.embedUrl).toContain('start=3750')
+  })
+
+  it('honors start= param', async () => {
+    const result = await resolve('https://www.youtube.com/watch?v=dQw4w9WgXcQ&start=45')
+    expect(result.embedUrl).toContain('start=45')
+  })
+
+  it('omits start when no time param', async () => {
+    const result = await resolve('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+    expect(result.embedUrl).not.toContain('start=')
+    expect(result.rawMetadata).toEqual({ videoId: 'dQw4w9WgXcQ' })
+  })
 })
