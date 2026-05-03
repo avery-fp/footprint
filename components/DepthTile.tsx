@@ -56,13 +56,19 @@ function useDepthData(url: string, providerId: string) {
   return { preview, listings }
 }
 
+// Site-level / marketing titles that can come back from auth-walled or
+// generic Grailed responses. Never surface these as a user-visible label.
+const GENERIC_TITLE = /^(grailed|buy and sell|shop( the)? curated|the largest)/i
+
 function cleanTitle(t: string | null | undefined): string | null {
   if (!t) return null
   const stripped = t
     .replace(/\s*[|–·-]\s*Grailed\s*$/i, '')
     .replace(/^Grailed\s*[|–·-]\s*/i, '')
     .trim()
-  return stripped || null
+  if (!stripped) return null
+  if (GENERIC_TITLE.test(stripped)) return null
+  return stripped
 }
 
 function handleFromUrl(url: string): string | null {
@@ -257,20 +263,6 @@ function ExpandedTray({
               centerLabel={centerLabel}
               bottomLabel={provider.descriptor || 'FAVORITES'}
             />
-            {title && handle && (
-              <p
-                style={{
-                  fontSize: 12,
-                  color: 'rgba(40,28,20,0.55)',
-                  margin: 0,
-                  textAlign: 'center',
-                  maxWidth: 280,
-                  lineHeight: 1.35,
-                }}
-              >
-                {title}
-              </p>
-            )}
             <a
               href={url}
               target="_blank"
@@ -429,11 +421,9 @@ function ExpandedTray({
 function ClosedFace({
   centerLabel,
   descriptor,
-  source,
 }: {
   centerLabel: string
   descriptor: string
-  source: string
 }) {
   return (
     <div
@@ -457,7 +447,7 @@ function ClosedFace({
           letterSpacing: '0.04em',
         }}
       >
-        open on {source} →
+        open on Grailed →
       </span>
     </div>
   )
@@ -506,7 +496,7 @@ export default function DepthTile({ provider, url }: DepthTileProps) {
         }}
         onClick={() => setIsOpen(true)}
       >
-        <ClosedFace centerLabel={closedCenter} descriptor={descriptor} source={provider.closedLabel} />
+        <ClosedFace centerLabel={closedCenter} descriptor={descriptor} />
       </button>
 
       {mounted &&
