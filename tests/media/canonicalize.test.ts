@@ -32,6 +32,21 @@ describe('canonicalizeUrl', () => {
       expect(canonicalizeUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ&utm_source=share&si=abc', 'youtube'))
         .toBe('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
     })
+
+    it('preserves start time from t= param', () => {
+      expect(canonicalizeUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=120', 'youtube'))
+        .toBe('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=120')
+    })
+
+    it('preserves start time from t= duration format', () => {
+      expect(canonicalizeUrl('https://youtu.be/dQw4w9WgXcQ?t=2m30s', 'youtube'))
+        .toBe('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=150')
+    })
+
+    it('drops t=0', () => {
+      expect(canonicalizeUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=0', 'youtube'))
+        .toBe('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+    })
   })
 
   describe('Twitter / X', () => {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { audioManager } from '@/lib/audio-manager'
-import { parseEmbed, buildYouTubeEmbedUrl } from '@/lib/parseEmbed'
+import { parseEmbed, buildYouTubeEmbedUrl, extractYouTubeStart } from '@/lib/parseEmbed'
 import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getThumbnailCandidates, isBadOrMissingThumbnail } from '@/lib/media/thumbnails'
 
 // ════════════════════════════════════════
@@ -256,7 +256,11 @@ export default function GhostTile({
   // Instagram URL shape determines embed path (post vs reel).
   const isInstagramReel = platform === 'instagram' && /\/reel\//.test(url)
   // YouTube clip support: convert ms → integer seconds for start/end params.
-  const ytClipStart = clip_start_ms ? Math.floor(clip_start_ms / 1000) : 0
+  // Fall back to the URL's `t=` / `start=` parameter when no explicit clip is set,
+  // so pasted "share at current time" links resume from the chosen point.
+  const ytClipStart = clip_start_ms
+    ? Math.floor(clip_start_ms / 1000)
+    : (platform === 'youtube' ? extractYouTubeStart(url) : 0)
   const ytClipEnd = clip_end_ms ? Math.ceil(clip_end_ms / 1000) : 0
   // When the thumbnail facade can't render (empty url / chain lands on
   // ytimg `default.jpg`), skip the dormant grey state and mount the
