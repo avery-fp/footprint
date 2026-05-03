@@ -17,9 +17,9 @@ interface ListingsState {
 }
 
 /**
- * Always-fetch the universal link preview for a clean title (provider's
- * marketing description is dropped). Listings are optional enrichment;
- * they appear only when extraction returns real public items.
+ * Always-fetch the universal link preview for a clean title and og:image.
+ * Listings are optional enrichment; they appear only when extraction
+ * returns real public items. Both run in parallel.
  */
 function useDepthData(url: string, providerId: string) {
   const [preview, setPreview] = useState<LinkPreview | null>(null)
@@ -56,8 +56,8 @@ function useDepthData(url: string, providerId: string) {
   return { preview, listings }
 }
 
-// Site-level / marketing titles that can come back from auth-walled or
-// generic Grailed responses. Never surface these as a user-visible label.
+// Site-level / marketing titles that come back from auth-walled or generic
+// Grailed responses. Never surface these as a user-visible label.
 const GENERIC_TITLE = /^(grailed|buy and sell|shop( the)? curated|the largest)/i
 
 function cleanTitle(t: string | null | undefined): string | null {
@@ -75,9 +75,7 @@ function handleFromUrl(url: string): string | null {
   try {
     const path = new URL(url).pathname.split('/').filter(Boolean)
     if (path.length === 0) return null
-    // /users/<id>/favorites — opaque numeric id, no readable handle
     if (path[0] === 'users') return null
-    // Skip system paths
     if (/^(designers|categories|listings|sold|search|sell|signin|signup)$/i.test(path[0])) return null
     return path[0]
   } catch {
@@ -94,29 +92,24 @@ function HeartGlyph({ size = 18, color = 'currentColor' }: { size?: number; colo
 }
 
 /**
- * The collection plate — closet portal motif. A warm, dim, bookmark-like
- * surface. Never a thumbnail of marketplace content; this is the door,
- * not a window.
+ * Empty-state plate. Only rendered when neither a listing image nor an
+ * og:image is available — the genuinely-empty case (auth-walled page,
+ * blocked scrape). Never the default.
  */
 function CollectionPlate({
   size,
   tone,
-  centerLabel,
   bottomLabel,
-  outboundIndicator = false,
 }: {
   size: number
   tone: 'dark' | 'light'
-  centerLabel: string | null
   bottomLabel: string | null
-  outboundIndicator?: boolean
 }) {
   const isLight = tone === 'light'
   const surface = isLight
     ? 'linear-gradient(135deg, rgba(244,234,222,0.9) 0%, rgba(228,212,196,0.9) 100%)'
     : 'linear-gradient(135deg, rgba(50,40,32,0.85) 0%, rgba(28,22,18,0.95) 100%)'
   const heartColor = isLight ? 'rgba(120,70,40,0.55)' : 'rgba(232,196,160,0.65)'
-  const fg = isLight ? 'rgba(60,40,28,0.78)' : 'rgba(232,220,200,0.78)'
   const sub = isLight ? 'rgba(60,40,28,0.45)' : 'rgba(232,220,200,0.45)'
   const innerBorder = isLight ? 'rgba(60,40,28,0.10)' : 'rgba(232,196,160,0.12)'
 
@@ -137,44 +130,10 @@ function CollectionPlate({
         justifyContent: 'center',
         padding: Math.round(size * 0.12),
         gap: Math.max(2, Math.round(size * 0.04)),
-        position: 'relative',
         overflow: 'hidden',
       }}
     >
-      {outboundIndicator && (
-        <span
-          aria-hidden
-          style={{
-            position: 'absolute',
-            top: Math.round(size * 0.08),
-            right: Math.round(size * 0.08),
-            fontSize: Math.max(9, Math.round(size * 0.09)),
-            color: sub,
-            lineHeight: 1,
-          }}
-        >
-          ↗
-        </span>
-      )}
       <HeartGlyph size={Math.round(size * 0.28)} color={heartColor} />
-      {centerLabel && (
-        <div
-          style={{
-            fontSize: Math.max(9, Math.round(size * 0.11)),
-            fontWeight: 500,
-            color: fg,
-            textAlign: 'center',
-            lineHeight: 1.2,
-            letterSpacing: '-0.01em',
-            maxWidth: '100%',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {centerLabel}
-        </div>
-      )}
       {bottomLabel && (
         <div
           style={{
@@ -191,25 +150,120 @@ function CollectionPlate({
   )
 }
 
+function SourceOverlay({ source, descriptor }: { source: string; descriptor: string }) {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        padding: '20px 10px 8px',
+        background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0) 100%)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        gap: 1,
+        pointerEvents: 'none',
+      }}
+    >
+      <span
+        style={{
+          fontSize: 9,
+          color: 'rgba(255,255,255,0.85)',
+          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+          letterSpacing: '0.04em',
+        }}
+      >
+        {source}
+      </span>
+      <span
+        style={{
+          fontSize: 8,
+          color: 'rgba(255,255,255,0.65)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.14em',
+        }}
+      >
+        {descriptor}
+      </span>
+    </div>
+  )
+}
+
+function ClosedFace({
+  heroImage,
+  source,
+  descriptor,
+}: {
+  heroImage: string | null
+  source: string
+  descriptor: string
+}) {
+  if (heroImage) {
+    return (
+      <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={heroImage}
+          alt=""
+          referrerPolicy="no-referrer"
+          loading="lazy"
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        />
+        <SourceOverlay source={source} descriptor={descriptor} />
+      </div>
+    )
+  }
+  return (
+    <div
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 10,
+      }}
+    >
+      <CollectionPlate size={72} tone="dark" bottomLabel={descriptor} />
+      <div style={{ position: 'absolute', left: 8, bottom: 6 }}>
+        <span
+          style={{
+            fontSize: 9,
+            color: 'rgba(255,255,255,0.42)',
+            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+            letterSpacing: '0.04em',
+          }}
+        >
+          {source}
+        </span>
+      </div>
+    </div>
+  )
+}
+
 function ExpandedTray({
   provider,
   url,
-  title,
-  handle,
+  heroImage,
+  displayTitle,
   listings,
   isOpen,
   onClose,
 }: {
   provider: DepthProvider
   url: string
-  title: string | null
-  handle: string | null
+  heroImage: string | null
+  displayTitle: string
   listings: GrailedListing[]
   isOpen: boolean
   onClose: () => void
 }) {
-  // Skip centerLabel when it would just echo the descriptor (FAVORITES).
-  const centerLabel = handle ? `@${handle}` : title
+  const hasListings = listings.length > 0
+  const showEmptyPlate = !heroImage && !hasListings
+  const descriptor = provider.descriptor || 'FAVORITES'
 
   return (
     <div
@@ -223,7 +277,7 @@ function ExpandedTray({
         style={{ background: 'rgba(20,16,14,0.55)', backdropFilter: 'blur(14px)' }}
       />
       <div
-        className={`relative w-full max-w-[420px] overflow-hidden transition-all duration-300 ${
+        className={`relative w-full max-w-[460px] overflow-hidden transition-all duration-300 ${
           isOpen ? 'scale-100 translate-y-0' : 'scale-[0.97] translate-y-2'
         }`}
         style={{
@@ -236,6 +290,7 @@ function ExpandedTray({
         }}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Header */}
         <div
           className="flex items-center justify-between px-5 py-3"
           style={{ borderBottom: '1px solid rgba(60,40,28,0.08)' }}
@@ -273,45 +328,43 @@ function ExpandedTray({
         </div>
 
         <div className="overflow-y-auto" style={{ maxHeight: '72vh' }}>
-          {/* The plate is the door — click it, you're on Grailed. */}
-          <div style={{ padding: '28px 16px 24px', display: 'flex', justifyContent: 'center' }}>
-            <a
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ textDecoration: 'none', color: 'inherit', display: 'inline-block' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <CollectionPlate
-                size={148}
-                tone="light"
-                centerLabel={centerLabel}
-                bottomLabel={provider.descriptor || 'FAVORITES'}
-                outboundIndicator
+          {/* Hero — real preview content. Empty-state plate only when nothing is available. */}
+          {heroImage ? (
+            <div style={{ aspectRatio: '16 / 10', overflow: 'hidden', background: 'rgba(60,40,28,0.06)' }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={heroImage}
+                alt=""
+                referrerPolicy="no-referrer"
+                loading="lazy"
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
               />
-            </a>
-          </div>
+            </div>
+          ) : showEmptyPlate ? (
+            <div style={{ padding: '32px 16px', display: 'flex', justifyContent: 'center' }}>
+              <CollectionPlate size={140} tone="light" bottomLabel={descriptor} />
+            </div>
+          ) : null}
 
-          {/* Optional enrichment: real listings only when parser succeeds */}
-          {listings.length > 0 && (
-            <div
+          {/* Title — handle / cleaned title only. No description, no marketing copy. */}
+          <div style={{ padding: '14px 18px 4px' }}>
+            <h3
               style={{
-                padding: 14,
-                borderTop: '1px solid rgba(60,40,28,0.08)',
+                fontSize: 16,
+                fontWeight: 500,
+                lineHeight: 1.3,
+                margin: 0,
+                color: 'rgba(40,28,20,0.95)',
+                letterSpacing: '-0.01em',
               }}
             >
-              <p
-                style={{
-                  fontSize: 9,
-                  fontWeight: 600,
-                  color: 'rgba(60,40,28,0.55)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.1em',
-                  margin: '0 0 10px 2px',
-                }}
-              >
-                items
-              </p>
+              {displayTitle}
+            </h3>
+          </div>
+
+          {/* Items grid — only when extraction returned real public items. */}
+          {hasListings && (
+            <div style={{ padding: '12px 14px 4px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 {listings.map((item) => (
                   <a
@@ -417,31 +470,39 @@ function ExpandedTray({
               </div>
             </div>
           )}
+
+          {/* Footer CTA */}
+          <div
+            style={{
+              padding: '14px 18px 18px',
+              display: 'flex',
+              justifyContent: 'center',
+            }}
+          >
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 12,
+                fontWeight: 500,
+                color: 'rgba(40,28,20,0.92)',
+                background: 'rgba(60,40,28,0.06)',
+                border: '1px solid rgba(60,40,28,0.10)',
+                borderRadius: 999,
+                padding: '8px 16px',
+                textDecoration: 'none',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              Open on Grailed →
+            </a>
+          </div>
         </div>
       </div>
-    </div>
-  )
-}
-
-function ClosedFace({
-  centerLabel,
-  descriptor,
-}: {
-  centerLabel: string | null
-  descriptor: string
-}) {
-  return (
-    <div
-      style={{
-        width: '100%',
-        height: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 10,
-      }}
-    >
-      <CollectionPlate size={72} tone="dark" centerLabel={centerLabel} bottomLabel={descriptor} />
     </div>
   )
 }
@@ -471,10 +532,15 @@ export default function DepthTile({ provider, url }: DepthTileProps) {
     return () => window.removeEventListener('keydown', onKey)
   }, [isOpen])
 
+  // Hierarchy: real listing image > og:image > nothing.
+  const heroImage = useMemo(
+    () => listings.listings[0]?.imageUrl ?? preview?.image ?? null,
+    [listings, preview]
+  )
   const cleanedTitle = useMemo(() => cleanTitle(preview?.title), [preview])
   const handle = useMemo(() => handleFromUrl(url), [url])
-  const closedCenter = handle ? `@${handle}` : cleanedTitle
   const descriptor = provider.descriptor || 'FAVORITES'
+  const displayTitle = handle ? `@${handle}` : cleanedTitle ?? 'Favorites'
 
   return (
     <>
@@ -486,10 +552,12 @@ export default function DepthTile({ provider, url }: DepthTileProps) {
           WebkitTapHighlightColor: 'transparent',
           border: 'none',
           cursor: 'pointer',
+          padding: 0,
+          display: 'block',
         }}
         onClick={() => setIsOpen(true)}
       >
-        <ClosedFace centerLabel={closedCenter} descriptor={descriptor} />
+        <ClosedFace heroImage={heroImage} source={provider.closedLabel} descriptor={descriptor} />
       </button>
 
       {mounted &&
@@ -497,8 +565,8 @@ export default function DepthTile({ provider, url }: DepthTileProps) {
           <ExpandedTray
             provider={provider}
             url={url}
-            title={cleanedTitle}
-            handle={handle}
+            heroImage={heroImage}
+            displayTitle={displayTitle}
             listings={listings.listings}
             isOpen={isOpen}
             onClose={() => setIsOpen(false)}
