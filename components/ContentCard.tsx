@@ -113,6 +113,9 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const [isVideoPlaying, setIsVideoPlaying] = useState(false)
   const [isVideoError, setIsVideoError] = useState(false)
   const [isVideoMuted, setIsVideoMuted] = useState(true)
+  // YouTube: keep facade thumbnail covering iframe until playback actually starts,
+  // so users don't stare at YouTube's own title/logo/play-button chrome during load.
+  const [ytPlaying, setYtPlaying] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const audioIdRef = useRef(`card-${content.id}`)
 
@@ -156,6 +159,32 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   // Detect YouTube by URL, not just stored type — catches mistyped tiles
   const youtubeId = extractYouTubeId(content.url)
+
+  // Reset playing flag whenever the user re-activates (or AudioManager deactivates)
+  useEffect(() => {
+    if (!isActivated) setYtPlaying(false)
+  }, [isActivated])
+
+  // Listen for YouTube IFrame API state changes. Drop the facade only when the
+  // player reports PLAYING (1) — anything earlier is YouTube's own chrome.
+  useEffect(() => {
+    if (!isActivated || !youtubeId) return
+    const onMsg = (e: MessageEvent) => {
+      const origin = e.origin || ''
+      if (!origin.includes('youtube.com') && !origin.includes('youtube-nocookie.com')) return
+      try {
+        const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data
+        const state =
+          data?.event === 'onStateChange' ? data?.info :
+          data?.event === 'infoDelivery' ? data?.info?.playerState :
+          undefined
+        if (state === 1) setYtPlaying(true)
+      } catch {}
+    }
+    window.addEventListener('message', onMsg)
+    return () => window.removeEventListener('message', onMsg)
+  }, [isActivated, youtubeId])
+
   const youtubeThumbCandidates = youtubeId
     ? getYouTubeThumbnailCandidates({
         url: content.url,
@@ -167,8 +196,21 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   if (youtubeId && !iframeFailed) {
     // postMessage unmute — mobile Safari enforces mute on iframe autoplay
     // even after user gesture. enablejsapi=1 + postMessage bypasses this.
+    // Also subscribe to onStateChange so we can hide the facade overlay the
+    // instant playback begins (state === 1), instead of revealing YouTube's
+    // own title/play-button chrome during the iframe load window.
     const handleYTLoad = (e: React.SyntheticEvent<HTMLIFrameElement>) => {
       const iframe = e.currentTarget
+      try {
+        iframe.contentWindow?.postMessage(
+          JSON.stringify({ event: 'listening', id: youtubeId }),
+          '*',
+        )
+        iframe.contentWindow?.postMessage(
+          JSON.stringify({ event: 'command', func: 'addEventListener', args: ['onStateChange'] }),
+          '*',
+        )
+      } catch {}
       setTimeout(() => {
         try {
           iframe.contentWindow?.postMessage('{"event":"command","func":"unMute","args":""}', '*')
@@ -216,9 +258,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     }
     // YouTube activated state — mute=1 for reliable autoplay, postMessage unmutes after load
     const ytActivatedSrc = buildYouTubeEmbedUrl(youtubeId)
+    const ytFacadeThumb = youtubeThumbCandidates[0]
     return (
       <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative" style={{ background: '#000' }}>
-        <FieldBackground imageUrl={youtubeThumbCandidates[0]} intensity="embed" />
+        <FieldBackground imageUrl={ytFacadeThumb} intensity="embed" />
         <iframe
           src={ytActivatedSrc}
           className="w-full h-full relative"
@@ -228,6 +271,27 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           referrerPolicy="strict-origin-when-cross-origin"
           onLoad={handleYTLoad}
         />
+        {/* Cover YouTube's pre-play chrome (title, channel, logo, play button)
+            with the facade thumbnail until the player reports playing. */}
+        {ytFacadeThumb && (
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              zIndex: 2,
+              opacity: ytPlaying ? 0 : 1,
+              transition: 'opacity 180ms ease-out',
+              background: '#000',
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={ytFacadeThumb}
+              alt=""
+              className="w-full h-full object-cover"
+              referrerPolicy="no-referrer"
+            />
+          </div>
+        )}
       </div>
     )
   }
