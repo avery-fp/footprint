@@ -89,6 +89,7 @@ interface UnifiedTileProps {
 
 function VideoTile({ url, id }: { url: string; id: string }) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
   const [isInView, setIsInView] = useState(false)
 
   useEffect(() => {
@@ -107,6 +108,22 @@ function VideoTile({ url, id }: { url: string; id: string }) {
     return () => obs.disconnect()
   }, [])
 
+  // Mobile Safari ignores autoPlay when toggled post-mount. Explicitly call
+  // play() once src is set, and retry on canplay in case the first attempt
+  // races the metadata load.
+  useEffect(() => {
+    if (!isInView) return
+    const v = videoRef.current
+    if (!v) return
+    const tryPlay = () => {
+      const p = v.play()
+      if (p && typeof p.catch === 'function') p.catch(() => {})
+    }
+    tryPlay()
+    v.addEventListener('canplay', tryPlay)
+    return () => v.removeEventListener('canplay', tryPlay)
+  }, [isInView])
+
   return (
     <div ref={containerRef} className="w-full h-full relative" data-tile-id={id} data-tile-type="video">
       <div className="absolute inset-0 cursor-pointer" onClick={(e) => {
@@ -117,12 +134,13 @@ function VideoTile({ url, id }: { url: string; id: string }) {
         if (dot) dot.style.opacity = v.muted ? '0.35' : '0.9'
       }}>
         <video
+          ref={videoRef}
           src={isInView ? url : undefined}
           className="w-full h-full object-cover"
           muted
           loop
           playsInline
-          autoPlay={isInView}
+          autoPlay
           preload={isInView ? 'metadata' : 'none'}
         />
         <div data-mute-dot className="absolute bottom-2.5 right-2.5 pointer-events-none transition-opacity duration-300" style={{ opacity: 0.35 }}>
