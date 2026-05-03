@@ -103,11 +103,13 @@ function CollectionPlate({
   tone,
   centerLabel,
   bottomLabel,
+  outboundIndicator = false,
 }: {
   size: number
   tone: 'dark' | 'light'
   centerLabel: string | null
   bottomLabel: string | null
+  outboundIndicator?: boolean
 }) {
   const isLight = tone === 'light'
   const surface = isLight
@@ -139,6 +141,21 @@ function CollectionPlate({
         overflow: 'hidden',
       }}
     >
+      {outboundIndicator && (
+        <span
+          aria-hidden
+          style={{
+            position: 'absolute',
+            top: Math.round(size * 0.08),
+            right: Math.round(size * 0.08),
+            fontSize: Math.max(9, Math.round(size * 0.09)),
+            color: sub,
+            lineHeight: 1,
+          }}
+        >
+          ↗
+        </span>
+      )}
       <HeartGlyph size={Math.round(size * 0.28)} color={heartColor} />
       {centerLabel && (
         <div
@@ -256,35 +273,22 @@ function ExpandedTray({
         </div>
 
         <div className="overflow-y-auto" style={{ maxHeight: '72vh' }}>
-          {/* Closet portal — same plate motif, scaled up */}
-          <div style={{ padding: '24px 16px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
-            <CollectionPlate
-              size={148}
-              tone="light"
-              centerLabel={centerLabel}
-              bottomLabel={provider.descriptor || 'FAVORITES'}
-            />
+          {/* The plate is the door — click it, you're on Grailed. */}
+          <div style={{ padding: '28px 16px 24px', display: 'flex', justifyContent: 'center' }}>
             <a
               href={url}
               target="_blank"
               rel="noopener noreferrer"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                fontSize: 12,
-                fontWeight: 500,
-                color: 'rgba(40,28,20,0.92)',
-                background: 'rgba(60,40,28,0.06)',
-                border: '1px solid rgba(60,40,28,0.10)',
-                borderRadius: 999,
-                padding: '7px 14px',
-                textDecoration: 'none',
-                marginTop: 2,
-              }}
+              style={{ textDecoration: 'none', color: 'inherit', display: 'inline-block' }}
               onClick={(e) => e.stopPropagation()}
             >
-              open on Grailed →
+              <CollectionPlate
+                size={148}
+                tone="light"
+                centerLabel={centerLabel}
+                bottomLabel={provider.descriptor || 'FAVORITES'}
+                outboundIndicator
+              />
             </a>
           </div>
 
