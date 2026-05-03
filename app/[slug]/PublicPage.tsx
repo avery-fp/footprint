@@ -17,6 +17,7 @@ import { moveChild, removeChild } from '@/lib/container-child-ops'
 import { getGridClass, resolveAspect, isVideoTile } from '@/lib/media/aspect'
 import { getFootprintDisplayTitle } from '@/lib/footprint'
 import { getRoomAtmosphere } from '@/lib/roomAtmosphere'
+import { sampleRoomColors, type RoomPalette } from '@/lib/sampleRoomColors'
 import {
   DndContext,
   closestCenter,
@@ -160,7 +161,41 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const activeRoomIndex = activeRoomId ? visibleRooms.findIndex(r => r.id === activeRoomId) : -1
   const activeRoom = activeRoomId ? visibleRooms.find(r => r.id === activeRoomId) : null
   const isSoundRoom = activeRoom?.name?.toLowerCase() === 'sound'
-  const { filter: wallpaperFilter, overlay: overlayColor } = getRoomAtmosphere(activeRoomIndex, isSoundRoom)
+  const { filter: baseWallpaperFilter, overlay: overlayColor } = getRoomAtmosphere(activeRoomIndex, isSoundRoom)
+  // Post-blur saturation boost — pushes the desaturated mauve-olive feel
+  // back toward each room's actual hue. Applied here, not in the shared
+  // atmosphere table, so the editor surface stays untouched.
+  const wallpaperFilter = `${baseWallpaperFilter} saturate(1.4)`
+
+  // Sample dominant + accent color from the active room's tile media so
+  // each room reads chromatically distinct rather than as a hue-rotated
+  // copy of the same wallpaper image.
+  const [roomPalette, setRoomPalette] = useState<RoomPalette | null>(null)
+  useEffect(() => {
+    if (!activeRoom) {
+      setRoomPalette(null)
+      return
+    }
+    const tiles = (activeRoom.content || [])
+      .map((item: any) => {
+        const url =
+          item.thumbnail_url_hq ||
+          item.thumbnail_url ||
+          (item.type === 'image' ? item.url : null)
+        if (!url) return null
+        return { url: String(url), weight: Math.max(1, Number(item.size) || 1) }
+      })
+      .filter(Boolean) as { url: string; weight: number }[]
+    if (tiles.length === 0) {
+      setRoomPalette(null)
+      return
+    }
+    let cancelled = false
+    sampleRoomColors(tiles).then(palette => {
+      if (!cancelled) setRoomPalette(palette)
+    })
+    return () => { cancelled = true }
+  }, [activeRoomId, activeRoom])
 
   const handleShare = () => {
     navigator.clipboard.writeText(pageUrl)
@@ -633,6 +668,18 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             }}
             onLoad={() => setWallpaperLoaded(true)}
           />
+          {/* Tile-derived dual-color gradient — gives each room a chromatic
+              identity rather than a hue-rotated copy of the same wallpaper. */}
+          {roomPalette && !claimActive && (
+            <div
+              className="absolute inset-0 transition-opacity duration-700"
+              style={{
+                backgroundImage: `linear-gradient(180deg, ${roomPalette.dominant}, ${roomPalette.accent})`,
+                opacity: 0.42,
+                mixBlendMode: 'soft-light',
+              }}
+            />
+          )}
           <div
             className="absolute inset-0 transition-all duration-800"
             style={{ backgroundColor: claimActive ? 'rgba(0,0,0,0.8)' : overlayColor }}
