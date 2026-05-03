@@ -113,7 +113,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const [isVideoPlaying, setIsVideoPlaying] = useState(false)
   const [isVideoError, setIsVideoError] = useState(false)
   const [isVideoMuted, setIsVideoMuted] = useState(true)
+  // Decoder cap: only autoplay when ≥50% visible. See videoRef effect below.
+  const [isVideoPlayable, setIsVideoPlayable] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
   const audioIdRef = useRef(`card-${content.id}`)
 
   // FIDELIO: Detect post vs profile for social embeds
@@ -131,6 +134,27 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     observer.observe(el)
     return () => observer.disconnect()
   }, [])
+
+  // Decoder cap for native video tiles: 50%-visibility gate so the grid
+  // doesn't stack N concurrent decoders (stutters on low-end Android).
+  useEffect(() => {
+    if (content.type !== 'video') return
+    const el = containerRef.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      ([entry]) => setIsVideoPlayable(entry.isIntersecting),
+      { threshold: 0.5 }
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [content.type])
+
+  useEffect(() => {
+    const v = videoRef.current
+    if (!v) return
+    if (isVideoPlayable) v.play().catch(() => {})
+    else v.pause()
+  }, [isVideoPlayable])
 
   // Register audio-producing types with AudioManager
   useEffect(() => {
@@ -370,15 +394,16 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         ) : isInView ? (
           <>
             <video
+              ref={videoRef}
               src={videoSrc}
               muted={isVideoMuted}
-              autoPlay
+              autoPlay={isVideoPlayable}
               loop
               playsInline
               preload="metadata"
               poster={content.thumbnail_url || undefined}
               className={`w-full ${aspectClass || 'aspect-video'} ${fitClass} cursor-pointer`}
-              onLoadedData={(e) => { setIsLoaded(true); (e.target as HTMLVideoElement).play().catch(() => {}) }}
+              onLoadedData={() => setIsLoaded(true)}
               onPlay={() => setIsVideoPlaying(true)}
               onPause={() => setIsVideoPlaying(false)}
               onError={() => setIsVideoError(true)}
