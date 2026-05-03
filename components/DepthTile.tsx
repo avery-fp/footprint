@@ -290,7 +290,6 @@ function ExpandedTray({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div
           className="flex items-center justify-between px-5 py-3"
           style={{ borderBottom: '1px solid rgba(60,40,28,0.08)' }}
@@ -501,6 +500,132 @@ function ExpandedTray({
               Open on Grailed →
             </a>
           </div>
+
+          {/* Optional enrichment: real listings if extracted */}
+          {listings.length > 0 && (
+            <div
+              style={{
+                padding: 14,
+                borderTop: '1px solid rgba(60,40,28,0.08)',
+              }}
+            >
+              <p
+                style={{
+                  fontSize: 9,
+                  fontWeight: 600,
+                  color: 'rgba(60,40,28,0.55)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.1em',
+                  margin: '0 0 10px 2px',
+                }}
+              >
+                items
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                {listings.map((item) => (
+                  <a
+                    key={item.id}
+                    href={item.externalUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group block"
+                    style={{ textDecoration: 'none', color: 'inherit' }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div
+                      style={{
+                        aspectRatio: '3/4',
+                        overflow: 'hidden',
+                        borderRadius: 10,
+                        background: 'rgba(60,40,28,0.06)',
+                        marginBottom: 8,
+                      }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={item.imageUrl}
+                        alt={item.title || item.brand || 'listing'}
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                        className="group-hover:scale-[1.03] transition-transform duration-300"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                      />
+                    </div>
+                    <div>
+                      {item.brand && (
+                        <p
+                          style={{
+                            fontSize: 9,
+                            fontWeight: 600,
+                            color: 'rgba(60,40,28,0.55)',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.08em',
+                            margin: '0 0 2px',
+                          }}
+                        >
+                          {item.brand}
+                        </p>
+                      )}
+                      {item.title && (
+                        <p
+                          style={{
+                            fontSize: 11,
+                            color: 'rgba(40,28,20,0.85)',
+                            lineHeight: 1.3,
+                            margin: '0 0 4px',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          {item.title}
+                        </p>
+                      )}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
+                        {item.price && (
+                          <span style={{ fontSize: 12, fontWeight: 500, color: 'rgba(40,28,20,0.92)' }}>
+                            {item.price}
+                          </span>
+                        )}
+                        {item.size && (
+                          <span
+                            style={{
+                              fontSize: 9,
+                              color: 'rgba(60,40,28,0.45)',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.06em',
+                            }}
+                          >
+                            {item.size}
+                          </span>
+                        )}
+                      </div>
+                      {(item.age || item.location) && (
+                        <div
+                          style={{
+                            marginTop: 2,
+                            fontSize: 9,
+                            color: 'rgba(60,40,28,0.40)',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            gap: 6,
+                          }}
+                        >
+                          {item.age && <span>{item.age}</span>}
+                          {item.location && (
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {item.location}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
