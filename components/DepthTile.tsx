@@ -83,73 +83,6 @@ function handleFromUrl(url: string): string | null {
   }
 }
 
-function HeartGlyph({ size = 18, color = 'currentColor' }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden>
-      <path d="M12 21s-7.5-4.5-9.5-9C1 8 3.5 4 7.5 4c2 0 3.4 1 4.5 2.4C13.1 5 14.5 4 16.5 4 20.5 4 23 8 21.5 12c-2 4.5-9.5 9-9.5 9z" />
-    </svg>
-  )
-}
-
-/**
- * Empty-state plate. Only rendered when neither a listing image nor an
- * og:image is available — the genuinely-empty case (auth-walled page,
- * blocked scrape). Never the default.
- */
-function CollectionPlate({
-  size,
-  tone,
-  bottomLabel,
-}: {
-  size: number
-  tone: 'dark' | 'light'
-  bottomLabel: string | null
-}) {
-  const isLight = tone === 'light'
-  const surface = isLight
-    ? 'linear-gradient(135deg, rgba(244,234,222,0.9) 0%, rgba(228,212,196,0.9) 100%)'
-    : 'linear-gradient(135deg, rgba(50,40,32,0.85) 0%, rgba(28,22,18,0.95) 100%)'
-  const heartColor = isLight ? 'rgba(120,70,40,0.55)' : 'rgba(232,196,160,0.65)'
-  const sub = isLight ? 'rgba(60,40,28,0.45)' : 'rgba(232,220,200,0.45)'
-  const innerBorder = isLight ? 'rgba(60,40,28,0.10)' : 'rgba(232,196,160,0.12)'
-
-  return (
-    <div
-      style={{
-        width: size,
-        height: size,
-        borderRadius: Math.round(size * 0.16),
-        background: surface,
-        border: `1px solid ${innerBorder}`,
-        boxShadow: isLight
-          ? 'inset 0 1px 0 rgba(255,250,242,0.6), 0 1px 2px rgba(40,28,20,0.06)'
-          : 'inset 0 1px 0 rgba(255,220,180,0.06), 0 1px 2px rgba(0,0,0,0.25)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: Math.round(size * 0.12),
-        gap: Math.max(2, Math.round(size * 0.04)),
-        overflow: 'hidden',
-      }}
-    >
-      <HeartGlyph size={Math.round(size * 0.28)} color={heartColor} />
-      {bottomLabel && (
-        <div
-          style={{
-            fontSize: Math.max(7, Math.round(size * 0.075)),
-            color: sub,
-            textTransform: 'uppercase',
-            letterSpacing: '0.14em',
-          }}
-        >
-          {bottomLabel}
-        </div>
-      )}
-    </div>
-  )
-}
-
 function SourceOverlay({ source, descriptor }: { source: string; descriptor: string }) {
   return (
     <div
@@ -191,12 +124,91 @@ function SourceOverlay({ source, descriptor }: { source: string; descriptor: str
   )
 }
 
+/**
+ * Identity card — when we can't show real preview content (auth-walled
+ * page, blocked scrape), surface the handle prominently instead of an
+ * empty heart icon. The handle is the most valuable signal we have.
+ */
+function IdentityCard({
+  displayTitle,
+  descriptor,
+  source,
+  scale,
+}: {
+  displayTitle: string
+  descriptor: string
+  source: string
+  scale: 'closed' | 'expanded'
+}) {
+  const isClosed = scale === 'closed'
+  return (
+    <div
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        background:
+          'radial-gradient(120% 100% at 50% 0%, rgba(80,55,38,0.9) 0%, rgba(28,20,14,0.95) 75%)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: isClosed ? '14px 12px' : '36px 24px',
+        gap: isClosed ? 4 : 10,
+        overflow: 'hidden',
+      }}
+    >
+      <span
+        style={{
+          fontSize: isClosed ? 'clamp(14px, 6vw, 22px)' : 28,
+          fontWeight: 500,
+          color: 'rgba(248,238,222,0.95)',
+          letterSpacing: '-0.02em',
+          lineHeight: 1.1,
+          textAlign: 'center',
+          maxWidth: '100%',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {displayTitle}
+      </span>
+      <span
+        style={{
+          fontSize: isClosed ? 9 : 11,
+          color: 'rgba(232,196,160,0.65)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.18em',
+        }}
+      >
+        {descriptor}
+      </span>
+      <span
+        style={{
+          position: 'absolute',
+          left: isClosed ? 8 : 14,
+          bottom: isClosed ? 6 : 12,
+          fontSize: isClosed ? 9 : 10,
+          color: 'rgba(232,220,200,0.4)',
+          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+          letterSpacing: '0.04em',
+        }}
+      >
+        {source}
+      </span>
+    </div>
+  )
+}
+
 function ClosedFace({
   heroImage,
+  displayTitle,
   source,
   descriptor,
 }: {
   heroImage: string | null
+  displayTitle: string
   source: string
   descriptor: string
 }) {
@@ -216,31 +228,7 @@ function ClosedFace({
     )
   }
   return (
-    <div
-      style={{
-        position: 'relative',
-        width: '100%',
-        height: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 10,
-      }}
-    >
-      <CollectionPlate size={72} tone="dark" bottomLabel={descriptor} />
-      <div style={{ position: 'absolute', left: 8, bottom: 6 }}>
-        <span
-          style={{
-            fontSize: 9,
-            color: 'rgba(255,255,255,0.42)',
-            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-            letterSpacing: '0.04em',
-          }}
-        >
-          {source}
-        </span>
-      </div>
-    </div>
+    <IdentityCard displayTitle={displayTitle} descriptor={descriptor} source={source} scale="closed" />
   )
 }
 
@@ -262,7 +250,6 @@ function ExpandedTray({
   onClose: () => void
 }) {
   const hasListings = listings.length > 0
-  const showEmptyPlate = !heroImage && !hasListings
   const descriptor = provider.descriptor || 'FAVORITES'
 
   return (
@@ -327,39 +314,44 @@ function ExpandedTray({
         </div>
 
         <div className="overflow-y-auto" style={{ maxHeight: '72vh' }}>
-          {/* Hero — real preview content. Empty-state plate only when nothing is available. */}
+          {/* Hero — real preview content when available, identity card otherwise. Never an empty box. */}
           {heroImage ? (
-            <div style={{ aspectRatio: '16 / 10', overflow: 'hidden', background: 'rgba(60,40,28,0.06)' }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={heroImage}
-                alt=""
-                referrerPolicy="no-referrer"
-                loading="lazy"
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            <>
+              <div style={{ aspectRatio: '16 / 10', overflow: 'hidden', background: 'rgba(60,40,28,0.06)' }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={heroImage}
+                  alt=""
+                  referrerPolicy="no-referrer"
+                  loading="lazy"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                />
+              </div>
+              <div style={{ padding: '14px 18px 4px' }}>
+                <h3
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 500,
+                    lineHeight: 1.3,
+                    margin: 0,
+                    color: 'rgba(40,28,20,0.95)',
+                    letterSpacing: '-0.01em',
+                  }}
+                >
+                  {displayTitle}
+                </h3>
+              </div>
+            </>
+          ) : (
+            <div style={{ aspectRatio: '16 / 10', overflow: 'hidden' }}>
+              <IdentityCard
+                displayTitle={displayTitle}
+                descriptor={descriptor}
+                source={provider.closedLabel}
+                scale="expanded"
               />
             </div>
-          ) : showEmptyPlate ? (
-            <div style={{ padding: '32px 16px', display: 'flex', justifyContent: 'center' }}>
-              <CollectionPlate size={140} tone="light" bottomLabel={descriptor} />
-            </div>
-          ) : null}
-
-          {/* Title — handle / cleaned title only. No description, no marketing copy. */}
-          <div style={{ padding: '14px 18px 4px' }}>
-            <h3
-              style={{
-                fontSize: 16,
-                fontWeight: 500,
-                lineHeight: 1.3,
-                margin: 0,
-                color: 'rgba(40,28,20,0.95)',
-                letterSpacing: '-0.01em',
-              }}
-            >
-              {displayTitle}
-            </h3>
-          </div>
+          )}
 
           {/* Items grid — only when extraction returned real public items. */}
           {hasListings && (
@@ -682,7 +674,12 @@ export default function DepthTile({ provider, url }: DepthTileProps) {
         }}
         onClick={() => setIsOpen(true)}
       >
-        <ClosedFace heroImage={heroImage} source={provider.closedLabel} descriptor={descriptor} />
+        <ClosedFace
+          heroImage={heroImage}
+          displayTitle={displayTitle}
+          source={provider.closedLabel}
+          descriptor={descriptor}
+        />
       </button>
 
       {mounted &&
