@@ -15,6 +15,8 @@ import { mediaTypeFromUrl } from '@/lib/media'
 
 const IMAGE_EXT = /\.(jpg|jpeg|png|gif|webp|heic|avif|svg)($|\?)/i
 const EMBED_URL = /(?:youtube\.com|youtu\.be|vimeo\.com|soundcloud\.com|open\.spotify\.com|music\.apple\.com|bandcamp\.com|twitter\.com|x\.com)/i
+// Article/reader platforms — extensionless URLs that must reach ContentCard, not TileImage
+const ARTICLE_URL = /(?:substack\.com|medium\.com|mirror\.xyz)/i
 
 // ── Canonical type resolution ──
 
@@ -25,10 +27,14 @@ export type CanonicalType = 'video' | 'image' | 'thought' | 'content'
  *
  * Priority:
  *   1. type === 'thought' → thought
- *   2. URL matches embed provider → content (ContentCard)
- *   3. media_kind or URL extension → video or image
- *   4. stored type fallback → video or image
- *   5. default → content
+ *   2. URL matches embed provider (YouTube, Spotify, Twitter…) → content
+ *   3. URL matches article platform (Substack, Medium, mirror.xyz) → content
+ *   4. URL has video extension → video
+ *   5. URL has image extension → image (overrides type signal)
+ *   6. stored type is 'link'/'content'/'article' → content (not TileImage)
+ *   7. extensionless URL, no type signal → image (mediaTypeFromUrl default)
+ *   8. stored type fallback → video or image
+ *   9. default → content
  */
 export function resolveCanonicalType(
   type: string,
@@ -37,11 +43,16 @@ export function resolveCanonicalType(
 ): CanonicalType {
   if (type === 'thought') return 'thought'
   if (EMBED_URL.test(url)) return 'content'
+  if (ARTICLE_URL.test(url)) return 'content'
   const detected = mediaTypeFromUrl(url, mediaKind)
   if (detected === 'video') return 'video'
+  // Image extension confirmed — always TileImage regardless of stored type
+  if (IMAGE_EXT.test(url)) return 'image'
+  // Type signal: 'link' tiles with non-image URLs belong in ContentCard, not TileImage
+  if (type === 'link' || type === 'content' || type === 'article') return 'content'
+  // Extensionless, no type signal — fall back to image (safe for Supabase storage URLs)
   if (detected === 'image') return 'image'
   if (type === 'video') return 'video'
-  if (IMAGE_EXT.test(url)) return 'image'
   if (type === 'image') return 'image'
   return 'content'
 }
