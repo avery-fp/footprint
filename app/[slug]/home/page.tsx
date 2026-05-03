@@ -2096,7 +2096,7 @@ export default function EditPage() {
       {!isEmptyHomeOrigin && (
       <div className="fixed top-0 left-0 right-0 z-50 bg-black/45 backdrop-blur-sm border-b border-white/[0.035]"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-        <div className="flex items-center justify-between px-4 pt-4 pb-2" style={{ minHeight: '52px' }}>
+        <div className="flex items-center justify-between px-4 pt-2 pb-1" style={{ minHeight: '40px' }}>
           <div className="flex items-center gap-1">
             {isPublished && !slug.startsWith('draft-') && !slug.startsWith('pending-') && (
               <button
@@ -2157,7 +2157,7 @@ export default function EditPage() {
             <div className="h-11 w-24 shrink-0" aria-hidden="true" />
           )}
         </div>
-        <div className="px-4 pb-3">
+        <div className="px-4 pb-1">
           <div className="mx-auto max-w-2xl">
             <input
               type="text"
@@ -2183,7 +2183,7 @@ export default function EditPage() {
               maxLength={120}
               className="w-full bg-transparent border-0 px-2 text-center text-white placeholder:text-white/30 outline-none"
               style={{
-                fontSize: resolvedDisplayTitle.length > 18 ? '1.05rem' : resolvedDisplayTitle.length > 10 ? '1.35rem' : '1.7rem',
+                fontSize: resolvedDisplayTitle.length > 18 ? '0.9rem' : resolvedDisplayTitle.length > 10 ? '1.05rem' : '1.25rem',
                 letterSpacing: resolvedDisplayTitle.length <= 3 ? '0em' : resolvedDisplayTitle.length > 12 ? '0.04em' : '0.1em',
                 fontWeight: 300,
                 lineHeight: 1.1,
@@ -2192,7 +2192,7 @@ export default function EditPage() {
           </div>
         </div>
         {/* URL bar — desktop only. On mobile the browser bar already shows this; repeating it crowds the header. */}
-        <div className="hidden md:block px-4 pb-2">
+        <div className="hidden md:block px-4 pb-1">
           <div className="relative flex items-center justify-center">
             <p className="font-mono text-[12px] tracking-[0.01em] transition-opacity duration-700 text-center">
               <span className="text-white/20">footprint.onl/</span>
@@ -2202,7 +2202,7 @@ export default function EditPage() {
           </div>
         </div>
         {/* Room pills */}
-        <div className="flex items-center gap-3 px-4 pb-3 overflow-x-auto hide-scrollbar">
+        <div className="flex items-center gap-3 px-4 pb-2 overflow-x-auto hide-scrollbar">
           <button
             onClick={() => switchRoom(null)}
             className={`text-xs px-4 py-2 rounded-full transition-all duration-300 whitespace-nowrap backdrop-blur-sm border-0 ${
