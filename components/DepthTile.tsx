@@ -191,7 +191,8 @@ function ExpandedTray({
   isOpen: boolean
   onClose: () => void
 }) {
-  const centerLabel = handle ? `@${handle}` : title || 'Favorites'
+  // Skip centerLabel when it would just echo the descriptor (FAVORITES).
+  const centerLabel = handle ? `@${handle}` : title
 
   return (
     <div
@@ -422,7 +423,7 @@ function ClosedFace({
   centerLabel,
   descriptor,
 }: {
-  centerLabel: string
+  centerLabel: string | null
   descriptor: string
 }) {
   return (
@@ -468,7 +469,7 @@ export default function DepthTile({ provider, url }: DepthTileProps) {
 
   const cleanedTitle = useMemo(() => cleanTitle(preview?.title), [preview])
   const handle = useMemo(() => handleFromUrl(url), [url])
-  const closedCenter = handle ? `@${handle}` : cleanedTitle || provider.expandedTitle
+  const closedCenter = handle ? `@${handle}` : cleanedTitle
   const descriptor = provider.descriptor || 'FAVORITES'
 
   return (
