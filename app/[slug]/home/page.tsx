@@ -437,6 +437,8 @@ export default function EditPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isAdding, setIsAdding] = useState(false)
   const [containerLabel, setContainerLabel] = useState('')
+  const [containerSheetChildren, setContainerSheetChildren] = useState<any[]>([])
+  const [containerSheetLoading, setContainerSheetLoading] = useState(false)
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
   const [draggingTileId, setDraggingTileId] = useState<string | null>(null)
   const [editingThought, setEditingThought] = useState<string | null>(null)
@@ -1898,6 +1900,22 @@ export default function EditPage() {
 
   const selectedTile = selectedTileId ? draft?.content.find(c => c.id === selectedTileId) : null
   const selectedIsImage = selectedTile?.type === 'image' && !selectedTile?.url?.match(/\.(mp4|mov|webm|m4v|3gp|3gpp|mkv)($|\?)/i)
+
+  useEffect(() => {
+    if (!selectedTileId || selectedTile?.type !== 'container') {
+      setContainerSheetChildren([])
+      return
+    }
+    let alive = true
+    setContainerSheetLoading(true)
+    fetch(`/api/containers?id=${encodeURIComponent(selectedTileId)}`)
+      .then(r => r.ok ? r.json() : [])
+      .then(data => { if (alive) setContainerSheetChildren(Array.isArray(data?.children) ? data.children : []) })
+      .catch(() => {})
+      .finally(() => { if (alive) setContainerSheetLoading(false) })
+    return () => { alive = false }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTileId, selectedTile?.type])
   const selectedThumbnailCandidates = selectedTile ? getThumbnailCandidates(selectedTile) : []
   const selectedThumbnailUrl = selectedTile ? getBestThumbnailUrl(selectedTile) : null
   const selectedHasThumbnail = Boolean(selectedThumbnailUrl)
@@ -2711,6 +2729,44 @@ export default function EditPage() {
                   </div>
                 )
               })()}
+
+              {/* Collection items — delete children */}
+              {selectedTile.type === 'container' && (
+                <div className="border-t border-white/[0.06] pt-3 pb-1">
+                  <p className="text-[10px] text-white/30 font-mono tracking-widest uppercase mb-2">items</p>
+                  {containerSheetLoading ? (
+                    <p className="text-xs text-white/20 font-mono py-2">loading...</p>
+                  ) : containerSheetChildren.length === 0 ? (
+                    <p className="text-xs text-white/20 font-mono py-2">empty</p>
+                  ) : (
+                    <div className="flex flex-col gap-0">
+                      {containerSheetChildren.map((child: any) => (
+                        <div key={child.id} className="flex items-center justify-between py-2 border-b border-white/[0.04] last:border-0">
+                          <span className="text-xs text-white/50 font-mono truncate pr-3">
+                            {child.title || child.url || child.type || 'item'}
+                          </span>
+                          <button
+                            onClick={async () => {
+                              setContainerSheetChildren(prev => prev.filter(c => c.id !== child.id))
+                              await fetch('/api/tiles', {
+                                method: 'DELETE',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ slug, source: child.source || 'links', id: child.id }),
+                              })
+                            }}
+                            className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-white/25 hover:text-red-400/70 hover:bg-red-400/10 transition"
+                            aria-label="Remove item"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Delete tile */}
               <button
