@@ -310,7 +310,7 @@ export default function VideoTile({ src, playbackUrl, posterUrl, status, onWides
                 muted
                 loop
                 playsInline
-                preload="auto"
+                preload="metadata"
                 poster={posterUrl || undefined}
                 onClick={handleClick}
                 onError={() => setHasFailed(true)}
