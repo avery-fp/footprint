@@ -133,19 +133,20 @@ function shiftLuminance(rgb: RGB, factor: number): RGB {
   }
 }
 
-export async function sampleRoomColors(tiles: TileSample[]): Promise<RoomPalette | null> {
-  const usable = tiles.filter(t => t.url).slice(0, MAX_TILES_PER_ROOM)
-  if (usable.length === 0) return null
-
-  const samples = await Promise.all(usable.map(t => loadAndSample(t.url)))
-
+/**
+ * Pure histogram → palette extraction. Exported for unit testing without DOM.
+ *
+ * @param samples One pixel array per tile.
+ * @param weights Area weight per tile (parallel to `samples`).
+ */
+export function palettizeFromSamples(samples: RGB[][], weights: number[]): RoomPalette | null {
   // Area-weighted histogram: each tile's pixels are scaled by its size.
   // Strip near-black / near-white from the chromatic ranking so dark
   // matter and blown highlights don't dominate.
   const buckets = new Map<string, number>()
   let chromaticPixels = 0
-  for (let i = 0; i < usable.length; i++) {
-    const weight = Math.max(1, usable[i].weight)
+  for (let i = 0; i < samples.length; i++) {
+    const weight = Math.max(1, weights[i] ?? 1)
     for (const px of samples[i]) {
       const hsl = rgbToHsl(px)
       if (hsl.l < 0.06 || hsl.l > 0.94) continue
@@ -180,4 +181,11 @@ export async function sampleRoomColors(tiles: TileSample[]): Promise<RoomPalette
     dominant: rgbToCss(dominantRgb),
     accent: rgbToCss(accentRgb),
   }
+}
+
+export async function sampleRoomColors(tiles: TileSample[]): Promise<RoomPalette | null> {
+  const usable = tiles.filter(t => t.url).slice(0, MAX_TILES_PER_ROOM)
+  if (usable.length === 0) return null
+  const samples = await Promise.all(usable.map(t => loadAndSample(t.url)))
+  return palettizeFromSamples(samples, usable.map(t => t.weight))
 }
