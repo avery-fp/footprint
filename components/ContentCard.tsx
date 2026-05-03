@@ -375,7 +375,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               autoPlay
               loop
               playsInline
-              preload="auto"
+              preload="metadata"
               poster={content.thumbnail_url || undefined}
               className={`w-full ${aspectClass || 'aspect-video'} ${fitClass} cursor-pointer`}
               onLoadedData={(e) => { setIsLoaded(true); (e.target as HTMLVideoElement).play().catch(() => {}) }}
