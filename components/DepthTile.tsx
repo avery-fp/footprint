@@ -431,24 +431,12 @@ function ClosedFace({
         width: '100%',
         height: '100%',
         display: 'flex',
-        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
         padding: 10,
-        gap: 8,
       }}
     >
-      <CollectionPlate size={64} tone="dark" centerLabel={centerLabel} bottomLabel={descriptor} />
-      <span
-        style={{
-          fontSize: 9,
-          color: 'rgba(255,255,255,0.42)',
-          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-          letterSpacing: '0.04em',
-        }}
-      >
-        open on Grailed →
-      </span>
+      <CollectionPlate size={72} tone="dark" centerLabel={centerLabel} bottomLabel={descriptor} />
     </div>
   )
 }
