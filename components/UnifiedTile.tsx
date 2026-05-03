@@ -11,6 +11,7 @@ import { getImageSizes } from '@/lib/media/aspect'
 import { getThumbnailCandidates } from '@/lib/media/thumbnails'
 import { extractYouTubeId } from '@/lib/parseEmbed'
 import { resolveCanonicalType } from '@/lib/tile-rendering'
+import { sanitizeLinkMeta } from '@/lib/link-object'
 import TextExpandTile from '@/components/TextExpandTile'
 import { isNewStyleRenderMode } from '@/lib/media/types'
 import type { RenderMode } from '@/lib/media/types'
@@ -251,43 +252,49 @@ export default function UnifiedTile({
             />
           </div>
         )
-      case 'preview_card':
+      case 'preview_card': {
         const previewThumbnailCandidates = getPreviewThumbnailCandidates(item)
+        const previewMeta = sanitizeLinkMeta({ title: item.title, creator: item.artist }, item.url || '')
         return (
           <div className="w-full h-full" data-tile-id={item.id} data-tile-type="preview-card">
             <PreviewCardTileBase
               url={item.url}
               thumbnailUrl={previewThumbnailCandidates[0] || item.thumbnail_url_hq || item.thumbnail_url}
-              title={item.title}
-              subtitle={item.artist || null}
+              title={previewMeta.title}
+              subtitle={previewMeta.creator}
               cropThumbnail={shouldCropPreviewThumbnail(item.type, item.url, item.media_kind)}
               thumbnailCandidates={previewThumbnailCandidates}
             />
           </div>
         )
-      case 'native_music':
+      }
+      case 'native_music': {
         // Future: native music player. For now, preview card.
+        const musicMeta = sanitizeLinkMeta({ title: item.title, creator: item.artist }, item.url || '')
         return (
           <div className="w-full h-full" data-tile-id={item.id} data-tile-type="native-music">
             <PreviewCardTileBase
               url={item.url}
               thumbnailUrl={item.thumbnail_url_hq || item.thumbnail_url}
-              title={item.title}
-              subtitle={item.artist || null}
+              title={musicMeta.title}
+              subtitle={musicMeta.creator}
             />
           </div>
         )
-      case 'link_only':
+      }
+      case 'link_only': {
+        const linkMeta = sanitizeLinkMeta({ title: item.title }, item.url || '')
         return (
           <div className="w-full h-full" data-tile-id={item.id} data-tile-type="link-only">
             <PreviewCardTileBase
               url={item.url}
               thumbnailUrl={null}
-              title={item.title}
+              title={linkMeta.title}
               subtitle={null}
             />
           </div>
         )
+      }
     }
   }
 
