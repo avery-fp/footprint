@@ -37,8 +37,10 @@ export default function SocialEmbed({ url, type, variant, onError, onLoad }: Soc
   const [failed, setFailed] = useState(false)
   const loadedRef = useRef(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const wrapperRef = useRef<HTMLDivElement>(null)
 
   const handleLoad = useCallback(() => {
+    if (loadedRef.current) return
     loadedRef.current = true
     if (timerRef.current) clearTimeout(timerRef.current)
     onLoad?.()
@@ -49,11 +51,32 @@ export default function SocialEmbed({ url, type, variant, onError, onLoad }: Soc
     onError?.()
   }, [onError])
 
-  // 8-second timeout — if embed doesn't resolve, bail
+  // The embed libs (react-social-media-embed, twitter widgets) render a
+  // blockquote first, then a third-party script transforms it into an iframe.
+  // <div> elements don't fire onLoad and `load` doesn't bubble, so we watch
+  // for the iframe being inserted and treat that as the load signal.
+  useEffect(() => {
+    const el = wrapperRef.current
+    if (!el) return
+    if (el.querySelector('iframe')) {
+      handleLoad()
+      return
+    }
+    const observer = new MutationObserver(() => {
+      if (el.querySelector('iframe')) {
+        handleLoad()
+        observer.disconnect()
+      }
+    })
+    observer.observe(el, { childList: true, subtree: true })
+    return () => observer.disconnect()
+  }, [handleLoad])
+
+  // 12-second timeout — if the iframe never appears, bail to fallback
   useEffect(() => {
     timerRef.current = setTimeout(() => {
       if (!loadedRef.current) handleError()
-    }, 8000)
+    }, 12000)
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
     }
@@ -64,7 +87,7 @@ export default function SocialEmbed({ url, type, variant, onError, onLoad }: Soc
   // ── TikTok post ──
   if (type === 'tiktok' && variant !== 'profile') {
     return (
-      <div className="w-full" style={{ minHeight: 400 }} onLoad={handleLoad}>
+      <div ref={wrapperRef} className="w-full" style={{ minHeight: 400 }}>
         <TikTokEmbed url={url} width="100%" />
       </div>
     )
@@ -73,7 +96,7 @@ export default function SocialEmbed({ url, type, variant, onError, onLoad }: Soc
   // ── Instagram post/reel ──
   if (type === 'instagram' && variant !== 'profile') {
     return (
-      <div className="w-full" style={{ minHeight: 400 }} onLoad={handleLoad}>
+      <div ref={wrapperRef} className="w-full" style={{ minHeight: 400 }}>
         <InstagramEmbed url={url} width="100%" captioned={false} />
       </div>
     )
@@ -82,7 +105,7 @@ export default function SocialEmbed({ url, type, variant, onError, onLoad }: Soc
   // ── Twitter/X post ──
   if (type === 'twitter' && variant === 'post') {
     return (
-      <div className="w-full" style={{ minHeight: 200 }} onLoad={handleLoad}>
+      <div ref={wrapperRef} className="w-full" style={{ minHeight: 200 }}>
         <XEmbed url={url} width="100%" />
       </div>
     )
