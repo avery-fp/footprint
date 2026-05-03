@@ -89,7 +89,13 @@ interface UnifiedTileProps {
 
 function VideoTile({ url, id }: { url: string; id: string }) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
   const [isInView, setIsInView] = useState(false)
+  // Decoder cap: only autoplay when the tile is at least half visible.
+  // In a typical grid, this naturally caps simultaneous plays to ~2 — you
+  // can't fit 4+ tiles each ≥50% visible. Off-cap tiles freeze on the last
+  // frame (or poster), which still reads as "alive" without burning N decoders.
+  const [isPlayable, setIsPlayable] = useState(false)
 
   useEffect(() => {
     const el = containerRef.current
@@ -106,6 +112,24 @@ function VideoTile({ url, id }: { url: string; id: string }) {
     obs.observe(el)
     return () => obs.disconnect()
   }, [])
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      ([entry]) => setIsPlayable(entry.isIntersecting),
+      { threshold: 0.5 }
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
+
+  useEffect(() => {
+    const v = videoRef.current
+    if (!v) return
+    if (isPlayable) v.play().catch(() => {})
+    else v.pause()
+  }, [isPlayable])
 
   // #t=0.1 forces desktop Chrome to paint the first frame as poster.
   // Without it the tile renders black until autoplay kicks in (and
@@ -124,12 +148,13 @@ function VideoTile({ url, id }: { url: string; id: string }) {
         if (dot) dot.style.opacity = v.muted ? '0.35' : '0.9'
       }}>
         <video
+          ref={videoRef}
           src={videoSrc}
           className="w-full h-full object-cover"
           muted
           loop
           playsInline
-          autoPlay={isInView}
+          autoPlay={isPlayable}
           preload={isInView ? 'metadata' : 'none'}
         />
         <div data-mute-dot className="absolute bottom-2.5 right-2.5 pointer-events-none transition-opacity duration-300" style={{ opacity: 0.35 }}>
