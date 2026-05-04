@@ -26,15 +26,28 @@ const RESERVED_SLUGS = new Set(['build', 'login', 'signup', 'signin', 'auth', 'c
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (RESERVED_SLUGS.has(params.slug)) return { title: 'footprint' }
 
+  const isDraft = params.slug.startsWith('draft-')
+
   const supabase = createServerSupabaseClient()
-  const { data: footprint } = await supabase
+  let query = supabase
     .from('footprints')
     .select('display_title, display_name, name, username, bio, dimension, serial_number')
     .eq('username', params.slug)
-    .eq('published', true)
-    .single()
+  if (!isDraft) query = query.eq('published', true)
+  const { data: footprint } = await query.single()
 
   if (!footprint) return { title: 'Footprint' }
+
+  // Drafts are pre-purchase previews — never expose the serial number in
+  // titles or OG cards. The number is the scarcity hook that lights up at
+  // claim, not before.
+  if (isDraft) {
+    const displayTitle = getFootprintDisplayTitle(footprint)
+    return {
+      title: displayTitle ? `${displayTitle} · preview` : 'preview · footprint',
+      description: footprint.bio || 'one page for everything.',
+    }
+  }
 
   const serial = footprint.serial_number || 0
   const displayTitle = getFootprintDisplayTitle(footprint)
@@ -62,17 +75,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function FootprintPage({ params }: Props) {
   if (RESERVED_SLUGS.has(params.slug)) notFound()
 
-  const result = await loadFootprint(params.slug, { ownerView: false })
+  // Draft slugs (draft-{12-char uuid}) are unguessable preview URLs — the
+  // owner can share one before paying. Knowledge of the slug IS the access
+  // credential, same contract as the editor at /draft-{uuid}/home. ownerView
+  // here just drops the `published = true` filter; loadFootprint does no
+  // ownership check on its own.
+  const isDraft = params.slug.startsWith('draft-')
+
+  const result = await loadFootprint(params.slug, { ownerView: isDraft })
   if (!result) notFound()
 
   const { footprint, content, rooms: roomsFlat, containerMeta } = result
 
   const supabase = createServerSupabaseClient()
-  const { data: owner } = await supabase
-    .from('users')
-    .select('email')
-    .eq('id', footprint.user_id)
-    .maybeSingle()
+  const { data: owner } = footprint.user_id
+    ? await supabase
+        .from('users')
+        .select('email')
+        .eq('id', footprint.user_id)
+        .maybeSingle()
+    : { data: null }
 
   // Public page expects rooms with their content already grouped in.
   // Tiles with room_id=null (orphans — typically uploads that landed before
@@ -92,19 +114,29 @@ export default async function FootprintPage({ params }: Props) {
     ),
   }))
 
-  const serial = footprint.serial_number.toString().padStart(4, '0')
+  // Drafts have no public-facing serial — empty string keeps the bottom-left
+  // serial flyout inert (PublicPage already gates it on `!isDraft && serial`,
+  // both signals point the same way for safety).
+  const serial = isDraft ? '' : footprint.serial_number.toString().padStart(4, '0')
   const theme = getTheme(footprint.dimension || 'midnight')
   const pageUrl = `https://footprint.onl/${params.slug}`
 
   return (
     <>
-      {/* footprint.id was dropped from the schema; user_id (UUID) is the
-          stable identifier for analytics. fp_events.footprint_id still carries
-          UUID type so we send user_id there. */}
-      <AnalyticsTracker footprintId={footprint.user_id} serialNumber={footprint.serial_number} />
-      <EventTracker footprintId={footprint.user_id} />
-      <ReferralBanner serial={serial} />
-      <ClaimOverlay slug={params.slug} />
+      {/* Drafts skip analytics, referral banner, and the post-claim overlay:
+          user_id is null for anonymous drafts, the serial isn't claimed yet,
+          and there's no claim event to animate. */}
+      {!isDraft && (
+        <>
+          {/* footprint.id was dropped from the schema; user_id (UUID) is the
+              stable identifier for analytics. fp_events.footprint_id still carries
+              UUID type so we send user_id there. */}
+          <AnalyticsTracker footprintId={footprint.user_id} serialNumber={footprint.serial_number} />
+          <EventTracker footprintId={footprint.user_id} />
+          <ReferralBanner serial={serial} />
+          <ClaimOverlay slug={params.slug} />
+        </>
+      )}
       <PublicPage
         footprint={footprint}
         content={content}
@@ -114,6 +146,7 @@ export default async function FootprintPage({ params }: Props) {
         pageUrl={pageUrl}
         containerMeta={containerMeta}
         ownerEmail={owner?.email || null}
+        isDraft={isDraft}
       />
     </>
   )
