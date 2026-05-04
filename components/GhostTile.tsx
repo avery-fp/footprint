@@ -401,7 +401,7 @@ export default function GhostTile({
                 if (el?.requestFullscreen) el.requestFullscreen().catch(() => {})
                 else if (anyEl?.webkitRequestFullscreen) anyEl.webkitRequestFullscreen()
               }}
-              className="absolute flex items-center justify-center text-white/85 hover:text-white transition-opacity"
+              className="absolute flex items-center justify-center text-white/85 hover:text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-300"
               style={{
                 bottom: 12,
                 right: 12,
