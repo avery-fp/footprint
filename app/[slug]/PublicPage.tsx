@@ -17,7 +17,7 @@ import { moveChild, removeChild } from '@/lib/container-child-ops'
 import { getGridClass, resolveAspect, isVideoTile } from '@/lib/media/aspect'
 import { getFootprintDisplayTitle } from '@/lib/footprint'
 import { getRoomAtmosphere } from '@/lib/roomAtmosphere'
-import { sampleRoomColors, type RoomPalette } from '@/lib/sampleRoomColors'
+import { sampleRoomColors, paletteFromName, type RoomPalette } from '@/lib/sampleRoomColors'
 import {
   DndContext,
   closestCenter,
@@ -172,15 +172,16 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // atmosphere table, so the editor surface stays untouched.
   const wallpaperFilter = `${baseWallpaperFilter} saturate(1.4)`
 
-  // Sample dominant + accent color from the active room's tile media so
-  // each room reads chromatically distinct rather than as a hue-rotated
-  // copy of the same wallpaper image.
+  // Per-room chromatic palette. Name-hash fallback paints synchronously so
+  // every room reads distinct on first render; tile sampling overrides async
+  // when canvas reads succeed (CORS-permitting).
   const [roomPalette, setRoomPalette] = useState<RoomPalette | null>(null)
   useEffect(() => {
     if (!activeRoom) {
       setRoomPalette(null)
       return
     }
+    setRoomPalette(paletteFromName(activeRoom.name || activeRoom.id))
     const tiles = (activeRoom.content || [])
       .map((item: any) => {
         const url =
@@ -191,13 +192,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         return { url: String(url), weight: Math.max(1, Number(item.size) || 1) }
       })
       .filter(Boolean) as { url: string; weight: number }[]
-    if (tiles.length === 0) {
-      setRoomPalette(null)
-      return
-    }
+    if (tiles.length === 0) return
     let cancelled = false
-    sampleRoomColors(tiles).then(palette => {
-      if (!cancelled) setRoomPalette(palette)
+    sampleRoomColors(tiles).then(sampled => {
+      if (!cancelled && sampled) setRoomPalette(sampled)
     })
     return () => { cancelled = true }
   }, [activeRoomId, activeRoom])
@@ -675,22 +673,23 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             }}
             onLoad={() => setWallpaperLoaded(true)}
           />
-          {/* Tile-derived dual-color gradient — gives each room a chromatic
-              identity rather than a hue-rotated copy of the same wallpaper. */}
+          <div
+            className="absolute inset-0 transition-all duration-800"
+            style={{ backgroundColor: claimActive ? 'rgba(0,0,0,0.8)' : overlayColor }}
+          />
+          {/* Per-room gradient above the dark overlay so the chroma actually
+              tints atmosphere instead of getting absorbed by the overlay.
+              Soft-light + low opacity keeps it as feel, not a color band. */}
           {roomPalette && !claimActive && (
             <div
               className="absolute inset-0 transition-opacity duration-700"
               style={{
                 backgroundImage: `linear-gradient(180deg, ${roomPalette.dominant}, ${roomPalette.accent})`,
-                opacity: 0.42,
+                opacity: 0.28,
                 mixBlendMode: 'soft-light',
               }}
             />
           )}
-          <div
-            className="absolute inset-0 transition-all duration-800"
-            style={{ backgroundColor: claimActive ? 'rgba(0,0,0,0.8)' : overlayColor }}
-          />
         </div>
       )}
       <WeatherEffect type={footprint.weather_effect || null} />
