@@ -1996,9 +1996,12 @@ export default function EditPage() {
   return (
     <ErrorBoundary context="editor">
     <div className="relative min-h-[100dvh] w-full overflow-x-hidden pb-32" style={{ background: isEmptyHomeOrigin ? '#f6f1e8' : wallpaperUrl ? 'transparent' : theme.colors.background, color: isEmptyHomeOrigin ? '#211a10' : theme.colors.text }}>
-      {/* Wallpaper layer */}
+      {/* Wallpaper layer — keyed by URL so a replace fully unmounts the
+          previous <img>. Without the key, React keeps the same DOM node and
+          the browser keeps the prior decode painted until the new src loads,
+          which reads as "old wallpaper still there" right after a swap. */}
       {wallpaperUrl && (
-        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+        <div key={wallpaperUrl} className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
           <img
             src={wallpaperUrl}
             alt=""
