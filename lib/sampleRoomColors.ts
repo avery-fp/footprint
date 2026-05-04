@@ -189,3 +189,24 @@ export async function sampleRoomColors(tiles: TileSample[]): Promise<RoomPalette
   const samples = await Promise.all(usable.map(t => loadAndSample(t.url)))
   return palettizeFromSamples(samples, usable.map(t => t.weight))
 }
+
+/**
+ * Deterministic palette derived from a room name. Used as a fallback when
+ * canvas sampling returns nothing (CORS-tainted tiles, no images in room,
+ * etc.) so the room still reads chromatically distinct from its neighbors.
+ *
+ * Picks a base hue from a string hash, an accent 140° away (well past the
+ * 35° distinctness floor), and saturates both at gallery-poster levels.
+ */
+export function paletteFromName(name: string): RoomPalette {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) {
+    hash = (hash * 31 + name.charCodeAt(i)) >>> 0
+  }
+  const base = hash % 360
+  const accent = (base + 140) % 360
+  return {
+    dominant: `hsl(${base}, 62%, 48%)`,
+    accent: `hsl(${accent}, 58%, 32%)`,
+  }
+}
