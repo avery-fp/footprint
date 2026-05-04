@@ -262,16 +262,19 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             if (el?.requestFullscreen) el.requestFullscreen().catch(() => {})
             else if (anyEl?.webkitRequestFullscreen) anyEl.webkitRequestFullscreen()
           }}
-          className="absolute bottom-2 right-2 w-7 h-7 rounded-full flex items-center justify-center text-white/70 hover:text-white/90 transition-opacity"
+          className="absolute bottom-0 right-0 flex items-center justify-center text-white/85 hover:text-white transition-opacity"
           style={{
+            width: 96,
+            height: 36,
             zIndex: 3,
-            background: 'rgba(255,255,255,0.08)',
-            backdropFilter: 'blur(4px)',
-            WebkitBackdropFilter: 'blur(4px)',
+            background: 'rgba(0,0,0,0.55)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            borderTopLeftRadius: 10,
             pointerEvents: 'auto',
           }}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6"/>
           </svg>
         </button>
