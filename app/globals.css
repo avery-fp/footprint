@@ -266,16 +266,6 @@ input:-webkit-autofill:focus {
     0 18px 44px rgba(0, 0, 0, 0.22);
 }
 
-.fp-puzzle-tile::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto;
-  height: 1px;
-  z-index: 3;
-  pointer-events: none;
-  background: linear-gradient(90deg, transparent, rgba(255, 251, 239, 0.34), transparent);
-}
-
 .fp-puzzle-tile-s {
   --fp-puzzle-scale: 0.94;
   --fp-puzzle-hover-scale: 0.948;
