@@ -262,15 +262,13 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             if (el?.requestFullscreen) el.requestFullscreen().catch(() => {})
             else if (anyEl?.webkitRequestFullscreen) anyEl.webkitRequestFullscreen()
           }}
-          className="absolute bottom-0 right-0 flex items-center justify-center text-white/85 hover:text-white transition-opacity"
+          className="absolute bottom-0 right-0 text-white/80 backdrop-blur-sm flex items-center justify-center opacity-80 hover:opacity-100 transition"
           style={{
-            width: 96,
-            height: 36,
+            width: 76,
+            height: 42,
             zIndex: 3,
-            background: 'rgba(0,0,0,0.55)',
-            backdropFilter: 'blur(8px)',
-            WebkitBackdropFilter: 'blur(8px)',
-            borderTopLeftRadius: 10,
+            background: 'rgba(0,0,0,0.72)',
+            borderTopLeftRadius: 8,
             pointerEvents: 'auto',
           }}
         >
