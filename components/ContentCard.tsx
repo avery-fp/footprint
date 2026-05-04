@@ -241,7 +241,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     // YouTube activated state — mute=1 for reliable autoplay, postMessage unmutes after load
     const ytActivatedSrc = buildYouTubeEmbedUrl(youtubeId, { start: extractYouTubeStart(content.url) })
     return (
-      <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative" style={{ background: '#000' }}>
+      <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative group" style={{ background: '#000' }}>
         <FieldBackground imageUrl={youtubeThumbCandidates[0]} intensity="embed" />
         <iframe
           src={ytActivatedSrc}
@@ -262,7 +262,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             if (el?.requestFullscreen) el.requestFullscreen().catch(() => {})
             else if (anyEl?.webkitRequestFullscreen) anyEl.webkitRequestFullscreen()
           }}
-          className="absolute flex items-center justify-center text-white/85 hover:text-white transition-opacity"
+          className="absolute flex items-center justify-center text-white/85 hover:text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-300"
           style={{
             bottom: 12,
             right: 12,
