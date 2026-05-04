@@ -260,7 +260,7 @@ function SortableTile({
               : 'tile-arranging tile-jiggle'
             : ''
         } ${selected ? 'ring-2 ring-white/60' : ''}`}
-        style={{ ...(revealStyle || {}), background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.03)' }}
+        style={{ ...(revealStyle || {}), background: 'rgba(255,255,255,0.04)' }}
         {...tileHandlers}
         {...touchHandlers}
         onContextMenu={(e) => e.preventDefault()}

@@ -223,7 +223,14 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         <iframe
           src={ytActivatedSrc}
           className="w-full h-full relative"
-          style={{ border: 'none', zIndex: 1 }}
+          style={{
+            border: 'none',
+            zIndex: 1,
+            // Scale up from the top so the parent's overflow:hidden clips
+            // YouTube's bottom progress bar (always rendered, controls=0 doesn't hide it).
+            transform: 'scale(1.025)',
+            transformOrigin: 'top center',
+          }}
           allow="autoplay; encrypted-media; fullscreen"
           allowFullScreen
           referrerPolicy="strict-origin-when-cross-origin"
@@ -234,60 +241,55 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }
 
   // ════════════════════════════════════════
-  // SPOTIFY — share card. No iframe. No embed.
-  // Album art full bleed + title/artist overlay. Tap opens Spotify.
+  // SPOTIFY — inline iframe playback
+  // Spotify embed shows album art + native play button. 30s preview for anon,
+  // full track for logged-in users.
   // ════════════════════════════════════════
   if (content.type === 'spotify') {
-    const thumbSrc = getBestThumbnailUrl(content)
-
-    return (
-      <a
-        href={content.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block w-full h-full relative overflow-hidden"
-        style={{ borderRadius: 'inherit' }}
-      >
-        {/* Album art — full bleed */}
-        {thumbSrc ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={thumbSrc}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover"
+    const embed = parseEmbed(content.url)
+    if (embed) {
+      return (
+        <div
+          ref={containerRef}
+          className="w-full h-full fp-tile overflow-hidden relative"
+          style={{ borderRadius: 'inherit' }}
+        >
+          <iframe
+            src={embed.embedUrl}
+            className="w-full h-full"
+            style={{ border: 0, borderRadius: 'inherit' }}
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
             loading="lazy"
           />
-        ) : (
-          <div className="absolute inset-0 bg-black" />
-        )}
-
-        {/* Bottom gradient — text readability */}
-        <div
-          className="absolute inset-x-0 bottom-0"
-          style={{ height: '55%', background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)' }}
-        />
-
-        {/* Title + artist */}
-        <div className="absolute inset-x-0 bottom-0 z-10 p-4 flex flex-col items-center gap-0.5">
-          {content.title && (
-            <span
-              className="text-white/80 line-clamp-2 text-center fp-text-shadow"
-              style={{ fontSize: '13px', fontWeight: 500, lineHeight: 1.35 }}
-            >
-              {content.title}
-            </span>
-          )}
-          {content.artist && (
-            <span
-              className="text-white/40 uppercase tracking-widest truncate max-w-full text-center font-mono"
-              style={{ fontSize: '9px', fontWeight: 500, lineHeight: 1.2 }}
-            >
-              {content.artist}
-            </span>
-          )}
         </div>
-      </a>
-    )
+      )
+    }
+  }
+
+  // ════════════════════════════════════════
+  // APPLE MUSIC — inline iframe playback
+  // Detected by URL since legacy tiles store type='link' for apple music.
+  // ════════════════════════════════════════
+  if (content.url?.includes('music.apple.com')) {
+    const embed = parseEmbed(content.url)
+    if (embed) {
+      return (
+        <div
+          ref={containerRef}
+          className="w-full h-full fp-tile overflow-hidden relative"
+          style={{ borderRadius: 'inherit' }}
+        >
+          <iframe
+            src={embed.embedUrl}
+            className="w-full h-full"
+            style={{ border: 0, borderRadius: 'inherit', colorScheme: 'normal' }}
+            allow="autoplay *; encrypted-media *; fullscreen *"
+            sandbox="allow-forms allow-scripts allow-same-origin allow-popups"
+            loading="lazy"
+          />
+        </div>
+      )
+    }
   }
 
   // ════════════════════════════════════════

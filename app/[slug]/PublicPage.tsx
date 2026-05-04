@@ -388,7 +388,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           >
             <div
               className="relative w-full h-full overflow-hidden fp-tile-hover rounded-2xl"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
+              style={{ background: 'rgba(255,255,255,0.04)' }}
             >
               <UnifiedTile
                 item={item}
@@ -492,7 +492,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               className={`relative w-full overflow-hidden fp-tile-hover h-full ${isPuzzleGrid ? `fp-puzzle-tile ${getPuzzleTileClass(tileSize)} rounded-2xl` : tileSize === 1 ? 'rounded-xl' : 'rounded-2xl'}${isSoundRoom ? ' fp-sound-tile' : ''}`}
               style={isPuzzleGrid
                 ? undefined
-                : { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)' }}
+                : { background: 'rgba(255,255,255,0.06)' }}
             >
               <UnifiedTile
                 item={item}

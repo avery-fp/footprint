@@ -50,7 +50,7 @@ export async function resolve(url: string): Promise<Partial<IdentifiedMedia>> {
     subtitle: authorName ? null : 'Apple Music',
     authorName,
     thumbnailUrl,
-    renderMode: 'preview_card',
+    renderMode: 'embed',
     connectionRequired: false,
     rawMetadata: {
       country: m?.[1] || null,

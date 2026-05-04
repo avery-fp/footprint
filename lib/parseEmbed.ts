@@ -11,6 +11,7 @@
 
 export type EmbedPlatform =
   | 'spotify'
+  | 'apple-music'
   | 'youtube'
   | 'soundcloud'
   | 'vimeo'
@@ -59,7 +60,19 @@ function parseYouTube(url: string): EmbedResult | null {
   }
 }
 
-// Apple Music embeds removed — treated as regular link tiles
+function parseAppleMusic(url: string): EmbedResult | null {
+  const m = url.match(/music\.apple\.com\/([a-z]{2})\/(album|playlist|song|station|music-video)\//i)
+  if (!m) return null
+  const contentType = m[2].toLowerCase()
+  const hasTrackParam = /[?&]i=\d+/.test(url)
+  const isTallEmbed = (contentType === 'album' || contentType === 'playlist') && !hasTrackParam
+  return {
+    platform: 'apple-music',
+    embedUrl: url.replace('music.apple.com', 'embed.music.apple.com'),
+    height: isTallEmbed ? 450 : 175,
+    tier: 1,
+  }
+}
 
 function parseSoundCloud(url: string): EmbedResult | null {
   const m = url.match(/soundcloud\.com\/([a-zA-Z0-9_-]+)\/([a-zA-Z0-9_-]+)/)
@@ -192,6 +205,7 @@ export function buildYouTubeEmbedUrl(
 const PARSERS: Array<(url: string) => EmbedResult | null> = [
   // Tier 1
   parseSpotify,
+  parseAppleMusic,
   parseYouTube,
   parseSoundCloud,
   parseVimeo,

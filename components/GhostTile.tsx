@@ -20,8 +20,13 @@ type Archetype = 'audio' | 'visual'
 
 function getArchetype(platform: string, _url: string): Archetype {
   if (platform === 'spotify') return 'audio'
+  if (platform === 'apple_music') return 'audio'
   if (platform === 'soundcloud') return 'audio'
   return 'visual'
+}
+
+function isAppleMusicUrl(url: string): boolean {
+  return /music\.apple\.com\//i.test(url)
 }
 
 interface GhostTileProps {
@@ -151,49 +156,53 @@ export default function GhostTile({
   const thumbUrl = thumbCandidates[0] || null
 
   // ════════════════════════════════════════
-  // SPOTIFY — share card. No iframe. No embed.
-  // Album art full bleed + bottom gradient + title/artist overlay.
-  // Tap opens Spotify (app on mobile, web on desktop).
+  // SPOTIFY — inline iframe playback
+  // 30s preview for anon users, full track for logged-in.
   // ════════════════════════════════════════
   if (platform === 'spotify') {
-    return (
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block w-full h-full relative overflow-hidden"
-        style={{ borderRadius: 'inherit' }}
-      >
-        {/* Album art — full bleed */}
-        {thumbnail_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={thumbnail_url}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover"
+    const embed = parseEmbed(url)
+    if (embed) {
+      return (
+        <div
+          className="w-full h-full relative overflow-hidden fp-tile"
+          style={{ borderRadius: 'inherit' }}
+        >
+          <iframe
+            src={embed.embedUrl}
+            className="w-full h-full"
+            style={{ border: 0, borderRadius: 'inherit' }}
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
             loading="lazy"
           />
-        ) : (
-          <div className="absolute inset-0 bg-black" />
-        )}
-
-        {/* Bottom gradient — text readability */}
-        <div
-          className="absolute inset-x-0 bottom-0"
-          style={{ height: '55%', background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)' }}
-        />
-
-        {/* Title + artist — pinned to bottom */}
-        <div className="absolute inset-x-0 bottom-0 z-10 p-4 flex flex-col items-center gap-0.5">
-          <TitleBlock title={title} artist={artist} />
-          <WaveformBarsIdle />
         </div>
-      </a>
-    )
+      )
+    }
   }
 
   // ════════════════════════════════════════
-  // APPLE MUSIC — 150px transparent compact bar
+  // APPLE MUSIC — inline iframe playback
+  // ════════════════════════════════════════
+  if (platform === 'apple_music' || isAppleMusicUrl(url)) {
+    const embed = parseEmbed(url)
+    if (embed) {
+      return (
+        <div
+          className="w-full h-full relative overflow-hidden fp-tile"
+          style={{ borderRadius: 'inherit' }}
+        >
+          <iframe
+            src={embed.embedUrl}
+            className="w-full h-full"
+            style={{ border: 0, borderRadius: 'inherit', colorScheme: 'normal' }}
+            allow="autoplay *; encrypted-media *; fullscreen *"
+            sandbox="allow-forms allow-scripts allow-same-origin allow-popups"
+            loading="lazy"
+          />
+        </div>
+      )
+    }
+  }
+
   // ════════════════════════════════════════
   // OTHER AUDIO — SoundCloud etc: hidden iframe approach
   // ════════════════════════════════════════
@@ -373,7 +382,15 @@ export default function GhostTile({
             className="w-full h-full"
             width={platform === 'youtube' ? 1920 : undefined}
             height={platform === 'youtube' ? 1080 : undefined}
-            style={{ border: 'none' }}
+            style={{
+              border: 'none',
+              // YouTube/Vimeo render a thin progress bar at the iframe bottom even
+              // with controls=0. Scale up from the top so the parent's overflow:hidden
+              // clips the bottom chrome without altering the iframe's aspect ratio
+              // (height-based overscan would make YouTube letterbox the video).
+              transform: 'scale(1.025)',
+              transformOrigin: 'top center',
+            }}
             allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
