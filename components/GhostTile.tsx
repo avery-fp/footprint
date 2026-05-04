@@ -418,35 +418,6 @@ export default function GhostTile({
           )}
         </div>
       )}
-
-      {effectiveActivated && platform === 'youtube' && !iframeFailed && (
-        <button
-          type="button"
-          aria-label="Fullscreen"
-          onClick={(e) => {
-            e.stopPropagation()
-            const el = (e.currentTarget.closest('[data-tile]') as HTMLElement) || tileRef.current
-            const anyEl = el as any
-            if (el?.requestFullscreen) el.requestFullscreen().catch(() => {})
-            else if (anyEl?.webkitRequestFullscreen) anyEl.webkitRequestFullscreen()
-          }}
-          className="absolute bottom-0 right-0 flex items-center justify-center text-white/85 hover:text-white transition-opacity"
-          style={{
-            width: 96,
-            height: 36,
-            zIndex: 3,
-            background: 'rgba(0,0,0,0.55)',
-            backdropFilter: 'blur(8px)',
-            WebkitBackdropFilter: 'blur(8px)',
-            borderTopLeftRadius: 10,
-            pointerEvents: 'auto',
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6"/>
-          </svg>
-        </button>
-      )}
     </div>
   )
 }
