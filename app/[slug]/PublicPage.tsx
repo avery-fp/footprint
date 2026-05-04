@@ -17,7 +17,7 @@ import { moveChild, removeChild } from '@/lib/container-child-ops'
 import { getGridClass, resolveAspect, isVideoTile } from '@/lib/media/aspect'
 import { getFootprintDisplayTitle } from '@/lib/footprint'
 import { getRoomAtmosphere } from '@/lib/roomAtmosphere'
-import { sampleRoomColors, type RoomPalette } from '@/lib/sampleRoomColors'
+import { sampleRoomColors, paletteFromName, type RoomPalette } from '@/lib/sampleRoomColors'
 import {
   DndContext,
   closestCenter,
@@ -167,20 +167,25 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const activeRoom = activeRoomId ? visibleRooms.find(r => r.id === activeRoomId) : null
   const isSoundRoom = activeRoom?.name?.toLowerCase() === 'sound'
   const { filter: baseWallpaperFilter, overlay: overlayColor } = getRoomAtmosphere(activeRoomIndex, isSoundRoom)
-  // Post-blur saturation boost — pushes the desaturated mauve-olive feel
-  // back toward each room's actual hue. Applied here, not in the shared
-  // atmosphere table, so the editor surface stays untouched.
-  const wallpaperFilter = `${baseWallpaperFilter} saturate(1.4)`
+  // Public-side wallpaper tuning: half the blur (so room media reads as
+  // color, not gauze) and a strong post-saturate (so each room's hue lands
+  // at gallery-poster intensity instead of a mauve-olive wash). Applied
+  // here, not in the shared atmosphere table, so the editor stays untouched.
+  const wallpaperFilter = baseWallpaperFilter
+    .replace(/blur\((\d+(?:\.\d+)?)px\)/, (_m, n) => `blur(${Math.max(2, Math.round(Number(n) * 0.5))}px)`)
+    + ' saturate(1.6)'
 
-  // Sample dominant + accent color from the active room's tile media so
-  // each room reads chromatically distinct rather than as a hue-rotated
-  // copy of the same wallpaper image.
+  // Per-room chromatic palette — sampled from active-room tile media when
+  // possible, deterministic name-hash fallback otherwise. The fallback runs
+  // first so the gradient paints immediately and remains visible even when
+  // canvas sampling is blocked by CORS.
   const [roomPalette, setRoomPalette] = useState<RoomPalette | null>(null)
   useEffect(() => {
     if (!activeRoom) {
       setRoomPalette(null)
       return
     }
+    setRoomPalette(paletteFromName(activeRoom.name || activeRoom.id))
     const tiles = (activeRoom.content || [])
       .map((item: any) => {
         const url =
@@ -191,13 +196,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         return { url: String(url), weight: Math.max(1, Number(item.size) || 1) }
       })
       .filter(Boolean) as { url: string; weight: number }[]
-    if (tiles.length === 0) {
-      setRoomPalette(null)
-      return
-    }
+    if (tiles.length === 0) return
     let cancelled = false
-    sampleRoomColors(tiles).then(palette => {
-      if (!cancelled) setRoomPalette(palette)
+    sampleRoomColors(tiles).then(sampled => {
+      if (!cancelled && sampled) setRoomPalette(sampled)
     })
     return () => { cancelled = true }
   }, [activeRoomId, activeRoom])
@@ -691,6 +693,17 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             className="absolute inset-0 transition-all duration-800"
             style={{ backgroundColor: claimActive ? 'rgba(0,0,0,0.8)' : overlayColor }}
           />
+          {/* Per-room dual-color gradient on top of the dark overlay so the
+              chroma actually lands instead of getting absorbed by black. */}
+          {roomPalette && !claimActive && (
+            <div
+              className="absolute inset-0 transition-opacity duration-700"
+              style={{
+                backgroundImage: `linear-gradient(180deg, ${roomPalette.dominant}, ${roomPalette.accent})`,
+                opacity: 0.55,
+              }}
+            />
+          )}
         </div>
       )}
       <WeatherEffect type={footprint.weather_effect || null} />
