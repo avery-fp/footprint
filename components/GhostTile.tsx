@@ -430,17 +430,16 @@ export default function GhostTile({
             if (el?.requestFullscreen) el.requestFullscreen().catch(() => {})
             else if (anyEl?.webkitRequestFullscreen) anyEl.webkitRequestFullscreen()
           }}
-          className="absolute bottom-0 right-0 text-white/80 backdrop-blur-sm flex items-center justify-center opacity-80 hover:opacity-100 transition"
+          className="absolute bottom-2 right-2 w-7 h-7 rounded-full flex items-center justify-center text-white/70 hover:text-white/90 transition-opacity"
           style={{
-            width: 76,
-            height: 42,
             zIndex: 3,
-            background: 'rgba(0,0,0,0.72)',
-            borderTopLeftRadius: 8,
+            background: 'rgba(255,255,255,0.08)',
+            backdropFilter: 'blur(4px)',
+            WebkitBackdropFilter: 'blur(4px)',
             pointerEvents: 'auto',
           }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6"/>
           </svg>
         </button>
