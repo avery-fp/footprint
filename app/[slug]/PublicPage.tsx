@@ -170,7 +170,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // Post-blur saturation boost — pushes the desaturated mauve-olive feel
   // back toward each room's actual hue. Applied here, not in the shared
   // atmosphere table, so the editor surface stays untouched.
-  const wallpaperFilter = `${baseWallpaperFilter} saturate(1.4)`
+  const wallpaperFilter = `${baseWallpaperFilter} saturate(1.6)`
 
   // Per-room chromatic palette. Name-hash fallback paints synchronously so
   // every room reads distinct on first render; tile sampling overrides async
@@ -677,16 +677,17 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             className="absolute inset-0 transition-all duration-800"
             style={{ backgroundColor: claimActive ? 'rgba(0,0,0,0.8)' : overlayColor }}
           />
-          {/* Per-room gradient above the dark overlay so the chroma actually
-              tints atmosphere instead of getting absorbed by the overlay.
-              Soft-light + low opacity keeps it as feel, not a color band. */}
+          {/* Per-room gradient above the dark overlay. Screen blend so the
+              chroma can only LIFT the dark overlay toward the room's hue —
+              never darken further — and the room reads as colored atmosphere
+              instead of a black wash. */}
           {roomPalette && !claimActive && (
             <div
               className="absolute inset-0 transition-opacity duration-700"
               style={{
                 backgroundImage: `linear-gradient(180deg, ${roomPalette.dominant}, ${roomPalette.accent})`,
-                opacity: 0.28,
-                mixBlendMode: 'soft-light',
+                opacity: 0.55,
+                mixBlendMode: 'screen',
               }}
             />
           )}
