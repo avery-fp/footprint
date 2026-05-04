@@ -201,7 +201,7 @@ export function paletteFromName(name: string): RoomPalette {
   const base = hash % 360
   const accent = (base + 140) % 360
   return {
-    dominant: `hsl(${base}, 55%, 46%)`,
-    accent: `hsl(${accent}, 50%, 30%)`,
+    dominant: `hsl(${base}, 72%, 54%)`,
+    accent: `hsl(${accent}, 68%, 42%)`,
   }
 }
