@@ -54,3 +54,7 @@ provider-configs.json
 ses-configs.json
 sent-log.csv
 lists/
+
+# Playwright
+test-results/
+playwright-report/
