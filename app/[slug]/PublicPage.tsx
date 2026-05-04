@@ -17,7 +17,6 @@ import { moveChild, removeChild } from '@/lib/container-child-ops'
 import { getGridClass, resolveAspect, isVideoTile } from '@/lib/media/aspect'
 import { getFootprintDisplayTitle } from '@/lib/footprint'
 import { getRoomAtmosphere } from '@/lib/roomAtmosphere'
-import { sampleRoomColors, paletteFromName, type RoomPalette } from '@/lib/sampleRoomColors'
 import {
   DndContext,
   closestCenter,
@@ -166,39 +165,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const activeRoomIndex = activeRoomId ? visibleRooms.findIndex(r => r.id === activeRoomId) : -1
   const activeRoom = activeRoomId ? visibleRooms.find(r => r.id === activeRoomId) : null
   const isSoundRoom = activeRoom?.name?.toLowerCase() === 'sound'
-  const { filter: baseWallpaperFilter, overlay: overlayColor } = getRoomAtmosphere(activeRoomIndex, isSoundRoom)
-  // Post-blur saturation boost — pushes the desaturated mauve-olive feel
-  // back toward each room's actual hue. Applied here, not in the shared
-  // atmosphere table, so the editor surface stays untouched.
-  const wallpaperFilter = `${baseWallpaperFilter} saturate(1.6)`
-
-  // Per-room chromatic palette. Name-hash fallback paints synchronously so
-  // every room reads distinct on first render; tile sampling overrides async
-  // when canvas reads succeed (CORS-permitting).
-  const [roomPalette, setRoomPalette] = useState<RoomPalette | null>(null)
-  useEffect(() => {
-    if (!activeRoom) {
-      setRoomPalette(null)
-      return
-    }
-    setRoomPalette(paletteFromName(activeRoom.name || activeRoom.id))
-    const tiles = (activeRoom.content || [])
-      .map((item: any) => {
-        const url =
-          item.thumbnail_url_hq ||
-          item.thumbnail_url ||
-          (item.type === 'image' ? item.url : null)
-        if (!url) return null
-        return { url: String(url), weight: Math.max(1, Number(item.size) || 1) }
-      })
-      .filter(Boolean) as { url: string; weight: number }[]
-    if (tiles.length === 0) return
-    let cancelled = false
-    sampleRoomColors(tiles).then(sampled => {
-      if (!cancelled && sampled) setRoomPalette(sampled)
-    })
-    return () => { cancelled = true }
-  }, [activeRoomId, activeRoom])
+  const { filter: wallpaperFilter, overlay: overlayColor } = getRoomAtmosphere(activeRoomIndex, isSoundRoom)
 
   const handleShare = () => {
     navigator.clipboard.writeText(pageUrl)
@@ -673,37 +640,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             }}
             onLoad={() => setWallpaperLoaded(true)}
           />
-          {/* Atmospheric overlay. When a room has a palette and isn't void
-              (index 0 stays as-is per spec), replace the black overlay with
-              a multiply-blended palette gradient so the dimming reads as
-              colored atmosphere instead of a black wash. */}
-          {!claimActive && roomPalette && activeRoomIndex !== 0 ? (
-            <div
-              className="absolute inset-0 transition-all duration-800"
-              style={{
-                backgroundImage: `linear-gradient(180deg, ${roomPalette.dominant}, ${roomPalette.accent})`,
-                opacity: 0.7,
-                mixBlendMode: 'multiply',
-              }}
-            />
-          ) : (
-            <div
-              className="absolute inset-0 transition-all duration-800"
-              style={{ backgroundColor: claimActive ? 'rgba(0,0,0,0.8)' : overlayColor }}
-            />
-          )}
-          {/* Chromatic lift above the overlay — screen blend can only lighten,
-              so each room's hue actually pops instead of being absorbed. */}
-          {roomPalette && !claimActive && activeRoomIndex !== 0 && (
-            <div
-              className="absolute inset-0 transition-opacity duration-700"
-              style={{
-                backgroundImage: `linear-gradient(180deg, ${roomPalette.dominant}, ${roomPalette.accent})`,
-                opacity: 0.45,
-                mixBlendMode: 'screen',
-              }}
-            />
-          )}
+          <div
+            className="absolute inset-0 transition-all duration-800"
+            style={{ backgroundColor: claimActive ? 'rgba(0,0,0,0.8)' : overlayColor }}
+          />
         </div>
       )}
       <WeatherEffect type={footprint.weather_effect || null} />
