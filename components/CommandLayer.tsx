@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { MOTION } from '@/lib/motion'
 import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getThumbnailCandidates } from '@/lib/media/thumbnails'
-import { useRolodex } from '@/store/useRolodex'
+import { useRolodex, ORIGIN_SLUG } from '@/store/useRolodex'
 
 interface Room {
   id: string
@@ -82,7 +82,7 @@ export default function CommandLayer({
   const peopleInputRef = useRef<HTMLInputElement>(null)
   const reducedMotion = useReducedMotion()
   const { command } = MOTION
-  const { slugs, loaded: rolodexLoaded, hydrate: hydrateRolodex, has, add } = useRolodex()
+  const { slugs, loaded: rolodexLoaded, hydrate: hydrateRolodex, has, add, remove } = useRolodex()
 
   // People search
   const [peopleQuery, setPeopleQuery] = useState('')
@@ -366,17 +366,34 @@ export default function CommandLayer({
                 </div>
                 {rolodexLoaded && slugs.length > 0 ? (
                   <div className="flex flex-col gap-3">
-                    {slugs.map(slug => (
-                      <a
-                        key={slug}
-                        href={`/${slug}`}
-                        onClick={() => setPeopleOpen(false)}
-                        className="font-mono text-[15px] text-white/62 transition-colors duration-200 hover:text-white/86"
-                        style={{ textDecoration: 'none' }}
-                      >
-                        /{slug}
-                      </a>
-                    ))}
+                    {slugs.map(slug => {
+                      const isOrigin = slug === ORIGIN_SLUG
+                      return (
+                        <div key={slug} className="group flex items-center gap-2">
+                          <a
+                            href={`/${slug}`}
+                            onClick={() => setPeopleOpen(false)}
+                            className="truncate font-mono text-[15px] text-white/62 transition-colors duration-200 hover:text-white/86"
+                            style={{ textDecoration: 'none' }}
+                          >
+                            /{slug}
+                          </a>
+                          {!isOrigin && (
+                            <button
+                              type="button"
+                              onClick={() => remove(slug)}
+                              aria-label={`Unsave ${slug}`}
+                              className="-ml-1 flex h-7 w-7 items-center justify-center font-mono text-[15px] leading-none outline-none transition-colors duration-200"
+                              style={{ color: 'rgba(255,255,255,0.22)' }}
+                              onMouseEnter={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.7)' }}
+                              onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.22)' }}
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
                 ) : (
                   <div className="font-mono text-[14px] text-white/26">empty</div>
