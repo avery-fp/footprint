@@ -525,18 +525,6 @@ export default function EditPage() {
     }).catch(() => { /* no-op — GET will 401 and redirect if cookie didn't stick */ })
   }, [slug])
 
-  // TEMP env-gated unlock: /ae/home?owner_unlock=<secret>. Bounces through
-  // the API which sets the cookie and redirects back. TODO remove after
-  // the email-code flow has been verified live.
-  useEffect(() => {
-    const params = new URL(window.location.href).searchParams
-    const secret = params.get('owner_unlock')
-    if (!secret || slug !== 'ae') return
-    window.location.replace(
-      `/api/edit-access/owner-unlock?slug=${encodeURIComponent(slug)}&secret=${encodeURIComponent(secret)}`
-    )
-  }, [slug])
-
   // Debounced username availability check
   useEffect(() => {
     if (!claimUsername.trim() || claimUsername.length < 2) {
