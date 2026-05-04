@@ -49,10 +49,11 @@ function parseYouTube(url: string): EmbedResult | null {
     /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/
   )
   if (!m) return null
+  const start = extractYouTubeStart(url)
   return {
     platform: 'youtube',
     // Facade mode — autoplay off. The iframe mounted on tap uses the default (autoplay on).
-    embedUrl: buildYouTubeEmbedUrl(m[1], { autoplay: false, mute: false }),
+    embedUrl: buildYouTubeEmbedUrl(m[1], { autoplay: false, mute: false, start }),
     height: 0, // aspect-ratio driven
     aspectRatio: '16/9',
     tier: 1,
@@ -230,4 +231,32 @@ export function extractYouTubeId(url: string): string | null {
 export function getYouTubeThumbnail(url: string): string | null {
   const id = extractYouTubeId(url)
   return id ? `https://i.ytimg.com/vi/${id}/maxresdefault.jpg` : null
+}
+
+/**
+ * Extract the start time (in seconds) from a YouTube URL.
+ * Honors `t=` (watch URL convention) and `start=` (embed URL convention).
+ * Accepts integer seconds (`120`), suffixed seconds (`120s`), and YouTube's
+ * duration format (`1h2m30s`, `2m30s`, `30s`). Returns 0 when absent or invalid.
+ */
+export function extractYouTubeStart(url: string): number {
+  if (!url) return 0
+  let value: string | null = null
+  try {
+    const u = new URL(url)
+    value = u.searchParams.get('t') ?? u.searchParams.get('start')
+  } catch {
+    const m = url.match(/[?&#](?:t|start)=([^&#]+)/)
+    if (m) value = decodeURIComponent(m[1])
+  }
+  if (!value) return 0
+  if (/^\d+$/.test(value)) return parseInt(value, 10)
+  const dur = value.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/)
+  if (dur && (dur[1] || dur[2] || dur[3])) {
+    const h = parseInt(dur[1] || '0', 10)
+    const m = parseInt(dur[2] || '0', 10)
+    const s = parseInt(dur[3] || '0', 10)
+    return h * 3600 + m * 60 + s
+  }
+  return 0
 }

@@ -73,6 +73,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   }, [rooms])
 
   const [wallpaperLoaded, setWallpaperLoaded] = useState(false)
+  // Reset the fade-in latch whenever the wallpaper URL changes so a replace
+  // doesn't render the new src at opacity-100 before the new bytes have
+  // actually decoded — and so the prior image isn't held visible across a
+  // soft re-render with a new background_url prop.
+  useEffect(() => { setWallpaperLoaded(false) }, [footprint.background_url])
   const [isOwner, setIsOwner] = useState(false)
   const [authChecked, setAuthChecked] = useState(false)
   const [showToast, setShowToast] = useState(false)
@@ -650,9 +655,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
   return (
     <div className={`relative flex min-h-[100dvh] w-full flex-col overflow-x-clip${isPuzzleGrid ? ' fp-puzzle-page' : ''}`} style={{ background: theme.colors.background, color: theme.colors.text, '--fp-glass': theme.colors.glass, '--fp-text-muted': theme.colors.textMuted } as React.CSSProperties}>
-      {/* Wallpaper layer — GPU composited for 60fps scroll */}
+      {/* Wallpaper layer — GPU composited for 60fps scroll. Keyed by URL so
+          a replaced wallpaper drops the previous decoded layer instead of
+          repainting it under the new src while the new bytes load. */}
       {footprint.background_url && (
-        <div className="fixed inset-0 z-0 fp-wallpaper-gpu">
+        <div key={footprint.background_url} className="fixed inset-0 z-0 fp-wallpaper-gpu">
           <Image
             src={footprint.background_url}
             alt=""
@@ -670,6 +677,18 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             }}
             onLoad={() => setWallpaperLoaded(true)}
           />
+          {/* Tile-derived dual-color gradient — gives each room a chromatic
+              identity rather than a hue-rotated copy of the same wallpaper. */}
+          {roomPalette && !claimActive && (
+            <div
+              className="absolute inset-0 transition-opacity duration-700"
+              style={{
+                backgroundImage: `linear-gradient(180deg, ${roomPalette.dominant}, ${roomPalette.accent})`,
+                opacity: 0.42,
+                mixBlendMode: 'soft-light',
+              }}
+            />
+          )}
           <div
             className="absolute inset-0 transition-all duration-800"
             style={{ backgroundColor: claimActive ? 'rgba(0,0,0,0.8)' : overlayColor }}

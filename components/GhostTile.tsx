@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { audioManager } from '@/lib/audio-manager'
-import { parseEmbed, buildYouTubeEmbedUrl } from '@/lib/parseEmbed'
+import { parseEmbed, buildYouTubeEmbedUrl, extractYouTubeStart } from '@/lib/parseEmbed'
 import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getThumbnailCandidates, isBadOrMissingThumbnail } from '@/lib/media/thumbnails'
 
 // ════════════════════════════════════════
@@ -256,7 +256,11 @@ export default function GhostTile({
   // Instagram URL shape determines embed path (post vs reel).
   const isInstagramReel = platform === 'instagram' && /\/reel\//.test(url)
   // YouTube clip support: convert ms → integer seconds for start/end params.
-  const ytClipStart = clip_start_ms ? Math.floor(clip_start_ms / 1000) : 0
+  // Fall back to the URL's `t=` / `start=` parameter when no explicit clip is set,
+  // so pasted "share at current time" links resume from the chosen point.
+  const ytClipStart = clip_start_ms
+    ? Math.floor(clip_start_ms / 1000)
+    : (platform === 'youtube' ? extractYouTubeStart(url) : 0)
   const ytClipEnd = clip_end_ms ? Math.ceil(clip_end_ms / 1000) : 0
   // When the thumbnail facade can't render (empty url / chain lands on
   // ytimg `default.jpg`), skip the dormant grey state and mount the
@@ -385,6 +389,38 @@ export default function GhostTile({
             }}
             onError={() => { setIframeFailed(true) }}
           />
+          {/* Replace the YouTube watermark hit area with our fullscreen control. */}
+          {platform === 'youtube' && (
+            <button
+              type="button"
+              aria-label="Fullscreen"
+              onClick={(e) => {
+                e.stopPropagation()
+                const el = (e.currentTarget.closest('[data-tile]') as HTMLElement) || tileRef.current
+                const anyEl = el as any
+                if (el?.requestFullscreen) el.requestFullscreen().catch(() => {})
+                else if (anyEl?.webkitRequestFullscreen) anyEl.webkitRequestFullscreen()
+              }}
+              className="absolute flex items-center justify-center text-white/85 hover:text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-300"
+              style={{
+                bottom: 12,
+                right: 12,
+                width: 28,
+                height: 28,
+                borderRadius: 999,
+                zIndex: 3,
+                background: 'rgba(0,0,0,0.45)',
+                backdropFilter: 'blur(10px) saturate(140%)',
+                WebkitBackdropFilter: 'blur(10px) saturate(140%)',
+                boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08)',
+                pointerEvents: 'auto',
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6"/>
+              </svg>
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -12,6 +12,7 @@
  */
 
 import type { MediaProvider } from './types'
+import { extractYouTubeStart } from '@/lib/parseEmbed'
 
 const UTM_PARAMS = new Set([
   'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
@@ -42,7 +43,9 @@ function canonicalizeYouTube(url: string): string {
     /(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i
   )
   if (!m) return stripTrackingParams(url)
-  return `https://www.youtube.com/watch?v=${m[1]}`
+  const start = extractYouTubeStart(url)
+  const base = `https://www.youtube.com/watch?v=${m[1]}`
+  return start > 0 ? `${base}&t=${start}` : base
 }
 
 function canonicalizeTwitter(url: string): string {
