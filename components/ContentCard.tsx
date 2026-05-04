@@ -252,6 +252,30 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           referrerPolicy="strict-origin-when-cross-origin"
           onLoad={handleYTLoad}
         />
+        <button
+          type="button"
+          aria-label="Fullscreen"
+          onClick={(e) => {
+            e.stopPropagation()
+            const el = (e.currentTarget.closest('[data-tile]') as HTMLElement) || containerRef.current
+            const anyEl = el as any
+            if (el?.requestFullscreen) el.requestFullscreen().catch(() => {})
+            else if (anyEl?.webkitRequestFullscreen) anyEl.webkitRequestFullscreen()
+          }}
+          className="absolute bottom-0 right-0 text-white/80 backdrop-blur-sm flex items-center justify-center opacity-80 hover:opacity-100 transition"
+          style={{
+            width: 76,
+            height: 42,
+            zIndex: 3,
+            background: 'rgba(0,0,0,0.72)',
+            borderTopLeftRadius: 8,
+            pointerEvents: 'auto',
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6"/>
+          </svg>
+        </button>
       </div>
     )
   }
