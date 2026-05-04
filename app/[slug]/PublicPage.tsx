@@ -673,20 +673,33 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             }}
             onLoad={() => setWallpaperLoaded(true)}
           />
-          <div
-            className="absolute inset-0 transition-all duration-800"
-            style={{ backgroundColor: claimActive ? 'rgba(0,0,0,0.8)' : overlayColor }}
-          />
-          {/* Per-room gradient above the dark overlay. Screen blend so the
-              chroma can only LIFT the dark overlay toward the room's hue —
-              never darken further — and the room reads as colored atmosphere
-              instead of a black wash. */}
-          {roomPalette && !claimActive && (
+          {/* Atmospheric overlay. When a room has a palette and isn't void
+              (index 0 stays as-is per spec), replace the black overlay with
+              a multiply-blended palette gradient so the dimming reads as
+              colored atmosphere instead of a black wash. */}
+          {!claimActive && roomPalette && activeRoomIndex !== 0 ? (
+            <div
+              className="absolute inset-0 transition-all duration-800"
+              style={{
+                backgroundImage: `linear-gradient(180deg, ${roomPalette.dominant}, ${roomPalette.accent})`,
+                opacity: 0.7,
+                mixBlendMode: 'multiply',
+              }}
+            />
+          ) : (
+            <div
+              className="absolute inset-0 transition-all duration-800"
+              style={{ backgroundColor: claimActive ? 'rgba(0,0,0,0.8)' : overlayColor }}
+            />
+          )}
+          {/* Chromatic lift above the overlay — screen blend can only lighten,
+              so each room's hue actually pops instead of being absorbed. */}
+          {roomPalette && !claimActive && activeRoomIndex !== 0 && (
             <div
               className="absolute inset-0 transition-opacity duration-700"
               style={{
                 backgroundImage: `linear-gradient(180deg, ${roomPalette.dominant}, ${roomPalette.accent})`,
-                opacity: 0.55,
+                opacity: 0.45,
                 mixBlendMode: 'screen',
               }}
             />
