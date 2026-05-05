@@ -8,7 +8,7 @@ describe('appleMusic adapter', () => {
     const result = await resolve('https://music.apple.com/us/album/some-great-album/123456789')
     expect(result.kind).toBe('music')
     expect(result.provider).toBe('apple_music')
-    expect(result.renderMode).toBe('preview_card')
+    expect(result.renderMode).toBe('embed')
     expect(result.title).toBe('Some Great Album')
     expect(result.connectionRequired).toBe(false)
 

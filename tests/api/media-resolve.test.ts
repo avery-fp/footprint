@@ -34,7 +34,7 @@ describe('POST /api/media/resolve', () => {
     const data = await res.json()
     expect(data.kind).toBe('music')
     expect(data.provider).toBe('spotify')
-    expect(data.renderMode).toBe('preview_card')
+    expect(data.renderMode).toBe('embed')
   })
 
   it('resolves an Apple Music URL', async () => {
@@ -44,7 +44,10 @@ describe('POST /api/media/resolve', () => {
     const data = await res.json()
     expect(data.kind).toBe('music')
     expect(data.provider).toBe('apple_music')
-    expect(data.renderMode).toBe('preview_card')
+    // AM resolver returns 'embed' but does not populate embedUrl (runtime
+    // embed path is GhostTile + parseEmbed). With no network in tests the
+    // fallback ladder degrades embed → link_only.
+    expect(data.renderMode).toBe('link_only')
   })
 
   it('returns 400 for missing URL', async () => {

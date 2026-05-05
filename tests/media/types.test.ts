@@ -118,8 +118,8 @@ describe('renderModeFromLegacy', () => {
     expect(renderModeFromLegacy('youtube', 'ghost')).toBe('embed')
   })
 
-  it('maps ghost spotify to preview_card', () => {
-    expect(renderModeFromLegacy('spotify', 'ghost')).toBe('preview_card')
+  it('maps ghost spotify to embed', () => {
+    expect(renderModeFromLegacy('spotify', 'ghost')).toBe('embed')
   })
 
   it('maps ghost twitter to preview_card', () => {
@@ -199,12 +199,12 @@ describe('PROVIDER_RENDER_DEFAULTS', () => {
     expect(PROVIDER_RENDER_DEFAULTS.youtube.preferredMode).toBe('embed')
   })
 
-  it('maps spotify preferred to preview_card', () => {
-    expect(PROVIDER_RENDER_DEFAULTS.spotify.preferredMode).toBe('preview_card')
+  it('maps spotify preferred to embed', () => {
+    expect(PROVIDER_RENDER_DEFAULTS.spotify.preferredMode).toBe('embed')
   })
 
-  it('maps apple_music preferred to preview_card', () => {
-    expect(PROVIDER_RENDER_DEFAULTS.apple_music.preferredMode).toBe('preview_card')
+  it('maps apple_music preferred to embed', () => {
+    expect(PROVIDER_RENDER_DEFAULTS.apple_music.preferredMode).toBe('embed')
   })
 
   it('maps uploaded_video preferred to native_video', () => {

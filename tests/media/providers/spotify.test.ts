@@ -9,7 +9,7 @@ describe('spotify adapter', () => {
     const result = await resolve('https://open.spotify.com/track/abc123')
     expect(result.kind).toBe('music')
     expect(result.provider).toBe('spotify')
-    expect(result.renderMode).toBe('preview_card')
+    expect(result.renderMode).toBe('embed')
     expect(result.embedUrl).toContain('spotify.com/embed/track/abc123')
     expect(result.title).toBe('Spotify track')
     expect(result.connectionRequired).toBe(false)
@@ -22,7 +22,7 @@ describe('spotify adapter', () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('no network')))
 
     const result = await resolve('https://open.spotify.com/album/xyz789')
-    expect(result.renderMode).toBe('preview_card')
+    expect(result.renderMode).toBe('embed')
     expect(result.embedUrl).toContain('embed/album/xyz789')
     expect(result.rawMetadata).toEqual({ spotifyId: 'xyz789', contentType: 'album' })
 
