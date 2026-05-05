@@ -1369,11 +1369,19 @@ export default function EditPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ background_url: imageUrl }),
       })
-      if (!res.ok) throw new Error(`Failed: ${res.status}`)
+      if (!res.ok) {
+        const body = await res.text().catch(() => '')
+        console.error('Set wallpaper failed:', res.status, body)
+        setStatusToast(`background save failed (${res.status})`)
+        setTimeout(() => setStatusToast(null), 5000)
+        return
+      }
       setWallpaperUrl(imageUrl)
       closeTileMenu()
     } catch (e) {
       console.error('Failed to set wallpaper:', e)
+      setStatusToast('background save failed (network)')
+      setTimeout(() => setStatusToast(null), 5000)
     }
   }
 
@@ -1384,10 +1392,18 @@ export default function EditPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ background_url: '' }),
       })
-      if (!res.ok) throw new Error(`Failed: ${res.status}`)
+      if (!res.ok) {
+        const body = await res.text().catch(() => '')
+        console.error('Clear wallpaper failed:', res.status, body)
+        setStatusToast(`background clear failed (${res.status})`)
+        setTimeout(() => setStatusToast(null), 5000)
+        return
+      }
       setWallpaperUrl('')
     } catch (e) {
       console.error('Failed to clear wallpaper:', e)
+      setStatusToast('background clear failed (network)')
+      setTimeout(() => setStatusToast(null), 5000)
     }
   }
 
