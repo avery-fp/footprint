@@ -1027,6 +1027,19 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
       )}
 
+      {/* Edit link — non-owner viewers only. Routes to /{slug}/home, where
+          EditAccessScreen handles the email + 6-digit code flow if no
+          fp_edit_{slug} cookie is present. Mirrors the serial flyout's
+          aesthetic; bottom-right so it doesn't fight the centered CTA bar. */}
+      {!isDraft && !claimActive && authChecked && !isOwner && (
+        <a
+          href={`/${footprint.username}/home`}
+          className="fixed bottom-4 right-4 z-20 font-mono text-[11px] text-white/[0.15] hover:text-white/40 transition-colors duration-300 px-2 py-1 select-none touch-manipulation"
+        >
+          edit
+        </a>
+      )}
+
       {/* Floating CTA bar — viewers only, hidden for owner and during claim */}
       {!isDraft && !claimActive && authChecked && !isOwner && (
         <FloatingCtaBar isOwner={isOwner} />
