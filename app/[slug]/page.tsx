@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { cookies } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { Metadata } from 'next'
 import { getTheme } from '@/lib/themes'
@@ -121,6 +122,13 @@ export default async function FootprintPage({ params }: Props) {
   const theme = getTheme(footprint.dimension || 'midnight')
   const pageUrl = `https://footprint.onl/${params.slug}`
 
+  // Server-side hint: presence of the edit cookie means this visitor likely
+  // owns the slug. The cookie is httpOnly so we can't validate the token
+  // here; /[slug]/home re-verifies on every request via /api/footprint.
+  // Used only to suppress the public-facing return affordance for owners
+  // on first paint (no flash, no client probe).
+  const isOwnerHinted = cookies().has(`fp_edit_${params.slug}`)
+
   return (
     <>
       {/* Drafts skip analytics, referral banner, and the post-claim overlay:
@@ -147,6 +155,7 @@ export default async function FootprintPage({ params }: Props) {
         containerMeta={containerMeta}
         ownerEmail={owner?.email || null}
         isDraft={isDraft}
+        isOwnerHinted={isOwnerHinted}
       />
     </>
   )
