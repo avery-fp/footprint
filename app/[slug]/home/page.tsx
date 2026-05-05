@@ -1605,8 +1605,10 @@ export default function EditPage() {
     const source = tileSources[id]
     if (!source) return
 
-    const currentResolved = resolveAspect(tile.aspect, tile.type, tile.url)
-    if (currentResolved === newAspect) return
+    // Compare against raw stored value, not resolved. Clicking the pre-lit
+    // smart-default pill must still PATCH so the explicit user pick locks in
+    // (otherwise smart defaults can drift between sessions).
+    if (tile.aspect === newAspect) return
 
     // Optimistic update
     setDraft(prev => prev ? {
