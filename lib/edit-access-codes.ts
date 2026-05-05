@@ -80,10 +80,25 @@ export async function sendEditAccessCodeEmail(email: string, slug: string, code:
     return
   }
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.footprint.onl'
-  // Return link drops the user back on the code-entry screen, with their
-  // email remembered. NOT a magic-auth link — they still type the code.
-  // The access screen reads ?email=…&sent=1 and skips step 1.
-  const editorUrl = `${baseUrl}/${slug}/home?email=${encodeURIComponent(email)}&sent=1`
+
+  // Magic-auth: append the edit_token to the link so a click skips the
+  // 6-digit type-in. Both this email and the welcome email at
+  // lib/auth.ts:45 are proofs of email control delivered to a verified
+  // address; both should auto-auth on click. The 6-digit code in the
+  // body remains as a manual fallback if the link is corrupted/forwarded
+  // and re-typing is preferred. If edit_token rotation ever ships, both
+  // call sites must be updated together.
+  const db = createServerSupabaseClient()
+  const { data: fp } = await db
+    .from('footprints')
+    .select('edit_token')
+    .eq('username', slug)
+    .maybeSingle()
+  const editToken = fp?.edit_token
+
+  const editorUrl = editToken
+    ? `${baseUrl}/${slug}/home?email=${encodeURIComponent(email)}&sent=1&token=${encodeURIComponent(editToken)}`
+    : `${baseUrl}/${slug}/home?email=${encodeURIComponent(email)}&sent=1`
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {

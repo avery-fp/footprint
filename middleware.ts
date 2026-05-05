@@ -48,10 +48,27 @@ export async function middleware(request: NextRequest) {
     return withSecurityHeaders(NextResponse.redirect(canonical, 301))
   }
 
-  // 2. Root → /ae (showcase room, no auth)
+  // 2. Root → owner's slug if any held edit_token, else → /ae (showcase room).
+  //    The room IS the homepage. A held footprint means / lands the holder
+  //    on their own room (same view a visitor sees); without a held
+  //    footprint, / lands on the showcase. We don't validate the cookie's
+  //    DB freshness here — middleware stays sync, and an invalid cookie
+  //    just lands the visitor on a real /<slug> page that handles its own
+  //    not-found case. Multi-footprint owners (rare; v1 only ae) get
+  //    first-match-wins; revisit when gift recipients commonly own >1.
   if (pathname === '/') {
     const dest = request.nextUrl.clone()
-    dest.pathname = '/ae'
+
+    let ownedSlug: string | null = null
+    for (const cookie of request.cookies.getAll()) {
+      const m = cookie.name.match(/^fp_edit_(.+)$/)
+      if (m && cookie.value) {
+        ownedSlug = m[1]
+        break
+      }
+    }
+
+    dest.pathname = ownedSlug ? `/${ownedSlug}` : '/ae'
     return withSecurityHeaders(NextResponse.redirect(dest, 307))
   }
 
