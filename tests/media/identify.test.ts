@@ -21,7 +21,7 @@ describe('identifyMedia', () => {
     const result = await identifyMedia('https://open.spotify.com/track/abc123')
     expect(result.kind).toBe('music')
     expect(result.provider).toBe('spotify')
-    expect(result.renderMode).toBe('preview_card')
+    expect(result.renderMode).toBe('embed')
     expect(result.canonicalUrl).toBe('https://open.spotify.com/track/abc123')
   })
 
@@ -29,7 +29,11 @@ describe('identifyMedia', () => {
     const result = await identifyMedia('https://music.apple.com/us/album/some-album/123456789')
     expect(result.kind).toBe('music')
     expect(result.provider).toBe('apple_music')
-    expect(result.renderMode).toBe('preview_card')
+    // Resolver returns renderMode 'embed' but the AM resolver does not populate
+    // embedUrl (the runtime embed path is GhostTile + parseEmbed, not the
+    // identify pipeline). With no network in tests the OG scrape produces no
+    // thumbnail either, so applyFallbackLadder degrades embed → link_only.
+    expect(result.renderMode).toBe('link_only')
     expect(result.title).toBe('Some Album')
   })
 
@@ -116,7 +120,7 @@ describe('identifyMediaSync', () => {
     expect(result).not.toBeNull()
     expect(result!.kind).toBe('music')
     expect(result!.provider).toBe('spotify')
-    expect(result!.renderMode).toBe('preview_card')
+    expect(result!.renderMode).toBe('embed')
   })
 
   it('returns null for generic URL (needs network)', () => {

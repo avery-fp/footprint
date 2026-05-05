@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { audioManager } from '@/lib/audio-manager'
-import { parseEmbed, buildYouTubeEmbedUrl, extractYouTubeStart } from '@/lib/parseEmbed'
+import { parseEmbed, buildYouTubeEmbedUrl } from '@/lib/parseEmbed'
 import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getThumbnailCandidates, isBadOrMissingThumbnail } from '@/lib/media/thumbnails'
 
 // ════════════════════════════════════════
@@ -20,8 +20,13 @@ type Archetype = 'audio' | 'visual'
 
 function getArchetype(platform: string, _url: string): Archetype {
   if (platform === 'spotify') return 'audio'
+  if (platform === 'apple_music') return 'audio'
   if (platform === 'soundcloud') return 'audio'
   return 'visual'
+}
+
+function isAppleMusicUrl(url: string): boolean {
+  return /music\.apple\.com\//i.test(url)
 }
 
 interface GhostTileProps {
@@ -151,49 +156,53 @@ export default function GhostTile({
   const thumbUrl = thumbCandidates[0] || null
 
   // ════════════════════════════════════════
-  // SPOTIFY — share card. No iframe. No embed.
-  // Album art full bleed + bottom gradient + title/artist overlay.
-  // Tap opens Spotify (app on mobile, web on desktop).
+  // SPOTIFY — inline iframe playback
+  // 30s preview for anon users, full track for logged-in.
   // ════════════════════════════════════════
   if (platform === 'spotify') {
-    return (
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block w-full h-full relative overflow-hidden"
-        style={{ borderRadius: 'inherit' }}
-      >
-        {/* Album art — full bleed */}
-        {thumbnail_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={thumbnail_url}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover"
+    const embed = parseEmbed(url)
+    if (embed) {
+      return (
+        <div
+          className="w-full h-full relative overflow-hidden fp-tile"
+          style={{ borderRadius: 'inherit' }}
+        >
+          <iframe
+            src={embed.embedUrl}
+            className="w-full h-full"
+            style={{ border: 0, borderRadius: 'inherit' }}
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
             loading="lazy"
           />
-        ) : (
-          <div className="absolute inset-0 bg-black" />
-        )}
-
-        {/* Bottom gradient — text readability */}
-        <div
-          className="absolute inset-x-0 bottom-0"
-          style={{ height: '55%', background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)' }}
-        />
-
-        {/* Title + artist — pinned to bottom */}
-        <div className="absolute inset-x-0 bottom-0 z-10 p-4 flex flex-col items-center gap-0.5">
-          <TitleBlock title={title} artist={artist} />
-          <WaveformBarsIdle />
         </div>
-      </a>
-    )
+      )
+    }
   }
 
   // ════════════════════════════════════════
-  // APPLE MUSIC — 150px transparent compact bar
+  // APPLE MUSIC — inline iframe playback
+  // ════════════════════════════════════════
+  if (platform === 'apple_music' || isAppleMusicUrl(url)) {
+    const embed = parseEmbed(url)
+    if (embed) {
+      return (
+        <div
+          className="w-full h-full relative overflow-hidden fp-tile"
+          style={{ borderRadius: 'inherit' }}
+        >
+          <iframe
+            src={embed.embedUrl}
+            className="w-full h-full"
+            style={{ border: 0, borderRadius: 'inherit', colorScheme: 'normal' }}
+            allow="autoplay *; encrypted-media *; fullscreen *"
+            sandbox="allow-forms allow-scripts allow-same-origin allow-popups"
+            loading="lazy"
+          />
+        </div>
+      )
+    }
+  }
+
   // ════════════════════════════════════════
   // OTHER AUDIO — SoundCloud etc: hidden iframe approach
   // ════════════════════════════════════════
@@ -256,11 +265,7 @@ export default function GhostTile({
   // Instagram URL shape determines embed path (post vs reel).
   const isInstagramReel = platform === 'instagram' && /\/reel\//.test(url)
   // YouTube clip support: convert ms → integer seconds for start/end params.
-  // Fall back to the URL's `t=` / `start=` parameter when no explicit clip is set,
-  // so pasted "share at current time" links resume from the chosen point.
-  const ytClipStart = clip_start_ms
-    ? Math.floor(clip_start_ms / 1000)
-    : (platform === 'youtube' ? extractYouTubeStart(url) : 0)
+  const ytClipStart = clip_start_ms ? Math.floor(clip_start_ms / 1000) : 0
   const ytClipEnd = clip_end_ms ? Math.ceil(clip_end_ms / 1000) : 0
   // When the thumbnail facade can't render (empty url / chain lands on
   // ytimg `default.jpg`), skip the dormant grey state and mount the
@@ -389,38 +394,6 @@ export default function GhostTile({
             }}
             onError={() => { setIframeFailed(true) }}
           />
-          {/* Replace the YouTube watermark hit area with our fullscreen control. */}
-          {platform === 'youtube' && (
-            <button
-              type="button"
-              aria-label="Fullscreen"
-              onClick={(e) => {
-                e.stopPropagation()
-                const el = (e.currentTarget.closest('[data-tile]') as HTMLElement) || tileRef.current
-                const anyEl = el as any
-                if (el?.requestFullscreen) el.requestFullscreen().catch(() => {})
-                else if (anyEl?.webkitRequestFullscreen) anyEl.webkitRequestFullscreen()
-              }}
-              className="absolute flex items-center justify-center text-white/85 hover:text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-300"
-              style={{
-                bottom: 12,
-                right: 12,
-                width: 28,
-                height: 28,
-                borderRadius: 999,
-                zIndex: 3,
-                background: 'rgba(0,0,0,0.45)',
-                backdropFilter: 'blur(10px) saturate(140%)',
-                WebkitBackdropFilter: 'blur(10px) saturate(140%)',
-                boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08)',
-                pointerEvents: 'auto',
-              }}
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6"/>
-              </svg>
-            </button>
-          )}
         </div>
       )}
     </div>

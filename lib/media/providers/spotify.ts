@@ -36,7 +36,7 @@ export async function resolve(url: string): Promise<Partial<IdentifiedMedia>> {
     authorName,
     thumbnailUrl,
     embedUrl: `https://open.spotify.com/embed/${contentType}/${spotifyId}?utm_source=generator&theme=0`,
-    renderMode: 'preview_card',
+    renderMode: 'embed',
     connectionRequired: false,
     rawMetadata: { spotifyId, contentType },
   }
