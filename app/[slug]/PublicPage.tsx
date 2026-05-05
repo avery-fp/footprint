@@ -52,6 +52,7 @@ interface PublicPageProps {
   serial: string
   pageUrl: string
   isDraft?: boolean
+  isOwnerHinted?: boolean
   containerMeta?: Record<string, { childCount: number; firstThumb: string | null }>
   ownerEmail?: string | null
 }
@@ -60,7 +61,7 @@ interface PublicPageProps {
 // Wallpaper filter + overlay per room live in lib/roomAtmosphere.ts so
 // the editor and public render the same room with the same atmosphere.
 
-export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl, isDraft, containerMeta = {}, ownerEmail = null }: PublicPageProps) {
+export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl, isDraft, isOwnerHinted = false, containerMeta = {}, ownerEmail = null }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
 
   // Default to first room
@@ -1025,6 +1026,19 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             </>
           )}
         </div>
+      )}
+
+      {/* Return affordance — quiet doorway on every public room. Routes to
+          /{slug}/home where EditAccessScreen handles email + 6-digit code if
+          no fp_edit_{slug} cookie is present. Server-side hint suppresses
+          this for owners on first paint (no flash). */}
+      {!isOwnerHinted && !isDraft && (
+        <a
+          href={`/${footprint.username}/home`}
+          className="fixed bottom-4 right-4 z-20 font-mono text-[11px] text-white/[0.15] hover:text-white/40 transition-colors duration-300 px-2 py-1 select-none touch-manipulation"
+        >
+          return
+        </a>
       )}
 
       {/* Floating CTA bar — viewers only, hidden for owner and during claim */}

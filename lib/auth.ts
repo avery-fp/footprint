@@ -35,7 +35,7 @@ async function sendEmail(params: { from: string; to: string; subject: string; ht
 
 /**
  * Welcome email: serial number + the permanent edit link.
- * That edit URL IS the credential. Bookmark it, lose it, recover via /api/recover.
+ * That edit URL IS the credential. Bookmark it.
  */
 export async function sendWelcomeEmail(
   email: string,
@@ -74,8 +74,7 @@ export async function sendWelcomeEmail(
               </a>
             </div>
             <p style="margin: 28px 16px 0 16px; font-family: 'DM Mono', 'Courier New', monospace; font-size: 11px; line-height: 1.7; font-weight: 300; color: #555560; letter-spacing: 0.02em;">
-              bookmark this email. the link above is your permanent edit credential.<br>
-              lost it? visit footprint.onl/recover.
+              bookmark this email. the link above is your permanent edit credential.
             </p>
             <div style="margin: 80px 0 0 0; border-top: 1px solid #1e1e24; padding-top: 24px;">
               <a href="https://footprint.onl" style="font-family: 'DM Mono', 'Courier New', monospace; font-size: 12px; color: #555560; text-decoration: none; letter-spacing: 0.06em;">footprint.onl</a>
@@ -91,72 +90,3 @@ export async function sendWelcomeEmail(
   return true
 }
 
-/**
- * Recovery email: sends new edit URLs for every footprint owned by this email.
- * Called by POST /api/recover. Old edit_tokens have already been rotated.
- */
-export async function sendRecoveryEmail(
-  email: string,
-  footprints: Array<{ slug: string; editToken: string }>
-) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.footprint.onl'
-
-  // No footprints → still send a short "no account found" to avoid enumeration
-  if (footprints.length === 0) {
-    if (!process.env.RESEND_API_KEY) {
-      console.log(`[DEV] Recovery email for ${email}: no footprints`)
-      return true
-    }
-    try {
-      await sendEmail({
-        from: 'Footprint <hello@footprint.onl>',
-        to: email,
-        subject: 'footprint recovery',
-        html: `
-          <div style="background-color: #0c0c10; padding: 72px 32px; font-family: 'DM Mono', 'Courier New', monospace; color: #777780; text-align: center; font-size: 13px; line-height: 1.8;">
-            <p>we couldn't find a footprint for this email.</p>
-            <p style="margin-top: 24px;">start yours at <a href="${baseUrl}" style="color: #d4c5a9;">footprint.onl</a></p>
-          </div>
-        `,
-      })
-    } catch (err) {
-      console.error('Recovery email failed:', err)
-    }
-    return true
-  }
-
-  const links = footprints.map((fp) => {
-    const editUrl = `${baseUrl}/${fp.slug}/home?token=${fp.editToken}`
-    return `
-      <div style="margin: 16px 0; padding: 16px; border: 1px solid #1e1e24; border-radius: 4px;">
-        <p style="margin: 0; color: #d4c5a9; font-size: 13px;">footprint.onl/${fp.slug}</p>
-        <a href="${editUrl}" style="display: inline-block; margin-top: 8px; color: #777780; font-size: 12px; word-break: break-all;">${editUrl}</a>
-      </div>
-    `
-  }).join('')
-
-  if (!process.env.RESEND_API_KEY) {
-    console.log(`[DEV] Recovery email for ${email}: ${footprints.length} footprints`)
-    return true
-  }
-
-  try {
-    await sendEmail({
-      from: 'Footprint <hello@footprint.onl>',
-      to: email,
-      subject: 'your footprint edit links',
-      html: `
-        <div style="background-color: #0c0c10; padding: 72px 32px; font-family: 'DM Mono', 'Courier New', monospace; color: #777780; font-size: 13px; line-height: 1.7; max-width: 600px; margin: 0 auto;">
-          <p style="color: #d4c5a9; font-size: 15px;">your edit links</p>
-          <p style="margin-top: 24px;">any previous edit link has been invalidated. use the one(s) below:</p>
-          ${links}
-          <p style="margin-top: 40px; font-size: 11px;">bookmark these. they are your only way back in.</p>
-        </div>
-      `,
-    })
-  } catch (err) {
-    console.error('Recovery email failed:', err)
-  }
-
-  return true
-}
