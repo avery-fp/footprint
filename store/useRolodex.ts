@@ -6,7 +6,7 @@
 import { create } from 'zustand'
 import { localStorageAdapter, type RolodexAdapter } from '@/lib/rolodexAdapters'
 
-const ORIGIN_SLUG = 'ae'
+export const ORIGIN_SLUG = 'ae'
 
 function withOrigin(slugs: string[]): string[] {
   const seen = new Set<string>()
