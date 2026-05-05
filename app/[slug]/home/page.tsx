@@ -2597,6 +2597,41 @@ export default function EditPage() {
                 )
               )}
 
+              {/* Shape — square / wide / tall (videos only this pass).
+                  Shape is body, size is presence. Shape row sits above size. */}
+              {isVideoTile(selectedTile.type, selectedTile.url) && (() => {
+                const effectiveAspect = resolveAspect(selectedTile.aspect, selectedTile.type, selectedTile.url)
+                const shapes = [
+                  { value: 'square', label: 'square' },
+                  { value: 'wide', label: 'wide' },
+                  { value: 'tall', label: 'tall' },
+                ] as const
+                const matches = (v: string) =>
+                  v === effectiveAspect ||
+                  (v === 'tall' && (effectiveAspect === 'tall' || effectiveAspect === 'portrait')) ||
+                  (v === 'wide' && (effectiveAspect === 'wide' || effectiveAspect === 'landscape'))
+                return (
+                  <div className="flex items-center justify-between py-3">
+                    <span className="text-sm text-white/50 font-mono">shape</span>
+                    <div className="flex gap-1 bg-white/[0.04] rounded-lg p-0.5">
+                      {shapes.map(sh => (
+                        <button
+                          key={sh.value}
+                          onClick={() => setTileAspect(mode.tileId, sh.value)}
+                          className={`px-3 py-1.5 rounded-md text-xs font-mono transition-all ${
+                            matches(sh.value)
+                              ? 'bg-white/20 text-white shadow-sm'
+                              : 'text-white/40 hover:text-white/60'
+                          }`}
+                        >
+                          {sh.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
+
               {/* Resize — 3-state topology: S (Artifact) → M (Statement) → L (Hero) */}
               <div className="flex items-center justify-between py-3">
                 <span className="text-sm text-white/50 font-mono">size</span>

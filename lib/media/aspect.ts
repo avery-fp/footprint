@@ -9,29 +9,28 @@
 
 /**
  * Resolve the effective aspect ratio for a tile.
- * Priority: stored value > content-type default > 'square'
  *
- * Video tiles get 'wide' by default — they dominate the grid at col-span-2.
- * The detected file aspect is used for object-fit only, not container sizing.
+ * Priority:
+ *   1. explicit stored square | wide | tall  → return it
+ *   2. stored null / undefined / 'auto'       → use smart defaults
+ *   3. URL/type defaults
+ *
+ * TikTok / Shorts default to 'tall' on fresh tiles, but explicit user picks
+ * win — flipping a TikTok tile to 'wide' or 'square' will persist.
  */
 export function resolveAspect(
   stored: string | null | undefined,
   type: string,
   url?: string
 ): string {
-  // Deterministic vertical sources win over stored aspect.
-  // TikTok and YouTube Shorts URLs are always 9:16 — stored 'square' or 'wide'
-  // on these rows is residue from earlier defaults and should not override
-  // the native body shape.
+  // User-set shape wins.
+  if (stored === 'square' || stored === 'wide' || stored === 'tall') return stored
+
+  // Smart defaults (only when stored is null / undefined / 'auto' / unknown)
   if (type === 'tiktok') return 'tall'
   if (url?.includes('/shorts/')) return 'tall'
-
-  if (stored && stored !== 'square') return stored
-  if (stored === 'square') return 'square'
   if (type === 'spotify') return 'portrait'
   if (type === 'youtube' || type === 'vimeo') return 'wide'
-  // Uploaded videos — square by default (most phone content is portrait/square).
-  // Stored aspect overrides this (handled above).
   if (type === 'video') return 'square'
   if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return 'square'
   if (type === 'image') return 'square'
@@ -40,7 +39,7 @@ export function resolveAspect(
 
 /**
  * Check if a tile is effectively a video (type=video or image with video extension).
- * Used for video tile dominance logic.
+ * Used for UI gating and the video-square geometry branch.
  */
 export function isVideoTile(type: string, url?: string): boolean {
   return type === 'video' || type === 'youtube' || type === 'vimeo'
@@ -50,58 +49,47 @@ export function isVideoTile(type: string, url?: string): boolean {
 // ── Grid class helpers ──────────────────────────────────────
 
 /**
- * Default public grid — aspect ratio bundled into the class string.
- * Used by PublicPage default layout.
+ * Public grid — aspect ratio bundled into the class string.
  *
- * 3-state topology:
- *   S (1) = The Artifact — 1×1 square thumbnail
- *   M (2) = The Statement — 2×1 landscape card (4:3)
- *   L (3) = The Hero — 2×2 square anchor
+ * Shape × size grammar. The video-only span short-circuit is removed; layout
+ * follows shape × size for every content type.
  *
- * Size dictates aspect. No overrides.
+ * Video square uses true-square geometry (1×1 / 2×2). Non-video square keeps
+ * legacy size topology so existing image/text tiles don't shift in this PR.
  *
- * Pass isVideo=true for video tile dominance: videos always get col-span-2 row-span-1.
+ * The `isVideo` parameter survives for caller compatibility and is consulted
+ * only inside the square branch (where video and non-video diverge).
  */
 export function getGridClass(size: number, aspect: string | null | undefined, isVideo = false): string {
-  // Video dominance — always prominent
-  if (isVideo) {
-    if (aspect === 'tall' || aspect === 'portrait') {
-      return 'col-span-1 row-span-2 aspect-[9/16]'
-    }
-    return 'col-span-2 row-span-1 aspect-video'
-  }
   if (aspect === 'wide' || aspect === 'landscape') {
     if (size >= 3) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-2 aspect-video'
     if (size >= 2) return 'col-span-2 row-span-1 md:col-span-2 md:row-span-1 aspect-video'
     return 'col-span-2 row-span-1 aspect-video'
   }
   if (aspect === 'tall' || aspect === 'portrait') {
-    if (size >= 3) return 'col-span-1 row-span-3 md:col-span-2 md:row-span-3 aspect-[3/4]'
-    if (size >= 2) return 'col-span-1 row-span-2 md:col-span-2 md:row-span-2 aspect-[3/4]'
-    return 'col-span-1 row-span-2 aspect-[3/4]'
+    if (size >= 3) return 'col-span-1 row-span-3 md:col-span-2 md:row-span-3 aspect-[9/16]'
+    if (size >= 2) return 'col-span-1 row-span-2 md:col-span-2 md:row-span-2 aspect-[9/16]'
+    return 'col-span-1 row-span-2 aspect-[9/16]'
   }
-  // 3-state topology: S (1×1 square) → M (2×1 landscape) → L (2×2 square)
+  if (isVideo) {
+    // True-square video: media frame stays square at S/L. M keeps the 2×1
+    // footprint without forcing the frame to aspect-[4/3].
+    if (size >= 3) return 'col-span-2 row-span-2 aspect-square'
+    if (size >= 2) return 'col-span-2 row-span-1'
+    return 'col-span-1 row-span-1 aspect-square'
+  }
+  // Non-video square / unspecified: legacy 3-state size topology preserved
+  // S (1) = 1×2 aspect-[3/4]  →  M (2) = 2×1 aspect-[4/3]  →  L (3) = 2×2 aspect-square
   if (size >= 3) return 'col-span-2 row-span-2 aspect-square'
   if (size >= 2) return 'col-span-2 row-span-1 aspect-[4/3]'
   return 'col-span-1 row-span-2 aspect-[3/4]'
 }
 
 /**
- * Home-style grid — spanning only, no aspect class bundled.
+ * Home grid — spanning only, no aspect class bundled.
  * Aspect is handled separately via getAspectClass().
- *
- * 3-state topology: S → M → L (same as getGridClass but without aspect classes).
- *
- * Pass isVideo=true for video tile dominance.
  */
 export function getGridClassHome(size: number, aspect: string, isVideo = false): string {
-  // Video dominance — always prominent
-  if (isVideo) {
-    if (aspect === 'tall' || aspect === 'portrait') {
-      return 'col-span-1 row-span-2'
-    }
-    return 'col-span-2 row-span-1'
-  }
   if (aspect === 'wide' || aspect === 'landscape') {
     if (size >= 3) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-2'
     if (size >= 2) return 'col-span-2 row-span-1 md:col-span-2 md:row-span-1'
@@ -112,7 +100,13 @@ export function getGridClassHome(size: number, aspect: string, isVideo = false):
     if (size >= 2) return 'col-span-1 row-span-2 md:col-span-2 md:row-span-2'
     return 'col-span-1 row-span-2'
   }
-  // 3-state topology: S (1×1) → M (2×1) → L (2×2)
+  if (isVideo) {
+    // True-square video, span-only (matches getGridClass video-square branch).
+    if (size >= 3) return 'col-span-2 row-span-2'
+    if (size >= 2) return 'col-span-2 row-span-1'
+    return 'col-span-1 row-span-1'
+  }
+  // Non-video square / unspecified: legacy size topology preserved
   if (size >= 3) return 'col-span-2 row-span-2'
   if (size >= 2) return 'col-span-2 row-span-1'
   return ''
@@ -120,21 +114,19 @@ export function getGridClassHome(size: number, aspect: string, isVideo = false):
 
 /**
  * Standalone CSS aspect-ratio class.
+ * tall and portrait both render as true vertical 9:16 in this PR (no migration).
  */
 export function getAspectClass(aspect: string): string {
   if (aspect === 'wide' || aspect === 'landscape') return 'aspect-video'
-  if (aspect === 'tall') return 'aspect-[9/16]'
-  if (aspect === 'portrait') return 'aspect-[3/4]'
+  if (aspect === 'tall' || aspect === 'portrait') return 'aspect-[9/16]'
   if (aspect === 'auto') return ''
-  return 'col-span-1 row-span-2 aspect-[3/4]'
+  return 'col-span-1 row-span-2 aspect-[9/16]'
 }
 
 /**
  * Object-fit class for content within a tile.
  * Doctrine: cover everywhere. Tile = poster, poster fills the frame.
- * If the tile shape is wrong for the content (e.g. uploaded vertical video
- * forced into aspect-video), edges crop — preferable to dead container bars.
- * Native-body shape selection is the follow-up.
+ * User picks the shape via the editor to eliminate cropping.
  */
 export function getObjectFit(_aspect?: string, _size?: number): string {
   return 'object-cover'
