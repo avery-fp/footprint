@@ -1605,8 +1605,10 @@ export default function EditPage() {
     const source = tileSources[id]
     if (!source) return
 
-    const currentResolved = resolveAspect(tile.aspect, tile.type, tile.url)
-    if (currentResolved === newAspect) return
+    // Compare against raw stored value, not resolved. Clicking the pre-lit
+    // smart-default pill must still PATCH so the explicit user pick locks in
+    // (otherwise smart defaults can drift between sessions).
+    if (tile.aspect === newAspect) return
 
     // Optimistic update
     setDraft(prev => prev ? {
@@ -2597,19 +2599,30 @@ export default function EditPage() {
                 )
               )}
 
-              {/* Shape — square / wide / tall (videos only this pass).
+              {/* Shape — square / wide / tall (image + video tiles).
                   Shape is body, size is presence. Shape row sits above size. */}
-              {isVideoTile(selectedTile.type, selectedTile.url) && (() => {
+              {(['image', 'video', 'youtube', 'vimeo'].includes(selectedTile.type)) && (() => {
                 const effectiveAspect = resolveAspect(selectedTile.aspect, selectedTile.type, selectedTile.url)
                 const shapes = [
                   { value: 'square', label: 'square' },
                   { value: 'wide', label: 'wide' },
                   { value: 'tall', label: 'tall' },
                 ] as const
-                const matches = (v: string) =>
-                  v === effectiveAspect ||
-                  (v === 'tall' && (effectiveAspect === 'tall' || effectiveAspect === 'portrait')) ||
-                  (v === 'wide' && (effectiveAspect === 'wide' || effectiveAspect === 'landscape'))
+                // Only highlight a pill when the user has explicitly picked, OR
+                // when the smart default lands on a non-square shape (wide/tall).
+                // Existing images with no stored aspect resolve to 'auto' — no
+                // pre-lit pill, signals "pick a shape."
+                const stored = selectedTile.aspect
+                const matches = (v: string) => {
+                  if (stored === v) return true
+                  if (stored) return false // explicit user pick — only that pill lights
+                  // No explicit pick: light the pill matching the smart default,
+                  // but only for wide/tall (image 'auto' fall-through stays unlit).
+                  if (v === effectiveAspect && (effectiveAspect === 'wide' || effectiveAspect === 'tall')) return true
+                  if (v === 'tall' && effectiveAspect === 'portrait') return true
+                  if (v === 'wide' && effectiveAspect === 'landscape') return true
+                  return false
+                }
                 return (
                   <div className="flex items-center justify-between py-3">
                     <span className="text-sm text-white/50 font-mono">shape</span>

@@ -33,8 +33,12 @@ export function resolveAspect(
   if (type === 'youtube' || type === 'vimeo') return 'wide'
   if (type === 'video') return 'square'
   if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return 'square'
-  if (type === 'image') return 'square'
-  return 'square'
+  // Pure images with no stored aspect fall through to 'auto' so existing
+  // image tiles keep legacy size topology in the grid math. When the user
+  // explicitly picks 'square' via the editor, that's stored and resolves
+  // above to true-square geometry.
+  if (type === 'image') return 'auto'
+  return 'auto'
 }
 
 /**
@@ -60,7 +64,7 @@ export function isVideoTile(type: string, url?: string): boolean {
  * The `isVideo` parameter survives for caller compatibility and is consulted
  * only inside the square branch (where video and non-video diverge).
  */
-export function getGridClass(size: number, aspect: string | null | undefined, isVideo = false): string {
+export function getGridClass(size: number, aspect: string | null | undefined, _isVideo = false): string {
   if (aspect === 'wide' || aspect === 'landscape') {
     if (size >= 3) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-2 aspect-video'
     if (size >= 2) return 'col-span-2 row-span-1 md:col-span-2 md:row-span-1 aspect-video'
@@ -71,14 +75,14 @@ export function getGridClass(size: number, aspect: string | null | undefined, is
     if (size >= 2) return 'col-span-1 row-span-2 md:col-span-2 md:row-span-2 aspect-[9/16]'
     return 'col-span-1 row-span-2 aspect-[9/16]'
   }
-  if (isVideo) {
-    // True-square video: media frame stays square at S/L. M keeps the 2×1
-    // footprint without forcing the frame to aspect-[4/3].
+  if (aspect === 'square') {
+    // Explicit square: true-square geometry universally (image or video).
+    // S = 1×1, M = 2×1 footprint without forcing aspect-[4/3], L = 2×2.
     if (size >= 3) return 'col-span-2 row-span-2 aspect-square'
     if (size >= 2) return 'col-span-2 row-span-1'
     return 'col-span-1 row-span-1 aspect-square'
   }
-  // Non-video square / unspecified: legacy 3-state size topology preserved
+  // Unspecified / 'auto': legacy 3-state size topology preserved
   // S (1) = 1×2 aspect-[3/4]  →  M (2) = 2×1 aspect-[4/3]  →  L (3) = 2×2 aspect-square
   if (size >= 3) return 'col-span-2 row-span-2 aspect-square'
   if (size >= 2) return 'col-span-2 row-span-1 aspect-[4/3]'
@@ -89,7 +93,7 @@ export function getGridClass(size: number, aspect: string | null | undefined, is
  * Home grid — spanning only, no aspect class bundled.
  * Aspect is handled separately via getAspectClass().
  */
-export function getGridClassHome(size: number, aspect: string, isVideo = false): string {
+export function getGridClassHome(size: number, aspect: string, _isVideo = false): string {
   if (aspect === 'wide' || aspect === 'landscape') {
     if (size >= 3) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-2'
     if (size >= 2) return 'col-span-2 row-span-1 md:col-span-2 md:row-span-1'
@@ -100,8 +104,8 @@ export function getGridClassHome(size: number, aspect: string, isVideo = false):
     if (size >= 2) return 'col-span-1 row-span-2 md:col-span-2 md:row-span-2'
     return 'col-span-1 row-span-2'
   }
-  if (isVideo) {
-    // True-square video, span-only (matches getGridClass video-square branch).
+  if (aspect === 'square') {
+    // Explicit square (image or video), span-only.
     if (size >= 3) return 'col-span-2 row-span-2'
     if (size >= 2) return 'col-span-2 row-span-1'
     return 'col-span-1 row-span-1'
