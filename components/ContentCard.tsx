@@ -657,30 +657,17 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }
 
   // ════════════════════════════════════════
-  // APPLE MUSIC — MusicTile. No native embed; opens Apple Music.
-  // ════════════════════════════════════════
-  if (content.url.includes('music.apple.com') || content.type === 'apple_music') {
-    const thumbSrc = getBestThumbnailUrl(content)
-    const { title, creator } = sanitizeLinkMeta(
-      { title: content.title, creator: content.artist },
-      content.url
-    )
-    return (
-      <MusicTile
-        title={title}
-        creator={creator}
-        image={thumbSrc}
-        provider="Apple Music"
-        actionUrl={content.url}
-        aspectClass={aspectClass}
-      />
-    )
-  }
-
-  // ════════════════════════════════════════
-  // UNIVERSAL EMBED ENGINE — Tier 2 platforms
-  // Bandcamp, Google Maps, CodePen, Are.na, Figma
+  // UNIVERSAL EMBED ENGINE — Tier 2 platforms (and Apple Music tier 1)
+  // Bandcamp, Google Maps, CodePen, Are.na, Figma, Apple Music
   // Try iframe with 3s timeout → fallback to SmartLinkFallback
+  //
+  // Apple Music intentionally falls through to here. parseAppleMusic returns
+  // a tier-1 embed (iframe at embed.music.apple.com) so the album art IS the
+  // tile surface and Apple's own transport controls overlay on tap. This
+  // matches the Spotify / video tile grammar: media owns the surface, chrome
+  // appears on intent. The legacy MusicTile ghost-plate path was the wrong
+  // default — kept available below as the SmartLinkFallback only when
+  // parseAppleMusic can't produce an embed (malformed URL).
   // ════════════════════════════════════════
   const embed = parseEmbed(content.url)
   if (embed && !iframeFailed) {
