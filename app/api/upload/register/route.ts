@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getEditAuth } from '@/lib/edit-auth'
 import { mediaTypeFromUrl } from '@/lib/media'
+import { headWithRetry } from '@/lib/upload-verify'
 
 // Files this small are virtually always corrupt video stubs (failed transcodes,
 // aborted uploads). Real video files are megabytes; tiny ones produce ghost
@@ -41,7 +42,10 @@ export async function POST(request: NextRequest) {
     if (url.includes(SUPABASE_STORAGE_MARKER)) {
       let head: Response
       try {
-        head = await fetch(url, { method: 'HEAD', redirect: 'follow' })
+        // Retry HEAD with short backoff: Supabase's public CDN can lag the
+        // upload PUT by a few hundred ms. A single 404 here would reject
+        // every otherwise-valid upload during the propagation tail.
+        head = await headWithRetry(url)
       } catch (err: any) {
         return NextResponse.json(
           { error: `Upload not reachable: ${err?.message || 'network error'}` },
