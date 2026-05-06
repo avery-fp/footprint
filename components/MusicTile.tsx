@@ -36,7 +36,7 @@ export default function MusicTile({
       href={actionUrl}
       target="_blank"
       rel="noopener noreferrer"
-      className={`block w-full ${aspectClass} fp-tile overflow-hidden relative group`}
+      className={`block w-full max-w-full ${aspectClass} fp-tile overflow-hidden relative group`}
       style={
         showArtwork
           ? { background: '#000' }

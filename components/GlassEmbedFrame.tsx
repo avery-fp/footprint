@@ -62,7 +62,7 @@ export default function GlassEmbedFrame({
   if (failed) {
     return (
       <div
-        className="glass-embed-frame relative w-full h-full overflow-hidden flex items-center justify-center"
+        className="glass-embed-frame relative w-full max-w-full h-full overflow-hidden flex items-center justify-center"
         style={{ ...GLASS_STYLE, ...(height ? { height: `${height}px` } : {}) }}
       >
         <span className="text-xs text-white/40 font-mono" style={{ opacity: 0.7 }}>
@@ -74,7 +74,7 @@ export default function GlassEmbedFrame({
 
   return (
     <div
-      className="glass-embed-frame relative w-full h-full overflow-hidden"
+      className="glass-embed-frame relative w-full max-w-full h-full overflow-hidden"
       style={{ ...GLASS_STYLE, ...(height ? { height: `${height}px` } : {}) }}
     >
       <iframe
@@ -91,6 +91,7 @@ export default function GlassEmbedFrame({
         style={{
           border: 'none',
           width: '100%',
+          maxWidth: '100%',
           height: '100%',
           background: 'transparent',
           overflow: 'hidden',

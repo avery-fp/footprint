@@ -406,6 +406,29 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     return 'fp-puzzle-tile-s'
   }
 
+  // Provider embeds obey saved tile.size. Shape is provider-determined (video
+  // for video iframes, min-height for audio cards), span scales with size so
+  // the user's pinch/resize action visibly takes effect.
+  //
+  // Mobile is 2-col, so size 2 and size 3 both span the full row. To keep
+  // size 3 visibly larger than size 2 on mobile, video size 3 swaps to a
+  // taller cell (aspect-[4/3]) at mobile only and audio size 3 takes a
+  // larger min-height. Desktop differentiation is purely span-based.
+  const getProviderEmbedClass = (type: string, size?: number | null) => {
+    const s = Number(size || 2)
+    if (type === 'youtube' || type === 'vimeo') {
+      if (s >= 3) return 'col-span-2 md:col-span-4 aspect-[4/3] md:aspect-video'
+      if (s === 2) return 'col-span-2 aspect-video'
+      return 'col-span-1 aspect-video'
+    }
+    if (type === 'spotify' || type === 'soundcloud') {
+      if (s >= 3) return 'col-span-2 md:col-span-4 min-h-[260px]'
+      if (s === 2) return 'col-span-2 min-h-[180px]'
+      return 'col-span-1 min-h-[140px]'
+    }
+    return ''
+  }
+
   const fadeStyle = {
     opacity: roomFade === 'out' ? 0 : 1,
     transform: roomFade === 'out' ? 'translateY(6px)' : roomFade === 'in' ? 'translateY(-6px)' : 'translateY(0)',
@@ -452,7 +475,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             style={getDepthStyle(item.id)}
           >
             <div
-              className="relative w-full h-full overflow-hidden fp-tile-hover rounded-2xl"
+              className="relative w-full max-w-full h-full overflow-hidden fp-tile-hover rounded-2xl"
               style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
             >
               <UnifiedTile
@@ -537,12 +560,17 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             : 'aspect-square')
           : null
 
+        const isProviderEmbed = isSpotify || isAudioEmbed || isEmbedVid
+        // URL-detected YouTube tiles can carry item.type !== 'youtube'; pass
+        // the effective provider type so the helper dispatches correctly.
+        const providerType = isSpotify ? 'spotify'
+          : isAudioEmbed ? 'soundcloud'
+          : isEmbedVid ? 'youtube'
+          : item.type
         const gridClass = isPuzzleGrid
           ? getPuzzleGridClass(tileSize)
           : isSoundRoom && idx === 0 ? 'col-span-2 row-span-2 aspect-square'
-          : isSpotify ? 'col-span-1 aspect-[3/4]'
-          : isAudioEmbed ? 'col-span-2 aspect-video'
-          : isEmbedVid ? 'col-span-2 aspect-video'
+          : isProviderEmbed ? getProviderEmbedClass(providerType, tileSize)
           : sAspectClass ?? getGridClass(tileSize, tileAspect, false)
 
         const isContainer = item.type === 'container'
@@ -554,7 +582,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             style={getDepthStyle(item.id)}
           >
             <div
-              className={`relative w-full overflow-hidden fp-tile-hover h-full ${isPuzzleGrid ? `fp-puzzle-tile ${getPuzzleTileClass(tileSize)} rounded-2xl` : tileSize === 1 ? 'rounded-xl' : 'rounded-2xl'}${isSoundRoom ? ' fp-sound-tile' : ''}`}
+              className={`relative w-full max-w-full overflow-hidden fp-tile-hover h-full ${isPuzzleGrid ? `fp-puzzle-tile ${getPuzzleTileClass(tileSize)} rounded-2xl` : tileSize === 1 ? 'rounded-xl' : 'rounded-2xl'}${isSoundRoom ? ' fp-sound-tile' : ''}`}
               style={isPuzzleGrid
                 ? undefined
                 : { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)' }}
