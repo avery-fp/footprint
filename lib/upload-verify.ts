@@ -29,9 +29,13 @@ export async function headWithRetry(url: string, opts: HeadRetryOpts = {}): Prom
   for (let i = 0; i < attempts; i++) {
     try {
       const res = await fetchImpl(url, { method: 'HEAD', redirect: 'follow' })
+      // [DIAG] log every attempt so we can prove whether retries ever fire
+      // (i.e. whether the CDN-race hypothesis is the correct layer).
+      console.log('[DIAG] HEAD_ATTEMPT', { attempt: i + 1, status: res.status, ok: res.ok, url })
       if (res.ok) return res
       lastResponse = res
     } catch (err) {
+      console.error('[DIAG] HEAD_THREW', { attempt: i + 1, err: (err as Error)?.message, url })
       lastError = err
     }
     if (i < attempts - 1) {

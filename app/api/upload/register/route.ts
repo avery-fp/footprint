@@ -19,12 +19,19 @@ const CONTROL_CHARS = /[\x00-\x1F\x7F]/
 export async function POST(request: NextRequest) {
   try {
     const { slug, url, room_id, aspect, content_type, caption, caption_hidden } = await request.json()
+    // [DIAG] stage 4 entry — log everything we received
+    console.log('[DIAG] STAGE4_REGISTER_IN', {
+      slug, url, room_id, aspect, content_type,
+      hasCaption: !!caption, hasCookieHeader: !!request.headers.get('cookie'),
+    })
 
     if (!slug || !url) {
+      console.error('[DIAG] STAGE4_REJECT_MISSING_FIELDS', { hasSlug: !!slug, hasUrl: !!url })
       return NextResponse.json({ error: 'slug and url required' }, { status: 400 })
     }
 
     if (typeof url !== 'string' || CONTROL_CHARS.test(url)) {
+      console.error('[DIAG] STAGE4_REJECT_BAD_URL', { url })
       return NextResponse.json(
         { error: 'Invalid URL: contains control characters' },
         { status: 400 }
@@ -33,6 +40,7 @@ export async function POST(request: NextRequest) {
 
     const auth = await getEditAuth(request, slug)
     if (!auth.ok) {
+      console.error('[DIAG] STAGE4_REJECT_AUTH', { slug, authReason: (auth as any).reason })
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -47,11 +55,18 @@ export async function POST(request: NextRequest) {
         // every otherwise-valid upload during the propagation tail.
         head = await headWithRetry(url)
       } catch (err: any) {
+        console.error('[DIAG] STAGE4_HEAD_THREW', { url, err: err?.message })
         return NextResponse.json(
           { error: `Upload not reachable: ${err?.message || 'network error'}` },
           { status: 400 }
         )
       }
+      // [DIAG] log HEAD result regardless of pass/fail
+      console.log('[DIAG] STAGE4_HEAD_RESULT', {
+        url, status: head.status, ok: head.ok,
+        contentType: head.headers.get('content-type'),
+        contentLength: head.headers.get('content-length'),
+      })
       if (!head.ok) {
         return NextResponse.json(
           { error: `Upload not reachable: HTTP ${head.status}` },
@@ -65,12 +80,14 @@ export async function POST(request: NextRequest) {
 
       if (isVideo) {
         if (!headType.startsWith('video/')) {
+          console.error('[DIAG] STAGE4_REJECT_VIDEO_MIME', { headType, url })
           return NextResponse.json(
             { error: `Invalid video MIME: ${headType || 'missing'}` },
             { status: 400 }
           )
         }
         if (headLength > 0 && headLength < MIN_VIDEO_BYTES) {
+          console.error('[DIAG] STAGE4_REJECT_VIDEO_SIZE', { headLength, url })
           return NextResponse.json(
             { error: `Video too small (${headLength} bytes) — likely corrupt` },
             { status: 400 }
@@ -88,6 +105,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (!footprint) {
+      console.error('[DIAG] STAGE4_FOOTPRINT_NOT_FOUND', { slug })
       return NextResponse.json({ error: 'Footprint not found' }, { status: 404 })
     }
 
@@ -118,8 +136,13 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (insertError) {
+      console.error('[DIAG] STAGE4_DB_INSERT_FAIL', {
+        slug, serialNumber, code: insertError.code, message: insertError.message,
+        details: insertError.details, hint: insertError.hint,
+      })
       return NextResponse.json({ error: 'Failed to register upload' }, { status: 500 })
     }
+    console.log('[DIAG] STAGE4_DB_INSERT_OK', { tileId: tile.id, position: tile.position })
 
     revalidatePath(`/${slug}`)
 
