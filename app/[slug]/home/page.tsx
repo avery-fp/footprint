@@ -1894,14 +1894,24 @@ export default function EditPage() {
           content: prev.content.map(c => c.id === tempId ? { ...c, _failed: true, _progress: 0 } : c),
           updated_at: Date.now(),
         } : null)
+        // Log the raw error object alongside the flattened fields. The raw
+        // err lets DevTools show the full prototype/custom fields when
+        // expanded — flattened message+stack alone can drop context like
+        // an embedded cause or response body.
         console.error('UPLOAD_FAIL', {
           name: file.name,
           size: file.size,
           type: file.type,
           message: err?.message || String(err),
           stack: err?.stack,
-        })
-        alert(`Upload failed: ${file.name}. Tap the tile to retry.`)
+        }, err)
+        // Non-blocking toast (was: alert()). alert() blocks the page so
+        // DevTools can't be inspected while it's up — that hid the real
+        // error during diagnosis. Toast surfaces the message inline and
+        // clears itself; full detail is in the UPLOAD_FAIL console line.
+        const detail = (err?.message || 'unknown').slice(0, 160)
+        setStatusToast(`upload failed: ${file.name} — ${detail}`)
+        setTimeout(() => setStatusToast(null), 8000)
       }
     }
 
