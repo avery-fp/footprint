@@ -241,11 +241,11 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     // YouTube activated state — mute=1 for reliable autoplay, postMessage unmutes after load
     const ytActivatedSrc = buildYouTubeEmbedUrl(youtubeId, { start: extractYouTubeStart(content.url) })
     return (
-      <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative group" style={{ background: '#000' }}>
+      <div ref={containerRef} className="w-full max-w-full h-full fp-tile overflow-hidden relative group" style={{ background: '#000' }}>
         <FieldBackground imageUrl={youtubeThumbCandidates[0]} intensity="embed" />
         <iframe
           src={ytActivatedSrc}
-          className="w-full h-full relative"
+          className="w-full max-w-full h-full relative"
           style={{ border: 'none', zIndex: 1 }}
           allow="autoplay; encrypted-media; fullscreen"
           allowFullScreen
@@ -315,7 +315,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       return (
         <div
           ref={containerRef}
-          className={`w-full ${aspectClass || 'aspect-square'} fp-tile overflow-hidden cursor-pointer relative group bg-black`}
+          className={`w-full max-w-full ${aspectClass || 'aspect-square'} fp-tile overflow-hidden cursor-pointer relative group bg-black`}
           onClick={handleActivate}
         >
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
@@ -335,7 +335,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       return (
         <div
           ref={containerRef}
-          className="w-full fp-tile overflow-hidden"
+          className="w-full max-w-full fp-tile overflow-hidden"
           style={{ height: `${scHeight}px`, position: 'relative' }}
         >
           <GlassEmbedFrame
@@ -354,7 +354,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     if (content.embed_html) {
       return (
         <div
-          className={`w-full ${aspectClass} fp-tile overflow-hidden bg-black [&_iframe]:!h-full`}
+          className={`w-full max-w-full ${aspectClass} fp-tile overflow-hidden bg-black [&_iframe]:!w-full [&_iframe]:!max-w-full [&_iframe]:!h-full`}
           style={{ position: 'relative' }}
         >
           <div dangerouslySetInnerHTML={{ __html: content.embed_html }} className="w-full h-full" />
@@ -373,7 +373,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     if (embed) {
       const vimeoSrc = enforceEmbedDarkMode(embed.embedUrl, 'vimeo')
       return (
-        <div ref={containerRef} className={`w-full ${aspectClass || 'aspect-video'} fp-tile overflow-hidden relative`}>
+        <div ref={containerRef} className={`w-full max-w-full ${aspectClass || 'aspect-video'} fp-tile overflow-hidden relative`}>
           {isInView ? (
             <GlassEmbedFrame
               src={vimeoSrc}
@@ -393,10 +393,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     // Fallback: stored embed_html
     if (content.embed_html) {
       return (
-        <div ref={containerRef} className={`w-full ${aspectClass || 'aspect-video'} fp-tile overflow-hidden relative bg-black`}>
+        <div ref={containerRef} className={`w-full max-w-full ${aspectClass || 'aspect-video'} fp-tile overflow-hidden relative bg-black`}>
           {isInView ? (
             <div
-              className="absolute inset-0 [&_iframe]:!w-full [&_iframe]:!h-full"
+              className="absolute inset-0 [&_iframe]:!w-full [&_iframe]:!max-w-full [&_iframe]:!h-full"
               dangerouslySetInnerHTML={{ __html: content.embed_html }}
             />
           ) : (
