@@ -64,7 +64,7 @@ const getGridClass = getGridClassShared
 const getObjectFit = getObjectFitShared
 
 function SortableTile({
-  id, content, deleting, size, aspect, isArranging, isViewing, isMobile, selected, anyDragging, onTap,
+  id, content, deleting, size, aspect, layout, isArranging, isViewing, isMobile, selected, anyDragging, onTap,
   onLongPressStart, onLongPressMove, onLongPressEnd, onPinchResize, onDelete,
 }: {
   id: string
@@ -72,6 +72,7 @@ function SortableTile({
   deleting: boolean
   size: number
   aspect: string
+  layout: RoomLayout
   isArranging: boolean
   isViewing: boolean
   isMobile: boolean
@@ -177,10 +178,25 @@ function SortableTile({
     }
   }
 
-  // Grid class based on size × aspect — determines col/row spanning and aspect ratio
-  // 3-state topology: S (1×1 square) → M (2×1 landscape 4:3) → L (2×2 square)
-  // getGridClass bundles aspect ratios, so no separate aspectClass needed.
-  const sizeClass = getGridClass(size, aspect, isVideo)
+  // Layout-aware sizeClass — mirrors PublicPage so home is a 1:1 visual clone.
+  //  - grid: puzzle-grid square crops (matches public getPuzzleGridClass)
+  //  - rail: horizontal-scroll cards
+  //  - mix S non-video: outer aspect only, no row-span (matches SAspectShell)
+  //  - mix M/L or video: per-tile spans via getGridClass
+  const mixSAspectClass = (() => {
+    if (aspect === 'wide' || aspect === 'landscape') return 'aspect-[4/3]'
+    if (aspect === 'tall' || aspect === 'portrait') return 'aspect-[3/4]'
+    return 'aspect-square'
+  })()
+  const sizeClass = layout === 'grid'
+    ? (size >= 3 ? 'col-span-2 row-span-2 aspect-square'
+      : size >= 2 ? 'col-span-2 row-span-1 aspect-[2/1]'
+      : 'col-span-1 row-span-1 aspect-square')
+    : layout === 'rail'
+    ? 'flex-shrink-0 snap-center aspect-[3/4] w-[min(88vw,620px)]'
+    : (size === 1 && !isVideo)
+    ? mixSAspectClass
+    : getGridClass(size, aspect, isVideo)
 
   // Polaroid reveal — tile develops from frosted to crystal clear
   const isTemp = id.toString().startsWith('temp-')
@@ -253,7 +269,7 @@ function SortableTile({
       data-tile
     >
       <div
-        className={`tile-inner relative fp-tile fp-tile-hover rounded-2xl overflow-hidden w-full ${aspect !== 'auto' ? 'h-full' : isVideo ? 'aspect-video' : ''} ${
+        className={`tile-inner relative fp-tile fp-tile-hover rounded-2xl overflow-hidden w-full ${(layout === 'grid' || layout === 'rail' || aspect !== 'auto') ? 'h-full' : isVideo ? 'aspect-video' : ''} ${
           isArranging
             ? isMobile
               ? 'tile-arranging ring-1 ring-white/20'
@@ -451,7 +467,6 @@ export default function EditPage() {
   const [gridFade, setGridFade] = useState<'visible' | 'out' | 'in'>('visible')
   const [wallpaperUrl, setWallpaperUrl] = useState('')
   const [backgroundBlur, setBackgroundBlur] = useState(true)
-  const publicLayout = 'home' as const
   const [serialNumber, setSerialNumber] = useState<number | null>(null)
   const [isPublished, setIsPublished] = useState(false)
   const [statusToast, setStatusToast] = useState<string | null>(null)
@@ -2266,15 +2281,21 @@ export default function EditPage() {
               items={filteredContent.map(item => item.id)}
               strategy={rectSortingStrategy}
             >
+              {(() => {
+                const activeRoom = rooms.find(r => r.id === activeRoomId)
+                const roomLayout: RoomLayout = ((activeRoom?.layout as RoomLayout) || 'grid')
+                const layoutConfig = getGridLayout(roomLayout)
+                const isRail = layoutConfig.isRail === true
+                const isMix = roomLayout === 'mix'
+                return (
               <motion.div
-                key={publicLayout}
+                key={roomLayout}
                 layout
                 transition={{ duration: 0.35, ease: 'easeInOut' }}
-                className="grid grid-cols-2 md:grid-cols-4"
+                className={layoutConfig.containerClass}
                 style={{
-                gap: getGridLayout(rooms.find(r => r.id === activeRoomId)?.layout).gap,
-                gridAutoRows: publicLayout === 'home' ? 'auto' : undefined,
-                gridAutoFlow: 'dense',
+                gridAutoRows: !isRail ? 'auto' : undefined,
+                gridAutoFlow: isMix ? 'dense' : undefined,
                 opacity: gridFade === 'out' ? 0 : 1,
                 transition: 'opacity 150ms ease-out, gap 350ms ease-out',
               } as React.CSSProperties}>
@@ -2283,6 +2304,7 @@ export default function EditPage() {
                     key={item.id}
                     id={item.id}
                     content={item}
+                    layout={roomLayout}
                     isArranging={isArranging}
                     isViewing={mode.type === 'viewing'}
                     isMobile={isMobile}
@@ -2300,6 +2322,8 @@ export default function EditPage() {
                   />
                 ))}
               </motion.div>
+                )
+              })()}
             </SortableContext>
           </DndContext>
           </LayoutGroup>
