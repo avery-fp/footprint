@@ -410,16 +410,19 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // for video iframes, min-height for audio cards), span scales with size so
   // the user's pinch/resize action visibly takes effect.
   //
-  // Mobile is 2-col, so size 2 and size 3 both span the full row. To keep
-  // size 3 visibly larger than size 2 on mobile, video size 3 swaps to a
-  // taller cell (aspect-[4/3]) at mobile only and audio size 3 takes a
-  // larger min-height. Desktop differentiation is purely span-based.
+  // Mobile is 2-col; desktop is 4-col. Two grammar rules:
+  //   1. Mobile size 2 and 3 are both full-row, so size 3 swaps to a taller
+  //      aspect ratio (video) or larger min-height (audio) for presence.
+  //   2. Desktop video floor: smallest video must be ≥ smallest photo in
+  //      visible area, so desktop video starts at col-span-2 not col-span-1.
+  //      Mobile video keeps col-span-1 at S — small video at narrow widths
+  //      reads as cinematic, not painful.
   const getProviderEmbedClass = (type: string, size?: number | null) => {
     const s = Number(size || 2)
     if (type === 'youtube' || type === 'vimeo') {
       if (s >= 3) return 'col-span-2 md:col-span-4 aspect-[4/3] md:aspect-video'
-      if (s === 2) return 'col-span-2 aspect-video'
-      return 'col-span-1 aspect-video'
+      if (s === 2) return 'col-span-2 md:col-span-3 aspect-video'
+      return 'col-span-1 md:col-span-2 aspect-video'
     }
     if (type === 'spotify' || type === 'soundcloud') {
       if (s >= 3) return 'col-span-2 md:col-span-4 min-h-[260px]'
