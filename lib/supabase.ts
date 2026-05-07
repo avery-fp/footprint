@@ -7,19 +7,25 @@ import { createClient } from '@supabase/supabase-js'
 const PLACEHOLDER_URL = 'http://localhost'
 const PLACEHOLDER_KEY = 'placeholder'
 
+// Trim defensively. A trailing newline pasted into the Vercel env-var UI
+// once silently broke every tile upload — embedded \x0A in derived URLs
+// tripped server-side control-char regexes. .trim() makes the central
+// factory robust against future env-var foot-guns.
+const env = (name: string): string => (process.env[name] || '').trim()
+
 // Browser client (for client components)
 export function createBrowserSupabaseClient() {
   return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || PLACEHOLDER_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || PLACEHOLDER_KEY
+    env('NEXT_PUBLIC_SUPABASE_URL') || PLACEHOLDER_URL,
+    env('NEXT_PUBLIC_SUPABASE_ANON_KEY') || PLACEHOLDER_KEY
   )
 }
 
 // Server client with service role (for API routes)
 export function createServerSupabaseClient() {
   return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || PLACEHOLDER_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || PLACEHOLDER_KEY,
+    env('NEXT_PUBLIC_SUPABASE_URL') || PLACEHOLDER_URL,
+    env('SUPABASE_SERVICE_ROLE_KEY') || PLACEHOLDER_KEY,
     {
       auth: {
         autoRefreshToken: false,

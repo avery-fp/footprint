@@ -87,8 +87,15 @@ export async function uploadWithProgress(
   onProgress: (pct: number) => void,
   slug?: string
 ): Promise<string> {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  // Trim defensively. A trailing newline pasted into the Vercel env-var
+  // UI for NEXT_PUBLIC_SUPABASE_URL silently broke every tile upload —
+  // the constructed public URL contained \x0A mid-string, which
+  // /api/upload/register's control-char regex rejected with HTTP 400.
+  // Browsers are lenient about junk in <img src>, which is why wallpaper
+  // appeared to work and tiles didn't (different code paths, same
+  // upstream poison). .trim() makes future env-var foot-guns harmless.
+  const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').trim()
+  const supabaseKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim()
 
   // [DIAG] log every upload entry so we know stage 2 even started
   console.log('[DIAG] UPLOAD_BEGIN', { path, slug, fileType: file.type, fileSize: file.size, supabaseUrl })
