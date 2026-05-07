@@ -33,8 +33,9 @@ export async function cacheThumbnail(
   // Already ours — no work to do
   if (isCachedThumbnail(remoteUrl)) return remoteUrl
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  // Trim defensively — see lib/supabase.ts for the env-var-newline backstory.
+  const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').trim()
+  const serviceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim()
   if (!supabaseUrl || !serviceKey) return null
 
   try {
