@@ -257,12 +257,26 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           aria-label="Fullscreen"
           onClick={(e) => {
             e.stopPropagation()
-            const el = (e.currentTarget.closest('[data-tile]') as HTMLElement) || containerRef.current
-            const anyEl = el as any
-            if (el?.requestFullscreen) el.requestFullscreen().catch(() => {})
-            else if (anyEl?.webkitRequestFullscreen) anyEl.webkitRequestFullscreen()
+            // iOS Safari only fullscreens iframes (16+) and <video> elements.
+            // Calling requestFullscreen on a div is a no-op there — that's
+            // why the button was "decorative" on mobile. Try iframe → tile
+            // container → vendor-prefixed → iOS-native video.
+            const btn = e.currentTarget as HTMLElement
+            const container = (btn.closest('[data-tile]') as HTMLElement) || containerRef.current
+            const iframe = container?.querySelector('iframe') as HTMLElement | null
+            const video = container?.querySelector('video') as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null
+            const tryFs = (el: HTMLElement | null): boolean => {
+              if (!el) return false
+              const anyEl = el as any
+              if (el.requestFullscreen) { el.requestFullscreen().catch(() => {}); return true }
+              if (anyEl.webkitRequestFullscreen) { anyEl.webkitRequestFullscreen(); return true }
+              return false
+            }
+            if (tryFs(iframe)) return
+            if (tryFs(container)) return
+            if (video?.webkitEnterFullscreen) video.webkitEnterFullscreen()
           }}
-          className="absolute flex items-center justify-center text-white/85 hover:text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-300"
+          className="absolute flex items-center justify-center text-white/85 hover:text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:opacity-100 transition-opacity duration-300"
           style={{
             bottom: 12,
             right: 12,
