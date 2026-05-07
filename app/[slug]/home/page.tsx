@@ -1515,7 +1515,11 @@ export default function EditPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: roomId, name: name.trim(), slug }),
       })
-      if (!res.ok) { alert('Failed to rename space'); return }
+      if (!res.ok) {
+        setStatusToast('Failed to rename space')
+        setTimeout(() => setStatusToast(null), 5000)
+        return
+      }
       setRooms(prev => prev.map(r => r.id === roomId ? { ...r, name: name.trim() } : r))
     } catch (e) {
       console.error('Failed to rename space:', e)
