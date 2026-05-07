@@ -401,12 +401,26 @@ export default function GhostTile({
               aria-label="Fullscreen"
               onClick={(e) => {
                 e.stopPropagation()
-                const el = (e.currentTarget.closest('[data-tile]') as HTMLElement) || tileRef.current
-                const anyEl = el as any
-                if (el?.requestFullscreen) el.requestFullscreen().catch(() => {})
-                else if (anyEl?.webkitRequestFullscreen) anyEl.webkitRequestFullscreen()
+                // Try in order: iframe direct (works on iOS 16+, desktop) →
+                // tile container → vendor-prefixed → iOS-native video API
+                // (webkitEnterFullscreen on the underlying <video> if the
+                // embed exposes one). Any one succeeding is enough.
+                const btn = e.currentTarget as HTMLElement
+                const container = (btn.closest('[data-tile]') as HTMLElement) || tileRef.current
+                const iframe = container?.querySelector('iframe') as HTMLElement | null
+                const video = container?.querySelector('video') as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null
+                const tryFs = (el: HTMLElement | null): boolean => {
+                  if (!el) return false
+                  const anyEl = el as any
+                  if (el.requestFullscreen) { el.requestFullscreen().catch(() => {}); return true }
+                  if (anyEl.webkitRequestFullscreen) { anyEl.webkitRequestFullscreen(); return true }
+                  return false
+                }
+                if (tryFs(iframe)) return
+                if (tryFs(container)) return
+                if (video?.webkitEnterFullscreen) video.webkitEnterFullscreen()
               }}
-              className="absolute flex items-center justify-center text-white/85 hover:text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-300"
+              className="absolute flex items-center justify-center text-white/85 hover:text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:opacity-100 transition-opacity duration-300"
               style={{
                 bottom: 12,
                 right: 12,
