@@ -56,16 +56,9 @@ async function getPresignedUrl(path: string, slug?: string): Promise<{ signedUrl
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ path, ...(slug ? { slug } : {}) }),
     })
-    if (!res.ok) {
-      // [DIAG] capture WHY presign refused — silent null-fallback was masking
-      // 401/403/500 reasons and forcing the caller into the anon-key path.
-      const body = await res.text().catch(() => '')
-      console.error('[DIAG] PRESIGN_REFUSED', { status: res.status, body, path, slug })
-      return null
-    }
+    if (!res.ok) return null
     return res.json()
-  } catch (err) {
-    console.error('[DIAG] PRESIGN_THREW', { err: (err as Error)?.message, path, slug })
+  } catch {
     return null
   }
 }
@@ -97,12 +90,8 @@ export async function uploadWithProgress(
   const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').trim()
   const supabaseKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '').trim()
 
-  // [DIAG] log every upload entry so we know stage 2 even started
-  console.log('[DIAG] UPLOAD_BEGIN', { path, slug, fileType: file.type, fileSize: file.size, supabaseUrl })
-
   // Try presigned URL first (bypasses storage policies)
   const presigned = await getPresignedUrl(path, slug)
-  console.log('[DIAG] UPLOAD_PRESIGN_RESULT', { hasPresigned: !!presigned, path })
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
