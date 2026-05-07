@@ -1492,13 +1492,15 @@ export default function EditPage() {
       })
       const json = await res.json()
       if (!res.ok) {
-        alert(json.error || 'Failed to create space')
+        setStatusToast(json.error || 'Failed to create space')
+        setTimeout(() => setStatusToast(null), 5000)
         return
       }
       if (json.room) setRooms(prev => [...prev, json.room])
     } catch (e) {
       console.error('Failed to create space:', e)
-      alert('Failed to create space')
+      setStatusToast('Failed to create space')
+      setTimeout(() => setStatusToast(null), 5000)
     }
   }
 
@@ -1549,7 +1551,8 @@ export default function EditPage() {
     try {
       const res = await fetch(`/api/rooms?id=${roomId}&slug=${encodeURIComponent(slug)}`, { method: 'DELETE' })
       if (!res.ok) {
-        alert('Failed to delete space')
+        setStatusToast('Failed to delete space')
+        setTimeout(() => setStatusToast(null), 5000)
         return
       }
       setRooms(prev => prev.filter(r => r.id !== roomId))
