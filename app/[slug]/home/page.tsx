@@ -1767,11 +1767,6 @@ export default function EditPage() {
       const tempId = tempIds[idx]
 
       try {
-        // [DIAG] stage 1: file selected — log inputs to the pipeline
-        console.log('[DIAG] STAGE1_SELECTED', {
-          name: file.name, type: file.type, size: file.size,
-          isVideo: isVideoFile(file), slug, serialNumber, activeRoomId, tempId,
-        })
         // Detect aspect ratio before resize (preserves original ratio).
         // Branch by MIME so video uploads read videoWidth/videoHeight via
         // detectVideoAspect instead of falling through to the image detector
@@ -1839,29 +1834,13 @@ export default function EditPage() {
           slug,
         )
 
-        // [DIAG] stage 2 result — upload finished, public URL synthesized
-        console.log('[DIAG] STAGE2_UPLOAD_OK', { publicUrl, filename, contentType })
-
-        // [DIAG] stage 3 — registering with the server
-        console.log('[DIAG] STAGE3_REGISTER_REQ', {
-          slug, url: publicUrl, room_id: activeRoomId, aspect: detectedAspect, content_type: contentType,
-          hasCookie: typeof document !== 'undefined' && document.cookie.includes(`fp_edit_${slug}`),
-        })
-
         const res = await fetch('/api/upload/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ slug, url: publicUrl, room_id: activeRoomId, aspect: detectedAspect, content_type: contentType }),
         })
-        // [DIAG] include server's actual error body in the thrown error so
-        // UPLOAD_FAIL captures the real reason (was just "Register failed: 4xx")
-        if (!res.ok) {
-          const errBody = await res.text().catch(() => '')
-          console.error('[DIAG] STAGE3_REGISTER_FAIL', { status: res.status, body: errBody, publicUrl })
-          throw new Error(`Register failed (${res.status}): ${errBody}`)
-        }
+        if (!res.ok) throw new Error(`Register failed: ${res.status}`)
         const data = await res.json()
-        console.log('[DIAG] STAGE3_REGISTER_OK', { tileId: data?.tile?.id })
 
         if (data.tile) {
           // Non-fatal verification — log but never throw
@@ -1926,9 +1905,8 @@ export default function EditPage() {
           message: err?.message || String(err),
           stack: err?.stack,
         })
-        // [DIAG] non-blocking toast instead of alert() — alert() blocks the page
-        // and Chrome MCP can't read console while it's up. Truncate message so
-        // the toast stays readable; full detail is in console UPLOAD_FAIL.
+        // Non-blocking toast (was: alert()). Truncate message so the toast
+        // stays readable; full detail is in console UPLOAD_FAIL.
         const msg = (err?.message || 'unknown').slice(0, 140)
         setStatusToast(`upload failed: ${msg}`)
         setTimeout(() => setStatusToast(null), 8000)
