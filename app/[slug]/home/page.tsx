@@ -492,6 +492,10 @@ export default function EditPage() {
   const [claimReason, setClaimReason] = useState('')
   const [claimLoading, setClaimLoading] = useState(false)
   const [claimError, setClaimError] = useState('')
+  // Expandable detail card on the claim sheet — collapsed default, whole-card
+  // tappable. State lives here so the sheet can re-render in place without
+  // remounting the form (preserves input focus + draft values).
+  const [claimDetailOpen, setClaimDetailOpen] = useState(false)
   // Gift state
   const [showGiftModal, setShowGiftModal] = useState(false)
   const [giftsRemaining, setGiftsRemaining] = useState(0)
@@ -2028,7 +2032,48 @@ export default function EditPage() {
                 <p className="text-center text-white/30 text-[11px] mt-4 font-mono leading-relaxed">
                   Choose carefully. This address can&rsquo;t be changed after publishing.
                 </p>
-                <p className="text-center text-white/90 text-[28px] mt-6" style={{ fontWeight: 500 }}>$10</p>
+                {/* Expandable detail card — collapsed shows "Footprint · $10"
+                    with a chevron; whole card is tappable. Expanding reveals
+                    the thesis, what's included, and the pricing line. Lives
+                    in the sheet so the user reads detail at the conversion
+                    moment without leaving the form. */}
+                <button
+                  type="button"
+                  onClick={() => setClaimDetailOpen(o => !o)}
+                  aria-expanded={claimDetailOpen}
+                  aria-controls="claim-detail-panel"
+                  className="mt-6 w-full rounded-xl px-4 py-4 text-left transition-colors hover:bg-white/[0.06] focus:outline-none focus-visible:ring-1 focus-visible:ring-white/20"
+                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-white/90 text-[15px]" style={{ fontWeight: 500 }}>
+                      Footprint <span className="text-white/30 mx-1.5">·</span> $10
+                    </span>
+                    <svg
+                      width="14" height="14" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                      aria-hidden="true"
+                      className="text-white/35 shrink-0 transition-transform duration-300 ease-out"
+                      style={{ transform: claimDetailOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                    >
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </div>
+                  <div
+                    id="claim-detail-panel"
+                    className="overflow-hidden transition-[max-height,opacity] duration-300 ease-out"
+                    style={{
+                      maxHeight: claimDetailOpen ? '320px' : '0',
+                      opacity: claimDetailOpen ? 1 : 0,
+                    }}
+                  >
+                    <div className="pt-4 space-y-3 text-[13px] leading-relaxed">
+                      <p className="text-white/75">a permanent digital address. yours forever.</p>
+                      <p className="text-white/55">the room. a custom URL. an edit token. gift slots. a serial number, minted to you.</p>
+                      <p className="text-white/35 text-[11px] font-mono">$10 once. no subscription. no renewal.</p>
+                    </div>
+                  </div>
+                </button>
               </div>
             )}
           </div>
