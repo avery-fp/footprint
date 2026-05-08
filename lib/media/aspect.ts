@@ -112,10 +112,12 @@ export function getGridClassHome(size: number, aspect: string, _isVideo = false)
     if (size >= 2) return 'col-span-2 row-span-1'
     return 'col-span-1 row-span-2'
   }
-  // Non-video square / unspecified: legacy size topology preserved
+  // Non-video square / unspecified: legacy size topology preserved.
+  // S returns col-span-1 row-span-2 to match getGridClass — the two functions
+  // must agree at every (size, aspect) combo or home/public diverge.
   if (size >= 3) return 'col-span-2 row-span-2'
   if (size >= 2) return 'col-span-2 row-span-1'
-  return ''
+  return 'col-span-1 row-span-2'
 }
 
 /**

@@ -562,14 +562,25 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
     }
 
-    const { error } = await supabase
+    const { data: updated, error } = await supabase
       .from(source)
       .update(updates)
       .eq('id', id)
       .eq('serial_number', serialNumber)
+      .select('id')
 
     if (error) {
       return NextResponse.json({ error: 'Internal error' }, { status: 500 })
+    }
+
+    // Zero rows updated = id/serial mismatch. Postgres + Supabase don't raise
+    // an error for this — without the explicit check we'd return success while
+    // writing nothing, producing the silent-revert symptom (UI updates
+    // optimistically, refresh re-reads unchanged DB). Same pattern footprint
+    // PUT already guards against in app/api/footprint/[slug]/route.ts.
+    if (!updated || updated.length === 0) {
+      log.warn({ op: 'tiles_PATCH_no_rows', slug, id, source }, 'Tile PATCH affected 0 rows')
+      return NextResponse.json({ error: 'Tile not found', id, source }, { status: 404 })
     }
 
     revalidatePath(`/${slug}`)

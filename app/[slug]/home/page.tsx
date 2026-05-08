@@ -2370,8 +2370,11 @@ export default function EditPage() {
                 </button>
                 {roomMenuOpen && (
                   <>
-                    <div className="fixed inset-0 z-40" onClick={() => setRoomMenuOpen(false)} />
-                    <div className="absolute right-0 top-10 z-50 min-w-[200px] rounded-lg bg-black/90 backdrop-blur-md border border-white/10 shadow-xl py-1">
+                    {/* Backdrop + menu use fixed positioning + z-[80]/z-[90] so they
+                        escape the header's z-50 stacking context. Without this the
+                        tile sheet at z-[70] would cover the menu when both are open. */}
+                    <div className="fixed inset-0 z-[80]" onClick={() => setRoomMenuOpen(false)} />
+                    <div className="fixed right-3 top-[calc(env(safe-area-inset-top)+96px)] z-[90] min-w-[200px] rounded-lg bg-black/90 backdrop-blur-md border border-white/10 shadow-xl py-1">
                       {/* Per-tile section — only when a tile is open in the editor */}
                       {mode.type === 'tile_menu' && selectedTile && (
                         <>
