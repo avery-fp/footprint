@@ -107,7 +107,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
           height={800}
           sizes={sizes}
           className={`${isAuto ? 'w-full h-auto' : 'absolute inset-0 w-full h-full'} ${getObjectFit(aspect || 'square', size)} transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
-          loading={index < 4 ? 'eager' : 'lazy'}
+          loading="eager"
           quality={90}
           onLoad={() => setLoaded(true)}
           onError={() => setFailed(true)}
@@ -126,7 +126,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
         fill
         sizes={sizes}
         className={`object-cover transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
-        loading={index < 4 ? 'eager' : 'lazy'}
+        loading="eager"
         priority={index < 2}
         quality={90}
         onLoad={(e) => {
