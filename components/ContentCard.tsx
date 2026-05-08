@@ -217,7 +217,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               src={thumbSrc}
               alt=""
               className="fp-resting-video-media"
-              loading="lazy"
+              loading="eager"
               decoding="async"
               referrerPolicy="no-referrer"
               onLoad={(e) => {
@@ -492,7 +492,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             height={800}
             sizes="(max-width: 768px) 50vw, 25vw"
             className="w-full h-full object-cover"
-            loading="lazy"
+            loading="eager"
             quality={90}
             onLoad={(e) => {
               setIsLoaded(true)
@@ -579,7 +579,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 src={thumbSrc}
                 alt=""
                 className="fp-resting-video-media"
-                loading="lazy"
+                loading="eager"
                 decoding="async"
                 onError={() => setSocialThumbFailed(true)}
               />
@@ -645,7 +645,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 src={thumbSrc}
                 alt=""
                 className="fp-resting-video-media"
-                loading="lazy"
+                loading="eager"
                 decoding="async"
                 onError={() => setSocialThumbFailed(true)}
               />

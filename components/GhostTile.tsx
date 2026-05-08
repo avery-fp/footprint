@@ -529,7 +529,7 @@ function ThumbnailBg({
         alt=""
         className={cropBars ? 'fp-resting-video-media' : 'absolute inset-0 w-full h-full object-cover'}
         style={{}}
-        loading="lazy"
+        loading="eager"
         decoding="async"
         referrerPolicy="no-referrer"
         onLoad={(e) => {

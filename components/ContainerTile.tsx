@@ -31,7 +31,7 @@ export default function ContainerTile({ label, coverUrl, childCount, firstChildT
           src={bgUrl}
           alt=""
           className="absolute inset-0 w-full h-full object-cover"
-          loading="lazy"
+          loading="eager"
           style={{
             filter: 'blur(12px) saturate(0.8)',
             opacity: 0.35,

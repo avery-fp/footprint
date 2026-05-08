@@ -491,7 +491,7 @@ function parseImage(url: string): ParsedContent {
     title: filename,
     description: null,
     thumbnail_url: url,
-    embed_html: `<img src="${safeUrl}" alt="${safeAlt}" class="w-full" loading="lazy" />`,
+    embed_html: `<img src="${safeUrl}" alt="${safeAlt}" class="w-full" loading="eager" />`,
   }
 }
 
