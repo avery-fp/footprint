@@ -208,7 +208,7 @@ function ClosedFace({
           src={heroImage}
           alt=""
           referrerPolicy="no-referrer"
-          loading="lazy"
+          loading="eager"
           style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
         />
         <SourceOverlay source={source} descriptor={descriptor} />
@@ -335,7 +335,7 @@ function ExpandedTray({
                 src={heroImage}
                 alt=""
                 referrerPolicy="no-referrer"
-                loading="lazy"
+                loading="eager"
                 style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
               />
             </div>
@@ -388,7 +388,7 @@ function ExpandedTray({
                       <img
                         src={item.imageUrl}
                         alt={item.title || item.brand || 'listing'}
-                        loading="lazy"
+                        loading="eager"
                         referrerPolicy="no-referrer"
                         className="group-hover:scale-[1.03] transition-transform duration-300"
                         style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
@@ -545,7 +545,7 @@ function ExpandedTray({
                       <img
                         src={item.imageUrl}
                         alt={item.title || item.brand || 'listing'}
-                        loading="lazy"
+                        loading="eager"
                         referrerPolicy="no-referrer"
                         className="group-hover:scale-[1.03] transition-transform duration-300"
                         style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}

@@ -50,7 +50,7 @@ export default function PreviewCardTile({
             src={thumbSrc}
             alt=""
             className={cropThumbnail ? 'fp-resting-video-media' : 'absolute inset-0 w-full h-full object-cover'}
-            loading="lazy"
+            loading="eager"
             decoding="async"
             referrerPolicy="no-referrer"
             onLoad={(e) => {

@@ -59,7 +59,7 @@ export default function ArtifactTile({
             src={image}
             alt=""
             className="absolute inset-0 w-full h-full object-cover"
-            loading="lazy"
+            loading="eager"
             onError={() => setImgFailed(true)}
           />
           <div

@@ -55,7 +55,7 @@ export default function MusicTile({
             src={image}
             alt=""
             className="absolute inset-0 w-full h-full object-cover"
-            loading="lazy"
+            loading="eager"
             onError={() => setImgFailed(true)}
           />
           {/* Radial aura at bottom */}

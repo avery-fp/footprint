@@ -163,7 +163,7 @@ export default function RemixPage() {
               src={tile.url}
               alt=""
               style={styles.previewImage}
-              loading="lazy"
+              loading="eager"
             />
           </div>
         ))}

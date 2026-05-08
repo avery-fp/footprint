@@ -358,7 +358,7 @@ function SortableTile({
               height={400}
               sizes="(max-width: 640px) 50vw, 25vw"
               className={`${aspect === 'auto' ? 'w-full h-auto' : 'absolute inset-0 w-full h-full'} ${getObjectFit(aspect, size)}`}
-              loading="lazy"
+              loading="eager"
               decoding="async"
               quality={75}
               onError={() => {
@@ -377,7 +377,7 @@ function SortableTile({
         ) : (
           <div className={`${aspect === 'auto' ? 'w-full min-h-[80px]' : 'absolute inset-0'} flex flex-col items-center justify-center bg-white/[0.05] p-2`}>
             {preferredThumbnailUrl ? (
-              <Image src={preferredThumbnailUrl} alt="" width={200} height={200} sizes="(max-width: 640px) 50vw, 25vw" className={`${aspect === 'auto' ? 'w-full h-auto' : 'absolute inset-0 w-full h-full'} ${getObjectFit(aspect, size)}`} loading="lazy" decoding="async" quality={90}
+              <Image src={preferredThumbnailUrl} alt="" width={200} height={200} sizes="(max-width: 640px) 50vw, 25vw" className={`${aspect === 'auto' ? 'w-full h-auto' : 'absolute inset-0 w-full h-full'} ${getObjectFit(aspect, size)}`} loading="eager" decoding="async" quality={90}
                 onError={(e) => {
                   const img = e.target as HTMLImageElement
                   if (!applyNextThumbnailFallback(img, thumbnailCandidates)) {

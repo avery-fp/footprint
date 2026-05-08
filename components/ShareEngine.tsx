@@ -152,7 +152,7 @@ export default function ShareEngine({ slug }: ShareEngineProps) {
             src={data.card_url}
             alt="Share card preview"
             className="w-full"
-            loading="lazy"
+            loading="eager"
           />
         </div>
 

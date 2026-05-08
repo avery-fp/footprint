@@ -55,7 +55,7 @@ export default function ReaderTile({
             alt=""
             className="absolute inset-0 w-full h-full object-cover"
             style={{ opacity: 0.15 }}
-            loading="lazy"
+            loading="eager"
             onError={() => setImgFailed(true)}
           />
           <div
