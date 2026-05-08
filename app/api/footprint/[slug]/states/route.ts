@@ -86,7 +86,7 @@ async function restoreFootprintSnapshot(params: {
       name: room.name,
       position: room.position ?? index,
       hidden: room.hidden ?? false,
-      layout: room.layout === 'editorial' ? 'editorial' : 'grid',
+      layout: room.layout === 'editorial' ? 'mix' : (room.layout || 'grid'),
     }
   })
 

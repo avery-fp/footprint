@@ -76,11 +76,12 @@ export function getGridClass(size: number, aspect: string | null | undefined, _i
     return 'col-span-1 row-span-2 aspect-[9/16]'
   }
   if (aspect === 'square') {
-    // Explicit square: true-square geometry universally (image or video).
-    // S = 1×1, M = 2×1 footprint without forcing aspect-[4/3], L = 2×2.
+    // Explicit square. S widened from 1×1 to 1×2 (3:4) so it has presence —
+    // the square outlier (wide-S and tall-S already span 2 cells). M = 2×1,
+    // L = 2×2 true-square.
     if (size >= 3) return 'col-span-2 row-span-2 aspect-square'
     if (size >= 2) return 'col-span-2 row-span-1'
-    return 'col-span-1 row-span-1 aspect-square'
+    return 'col-span-1 row-span-2 aspect-[3/4]'
   }
   // Unspecified / 'auto': legacy 3-state size topology preserved
   // S (1) = 1×2 aspect-[3/4]  →  M (2) = 2×1 aspect-[4/3]  →  L (3) = 2×2 aspect-square
@@ -105,10 +106,11 @@ export function getGridClassHome(size: number, aspect: string, _isVideo = false)
     return 'col-span-1 row-span-2'
   }
   if (aspect === 'square') {
-    // Explicit square (image or video), span-only.
+    // Explicit square (image or video), span-only. S widened to 1×2 so it
+    // matches wide-S/tall-S in cell footprint.
     if (size >= 3) return 'col-span-2 row-span-2'
     if (size >= 2) return 'col-span-2 row-span-1'
-    return 'col-span-1 row-span-1'
+    return 'col-span-1 row-span-2'
   }
   // Non-video square / unspecified: legacy size topology preserved
   if (size >= 3) return 'col-span-2 row-span-2'

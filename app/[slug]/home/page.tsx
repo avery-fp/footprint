@@ -186,6 +186,7 @@ function SortableTile({
   const mixSAspectClass = (() => {
     if (aspect === 'wide' || aspect === 'landscape') return 'aspect-[4/3]'
     if (aspect === 'tall' || aspect === 'portrait') return 'aspect-[3/4]'
+    if (aspect === 'square') return 'aspect-[3/4]'
     return 'aspect-square'
   })()
   const sizeClass = layout === 'grid'
@@ -2370,7 +2371,49 @@ export default function EditPage() {
                 {roomMenuOpen && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setRoomMenuOpen(false)} />
-                    <div className="absolute right-0 top-10 z-50 min-w-[180px] rounded-lg bg-black/90 backdrop-blur-md border border-white/10 shadow-xl py-1">
+                    <div className="absolute right-0 top-10 z-50 min-w-[200px] rounded-lg bg-black/90 backdrop-blur-md border border-white/10 shadow-xl py-1">
+                      {/* Per-tile section — only when a tile is open in the editor */}
+                      {mode.type === 'tile_menu' && selectedTile && (
+                        <>
+                          {(selectedIsImage || selectedHasThumbnail) && (
+                            <button
+                              onClick={() => { handleSetWallpaper(mode.tileId); setRoomMenuOpen(false) }}
+                              className="w-full text-left px-4 py-2 text-xs font-mono text-white/70 hover:bg-white/[0.06] hover:text-white transition-colors"
+                            >
+                              set as wallpaper
+                            </button>
+                          )}
+                          {rooms.length > 0 && (
+                            <>
+                              <div className="px-4 pt-2 pb-1 text-[10px] uppercase tracking-wider text-white/30 font-mono">move to</div>
+                              <button
+                                onClick={() => { assignTileRoom(mode.tileId, null); setRoomMenuOpen(false) }}
+                                className={`w-full text-left px-4 py-1.5 text-xs font-mono transition-colors ${
+                                  !selectedTile.room_id
+                                    ? 'text-white bg-white/[0.06]'
+                                    : 'text-white/70 hover:bg-white/[0.06] hover:text-white'
+                                }`}
+                              >
+                                · none
+                              </button>
+                              {rooms.map(r => (
+                                <button
+                                  key={r.id}
+                                  onClick={() => { assignTileRoom(mode.tileId, r.id); setRoomMenuOpen(false) }}
+                                  className={`w-full text-left px-4 py-1.5 text-xs font-mono transition-colors ${
+                                    selectedTile.room_id === r.id
+                                      ? 'text-white bg-white/[0.06]'
+                                      : 'text-white/70 hover:bg-white/[0.06] hover:text-white'
+                                  }`}
+                                >
+                                  · {r.name}
+                                </button>
+                              ))}
+                            </>
+                          )}
+                          <div className="my-1 border-t border-white/[0.06]" />
+                        </>
+                      )}
                       <button
                         onClick={() => {
                           for (const t of roomTiles) {
@@ -2807,55 +2850,26 @@ export default function EditPage() {
               })()}
 
               {/* Resize — 3-state topology: S (Artifact) → M (Statement) → L (Hero).
-                  Wallpaper sits in the same row, after size — it's a property of
-                  this image, not a routing decision. */}
+                  Wallpaper + room reassignment moved to the room ⋯ menu — they're
+                  one-time setup decisions, not per-tile editing actions. */}
               <div className="flex items-center justify-between py-3">
                 <span className="text-sm text-white/50 font-mono">size</span>
-                <div className="flex items-center gap-2">
-                  <div className="flex gap-1 bg-white/[0.04] rounded-lg p-0.5">
-                    {([1, 2, 3] as const).map(s => (
-                      <button
-                        key={s}
-                        onClick={() => setTileSize(mode.tileId, s)}
-                        className={`w-10 py-1.5 rounded-md text-xs font-mono transition-all ${
-                          (selectedTile.size || 1) === s
-                            ? 'bg-white/20 text-white shadow-sm'
-                            : 'text-white/40 hover:text-white/60'
-                        }`}
-                      >
-                        {s === 1 ? 'S' : s === 2 ? 'M' : 'L'}
-                      </button>
-                    ))}
-                  </div>
-                  {(selectedIsImage || selectedHasThumbnail) && (
+                <div className="flex gap-1 bg-white/[0.04] rounded-lg p-0.5">
+                  {([1, 2, 3] as const).map(s => (
                     <button
-                      onClick={() => handleSetWallpaper(mode.tileId)}
-                      aria-label="set as wallpaper"
-                      title="set as wallpaper"
-                      className="w-9 h-9 rounded-lg bg-white/[0.04] text-white/40 hover:text-white/80 hover:bg-white/[0.08] transition-all flex items-center justify-center"
+                      key={s}
+                      onClick={() => setTileSize(mode.tileId, s)}
+                      className={`w-10 py-1.5 rounded-md text-xs font-mono transition-all ${
+                        (selectedTile.size || 1) === s
+                          ? 'bg-white/20 text-white shadow-sm'
+                          : 'text-white/40 hover:text-white/60'
+                      }`}
                     >
-                      <span className="text-base leading-none">◐</span>
+                      {s === 1 ? 'S' : s === 2 ? 'M' : 'L'}
                     </button>
-                  )}
+                  ))}
                 </div>
               </div>
-
-              {/* Room assign */}
-              {rooms.length > 0 && (
-                <div className="flex items-center justify-between py-3 border-t border-white/[0.06]">
-                  <span className="text-sm text-white/50 font-mono">space</span>
-                  <select
-                    value={selectedTile.room_id || ''}
-                    onChange={(e) => assignTileRoom(mode.tileId, e.target.value || null)}
-                    className="bg-white/[0.08] text-white text-xs font-mono rounded-lg px-3 py-2 border border-white/10 outline-none"
-                  >
-                    <option value="">none</option>
-                    {rooms.map(r => (
-                      <option key={r.id} value={r.id}>{r.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
 
               {/* Move to collection */}
               {selectedTile.type !== 'container' && (() => {
