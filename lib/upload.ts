@@ -5,7 +5,7 @@
  * Handles file validation, resize, aspect detection, and Supabase upload via XHR.
  */
 
-import { snapToPreset } from '@/lib/aspect-ratios'
+import { bucketToShape } from '@/lib/aspect-ratios'
 
 // ── Constants ───────────────────────────────────────────────
 
@@ -287,7 +287,7 @@ export function detectImageAspect(file: File): Promise<string> {
     }
     const img = document.createElement('img')
     img.onload = () => {
-      const preset = snapToPreset(img.naturalWidth, img.naturalHeight)
+      const preset = bucketToShape(img.naturalWidth, img.naturalHeight)
       URL.revokeObjectURL(img.src)
       resolve(preset)
     }
@@ -326,19 +326,19 @@ export function detectVideoAspect(file: File): Promise<string> {
       try {
         const bitmap = await createImageBitmap(video)
         if (bitmap.width > 0 && bitmap.height > 0) {
-          finish(snapToPreset(bitmap.width, bitmap.height))
+          finish(bucketToShape(bitmap.width, bitmap.height))
           bitmap.close()
           return
         }
       } catch { /* fall through */ }
-      finish(snapToPreset(video.videoWidth, video.videoHeight))
+      finish(bucketToShape(video.videoWidth, video.videoHeight))
     }
 
     // Fallback if onloadeddata never fires (codec issue, etc.) — give it
     // ~3s after metadata, then read intrinsic dims rather than hang.
     video.onloadedmetadata = () => {
       setTimeout(() => {
-        finish(snapToPreset(video.videoWidth, video.videoHeight))
+        finish(bucketToShape(video.videoWidth, video.videoHeight))
       }, 3000)
     }
 

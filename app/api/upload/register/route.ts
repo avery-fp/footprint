@@ -18,7 +18,7 @@ const CONTROL_CHARS = /[\x00-\x1F\x7F]/
 // Used by client-side video uploads that bypass Vercel's body limit.
 export async function POST(request: NextRequest) {
   try {
-    const { slug, url, room_id, aspect, content_type, caption, caption_hidden } = await request.json()
+    const { slug, url, room_id, aspect, content_type, caption, caption_hidden, size } = await request.json()
 
     if (!slug || !url) {
       return NextResponse.json({ error: 'slug and url required' }, { status: 400 })
@@ -103,6 +103,10 @@ export async function POST(request: NextRequest) {
 
     const nextPosition = (maxPos?.position ?? -1) + 1
 
+    // Direct image/video uploads default to size 2 (M = resting state).
+    // S is a deliberate compression chosen by the user, not the default.
+    const resolvedSize = (size === 1 || size === 2 || size === 3) ? size : 2
+
     const { data: tile, error: insertError } = await supabase
       .from('library')
       .insert({
@@ -110,6 +114,7 @@ export async function POST(request: NextRequest) {
         image_url: url,
         position: nextPosition,
         room_id: room_id || null,
+        size: resolvedSize,
         ...(aspect ? { aspect } : {}),
         ...(caption ? { caption } : {}),
         ...(caption_hidden !== undefined ? { caption_hidden: !!caption_hidden } : {}),
@@ -137,6 +142,7 @@ export async function POST(request: NextRequest) {
         position: tile.position,
         source: 'library',
         room_id: tile.room_id || null,
+        size: tile.size ?? resolvedSize,
         aspect: tile.aspect || aspect || null,
         caption: tile.caption || null,
         caption_hidden: tile.caption_hidden ?? false,

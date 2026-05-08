@@ -9,7 +9,7 @@ import { loadDraft, saveDraft, clearDraft, DraftFootprint, DraftContent } from '
 import ContentCard from '@/components/ContentCard'
 import { audioManager } from '@/lib/audio-manager'
 import { getTheme } from '@/lib/themes'
-import { snapToPreset } from '@/lib/aspect-ratios'
+import { bucketToShape } from '@/lib/aspect-ratios'
 import Image from 'next/image'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import GiftModal from '@/components/GiftModal'
@@ -464,6 +464,7 @@ export default function EditPage() {
   const [tileSources, setTileSources] = useState<Record<string, 'library' | 'links'>>({})
   const [rooms, setRooms] = useState<any[]>([])
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
+  const [roomMenuOpen, setRoomMenuOpen] = useState(false)
   const [gridFade, setGridFade] = useState<'visible' | 'out' | 'in'>('visible')
   const [wallpaperUrl, setWallpaperUrl] = useState('')
   const [backgroundBlur, setBackgroundBlur] = useState(true)
@@ -976,6 +977,32 @@ export default function EditPage() {
     }
   }, [pillMode])
 
+  // Editor-open shape inference. Legacy image tiles (and video tiles uploaded
+  // before aspect detection landed) have no stored aspect and resolve to
+  // 'auto', leaving the shape pill row blank. Measure natural dimensions on
+  // edit-open and persist square|wide|tall — pill row matches reality, grid
+  // topology becomes content-shaped, and the user never sees an empty default.
+  useEffect(() => {
+    if (mode.type !== 'tile_menu') return
+    const tileId = mode.tileId
+    const tile = draft?.content.find(c => c.id === tileId)
+    if (!tile || !tile.url) return
+    if (tile.aspect === 'square' || tile.aspect === 'wide' || tile.aspect === 'tall') return
+    const isVideoUrl = /\.(mp4|mov|webm|m4v)($|\?)/i.test(tile.url)
+    if (tile.type === 'image' && !isVideoUrl) {
+      const img = document.createElement('img')
+      img.onload = () => setTileAspect(tileId, bucketToShape(img.naturalWidth, img.naturalHeight))
+      img.src = tile.url
+    } else if (tile.type === 'video' || (tile.type === 'image' && isVideoUrl)) {
+      const v = document.createElement('video')
+      v.preload = 'metadata'
+      v.muted = true
+      v.playsInline = true
+      v.onloadedmetadata = () => setTileAspect(tileId, bucketToShape(v.videoWidth, v.videoHeight))
+      v.src = tile.url
+    }
+  }, [mode, draft?.content])
+
   // ── Tile actions ──
 
   async function handleAddContent() {
@@ -1074,6 +1101,7 @@ export default function EditPage() {
             content_type: contentType,
             caption: thoughtText.trim() || null,
             caption_hidden: thoughtCaptionHidden,
+            size: 2,
           }),
         })
         if (!res.ok) throw new Error('Register failed')
@@ -1092,7 +1120,7 @@ export default function EditPage() {
               embed_html: null,
               position: data.tile.position,
               room_id: data.tile.room_id || null,
-              size: 1,
+              size: data.tile.size ?? 2,
               aspect: data.tile.aspect || detectedAspect || null,
               caption: data.tile.caption || null,
               caption_hidden: data.tile.caption_hidden ?? false,
@@ -1848,7 +1876,7 @@ export default function EditPage() {
         const res = await fetch('/api/upload/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ slug, url: publicUrl, room_id: activeRoomId, aspect: detectedAspect, content_type: contentType }),
+          body: JSON.stringify({ slug, url: publicUrl, room_id: activeRoomId, aspect: detectedAspect, content_type: contentType, size: 2 }),
         })
         if (!res.ok) throw new Error(`Register failed: ${res.status}`)
         const data = await res.json()
@@ -1884,7 +1912,7 @@ export default function EditPage() {
               embed_html: data.tile.embed_html,
               position: data.tile.position,
               room_id: data.tile.room_id || c.room_id || null,
-              size: (c as any).size || 1,
+              size: data.tile.size ?? (c as any).size ?? 2,
               aspect: data.tile.aspect || detectedAspect || (c as any).aspect || null,
               caption: (c as any).caption || null,
               render_mode: data.tile.render_mode || 'embed',
@@ -2319,6 +2347,53 @@ export default function EditPage() {
           >
             +
           </button>
+          {/* Room overflow menu — secondary actions for the active filter.
+              Behind a dot trigger so it doesn't compete with primary nav. */}
+          {isArranging && (() => {
+            const roomTiles = activeRoomId
+              ? draft.content.filter(c => c.room_id === activeRoomId)
+              : draft.content
+            const allDefault = roomTiles.every(t => {
+              const sz = t.size || 1
+              const asp = resolveAspect(t.aspect, t.type, t.url)
+              return sz === 1 && (asp === 'auto' || (!t.aspect && t.type === 'image'))
+            })
+            return (
+              <div className="relative ml-auto">
+                <button
+                  onClick={() => setRoomMenuOpen(v => !v)}
+                  aria-label="space options"
+                  className="w-8 h-8 rounded-full bg-white/[0.06] text-white/40 hover:text-white/70 hover:bg-white/[0.10] transition-all border-0 flex items-center justify-center flex-shrink-0"
+                >
+                  <span className="text-sm leading-none -mt-1">···</span>
+                </button>
+                {roomMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setRoomMenuOpen(false)} />
+                    <div className="absolute right-0 top-10 z-50 min-w-[180px] rounded-lg bg-black/90 backdrop-blur-md border border-white/10 shadow-xl py-1">
+                      <button
+                        onClick={() => {
+                          for (const t of roomTiles) {
+                            setTileSize(t.id, 1)
+                            setTileAspect(t.id, 'auto')
+                          }
+                          setRoomMenuOpen(false)
+                        }}
+                        disabled={allDefault}
+                        className={`w-full text-left px-4 py-2 text-xs font-mono transition-colors ${
+                          allDefault
+                            ? 'text-white/20 cursor-default'
+                            : 'text-white/70 hover:bg-white/[0.06] hover:text-white'
+                        }`}
+                      >
+                        reset space → defaults
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )
+          })()}
         </div>
       </div>
       )}
@@ -2545,28 +2620,30 @@ export default function EditPage() {
                 const idx = visible.findIndex(t => t.id === mode.tileId)
                 const atFirst = idx <= 0
                 const atLast = idx === -1 || idx >= visible.length - 1
-                const btn = (label: string, onClick: () => void, disabled: boolean) => (
+                const arrow = (dir: 'up' | 'down', onClick: () => void, disabled: boolean) => (
                   <button
                     onClick={onClick}
                     disabled={disabled}
-                    className={`flex-1 h-9 rounded-lg text-xs font-mono border transition-colors ${
+                    aria-label={dir === 'up' ? 'move earlier' : 'move later'}
+                    className={`flex-1 h-10 rounded-lg flex items-center justify-center transition-colors ${
                       disabled
-                        ? 'bg-white/[0.02] border-white/[0.04] text-white/20 cursor-not-allowed'
-                        : 'bg-white/[0.06] border-white/[0.08] text-white/70 hover:bg-white/[0.1] hover:text-white'
+                        ? 'bg-white/[0.02] text-white/20 cursor-not-allowed'
+                        : 'bg-white/[0.06] text-white/70 active:bg-white/[0.12] hover:bg-white/[0.1] hover:text-white'
                     }`}
                   >
-                    {label}
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      {dir === 'up' ? (
+                        <path d="M3 10l5-5 5 5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+                      ) : (
+                        <path d="M3 6l5 5 5-5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+                      )}
+                    </svg>
                   </button>
                 )
                 return (
-                  <div className="py-3 border-b border-white/[0.06]">
-                    <div className="text-[10px] uppercase tracking-wider text-white/30 font-mono mb-2">arrange</div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {btn('earlier', () => moveSelectedTile(mode.tileId, idx - 1), atFirst)}
-                      {btn('later', () => moveSelectedTile(mode.tileId, idx + 1), atLast)}
-                      {btn('top', () => moveSelectedTile(mode.tileId, 0), atFirst)}
-                      {btn('bottom', () => moveSelectedTile(mode.tileId, visible.length - 1), atLast)}
-                    </div>
+                  <div className="flex gap-2 py-3 border-b border-white/[0.06]">
+                    {arrow('up', () => moveSelectedTile(mode.tileId, idx - 1), atFirst)}
+                    {arrow('down', () => moveSelectedTile(mode.tileId, idx + 1), atLast)}
                   </div>
                 )
               })()}
@@ -2729,58 +2806,39 @@ export default function EditPage() {
                 )
               })()}
 
-              {/* Resize — 3-state topology: S (Artifact) → M (Statement) → L (Hero) */}
+              {/* Resize — 3-state topology: S (Artifact) → M (Statement) → L (Hero).
+                  Wallpaper sits in the same row, after size — it's a property of
+                  this image, not a routing decision. */}
               <div className="flex items-center justify-between py-3">
                 <span className="text-sm text-white/50 font-mono">size</span>
-                <div className="flex gap-1 bg-white/[0.04] rounded-lg p-0.5">
-                  {([1, 2, 3] as const).map(s => (
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1 bg-white/[0.04] rounded-lg p-0.5">
+                    {([1, 2, 3] as const).map(s => (
+                      <button
+                        key={s}
+                        onClick={() => setTileSize(mode.tileId, s)}
+                        className={`w-10 py-1.5 rounded-md text-xs font-mono transition-all ${
+                          (selectedTile.size || 1) === s
+                            ? 'bg-white/20 text-white shadow-sm'
+                            : 'text-white/40 hover:text-white/60'
+                        }`}
+                      >
+                        {s === 1 ? 'S' : s === 2 ? 'M' : 'L'}
+                      </button>
+                    ))}
+                  </div>
+                  {(selectedIsImage || selectedHasThumbnail) && (
                     <button
-                      key={s}
-                      onClick={() => setTileSize(mode.tileId, s)}
-                      className={`w-10 py-1.5 rounded-md text-xs font-mono transition-all ${
-                        (selectedTile.size || 1) === s
-                          ? 'bg-white/20 text-white shadow-sm'
-                          : 'text-white/40 hover:text-white/60'
-                      }`}
+                      onClick={() => handleSetWallpaper(mode.tileId)}
+                      aria-label="set as wallpaper"
+                      title="set as wallpaper"
+                      className="w-9 h-9 rounded-lg bg-white/[0.04] text-white/40 hover:text-white/80 hover:bg-white/[0.08] transition-all flex items-center justify-center"
                     >
-                      {s === 1 ? 'S' : s === 2 ? 'M' : 'L'}
+                      <span className="text-base leading-none">◐</span>
                     </button>
-                  ))}
+                  )}
                 </div>
               </div>
-
-              {/* Reset room to defaults */}
-              {(() => {
-                const roomTiles = activeRoomId
-                  ? draft.content.filter(c => c.room_id === activeRoomId)
-                  : draft.content
-                const allDefault = roomTiles.every(t => {
-                  const sz = t.size || 1
-                  const asp = resolveAspect(t.aspect, t.type, t.url)
-                  return sz === 1 && (asp === 'auto' || (!t.aspect && t.type === 'image'))
-                })
-                return (
-                  <div className="flex items-center justify-between py-3 border-t border-white/[0.06]">
-                    <span className="text-sm text-white/50 font-mono">reset space</span>
-                    <button
-                      onClick={() => {
-                        for (const t of roomTiles) {
-                          setTileSize(t.id, 1)
-                          setTileAspect(t.id, 'auto')
-                        }
-                      }}
-                      disabled={allDefault}
-                      className={`px-4 py-1.5 rounded-md text-xs font-mono transition-all ${
-                        allDefault
-                          ? 'bg-white/[0.03] text-white/20 cursor-default'
-                          : 'bg-white/[0.06] text-white/40 hover:bg-white/[0.12] hover:text-white/60'
-                      }`}
-                    >
-                      defaults
-                    </button>
-                  </div>
-                )
-              })()}
 
               {/* Room assign */}
               {rooms.length > 0 && (
@@ -2797,16 +2855,6 @@ export default function EditPage() {
                     ))}
                   </select>
                 </div>
-              )}
-
-              {/* Set as wallpaper */}
-              {(selectedIsImage || selectedHasThumbnail) && (
-                <button
-                  onClick={() => handleSetWallpaper(mode.tileId)}
-                  className="w-full text-left text-sm text-white/50 hover:text-white/80 transition font-mono py-3 border-t border-white/[0.06] flex items-center gap-2"
-                >
-                  <span className="text-white/30 text-xs">◐</span> set as wallpaper
-                </button>
               )}
 
               {/* Move to collection */}

@@ -37,6 +37,20 @@ export function snapToPreset(width: number, height: number): AspectPreset {
 }
 
 /**
+ * Bucket raw width/height into the editor's three shapes.
+ * Used at tile creation and on edit-open shape inference.
+ *   |ratio - 1| ≤ 0.05  → square
+ *   ratio > 1.05         → wide
+ *   ratio < 0.95         → tall
+ */
+export function bucketToShape(width: number, height: number): 'square' | 'wide' | 'tall' {
+  if (!width || !height) return 'square'
+  const r = width / height
+  if (r >= 0.95 && r <= 1.05) return 'square'
+  return r > 1.05 ? 'wide' : 'tall'
+}
+
+/**
  * Get CSS grid span classes for a preset.
  * Grid uses: grid-template-columns: repeat(4, 1fr)
  */
