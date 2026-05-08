@@ -178,7 +178,6 @@ export async function loadFootprint(
       .from('rooms')
       .select('*')
       .eq('serial_number', serial)
-      .neq('hidden', true)
       .order('position')
       .limit(2000),
     supabase
