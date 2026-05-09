@@ -892,21 +892,25 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const tileSizeStyle = (item: any): React.CSSProperties => {
     if (isHorizontal) return {}
     const size = Number(item.size || 1)
-    if (size >= 3) {
-      return {
-        columnSpan: 'all' as any,
-        WebkitColumnSpan: 'all' as any,
-        width: '100%',
-      }
-    }
     if (size <= 1) {
       return {
-        width: '76%',
+        width: '72%',
         marginLeft: 'auto',
         marginRight: 'auto',
       }
     }
-    return { width: '100%' }
+    if (size >= 3) {
+      return {
+        width: '100%',
+        marginLeft: 'auto',
+        marginRight: 'auto',
+      }
+    }
+    return {
+      width: '88%',
+      marginLeft: 'auto',
+      marginRight: 'auto',
+    }
   }
 
   const fadeStyle = {

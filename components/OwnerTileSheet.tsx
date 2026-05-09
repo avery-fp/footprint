@@ -289,27 +289,20 @@ export default function OwnerTileSheet({
 
         {/* Row 4 — room */}
         {rooms.length > 0 && (
-          <div style={{ ...rowStyle, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <div style={{ ...rowStyle, alignItems: 'flex-start', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
             <span style={rowLabel}>room</span>
-            <select
-              value={tile.room_id || ''}
-              onChange={(e) => handleRoom(e.target.value)}
-              style={{
-                ...pillBase,
-                paddingRight: 28,
-                appearance: 'none',
-                WebkitAppearance: 'none',
-                MozAppearance: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              <option value="">none</option>
+            <div className="flex max-w-[74%] flex-wrap justify-end gap-2">
               {rooms.map((r) => (
-                <option key={r.id} value={r.id}>
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => handleRoom(r.id)}
+                  style={(tile.room_id || '') === r.id ? pillActive : pillBase}
+                >
                   {r.name || 'room'}
-                </option>
+                </button>
               ))}
-            </select>
+            </div>
           </div>
         )}
       </div>
