@@ -85,7 +85,6 @@ async function restoreFootprintSnapshot(params: {
       serial_number: serialNumber,
       name: room.name,
       position: room.position ?? index,
-      hidden: room.hidden ?? false,
       layout: room.layout === 'editorial' ? 'editorial' : 'grid',
     }
   })

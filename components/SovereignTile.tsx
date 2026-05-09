@@ -36,7 +36,7 @@ export default function SovereignTile({ onDismiss }: SovereignTileProps) {
         const res = await fetch('/api/draft/create', { method: 'POST' })
         const data = await res.json()
         if (res.ok && data?.tempSlug) {
-          window.location.href = `/${data.tempSlug}/home`
+          window.location.href = `/${data.tempSlug}`
           return
         }
         setError(data?.error || 'Could not start a draft')

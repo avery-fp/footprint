@@ -11,7 +11,6 @@ export interface FootprintStateRoomSnapshot {
   id?: string | null
   name: string
   position: number
-  hidden?: boolean
   layout?: 'grid' | 'editorial'
 }
 
@@ -127,7 +126,6 @@ export function normalizeFootprintStateSnapshot(input: unknown): FootprintStateS
           id: stringOrNull(value.id),
           name: stringOrNull(value.name) || `Room ${index + 1}`,
           position: numberOr(value.position, index),
-          hidden: booleanOr(value.hidden, false),
           layout,
         } satisfies FootprintStateRoomSnapshot
       })

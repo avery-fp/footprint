@@ -58,8 +58,13 @@ export interface Tile {
 export interface Room {
   id: string
   name: string
-  layout: 'grid' | 'mix' | 'rail'
+  layout: 'grid' | 'horizontal' | 'editorial'
   position: number
+  is_locked: boolean
+  // Whether the row carries a passcode hash. Never expose the hash itself
+  // to the client — visitors verify by sending a 4-digit guess to the
+  // unlock endpoint, where bcrypt compares server-side.
+  has_passcode: boolean
 }
 
 export interface ContainerMeta {
@@ -75,8 +80,12 @@ export interface FootprintLoadResult {
 }
 
 function normalizeRoomLayout(raw: unknown): Room['layout'] {
-  if (raw === 'editorial') return 'mix'
-  if (raw === 'grid' || raw === 'mix' || raw === 'rail') return raw
+  // Renamed vocabulary: rail → horizontal, mix → editorial. Self-heal on
+  // every read so DB rows can carry stale values forever without breaking
+  // the renderer. The next layout-toggle click writes the new vocabulary.
+  if (raw === 'rail') return 'horizontal'
+  if (raw === 'mix') return 'editorial'
+  if (raw === 'grid' || raw === 'horizontal' || raw === 'editorial') return raw
   return 'grid'
 }
 
@@ -206,6 +215,8 @@ export async function loadFootprint(
     name: r.name,
     layout: normalizeRoomLayout(r.layout),
     position: r.position ?? 0,
+    is_locked: r.is_locked === true,
+    has_passcode: typeof r.passcode_hash === 'string' && r.passcode_hash.length > 0,
   }))
 
   const containerMeta: Record<string, ContainerMeta> = {}

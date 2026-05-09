@@ -84,7 +84,7 @@ export default function ClaimSuccessPage() {
       // bootstraps from the in-URL token if present, but we're going
       // there without one — so this fetch should normally succeed.
     }
-    window.location.href = `/${slug}/home?claimed=true`
+    window.location.href = `/${slug}?claimed=true`
   }
 
   useEffect(() => {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
+import bcrypt from 'bcryptjs'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getEditAuth } from '@/lib/edit-auth'
 import { roomsPatchSchema, roomsPostSchema } from '@/lib/schemas'
@@ -78,7 +79,6 @@ export async function GET(request: NextRequest) {
       .from('rooms')
       .select('*')
       .eq('serial_number', Number(serialNumber))
-      .neq('hidden', true)
       .order('position')
 
     if (error) {
@@ -93,14 +93,23 @@ export async function GET(request: NextRequest) {
 
 /**
  * PATCH /api/rooms
- * Body: { id, slug?, hidden?, name?, layout? }
+ * Body: { id, slug?, name?, layout?, position?, is_locked?, passcode? }
+ *
+ * Privacy contract:
+ *  - is_locked: true  + passcode set → bcrypt the passcode and store as hash.
+ *  - is_locked: true  + passcode omitted → flip flag only (re-lock with the
+ *    existing hash). Useful when toggling a previously-locked room back on.
+ *  - is_locked: false → drop the hash. Owner is removing protection, not
+ *    adding it; we never carry a hash on a public room.
+ *  - passcode without is_locked === true is rejected: setting a code on a
+ *    public room is meaningless and almost certainly a UI bug.
  */
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json()
     const v = validateBody(roomsPatchSchema, body)
     if (!v.success) return v.response
-    const { id, slug, hidden, name, layout } = v.data
+    const { id, slug, name, layout, position, is_locked, passcode } = v.data
 
     const supabase = createServerSupabaseClient()
 
@@ -108,9 +117,33 @@ export async function PATCH(request: NextRequest) {
     if (auth.error) return auth.error
 
     const updates: Record<string, any> = {}
-    if (typeof hidden === 'boolean') updates.hidden = hidden
     if (typeof name === 'string' && name.trim()) updates.name = name.trim()
-    if (typeof layout === 'string') updates.layout = layout
+    if (typeof layout === 'string') {
+      // Normalize legacy values forward so the DB only ever stores the new
+      // vocabulary going forward. Reads still self-heal in loadFootprint
+      // for any rows that already carry stale layout values.
+      updates.layout =
+        layout === 'rail' ? 'horizontal' :
+        layout === 'mix' ? 'editorial' :
+        layout
+    }
+    if (typeof position === 'number') updates.position = position
+
+    if (typeof is_locked === 'boolean') {
+      updates.is_locked = is_locked
+      if (is_locked) {
+        if (typeof passcode === 'string') {
+          updates.passcode_hash = await bcrypt.hash(passcode, 10)
+        }
+      } else {
+        updates.passcode_hash = null
+      }
+    } else if (typeof passcode === 'string') {
+      return NextResponse.json(
+        { error: 'passcode requires is_locked=true' },
+        { status: 400 }
+      )
+    }
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })

@@ -171,7 +171,7 @@ export default function EditAccessScreen({ slug }: { slug: string }) {
       })
       if (res.ok) {
         clearSession(slug)
-        window.location.href = `/${encodeURIComponent(slug)}/home`
+        window.location.href = `/${encodeURIComponent(slug)}`
         return
       }
       setError('Invalid or expired code.')

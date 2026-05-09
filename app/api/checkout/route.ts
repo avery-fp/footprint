@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
     // the draft. Webhook stays as the idempotent safety net.
     const successUrl = `${baseUrl}/claim/success?session_id={CHECKOUT_SESSION_ID}`
     const cancelUrl = draftSlug
-      ? `${baseUrl}/${encodeURIComponent(draftSlug)}/home`
+      ? `${baseUrl}/${encodeURIComponent(draftSlug)}`
       : `${baseUrl}`
 
     // ── Create Stripe session first, then try to reserve. If reservation

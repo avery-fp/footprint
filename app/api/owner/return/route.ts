@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     .update({ owner_key_failed_attempts: 0, owner_key_locked_until: null })
     .eq('username', footprint.username)
 
-  const destination = `/${footprint.username}/home`
+  const destination = `/${footprint.username}`
   const response = NextResponse.json({ destination })
   response.cookies.set(
     OWNER_SESSION_COOKIE,
