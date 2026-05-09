@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     ok: true,
     slug: result.slug,
     edit_token: result.edit_token,
-    edit_url: `/${result.slug}/home`,
+    edit_url: `/${result.slug}`,
     already_processed: result.alreadyProcessed,
   })
 }

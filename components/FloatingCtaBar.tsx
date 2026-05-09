@@ -69,7 +69,7 @@ export default function FloatingCtaBar({ isOwner = false }: { isOwner?: boolean 
       const res = await fetch('/api/draft/create', { method: 'POST' })
       const data = await res.json()
       if (res.ok && data?.tempSlug) {
-        window.location.href = `/${data.tempSlug}/home`
+        window.location.href = `/${data.tempSlug}`
         return
       }
     } catch {

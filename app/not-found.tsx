@@ -45,7 +45,7 @@ export default function NotFound() {
     if (sp.get('session_id')) return
     const hasEditCookie = document.cookie.split('; ').some(c => c.startsWith(`fp_edit_${displaySlug}=`))
     if (hasEditCookie) {
-      window.location.href = `/${displaySlug}/home`
+      window.location.href = `/${displaySlug}`
     }
   }, [displaySlug])
 
@@ -62,7 +62,7 @@ export default function NotFound() {
       const res = await fetch('/api/draft/create', { method: 'POST' })
       const data = await res.json().catch(() => ({}))
       if (res.ok && data?.tempSlug) {
-        window.location.href = `/${data.tempSlug}/home`
+        window.location.href = `/${data.tempSlug}`
         return
       }
       setClaimError(data?.error || 'could not start — try again')

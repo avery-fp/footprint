@@ -52,7 +52,7 @@ export default function ClaimOverlay({ slug }: { slug: string }) {
             body: JSON.stringify({ slug, token: data.edit_token }),
           })
           if (unlock.ok) {
-            router.replace(`/${slug}/home`)
+            router.replace(`/${slug}`)
             return
           }
         }

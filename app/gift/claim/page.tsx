@@ -68,7 +68,7 @@ function GiftClaimContent() {
             footprint.onl/{success.username}
           </p>
           <button
-            onClick={() => { window.location.href = `/${success.username}/home` }}
+            onClick={() => { window.location.href = `/${success.username}` }}
             className="w-full py-3.5 rounded-xl bg-white text-black text-[14px] font-medium hover:bg-white/90 transition-all"
           >
             start building

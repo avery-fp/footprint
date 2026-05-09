@@ -21,6 +21,7 @@ export const revalidate = 5
 
 interface Props {
   params: { slug: string }
+  searchParams?: { edit?: string; token?: string; email?: string; sent?: string }
 }
 
 // Reserved paths that have their own routes — skip DB lookup
@@ -75,7 +76,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default async function FootprintPage({ params }: Props) {
+export default async function FootprintPage({ params, searchParams }: Props) {
   if (RESERVED_SLUGS.has(params.slug)) notFound()
 
   // Server-side cookie probe. The cookie is httpOnly so we only see its
@@ -84,6 +85,13 @@ export default async function FootprintPage({ params }: Props) {
   // a forged cookie here only loses caching, never grants edit access.
   const isOwnerHinted = cookies().has(`fp_edit_${params.slug}`)
   if (isOwnerHinted) noStore()
+
+  // Edit-access overlay surfaces when ?edit=1 is present on a non-owner
+  // visit. Magic links from claim/email-code flows include this query
+  // param so they land on the unified page with the email-code form
+  // showing on top of the public render. Owners with a valid cookie
+  // skip the overlay entirely (already authenticated).
+  const wantsEditOverlay = !isOwnerHinted && searchParams?.edit === '1'
 
   // Draft slugs (draft-{12-char uuid}) are unguessable preview URLs — the
   // owner can share one before paying. Knowledge of the slug IS the access
@@ -159,6 +167,7 @@ export default async function FootprintPage({ params }: Props) {
         ownerEmail={owner?.email || null}
         isDraft={isDraft}
         isOwnerHinted={isOwnerHinted}
+        wantsEditOverlay={wantsEditOverlay}
       />
     </>
   )

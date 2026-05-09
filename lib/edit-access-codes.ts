@@ -96,9 +96,12 @@ export async function sendEditAccessCodeEmail(email: string, slug: string, code:
     .maybeSingle()
   const editToken = fp?.edit_token
 
+  // Unified entry: /{slug}?edit=1 surfaces EditAccessScreen as a
+  // full-page overlay on the public route. The optional &token= short
+  // circuits the email-code flow by auto-unlocking via /api/edit-unlock.
   const editorUrl = editToken
-    ? `${baseUrl}/${slug}/home?email=${encodeURIComponent(email)}&sent=1&token=${encodeURIComponent(editToken)}`
-    : `${baseUrl}/${slug}/home?email=${encodeURIComponent(email)}&sent=1`
+    ? `${baseUrl}/${slug}?edit=1&email=${encodeURIComponent(email)}&sent=1&token=${encodeURIComponent(editToken)}`
+    : `${baseUrl}/${slug}?edit=1&email=${encodeURIComponent(email)}&sent=1`
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {

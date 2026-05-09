@@ -40,8 +40,9 @@ const LAYOUTS: Record<RoomLayout, LayoutConfig> = {
   grid: {
     // CSS columns gives Pinterest-style masonry where each column is the
     // same width but tiles flow at their native heights. break-inside-avoid
-    // keeps a single tile from splitting across columns.
-    containerClass: 'columns-2 md:columns-3 gap-2.5 md:gap-3 px-3 md:px-4',
+    // keeps a single tile from splitting across columns. Page-shoulders
+    // doctrine: 16px mobile, 24px tablet, 32px desktop horizontal padding.
+    containerClass: 'columns-2 md:columns-3 gap-2.5 md:gap-3 px-4 md:px-6 lg:px-8',
     tileClass: 'mb-2.5 md:mb-3 break-inside-avoid relative overflow-hidden rounded-2xl',
   },
   horizontal: {
@@ -52,7 +53,7 @@ const LAYOUTS: Record<RoomLayout, LayoutConfig> = {
   editorial: {
     // The supporting (post-hero) container — hero is rendered in a sibling
     // wrapper. Two columns on every viewport keeps the magazine feel.
-    containerClass: 'columns-2 gap-2.5 md:gap-3 px-3 md:px-4',
+    containerClass: 'columns-2 gap-2.5 md:gap-3 px-4 md:px-6 lg:px-8',
     tileClass: 'mb-2.5 md:mb-3 break-inside-avoid relative overflow-hidden rounded-2xl',
   },
 }

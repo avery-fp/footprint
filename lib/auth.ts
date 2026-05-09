@@ -42,7 +42,9 @@ export async function sendWelcomeEmail(
   params: { slug: string; editToken: string; serialNumber: number }
 ) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.footprint.onl'
-  const editUrl = `${baseUrl}/${params.slug}/home?token=${params.editToken}`
+  // Unified route: ?edit=1 surfaces the editor entry overlay on the
+  // public page. The token short-circuits the email-code flow.
+  const editUrl = `${baseUrl}/${params.slug}?edit=1&token=${params.editToken}`
   const pageUrl = `${baseUrl}/${params.slug}`
 
   if (!process.env.RESEND_API_KEY) {
