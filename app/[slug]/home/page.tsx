@@ -192,7 +192,7 @@ function SortableTile({
     ? (size >= 3 ? 'col-span-2 row-span-2 aspect-square'
       : size >= 2 ? 'col-span-2 row-span-1 aspect-[2/1]'
       : 'col-span-1 row-span-1 aspect-square')
-    : layout === 'rail'
+    : (layout as string) === 'rail' || layout === 'horizontal'
     ? 'flex-shrink-0 snap-center aspect-[3/4] w-[min(88vw,620px)]'
     : (size === 1 && !isVideo)
     ? mixSAspectClass
@@ -269,7 +269,7 @@ function SortableTile({
       data-tile
     >
       <div
-        className={`tile-inner relative fp-tile fp-tile-hover rounded-2xl overflow-hidden w-full ${(layout === 'grid' || layout === 'rail' || aspect !== 'auto') ? 'h-full' : isVideo ? 'aspect-video' : ''} ${
+        className={`tile-inner relative fp-tile fp-tile-hover rounded-2xl overflow-hidden w-full ${(layout === 'grid' || (layout as string) === 'rail' || layout === 'horizontal' || aspect !== 'auto') ? 'h-full' : isVideo ? 'aspect-video' : ''} ${
           isArranging
             ? isMobile
               ? 'tile-arranging ring-1 ring-white/20'
@@ -2238,7 +2238,13 @@ export default function EditPage() {
               {activeRoomId && (
                 <>
                   <LayoutToggle
-                    current={(() => { const l = rooms.find(r => r.id === activeRoomId)?.layout; return (l === 'editorial' ? 'mix' : (['grid', 'mix', 'rail'] as const).includes(l as RoomLayout) ? l as RoomLayout : 'grid') })()}
+                    current={(() => {
+                      const l = rooms.find(r => r.id === activeRoomId)?.layout as string | undefined
+                      if (l === 'rail') return 'horizontal'
+                      if (l === 'mix') return 'editorial'
+                      if (l === 'grid' || l === 'horizontal' || l === 'editorial') return l as RoomLayout
+                      return 'grid'
+                    })()}
                     onToggle={(next) => handleToggleLayout(activeRoomId, next)}
                   />
                   <button
@@ -2419,9 +2425,9 @@ export default function EditPage() {
               {(() => {
                 const activeRoom = rooms.find(r => r.id === activeRoomId)
                 const roomLayout: RoomLayout = ((activeRoom?.layout as RoomLayout) || 'grid')
-                const layoutConfig = getGridLayout(roomLayout)
-                const isRail = layoutConfig.isRail === true
-                const isMix = roomLayout === 'mix'
+                const layoutConfig = getGridLayout(roomLayout) as any
+                const isRail = layoutConfig.isHorizontal === true || (roomLayout as string) === 'rail'
+                const isMix = (roomLayout as string) === 'mix' || roomLayout === 'editorial'
                 return (
               <motion.div
                 key={roomLayout}
@@ -2469,7 +2475,7 @@ export default function EditPage() {
           // this.
           <div
             className="grid grid-cols-2 md:grid-cols-4"
-            style={{ gap: getGridLayout(rooms.find(r => r.id === activeRoomId)?.layout).gap }}
+            style={{ gap: '12px' }}
           >
             <div
               className="aspect-square rounded-2xl overflow-hidden cursor-pointer group"

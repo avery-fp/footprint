@@ -10,7 +10,10 @@ import { RemoveBubble } from '@/components/RemoveBubble'
 import FloatingCtaBar from '@/components/FloatingCtaBar'
 import SovereignTile from '@/components/SovereignTile'
 import CommandLayer from '@/components/CommandLayer'
-import { getGridLayout } from '@/lib/grid-layouts'
+import OwnerActionBar from '@/components/OwnerActionBar'
+import OwnerTileSheet from '@/components/OwnerTileSheet'
+import { getGridLayout, tileAspectRatio, LAYOUT_LABELS, type RoomLayout } from '@/lib/grid-layouts'
+import LayoutToggle from '@/components/LayoutToggle'
 import { glassStyle } from '@/lib/glass'
 import { useDepthExpansion } from '@/hooks/useDepthExpansion'
 import { moveChild, removeChild } from '@/lib/container-child-ops'
@@ -85,6 +88,27 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [isMobile, setIsMobile] = useState(false)
   const [roomFade, setRoomFade] = useState<'visible' | 'out' | 'in'>('visible')
   const [roomNavDocked, setRoomNavDocked] = useState(false)
+
+  // ── Owner editor surface ──
+  // editorMode is the toggle behind the corner home button: when off,
+  // strangers and owners see identical pixels. When on, owner chrome
+  // (action bar, layout selector, lock icons, tile sheet) becomes
+  // interactive. There is no "edit page" — same page, same DOM, just
+  // an overlay of editing affordances.
+  const [editorMode, setEditorMode] = useState(false)
+  const [selectedTileId, setSelectedTileId] = useState<string | null>(null)
+  // Per-room layout override for live reflow after a toggle click. Reset
+  // when the underlying rooms prop changes (e.g. after navigation, when
+  // the server-side data is fresh again).
+  const [layoutOverride, setLayoutOverride] = useState<Record<string, RoomLayout>>({})
+  useEffect(() => { setLayoutOverride({}) }, [rooms])
+  // Mirror props locally so optimistic owner mutations apply instantly.
+  const [publishedLocal, setPublishedLocal] = useState<boolean>(footprint.published === true)
+  useEffect(() => { setPublishedLocal(footprint.published === true) }, [footprint.published])
+  const [displayTitleLocal, setDisplayTitleLocal] = useState<string>(footprint.display_title || '')
+  useEffect(() => { setDisplayTitleLocal(footprint.display_title || '') }, [footprint.display_title])
+  const [titleEditing, setTitleEditing] = useState(false)
+  const titleInputRef = useRef<HTMLInputElement>(null)
 
   // ── Integrated Void Transition ──
   const [claimActive, setClaimActive] = useState(false)
@@ -277,10 +301,75 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [localChildren, setLocalChildren] = useState<any[]>([])
   useEffect(() => { setLocalChildren(containerChildren) }, [containerChildren])
 
-  const displayTitle = useMemo(
-    () => getFootprintDisplayTitle(footprint) || '\u00e6',
-    [footprint]
-  )
+  const displayTitle = useMemo(() => {
+    if (displayTitleLocal && displayTitleLocal.trim()) return displayTitleLocal
+    return getFootprintDisplayTitle(footprint) || '\u00e6'
+  }, [footprint, displayTitleLocal])
+
+  // \u2500\u2500 Optimistic owner mutations: tiles \u2500\u2500
+  const handleTileAdded = useCallback((tile: any) => {
+    setTileSources((prev) => ({ ...prev, [tile.id]: tile.source || 'library' }))
+    setLocalContent((prev) => [...prev, { ...tile, position: prev.length }])
+  }, [])
+
+  const handleTileReplaced = useCallback((tempId: string, real: any) => {
+    setLocalContent((prev) => prev.map((t) => (t.id === tempId ? { ...real, position: t.position } : t)))
+    setTileSources((prev) => {
+      const next = { ...prev }
+      delete next[tempId]
+      next[real.id] = real.source || 'library'
+      return next
+    })
+  }, [])
+
+  const handleTileProgress = useCallback((tempId: string, pct: number) => {
+    setLocalContent((prev) => prev.map((t) => (t.id === tempId ? { ...t, _progress: pct } : t)))
+  }, [])
+
+  // Patch any field on a tile in-place. Used by the tile sheet for
+  // size/aspect/parent_tile_id changes — keep it generic so 4.5 (rooms)
+  // and 5 (drag-to-room) can lean on the same helper.
+  const handleTileChange = useCallback((id: string, patch: Record<string, unknown>) => {
+    setLocalContent((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)))
+  }, [])
+
+  const handleTileDelete = useCallback((id: string) => {
+    setLocalContent((prev) => prev.filter((t) => t.id !== id))
+    setTileSources((prev) => {
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
+  }, [])
+
+  // \u2500\u2500 Optimistic owner mutations: footprint settings \u2500\u2500
+  async function patchFootprint(body: Record<string, unknown>) {
+    try {
+      const res = await fetch(`/api/footprint/${encodeURIComponent(footprint.username)}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) console.error('patchFootprint failed', res.status)
+    } catch (e) {
+      console.error('patchFootprint threw', e)
+    }
+  }
+
+  const handlePublishedChange = useCallback((next: boolean) => {
+    setPublishedLocal(next)
+    patchFootprint({ published: next })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [footprint.username])
+
+  const commitTitleEdit = useCallback(() => {
+    setTitleEditing(false)
+    const trimmed = (displayTitleLocal || '').trim()
+    if (trimmed === (footprint.display_title || '').trim()) return
+    patchFootprint({ display_title: trimmed })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [displayTitleLocal, footprint.display_title, footprint.username])
 
   function handleDragStart(event: DragStartEvent) {
     setDraggingTileId(String(event.active.id))
@@ -383,50 +472,39 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   }
 
   // ═══════════════════════════════════════════
-  // LAYOUT-AWARE GRID — uses UnifiedTile + per-tile aspect from lib/media/aspect
-  // OUTER div: grid classes only (NO overflow-hidden)
-  // INNER div: relative w-full h-full overflow-hidden rounded-xl + background
+  // LAYOUT — three modes, three identities, no black bars anywhere.
+  //  · grid:       uniform masonry (CSS columns); native-aspect cells
+  //  · horizontal: cinematic rail; native-aspect, fixed rail height
+  //  · editorial:  hero + 2-col supporting masonry; native-aspect throughout
+  //
+  // Every tile renders at its content's native aspect-ratio via inline
+  // style, with the shape pill as fallback when source dims are unknown.
+  // Provider embeds (YouTube/Vimeo = 16:9, Spotify = 9:16, SoundCloud =
+  // 16:9) are content-native by definition — not letterbox.
   // ═══════════════════════════════════════════
-  const roomLayout = activeRoom?.layout || 'grid'
+  const roomLayout: RoomLayout = (
+    (activeRoomId && layoutOverride[activeRoomId]) ||
+    activeRoom?.layout ||
+    'grid'
+  ) as RoomLayout
   const layoutConfig = getGridLayout(roomLayout)
-  const isMix = roomLayout === 'mix' || roomLayout === 'editorial'
-  const isRail = layoutConfig.isRail === true
-  const isPuzzleGrid = roomLayout === 'grid'
+  const isHorizontal = roomLayout === 'horizontal'
+  const isEditorial = roomLayout === 'editorial'
+  const isGrid = roomLayout === 'grid'
   const displayContent = isOwner ? localContent : content
 
-  const getPuzzleGridClass = (tileSize: number) => {
-    if (tileSize >= 3) return 'col-span-2 row-span-2 aspect-square'
-    if (tileSize >= 2) return 'col-span-2 row-span-1 aspect-[2/1]'
-    return 'col-span-1 row-span-1 aspect-square'
-  }
-
-  const getPuzzleTileClass = (tileSize: number) => {
-    if (tileSize >= 3) return 'fp-puzzle-tile-l'
-    if (tileSize >= 2) return 'fp-puzzle-tile-m'
-    return 'fp-puzzle-tile-s'
-  }
-
-  // Provider embeds obey saved tile.size. Shape is provider-determined (video
-  // for video iframes, min-height for audio cards), span scales with size so
-  // the user's pinch/resize action visibly takes effect.
-  //
-  // Mobile is 2-col, so size 2 and size 3 both span the full row. To keep
-  // size 3 visibly larger than size 2 on mobile, video size 3 swaps to a
-  // taller cell (aspect-[4/3]) at mobile only and audio size 3 takes a
-  // larger min-height. Desktop differentiation is purely span-based.
-  const getProviderEmbedClass = (type: string, size?: number | null) => {
-    const s = Number(size || 2)
-    if (type === 'youtube' || type === 'vimeo') {
-      if (s >= 3) return 'col-span-2 md:col-span-4 aspect-[4/3] md:aspect-video'
-      if (s === 2) return 'col-span-2 aspect-video'
-      return 'col-span-1 aspect-video'
-    }
-    if (type === 'spotify' || type === 'soundcloud') {
-      if (s >= 3) return 'col-span-2 md:col-span-4 min-h-[260px]'
-      if (s === 2) return 'col-span-2 min-h-[180px]'
-      return 'col-span-1 min-h-[140px]'
-    }
-    return ''
+  // Map any tile to a CSS aspect-ratio string. Provider embeds use their
+  // content-native ratio; everything else routes through resolveAspect →
+  // tileAspectRatio. SAspectShell still refines image tiles at runtime
+  // when their natural dimensions arrive — see renderImageWrapped below.
+  const tileAspectCss = (item: any): string => {
+    const isEmbedVid = item.type === 'youtube' || item.type === 'vimeo' ||
+      item.url?.includes('youtube') || item.url?.includes('youtu.be')
+    if (isEmbedVid) return '16 / 9'
+    if (item.type === 'spotify') return '9 / 16'
+    if (item.type === 'soundcloud') return '16 / 9'
+    const resolved = resolveAspect(item.aspect, item.type, item.url)
+    return tileAspectRatio(resolved)
   }
 
   const fadeStyle = {
@@ -434,6 +512,33 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     transform: roomFade === 'out' ? 'translateY(6px)' : roomFade === 'in' ? 'translateY(-6px)' : 'translateY(0)',
     transition: 'opacity 250ms ease-out, transform 350ms ease-out',
   }
+
+  // Persist a layout pick from the toggle. Optimistic update on the
+  // local rooms array; PATCH /api/rooms with the canonical name.
+  const handleLayoutToggle = useCallback((next: RoomLayout) => {
+    if (!activeRoomId) return
+    fetch('/api/rooms', {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: activeRoomId, slug: footprint.username, layout: next }),
+    }).catch((e) => console.error('layout PATCH failed', e))
+    // The rooms prop is server-managed; the toggle's optimistic display
+    // comes from the prop snapshot used to build activeRoom. After PATCH
+    // the next navigation reloads via noStore() for owners, so the new
+    // layout reads back fresh on the next render.
+    setRoomFade('out')
+    setTimeout(() => {
+      setRoomFade('in')
+      setTimeout(() => setRoomFade('visible'), 300)
+    }, 200)
+    // Mutate the activeRoom layout in place so the current render reflows
+    // without a navigation. visibleRooms is derived from rooms; rooms is
+    // the prop. We mirror the change into activeRoom's layout via a
+    // closure-captured state escape hatch — easiest is to bump a local
+    // override that the render path consults.
+    setLayoutOverride((prev) => ({ ...prev, [activeRoomId]: next }))
+  }, [activeRoomId, footprint.username])
 
   // ── Depth expansion: per-tile style ──
   const getDepthStyle = (tileId: string): React.CSSProperties => {
@@ -452,185 +557,174 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     }
   }
 
-  const gridInner = isRail ? (
-    // ── RAIL MODE: cinematic horizontal snap scroll ──
-    <div
-      className={`${layoutConfig.containerClass} hide-scrollbar`}
-      style={{
-        scrollSnapType: 'x mandatory',
-        scrollPaddingLeft: 'max(24px, calc((100vw - min(88vw, 620px)) / 2))',
-        WebkitOverflowScrolling: 'touch' as any,
-        paddingLeft: 'max(24px, calc((100vw - min(88vw, 620px)) / 2))',
-        paddingRight: 'max(24px, calc((100vw - min(88vw, 620px)) / 2))',
-        ...fadeStyle,
-      }}
-    >
-      {displayContent.map((item: any, idx: number) => {
-        const isContainer = item.type === 'container'
-        const isThisExpanded = expanded?.id === item.id
-        const tileInner = (
+  // Tile body — inner content shared across all three layouts. The outer
+  // wrapper (positioning + aspect-ratio) is layout-specific; this is just
+  // the glass card + UnifiedTile + click overlays. Provider embeds, image
+  // tiles, video tiles, thoughts all flow through the same body.
+  const renderTileBody = (item: any, idx: number) => {
+    const isContainer = item.type === 'container'
+    const isThisExpanded = expanded?.id === item.id
+    return (
+      <div
+        ref={(el: HTMLDivElement | null) => registerRef(item.id, el)}
+        className="w-full h-full relative"
+        style={getDepthStyle(item.id)}
+      >
+        <div
+          className={`relative w-full max-w-full h-full overflow-hidden fp-tile-hover rounded-2xl${isSoundRoom ? ' fp-sound-tile' : ''}`}
+          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)' }}
+        >
+          <UnifiedTile
+            item={item}
+            index={idx}
+            size={item.size || 1}
+            aspect={resolveAspect(item.aspect, item.type, item.url)}
+            mode="public"
+            layout={roomLayout}
+            isMobile={isMobile}
+            isSoundRoom={isSoundRoom}
+            isExpanded={isThisExpanded}
+            childCount={containerMeta[item.id]?.childCount}
+            firstChildThumb={containerMeta[item.id]?.firstThumb}
+          />
+        </div>
+        {/* Editor-mode click interceptor — opens the tile sheet on tap. */}
+        {isOwner && editorMode && !expanded && (
           <div
-            ref={(el: HTMLDivElement | null) => registerRef(item.id, el)}
-            className="w-full h-full relative"
-            style={getDepthStyle(item.id)}
-          >
-            <div
-              className="relative w-full max-w-full h-full overflow-hidden fp-tile-hover rounded-2xl"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
-            >
-              <UnifiedTile
-                item={item}
-                index={idx}
-                size={1}
-                aspect="wide"
-                mode="public"
-                layout={roomLayout}
-                isMobile={isMobile}
-                isSoundRoom={isSoundRoom}
-                isExpanded={isThisExpanded}
-                childCount={containerMeta[item.id]?.childCount}
-                firstChildThumb={containerMeta[item.id]?.firstThumb}
-              />
+            className="absolute inset-0 z-20 cursor-pointer"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedTileId(item.id) }}
+          />
+        )}
+        {/* Container click interceptor — only containers are doors. */}
+        {isContainer && !expanded && !(isOwner && editorMode) && (
+          <div className="absolute inset-0 z-10 cursor-pointer" onClick={() => expand(item.id)} />
+        )}
+      </div>
+    )
+  }
+
+  // Outer wrapper for grid + editorial-supporting masonry. Sets the
+  // tile's CSS aspect-ratio inline so the cell shape matches the
+  // content's native aspect — no letterbox, no pillarbox.
+  const renderMasonryTile = (item: any, idx: number) => {
+    const aspectCss = tileAspectCss(item)
+    const tileBody = renderTileBody(item, idx)
+    const wrapperClass = layoutConfig.tileClass
+    const wrapperStyle: React.CSSProperties = { aspectRatio: aspectCss }
+    if (isOwner) {
+      return (
+        <SortableTileWrapper key={item.id} item={item} idx={idx} className={wrapperClass} style={wrapperStyle} disabled={!!expanded}>
+          {tileBody}
+        </SortableTileWrapper>
+      )
+    }
+    // Image tiles with no explicit shape pick get SAspectShell so the
+    // cell refines from square → 3/4 or 4/3 once natural dimensions
+    // arrive. Inline aspect-ratio is omitted in this branch so SAspect's
+    // class wins.
+    const stored = item.aspect
+    const explicit = stored === 'square' || stored === 'wide' || stored === 'tall'
+    if (item.type === 'image' && !explicit) {
+      const resolved = resolveAspect(item.aspect, item.type, item.url)
+      return (
+        <div key={item.id} className={wrapperClass}>
+          <SAspectShell initialAspect={resolved}>{tileBody}</SAspectShell>
+        </div>
+      )
+    }
+    return (
+      <div key={item.id} className={wrapperClass} style={wrapperStyle}>
+        {tileBody}
+      </div>
+    )
+  }
+
+  let gridInner: React.ReactNode
+  if (isHorizontal) {
+    // ── HORIZONTAL: cinematic rail. Each tile is its native aspect at a
+    // fixed rail height, so widescreen reads as wide, vertical reads as
+    // tall, square reads as square. Width derives. ──
+    gridInner = (
+      <div
+        className={layoutConfig.containerClass}
+        style={{
+          scrollSnapType: 'x mandatory',
+          scrollPaddingLeft: 'max(24px, calc((100vw - min(88vw, 620px)) / 2))',
+          WebkitOverflowScrolling: 'touch' as any,
+          paddingLeft: 'max(24px, calc((100vw - min(88vw, 620px)) / 2))',
+          paddingRight: 'max(24px, calc((100vw - min(88vw, 620px)) / 2))',
+          ...fadeStyle,
+        }}
+      >
+        {displayContent.map((item: any, idx: number) => {
+          const aspectCss = tileAspectCss(item)
+          const railHeight = isMobile ? 'min(72vh, 540px)' : 'min(70vh, 640px)'
+          const wrapperStyle: React.CSSProperties = {
+            height: railHeight,
+            aspectRatio: aspectCss,
+          }
+          const wrapperClass = layoutConfig.tileClass
+          const body = renderTileBody(item, idx)
+          if (isOwner) {
+            return (
+              <SortableTileWrapper key={item.id} item={item} idx={idx} className={wrapperClass} style={wrapperStyle} disabled={!!expanded}>
+                {body}
+              </SortableTileWrapper>
+            )
+          }
+          return (
+            <div key={item.id} className={wrapperClass} style={wrapperStyle}>
+              {body}
             </div>
-            {/* Container click interceptor — only containers are doors */}
-            {isContainer && !expanded && (
-              <div className="absolute inset-0 z-10 cursor-pointer" onClick={() => expand(item.id)} />
-            )}
-          </div>
-        )
-
-        const railTileClass = `${layoutConfig.tileClass} aspect-[3/4]`
-        const railStyle: React.CSSProperties = {
-          width: 'min(88vw, 620px)',
-        }
-
-        if (isOwner) {
-          return (
-            <SortableTileWrapper key={item.id} item={item} idx={idx} className={railTileClass} style={railStyle} disabled={!!expanded}>
-              {tileInner}
-            </SortableTileWrapper>
           )
-        }
-
-        return (
-          <div key={item.id} className={railTileClass} style={railStyle}>
-            {tileInner}
+        })}
+      </div>
+    )
+  } else if (isEditorial) {
+    // ── EDITORIAL: hero + supporting masonry. The first tile fills the
+    // full width at its native aspect; everything after flows in two
+    // columns of native-aspect masonry beneath. Magazine pacing. ──
+    const [hero, ...rest] = displayContent
+    gridInner = (
+      <div style={fadeStyle}>
+        {hero && (
+          <div className="px-3 md:px-4 mb-2.5 md:mb-3">
+            {(() => {
+              const aspectCss = tileAspectCss(hero)
+              const wrapperStyle: React.CSSProperties = { aspectRatio: aspectCss }
+              const body = renderTileBody(hero, 0)
+              const wrapperClass = 'relative overflow-hidden rounded-2xl'
+              if (isOwner) {
+                return (
+                  <SortableTileWrapper item={hero} idx={0} className={wrapperClass} style={wrapperStyle} disabled={!!expanded}>
+                    {body}
+                  </SortableTileWrapper>
+                )
+              }
+              return (
+                <div className={wrapperClass} style={wrapperStyle}>
+                  {body}
+                </div>
+              )
+            })()}
           </div>
-        )
-      })}
-    </div>
-  ) : (
-    // ── GRID / MIX MODE: vertical CSS grid ──
-    <div
-      className={layoutConfig.containerClass}
-      style={{
-        gridAutoRows: 'auto',
-        gridAutoFlow: isMix ? 'dense' : undefined,
-        ...fadeStyle,
-      }}
-    >
-      {displayContent.map((item: any, idx: number) => {
-        const tileSize = item.size || 1
-        const tileAspect = isMix
-          ? resolveAspect(item.aspect, item.type, item.url)
-          : 'square'
-
-        // Only YouTube/Vimeo embeds need forced wide — they're iframe players.
-        // Uploaded videos + Instagram respect their stored aspect (portrait/square/wide).
-        const isEmbedVid = item.type === 'youtube' || item.type === 'vimeo' ||
-              item.url?.includes('youtube') || item.url?.includes('youtu.be')
-
-        const isSpotify = item.type === 'spotify'
-        const isAudioEmbed = item.type === 'soundcloud'
-
-        // Sound room: hero first tile + square others
-        // Spotify = portrait. SoundCloud = wide. Embed videos = wide.
-        // Uploaded videos / Instagram / images = use their actual aspect.
-        //
-        // S image tiles outside puzzle grid: SAspectShell detects natural dimensions
-        // on load and reshapes the cell to portrait/landscape/square accordingly.
-        // Puzzle grid keeps S tiles locked to square cells.
-        const resolvedSAspect = (tileSize === 1 && !isMix)
-          ? resolveAspect(item.aspect, item.type, item.url)
-          : null
-
-        const sAspectClass = resolvedSAspect != null
-          ? (resolvedSAspect === 'wide' || resolvedSAspect === 'landscape' ? 'aspect-[4/3]'
-            : resolvedSAspect === 'tall' || resolvedSAspect === 'portrait' ? 'aspect-[3/4]'
-            : 'aspect-square')
-          : null
-
-        const isProviderEmbed = isSpotify || isAudioEmbed || isEmbedVid
-        // URL-detected YouTube tiles can carry item.type !== 'youtube'; pass
-        // the effective provider type so the helper dispatches correctly.
-        const providerType = isSpotify ? 'spotify'
-          : isAudioEmbed ? 'soundcloud'
-          : isEmbedVid ? 'youtube'
-          : item.type
-        const gridClass = isPuzzleGrid
-          ? getPuzzleGridClass(tileSize)
-          : isSoundRoom && idx === 0 ? 'col-span-2 row-span-2 aspect-square'
-          : isProviderEmbed ? getProviderEmbedClass(providerType, tileSize)
-          : sAspectClass ?? getGridClass(tileSize, tileAspect, false)
-
-        const isContainer = item.type === 'container'
-        const isThisExpanded = expanded?.id === item.id
-        const tileInner = (
-          <div
-            ref={(el: HTMLDivElement | null) => registerRef(item.id, el)}
-            className="w-full h-full relative"
-            style={getDepthStyle(item.id)}
-          >
-            <div
-              className={`relative w-full max-w-full overflow-hidden fp-tile-hover h-full ${isPuzzleGrid ? `fp-puzzle-tile ${getPuzzleTileClass(tileSize)} rounded-2xl` : tileSize === 1 ? 'rounded-xl' : 'rounded-2xl'}${isSoundRoom ? ' fp-sound-tile' : ''}`}
-              style={isPuzzleGrid
-                ? undefined
-                : { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)' }}
-            >
-              <UnifiedTile
-                item={item}
-                index={idx}
-                size={tileSize}
-                aspect={tileAspect}
-                mode="public"
-                layout={roomLayout}
-                isMobile={isMobile}
-                isSoundRoom={isSoundRoom}
-                isExpanded={isThisExpanded}
-                childCount={containerMeta[item.id]?.childCount}
-                firstChildThumb={containerMeta[item.id]?.firstThumb}
-              />
-            </div>
-            {/* Container click interceptor — only containers are doors */}
-            {isContainer && !expanded && (
-              <div className="absolute inset-0 z-10 cursor-pointer" onClick={() => expand(item.id)} />
-            )}
+        )}
+        {rest.length > 0 && (
+          <div className={layoutConfig.containerClass}>
+            {rest.map((item: any, i: number) => renderMasonryTile(item, i + 1))}
           </div>
-        )
-
-        if (isOwner) {
-          return (
-            <SortableTileWrapper key={item.id} item={item} idx={idx} className={gridClass} disabled={!!expanded}>
-              {tileInner}
-            </SortableTileWrapper>
-          )
-        }
-
-        // S image tiles outside puzzle grid: SAspectShell manages the outer cell class.
-        // Starts from stored/resolved aspect, updates on image load via context.
-        // resolvedSAspect covers grid mode; tileAspect covers mix mode (already resolved).
-        if (tileSize === 1 && !isPuzzleGrid && !isSoundRoom && item.type === 'image') {
-          return (
-            <SAspectShell key={item.id} initialAspect={resolvedSAspect ?? tileAspect}>
-              {tileInner}
-            </SAspectShell>
-          )
-        }
-
-        return <div key={item.id} className={gridClass}>{tileInner}</div>
-      })}
-    </div>
-  )
+        )}
+      </div>
+    )
+  } else {
+    // ── GRID: uniform masonry. Every column is the same width; tiles
+    //   flow at their native aspect ratios. No size-based span math. ──
+    gridInner = (
+      <div className={layoutConfig.containerClass} style={fadeStyle}>
+        {displayContent.map((item: any, idx: number) => renderMasonryTile(item, idx))}
+      </div>
+    )
+  }
 
   const activeGrid = isOwner ? (
     <DndContext
@@ -646,7 +740,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   ) : gridInner
 
   return (
-    <div className={`relative flex min-h-[100dvh] w-full flex-col overflow-x-clip${isPuzzleGrid ? ' fp-puzzle-page' : ''}`} style={{ background: theme.colors.background, color: theme.colors.text, '--fp-glass': theme.colors.glass, '--fp-text-muted': theme.colors.textMuted } as React.CSSProperties}>
+    <div className={`relative flex min-h-[100dvh] w-full flex-col overflow-x-clip${isGrid ? ' fp-puzzle-page' : ''}`} style={{ background: theme.colors.background, color: theme.colors.text, '--fp-glass': theme.colors.glass, '--fp-text-muted': theme.colors.textMuted } as React.CSSProperties}>
       {/* Wallpaper layer — GPU composited for 60fps scroll. Keyed by URL so
           a replaced wallpaper drops the previous decoded layer instead of
           repainting it under the new src while the new bytes load. */}
@@ -657,7 +751,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             alt=""
             fill
             priority
-            quality={60}
+            quality={90}
             sizes="100vw"
             fetchPriority="high"
             className={`object-cover transition-opacity duration-700 ${wallpaperLoaded ? 'opacity-100' : 'opacity-0'}`}
@@ -695,18 +789,38 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
       )}
 
-      {/* Top-right — owner home button. Not in DOM for visitors. Hidden during expansion. */}
+      {/* Corner home button — the keys to the door. Toggles editor chrome
+          on/off without leaving the page. Visible only to authenticated
+          owners. Hidden during container expansion to keep that overlay
+          clean. */}
       {isOwner && !expanded && (
-        <div className="fixed top-5 right-4 md:right-6 z-30">
-          <a
-            href={`/${footprint.username}/home`}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/[0.06] hover:bg-white/[0.12] transition touch-manipulation"
-          >
-            <svg className="w-3.5 h-3.5 text-white/40" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-            </svg>
-          </a>
-        </div>
+        <button
+          type="button"
+          aria-label={editorMode ? 'close editor' : 'open editor'}
+          aria-pressed={editorMode}
+          onClick={() => setEditorMode((v) => !v)}
+          className="fixed z-30 touch-manipulation"
+          style={{
+            bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
+            right: '16px',
+            width: 40,
+            height: 40,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: 999,
+            color: editorMode ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.5)',
+            transition: 'color 200ms ease',
+          }}
+        >
+          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75" />
+          </svg>
+        </button>
       )}
 
       <div
@@ -723,25 +837,55 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
         {/* Masthead */}
         <RemoveBubble slug={footprint.slug}>
-          <header className={`pb-4 md:pb-5 flex flex-col items-center px-4${isPuzzleGrid ? ' fp-puzzle-masthead' : ''}`}>
-            <h1
-              className={`${
-                displayTitle.length <= 3
-                  ? 'text-4xl md:text-6xl tracking-[0em] font-normal'
-                  : displayTitle.length <= 6
-                  ? 'text-4xl md:text-6xl tracking-[0.08em] font-normal'
-                  : displayTitle.length <= 12
-                  ? 'text-3xl md:text-5xl tracking-[0.14em] font-normal'
-                  : 'text-2xl md:text-4xl tracking-[0.06em] font-light'
-              }${isPuzzleGrid ? ' fp-puzzle-title' : ''}`}
-              style={{
-                color: theme.colors.text,
-                opacity: 0.92,
-                textShadow: footprint.background_url ? '0 2px 20px rgba(0,0,0,0.9)' : 'none',
-              }}
-            >
-              {displayTitle}
-            </h1>
+          <header className={`pb-4 md:pb-5 flex flex-col items-center px-4${isGrid ? ' fp-puzzle-masthead' : ''}`}>
+            {isOwner && editorMode && titleEditing ? (
+              <input
+                ref={titleInputRef}
+                value={displayTitleLocal}
+                onChange={(e) => setDisplayTitleLocal(e.target.value)}
+                onBlur={commitTitleEdit}
+                onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+                autoFocus
+                className={`bg-transparent outline-none text-center ${
+                  displayTitle.length <= 3
+                    ? 'text-4xl md:text-6xl tracking-[0em] font-normal'
+                    : displayTitle.length <= 6
+                    ? 'text-4xl md:text-6xl tracking-[0.08em] font-normal'
+                    : displayTitle.length <= 12
+                    ? 'text-3xl md:text-5xl tracking-[0.14em] font-normal'
+                    : 'text-2xl md:text-4xl tracking-[0.06em] font-light'
+                }${isGrid ? ' fp-puzzle-title' : ''}`}
+                style={{
+                  color: theme.colors.text,
+                  opacity: 0.92,
+                  textShadow: footprint.background_url ? '0 2px 20px rgba(0,0,0,0.9)' : 'none',
+                  borderBottom: '1px dashed rgba(255,255,255,0.20)',
+                  minWidth: '6ch',
+                }}
+              />
+            ) : (
+              <h1
+                onClick={() => { if (isOwner && editorMode) setTitleEditing(true) }}
+                role={isOwner && editorMode ? 'button' : undefined}
+                tabIndex={isOwner && editorMode ? 0 : undefined}
+                className={`${
+                  displayTitle.length <= 3
+                    ? 'text-4xl md:text-6xl tracking-[0em] font-normal'
+                    : displayTitle.length <= 6
+                    ? 'text-4xl md:text-6xl tracking-[0.08em] font-normal'
+                    : displayTitle.length <= 12
+                    ? 'text-3xl md:text-5xl tracking-[0.14em] font-normal'
+                    : 'text-2xl md:text-4xl tracking-[0.06em] font-light'
+                }${isGrid ? ' fp-puzzle-title' : ''}${isOwner && editorMode ? ' cursor-text' : ''}`}
+                style={{
+                  color: theme.colors.text,
+                  opacity: 0.92,
+                  textShadow: footprint.background_url ? '0 2px 20px rgba(0,0,0,0.9)' : 'none',
+                }}
+              >
+                {displayTitle}
+              </h1>
+            )}
           </header>
         </RemoveBubble>
 
@@ -782,13 +926,37 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </div>
         )}
 
+        {/* Layout toggle — owner editor only, sits just above the grid.
+            Live re-flow: PATCH fires async, layoutOverride updates the
+            renderer immediately. */}
+        {isOwner && editorMode && activeRoomId && (
+          <div className="flex justify-center mb-3 md:mb-4">
+            <div
+              className="flex items-center gap-1 px-2 py-1.5"
+              style={{
+                background: 'rgba(0,0,0,0.6)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 999,
+              }}
+            >
+              <LayoutToggle current={roomLayout} onToggle={handleLayoutToggle} />
+            </div>
+          </div>
+        )}
+
         {/* Grid */}
         <div
-          className={`fp-grid-arrive ${isRail ? 'w-full' : `fp-grid-container mx-auto w-full ${isPuzzleGrid ? 'fp-puzzle-frame px-5 md:px-8' : 'px-3 md:px-4'}`}`}
-          style={isRail ? undefined : { maxWidth: isPuzzleGrid ? '900px' : '880px' }}
+          className={`fp-grid-arrive ${isHorizontal ? 'w-full' : `fp-grid-container mx-auto w-full ${isGrid ? 'fp-puzzle-frame' : ''}`}`}
+          style={isHorizontal ? undefined : { maxWidth: isGrid ? '900px' : '880px' }}
         >
           {activeGrid}
         </div>
+
+        {/* Room breathing room — every room exhales 96px before any
+            subsequent UI. Magazine pacing. No abrupt endings. */}
+        <div style={{ height: 96 }} aria-hidden="true" />
 
         {/* ── Depth overlay: backdrop + close + child tiles ── */}
         {showOverlay && (
@@ -1073,6 +1241,44 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       {!isDraft && !claimActive && authChecked && !isOwner && (
         <FloatingCtaBar isOwner={isOwner} />
       )}
+
+      {/* Owner verbs — visible only when the corner home button is toggled
+          on AND no tile is selected. Selecting a tile swaps the bar out
+          for the tile sheet at the same vertical position. */}
+      {isOwner && editorMode && !selectedTileId && !expanded && !claimActive && (
+        <OwnerActionBar
+          open={editorMode}
+          slug={footprint.username}
+          activeRoomId={activeRoomId}
+          serialNumber={typeof footprint.serial_number === 'number' ? footprint.serial_number : null}
+          published={publishedLocal}
+          onPublishedChange={handlePublishedChange}
+          onTileAdded={handleTileAdded}
+          onTileReplaced={handleTileReplaced}
+          onTileProgress={handleTileProgress}
+        />
+      )}
+
+      {/* Tile editor sheet — shape, size, collection. Surfaces when an
+          owner taps a tile in editor mode. */}
+      {isOwner && editorMode && selectedTileId && !expanded && !claimActive && (() => {
+        const tile = localContent.find((t) => t.id === selectedTileId)
+          || allContent.find((t) => t.id === selectedTileId)
+        if (!tile) return null
+        const source = tileSources[tile.id] || (tile.type === 'image' || tile.type === 'video' ? 'library' : 'links')
+        const containers = (allContent || []).filter((t: any) => t.type === 'container')
+        return (
+          <OwnerTileSheet
+            tile={tile as any}
+            source={source as 'library' | 'links'}
+            containers={containers as any}
+            slug={footprint.username}
+            onClose={() => setSelectedTileId(null)}
+            onTileChange={handleTileChange}
+            onTileDelete={handleTileDelete}
+          />
+        )
+      })()}
 
       {/* Copied toast */}
       {showToast && (

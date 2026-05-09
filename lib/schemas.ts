@@ -49,9 +49,19 @@ export const contentReorderSchema = z.object({
 export const roomsPatchSchema = z.object({
   id: z.string().min(1, 'id required'),
   slug: z.string().optional(),
-  hidden: z.boolean().optional(),
   name: z.string().optional(),
-  layout: z.enum(['grid', 'mix', 'rail', 'editorial']).optional(),
+  // Accept both new (grid/horizontal/editorial) and legacy (mix/rail)
+  // vocabulary so an in-flight client with stale code can still write
+  // successfully during the cutover. The server normalizes legacy values
+  // to the new vocabulary before storing.
+  layout: z.enum(['grid', 'horizontal', 'editorial', 'mix', 'rail']).optional(),
+  position: z.number().int().nonnegative().optional(),
+  is_locked: z.boolean().optional(),
+  // 4-digit numeric passcode. Only consulted when is_locked === true on the
+  // same request (or when adding a passcode to an already-locked room).
+  // Owner clears protection by setting is_locked = false; the server drops
+  // the hash regardless of whether passcode is sent.
+  passcode: z.string().regex(/^\d{4}$/, 'passcode must be 4 digits').optional(),
 })
 
 export const roomsPostSchema = z.object({

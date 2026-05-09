@@ -23,14 +23,18 @@ interface FieldBackgroundProps {
   intensity?: 'theatre' | 'embed'
 }
 
+// Brightness ×1.25, saturation ×1.10, scrim ×0.75 — same lift ratios as
+// the room atmosphere table so field surfaces brighten in step with the
+// page they sit on. Embed stays dimmer than theatre by design (it sits
+// directly behind iframes and must read as ambient, not foreground).
 const INTENSITY = {
   theatre: {
-    filter: 'blur(35px) brightness(0.45) saturate(1.3)',
-    scrim: 'rgba(0,0,0,0.3)',
+    filter: 'blur(35px) brightness(0.56) saturate(1.43)',
+    scrim: 'rgba(0,0,0,0.22)',
   },
   embed: {
-    filter: 'blur(28px) brightness(0.35) saturate(1.2)',
-    scrim: 'rgba(0,0,0,0.25)',
+    filter: 'blur(28px) brightness(0.44) saturate(1.32)',
+    scrim: 'rgba(0,0,0,0.19)',
   },
 } as const
 

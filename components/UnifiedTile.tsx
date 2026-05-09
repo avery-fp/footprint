@@ -207,7 +207,7 @@ export default function UnifiedTile({
         href="/home"
         className="w-full h-full flex flex-col items-center justify-center p-6 group cursor-pointer no-underline relative"
         style={{
-          background: 'radial-gradient(circle at 50% 40%, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 70%)',
+          background: 'radial-gradient(circle at 50% 40%, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.06) 70%)',
           borderRadius: 'inherit',
           textDecoration: 'none',
         }}
@@ -228,7 +228,7 @@ export default function UnifiedTile({
     return (
       <div
         className="fp-text-tile-shell w-full h-full"
-        style={{ background: 'rgba(255,255,255,0.04)' }}
+        style={{ background: 'rgba(255,255,255,0.10)' }}
         data-tile-id={item.id}
         data-tile-type="thought"
       >
@@ -377,7 +377,7 @@ export default function UnifiedTile({
     return (
       <div
         className="fp-text-tile-shell w-full h-full"
-        style={{ background: 'rgba(255,255,255,0.04)' }}
+        style={{ background: 'rgba(255,255,255,0.10)' }}
         data-tile-id={item.id}
         data-tile-type="thought"
       >
@@ -468,7 +468,7 @@ export default function UnifiedTile({
         href="/home"
         className="w-full h-full flex flex-col items-center justify-center p-6 group cursor-pointer no-underline relative"
         style={{
-          background: 'radial-gradient(circle at 50% 40%, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 70%)',
+          background: 'radial-gradient(circle at 50% 40%, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.06) 70%)',
           borderRadius: 'inherit',
           textDecoration: 'none',
         }}
