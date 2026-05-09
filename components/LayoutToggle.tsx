@@ -7,7 +7,7 @@ interface LayoutToggleProps {
   onToggle: (next: RoomLayout) => void
 }
 
-const LAYOUTS: RoomLayout[] = ['grid', 'horizontal', 'editorial']
+const LAYOUTS: RoomLayout[] = ['grid', 'horizontal']
 
 function GridIcon() {
   // Pinterest-style masonry hint — uniform widths, varying heights.
@@ -32,21 +32,9 @@ function HorizontalIcon() {
   )
 }
 
-function EditorialIcon() {
-  // Hero across the top, supporting tiles below in two columns.
-  return (
-    <svg width={14} height={14} viewBox="0 0 14 14" fill="currentColor">
-      <rect x="0" y="0" width="14" height="6" rx="1" />
-      <rect x="0" y="8" width="6" height="6" rx="1" />
-      <rect x="8" y="8" width="6" height="6" rx="1" />
-    </svg>
-  )
-}
-
 const ICONS: Record<RoomLayout, React.ReactNode> = {
   grid: <GridIcon />,
   horizontal: <HorizontalIcon />,
-  editorial: <EditorialIcon />,
 }
 
 export default function LayoutToggle({ current, onToggle }: LayoutToggleProps) {

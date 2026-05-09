@@ -58,7 +58,7 @@ export interface Tile {
 export interface Room {
   id: string
   name: string
-  layout: 'grid' | 'horizontal' | 'editorial'
+  layout: 'grid' | 'horizontal'
   position: number
   is_locked: boolean
   // Whether the row carries a passcode hash. Never expose the hash itself
@@ -80,12 +80,12 @@ export interface FootprintLoadResult {
 }
 
 function normalizeRoomLayout(raw: unknown): Room['layout'] {
-  // Renamed vocabulary: rail → horizontal, mix → editorial. Self-heal on
+  // Renamed vocabulary: rail → horizontal, mix/editorial → grid. Self-heal on
   // every read so DB rows can carry stale values forever without breaking
-  // the renderer. The next layout-toggle click writes the new vocabulary.
+  // the renderer.
   if (raw === 'rail') return 'horizontal'
-  if (raw === 'mix') return 'editorial'
-  if (raw === 'grid' || raw === 'horizontal' || raw === 'editorial') return raw
+  if (raw === 'mix' || raw === 'editorial') return 'grid'
+  if (raw === 'grid' || raw === 'horizontal') return raw
   return 'grid'
 }
 

@@ -50,9 +50,6 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // intentionally empty — one-time mount check only
 
-  const isEditorial = layout === 'editorial'
-  const isAuto = aspect === 'auto'
-
   if (failed && videoFailed) return null
 
   if (failed) {
@@ -95,28 +92,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
   // Shimmer placeholder visible until image loads
   const shimmer = !loaded ? <div className="absolute inset-0 fp-skeleton" /> : null
 
-  // editorial mode → match edit page: width/height Image with absolute positioning
-  if (isEditorial) {
-    return (
-      <>
-        {shimmer}
-        <Image
-          src={src}
-          alt={alt}
-          width={800}
-          height={800}
-          sizes={sizes}
-          className={`${isAuto ? 'w-full h-auto' : 'absolute inset-0 w-full h-full'} ${getObjectFit(aspect || 'square', size)} transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
-          loading="eager"
-          quality={90}
-          onLoad={() => setLoaded(true)}
-          onError={() => setFailed(true)}
-        />
-      </>
-    )
-  }
-
-  // grid (default) → Next.js Image fill + object-cover.
+  // grid/horizontal → Next.js Image fill + object-cover.
   return (
     <div ref={containerRef} className="absolute inset-0">
       {shimmer}

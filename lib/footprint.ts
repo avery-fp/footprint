@@ -11,7 +11,7 @@ export interface FootprintStateRoomSnapshot {
   id?: string | null
   name: string
   position: number
-  layout?: 'grid' | 'editorial'
+  layout?: 'grid' | 'horizontal'
 }
 
 export interface FootprintStateTileSnapshot {
@@ -120,7 +120,8 @@ export function normalizeFootprintStateSnapshot(input: unknown): FootprintStateS
     rooms: rooms
       .map((room, index) => {
         const value = isRecord(room) ? room : {}
-        const layout = value.layout === 'editorial' ? 'editorial' : 'grid'
+        const layout: 'grid' | 'horizontal' =
+          value.layout === 'horizontal' || value.layout === 'rail' ? 'horizontal' : 'grid'
 
         return {
           id: stringOrNull(value.id),

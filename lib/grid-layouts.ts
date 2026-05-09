@@ -1,30 +1,26 @@
 /**
  * Room-level layout configuration
  *
- * Three modes, three identities:
+ * Two modes:
  *  - grid:       responsive grid — tile width follows size, tile height
  *                follows native aspect. Browse-mode reading.
  *  - horizontal: cinematic rail — fixed-height row of variable-width tiles,
  *                each rendered at its own native aspect. Swipe/scroll.
- *  - editorial:  magazine asymmetry — first tile becomes the hero (full
- *                width, native aspect), supporting tiles flow beneath in
- *                two-column masonry, also at native aspect.
  *
  * NO BLACK BARS doctrine: every tile renders at its content's native
  * aspect. The shape pill (square/wide/tall) is a fallback when source
  * dimensions are unknown — never a forced cell shape.
  *
- * Legacy values self-heal in lib/loadFootprint.ts: rail → horizontal,
- * mix → editorial. The DB can carry stale values forever; reads
- * normalize on the way out.
+ * Legacy values self-heal: rail → horizontal, mix/editorial → grid.
+ * The DB can carry stale values forever; reads normalize on the way out.
  */
 
-export type RoomLayout = 'grid' | 'horizontal' | 'editorial'
+export type RoomLayout = 'grid' | 'horizontal'
 
 interface LayoutConfig {
   /**
- * Container around the tile loop. Grid + editorial-supporting use CSS
- * grid so S/M/L can actually change width. Horizontal is a flex row.
+   * Container around the tile loop. Grid uses CSS grid so S/M/L can
+   * change width. Horizontal is a flex row.
    */
   containerClass: string
   /**
@@ -38,8 +34,6 @@ interface LayoutConfig {
 
 const LAYOUTS: Record<RoomLayout, LayoutConfig> = {
   grid: {
-    // Actual grid, not CSS columns. Columns made size edits mostly
-    // decorative because items couldn't span real tracks.
     containerClass: 'grid grid-cols-2 md:grid-cols-3 gap-2.5 md:gap-3 px-4 md:px-6 lg:px-8 items-start',
     tileClass: 'relative overflow-hidden rounded-2xl',
   },
@@ -48,19 +42,14 @@ const LAYOUTS: Record<RoomLayout, LayoutConfig> = {
     tileClass: 'flex-shrink-0 snap-center relative overflow-hidden rounded-2xl',
     isHorizontal: true,
   },
-  editorial: {
-    // The supporting (post-hero) container — hero is rendered in a sibling
-    // wrapper. Grid tracks let size edits remain visible here too.
-    containerClass: 'grid grid-cols-2 md:grid-cols-3 gap-2.5 md:gap-3 px-4 md:px-6 lg:px-8 items-start',
-    tileClass: 'relative overflow-hidden rounded-2xl',
-  },
 }
 
 export function getGridLayout(layout?: string): LayoutConfig {
-  // Map legacy values: rail → horizontal, mix → editorial.
+  // Map legacy values: rail → horizontal, mix/editorial → grid.
   const mapped =
     layout === 'rail' ? 'horizontal' :
-    layout === 'mix' ? 'editorial' :
+    layout === 'mix' ? 'grid' :
+    layout === 'editorial' ? 'grid' :
     layout
   if (mapped && mapped in LAYOUTS) return LAYOUTS[mapped as RoomLayout]
   return LAYOUTS.grid
@@ -69,17 +58,16 @@ export function getGridLayout(layout?: string): LayoutConfig {
 export function nextLayout(current?: string): RoomLayout {
   const mapped =
     current === 'rail' ? 'horizontal' :
-    current === 'mix' ? 'editorial' :
+    current === 'mix' ? 'grid' :
+    current === 'editorial' ? 'grid' :
     current
   if (mapped === 'grid') return 'horizontal'
-  if (mapped === 'horizontal') return 'editorial'
   return 'grid'
 }
 
 export const LAYOUT_LABELS: Record<RoomLayout, string> = {
   grid: 'grid',
   horizontal: 'horizontal',
-  editorial: 'editorial',
 }
 
 /**

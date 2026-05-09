@@ -124,7 +124,7 @@ export async function PATCH(request: NextRequest) {
       // for any rows that already carry stale layout values.
       updates.layout =
         layout === 'rail' ? 'horizontal' :
-        layout === 'mix' ? 'editorial' :
+        layout === 'mix' || layout === 'editorial' ? 'grid' :
         layout
     }
     if (typeof position === 'number') updates.position = position

@@ -50,10 +50,8 @@ export const roomsPatchSchema = z.object({
   id: z.string().min(1, 'id required'),
   slug: z.string().optional(),
   name: z.string().optional(),
-  // Accept both new (grid/horizontal/editorial) and legacy (mix/rail)
-  // vocabulary so an in-flight client with stale code can still write
-  // successfully during the cutover. The server normalizes legacy values
-  // to the new vocabulary before storing.
+  // Accept new (grid/horizontal) and all legacy values (editorial/mix/rail).
+  // Server normalizes to grid|horizontal before storing.
   layout: z.enum(['grid', 'horizontal', 'editorial', 'mix', 'rail']).optional(),
   position: z.number().int().nonnegative().optional(),
   is_locked: z.boolean().optional(),

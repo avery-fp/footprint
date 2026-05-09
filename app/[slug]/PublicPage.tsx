@@ -826,10 +826,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   }
 
   // ═══════════════════════════════════════════
-  // LAYOUT — three modes, three identities, no black bars anywhere.
-  //  · grid:       uniform masonry (CSS columns); native-aspect cells
+  // LAYOUT — two modes, no black bars anywhere.
+  //  · grid:       uniform masonry; native-aspect cells
   //  · horizontal: cinematic rail; native-aspect, fixed rail height
-  //  · editorial:  hero + 2-col supporting masonry; native-aspect throughout
   //
   // Every tile renders at its content's native aspect-ratio via inline
   // style, with the shape pill as fallback when source dims are unknown.
@@ -843,7 +842,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   ) as RoomLayout
   const layoutConfig = getGridLayout(roomLayout)
   const isHorizontal = roomLayout === 'horizontal'
-  const isEditorial = roomLayout === 'editorial'
   const isGrid = roomLayout === 'grid'
   const displayContent = isOwner ? localContent : content
 
@@ -990,9 +988,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     )
   }
 
-  // Outer wrapper for grid + editorial-supporting masonry. Sets the
-  // tile's CSS aspect-ratio inline so the cell shape matches the
-  // content's native aspect — no letterbox, no pillarbox.
+  // Per-tile wrapper for grid masonry. Sets the CSS aspect-ratio inline
+  // so the cell shape matches the content's native aspect — no letterbox.
   const renderMasonryTile = (item: any, idx: number) => {
     const aspectCss = tileAspectCss(item)
     const tileBody = renderTileBody(item, idx)
@@ -1070,42 +1067,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             </div>
           )
         })}
-      </div>
-    )
-  } else if (isEditorial) {
-    // ── EDITORIAL: hero + supporting masonry. The first tile fills the
-    // full width at its native aspect; everything after flows in two
-    // columns of native-aspect masonry beneath. Magazine pacing. ──
-    const [hero, ...rest] = displayContent
-    gridInner = (
-      <div style={fadeStyle}>
-        {hero && (
-          <div className="px-4 md:px-6 lg:px-8 mb-2.5 md:mb-3">
-            {(() => {
-              const aspectCss = tileAspectCss(hero)
-              const wrapperStyle: React.CSSProperties = { aspectRatio: aspectCss, ...tileSizeStyle(hero) }
-              const body = renderTileBody(hero, 0)
-              const wrapperClass = 'relative overflow-hidden rounded-2xl'
-              if (isOwner) {
-                return (
-                  <SortableTileWrapper item={hero} idx={0} className={wrapperClass} style={wrapperStyle} disabled={!!expanded}>
-                    {body}
-                  </SortableTileWrapper>
-                )
-              }
-              return (
-                <div className={wrapperClass} style={wrapperStyle}>
-                  {body}
-                </div>
-              )
-            })()}
-          </div>
-        )}
-        {rest.length > 0 && (
-          <div className={layoutConfig.containerClass}>
-            {rest.map((item: any, i: number) => renderMasonryTile(item, i + 1))}
-          </div>
-        )}
       </div>
     )
   } else {

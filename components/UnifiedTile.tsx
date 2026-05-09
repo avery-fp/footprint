@@ -396,7 +396,7 @@ export default function UnifiedTile({
     if (mode === 'public') {
       return (
         <div
-          className={`${isAuto && layout === 'editorial' ? 'w-full' : 'w-full h-full'} relative`}
+          className="w-full h-full relative"
           data-tile-id={item.id}
           data-tile-type="image"
         >
