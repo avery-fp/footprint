@@ -865,15 +865,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     return tileAspectRatio(resolved)
   }
 
-  const tileSizeStyle = (item: any): React.CSSProperties => {
-    if (isHorizontal) return {}
-    const size = Number(item.size || 1)
-    // S (1) and M (2) both fill their single column at 100%.
-    // Differentiation between S and M is expressed via aspect ratio (row
-    // height), not width percentage. L (3) spans two columns.
-    if (size >= 3) return { gridColumn: 'span 2' }
-    return { gridColumn: 'span 1' }
-  }
 
   const fadeStyle = {
     opacity: roomFade === 'out' ? 0 : 1,
@@ -971,36 +962,23 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     )
   }
 
-  // Per-tile wrapper for grid masonry. Sets the CSS aspect-ratio inline
-  // so the cell shape matches the content's native aspect — no letterbox.
+  // Per-tile wrapper for grid masonry. Uses getGridClass (the tuned
+  // col/row span + aspect engine from lib/media/aspect.ts) so every
+  // tile gets the right footprint from size × resolved-aspect.
   const renderMasonryTile = (item: any, idx: number) => {
-    const aspectCss = tileAspectCss(item)
+    const resolved = resolveAspect(item.aspect, item.type, item.url)
+    const gridClass = getGridClass(Number(item.size || 1), resolved)
     const tileBody = renderTileBody(item, idx)
-    const wrapperClass = layoutConfig.tileClass
-    const wrapperStyle: React.CSSProperties = { aspectRatio: aspectCss, ...tileSizeStyle(item) }
+    const wrapperClass = `relative overflow-hidden rounded-2xl ${gridClass}`
     if (isOwner) {
       return (
-        <SortableTileWrapper key={item.id} item={item} idx={idx} className={wrapperClass} style={wrapperStyle} disabled={!!expanded}>
+        <SortableTileWrapper key={item.id} item={item} idx={idx} className={wrapperClass} disabled={!!expanded}>
           {tileBody}
         </SortableTileWrapper>
       )
     }
-    // Image tiles with no explicit shape pick get SAspectShell so the
-    // cell refines from square → 3/4 or 4/3 once natural dimensions
-    // arrive. Inline aspect-ratio is omitted in this branch so SAspect's
-    // class wins.
-    const stored = item.aspect
-    const explicit = stored === 'square' || stored === 'wide' || stored === 'tall'
-    if (item.type === 'image' && !explicit) {
-      const resolved = resolveAspect(item.aspect, item.type, item.url)
-      return (
-        <div key={item.id} className={wrapperClass} style={tileSizeStyle(item)}>
-          <SAspectShell initialAspect={resolved}>{tileBody}</SAspectShell>
-        </div>
-      )
-    }
     return (
-      <div key={item.id} className={wrapperClass} style={wrapperStyle}>
+      <div key={item.id} className={wrapperClass}>
         {tileBody}
       </div>
     )
@@ -1056,7 +1034,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     // ── GRID: uniform masonry. Every column is the same width; tiles
     //   flow at their native aspect ratios. No size-based span math. ──
     gridInner = (
-      <div className={layoutConfig.containerClass} style={fadeStyle}>
+      <div className={layoutConfig.containerClass} style={{ ...fadeStyle, gridAutoFlow: 'dense' }}>
         {displayContent.map((item: any, idx: number) => renderMasonryTile(item, idx))}
       </div>
     )
