@@ -287,22 +287,28 @@ export default function OwnerTileSheet({
           </div>
         )}
 
-        {/* Row 4 — room */}
+        {/* Row 4 — room dropdown — relocates the tile to another room */}
         {rooms.length > 0 && (
-          <div style={{ ...rowStyle, alignItems: 'flex-start', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <div style={{ ...rowStyle, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
             <span style={rowLabel}>room</span>
-            <div className="flex max-w-[74%] flex-wrap justify-end gap-2">
+            <select
+              value={tile.room_id || ''}
+              onChange={(e) => handleRoom(e.target.value)}
+              style={{
+                ...pillBase,
+                paddingRight: 28,
+                appearance: 'none',
+                WebkitAppearance: 'none',
+                MozAppearance: 'none',
+                cursor: 'pointer',
+              }}
+            >
               {rooms.map((r) => (
-                <button
-                  key={r.id}
-                  type="button"
-                  onClick={() => handleRoom(r.id)}
-                  style={(tile.room_id || '') === r.id ? pillActive : pillBase}
-                >
+                <option key={r.id} value={r.id}>
                   {r.name || 'room'}
-                </button>
+                </option>
               ))}
-            </div>
+            </select>
           </div>
         )}
       </div>

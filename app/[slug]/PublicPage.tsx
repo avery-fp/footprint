@@ -772,60 +772,38 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             }}
           />
         ) : (
-          <>
-            <button
-              onClick={() => goToRoom(room.id)}
-              className="transition-all duration-300 touch-manipulation flex items-center gap-1"
-              style={{
-                fontSize: '11px',
-                letterSpacing: '2.5px',
-                textTransform: 'lowercase',
-                fontWeight: isActive ? 400 : 300,
-                color: isActive ? 'white' : 'rgba(255,255,255,0.4)',
-                textShadow: '0 1px 8px rgba(0,0,0,0.5)',
-                background: 'none',
-                border: 'none',
-                padding: '8px 2px',
-                margin: '-8px -2px',
-                cursor: 'pointer',
-              }}
-            >
-              {room.name}
-              {room.is_locked && (
-                <svg width="9" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-label="locked" style={{ opacity: 0.55 }}>
-                  <rect x="5" y="11" width="14" height="10" rx="1.5" />
-                  <path d="M8 11V7a4 4 0 018 0v4" />
-                </svg>
-              )}
-            </button>
-            {/* Per-room edit icon — visible to owner in editor mode.
-                Tap opens the rename + lock + delete popover for this
-                room. Visible chrome, not hidden behind tap-on-pill. */}
-            {isOwner && editorMode && (
-              <button
-                type="button"
-                aria-label={`edit room ${room.name}`}
-                onClick={() => { setRenameValue(room.name); setPillMenuOpenForId(room.id) }}
-                className="touch-manipulation"
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'rgba(255,255,255,0.45)',
-                  cursor: 'pointer',
-                  padding: '6px 4px',
-                  marginLeft: 2,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                }}
-              >
-                <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <circle cx="5" cy="12" r="1" />
-                  <circle cx="12" cy="12" r="1" />
-                  <circle cx="19" cy="12" r="1" />
-                </svg>
-              </button>
+          <button
+            onClick={() => {
+              if (isActive && isOwner && editorMode) {
+                setRenameValue(room.name)
+                setPillMenuOpenForId(room.id)
+              } else {
+                goToRoom(room.id)
+              }
+            }}
+            className="transition-all duration-300 touch-manipulation flex items-center gap-1"
+            style={{
+              fontSize: '11px',
+              letterSpacing: '2.5px',
+              textTransform: 'lowercase',
+              fontWeight: isActive ? 400 : 300,
+              color: isActive ? 'white' : 'rgba(255,255,255,0.4)',
+              textShadow: '0 1px 8px rgba(0,0,0,0.5)',
+              background: 'none',
+              border: 'none',
+              padding: '8px 2px',
+              margin: '-8px -2px',
+              cursor: 'pointer',
+            }}
+          >
+            {room.name}
+            {room.is_locked && (
+              <svg width="9" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-label="locked" style={{ opacity: 0.55 }}>
+                <rect x="5" y="11" width="14" height="10" rx="1.5" />
+                <path d="M8 11V7a4 4 0 018 0v4" />
+              </svg>
             )}
-          </>
+          </button>
         )}
       </div>
     )
@@ -1237,6 +1215,21 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </button>
       )}
 
+      {/* Layout toggle — three small icons, fixed on the right side
+          beneath the edit/done button. Editor-mode only. */}
+      {isOwner && editorMode && !expanded && (
+        <div
+          className="fixed z-30"
+          style={{
+            top: 'calc(env(safe-area-inset-top, 0px) + 60px)',
+            right: '16px',
+          }}
+          data-no-wp-press
+        >
+          <LayoutToggle current={roomLayout} onToggle={(next) => handleLayoutToggle(next)} />
+        </div>
+      )}
+
       <div
         className={`relative z-10 flex-1 flex flex-col${isOwner && editorMode ? ' pb-[96px]' : ''}`}
         style={{
@@ -1337,34 +1330,25 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                     type="button"
                     aria-label="add room"
                     onClick={handleRoomCreate}
-                    className="touch-manipulation"
+                    className="touch-manipulation whitespace-nowrap"
                     style={{
                       fontSize: '11px',
                       letterSpacing: '2.5px',
                       textTransform: 'lowercase',
                       fontWeight: 300,
-                      color: 'rgba(255,255,255,0.20)',
+                      color: 'rgba(255,255,255,0.45)',
                       background: 'none',
                       border: 'none',
-                      padding: '8px 14px',
+                      padding: '8px 6px',
                       margin: '-8px -2px',
                       cursor: 'pointer',
                     }}
                   >
-                    +
+                    + new room
                   </button>
                 )}
               </div>
 
-              {isOwner && editorMode && (
-                <div
-                  className="absolute left-1/2 z-30 -translate-x-1/2"
-                  style={{ top: roomNavDocked ? 'calc(env(safe-area-inset-top, 0px) + 42px)' : 34 }}
-                  data-no-wp-press
-                >
-                  <LayoutToggle current={roomLayout} onToggle={(next) => handleLayoutToggle(next)} />
-                </div>
-              )}
             </div>
 
             {/* Room ⋯ popover — vertical menu, single render at the row

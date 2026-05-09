@@ -28,10 +28,10 @@ interface OwnerActionBarProps {
 }
 
 const glassBar: React.CSSProperties = {
-  background: 'rgba(0,0,0,0.62)',
-  backdropFilter: 'blur(20px)',
-  WebkitBackdropFilter: 'blur(20px)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.06)',
+  backdropFilter: 'blur(24px) saturate(140%)',
+  WebkitBackdropFilter: 'blur(24px) saturate(140%)',
+  border: '1px solid rgba(255,255,255,0.10)',
   borderRadius: 999,
 }
 
