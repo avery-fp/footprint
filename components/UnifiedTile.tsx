@@ -139,7 +139,7 @@ function VideoTile({ url, id }: { url: string; id: string }) {
     : undefined
 
   return (
-    <div ref={containerRef} className="w-full h-full relative" data-tile-id={id} data-tile-type="video">
+    <div ref={containerRef} className="w-full h-full relative group" data-tile-id={id} data-tile-type="video">
       <div className="absolute inset-0 cursor-pointer" onClick={(e) => {
         const v = e.currentTarget.querySelector('video')
         if (!v) return
@@ -157,10 +157,45 @@ function VideoTile({ url, id }: { url: string; id: string }) {
           autoPlay={isPlayable}
           preload={isInView ? 'metadata' : 'none'}
         />
-        <div data-mute-dot className="absolute bottom-2.5 right-2.5 pointer-events-none transition-opacity duration-300" style={{ opacity: 0.35 }}>
+        <div data-mute-dot className="absolute bottom-2.5 left-2.5 pointer-events-none transition-opacity duration-300" style={{ opacity: 0.35 }}>
           <div className="w-2 h-2 rounded-full" style={{ background: '#fff' }} />
         </div>
       </div>
+      <button
+        type="button"
+        aria-label="Fullscreen"
+        onClick={(e) => {
+          e.stopPropagation()
+          const v = videoRef.current as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null
+          if (v && typeof v.webkitEnterFullscreen === 'function') {
+            try { v.webkitEnterFullscreen(); return } catch {}
+          }
+          if (v?.requestFullscreen) {
+            v.requestFullscreen().catch(() => {})
+            return
+          }
+          const container = containerRef.current
+          if (container?.requestFullscreen) container.requestFullscreen().catch(() => {})
+        }}
+        className="absolute flex items-center justify-center text-white/85 hover:text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:opacity-100 transition-opacity duration-300"
+        style={{
+          bottom: 12,
+          right: 12,
+          width: 28,
+          height: 28,
+          borderRadius: 999,
+          zIndex: 3,
+          background: 'rgba(0,0,0,0.45)',
+          backdropFilter: 'blur(10px) saturate(140%)',
+          WebkitBackdropFilter: 'blur(10px) saturate(140%)',
+          boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08)',
+          pointerEvents: 'auto',
+        }}
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6" />
+        </svg>
+      </button>
     </div>
   )
 }
@@ -258,7 +293,7 @@ export default function UnifiedTile({
       case 'native_video':
         return (
           <div className="w-full h-full" data-tile-id={item.id} data-tile-type="native-video">
-            <video src={item.url && !item.url.includes('#') ? `${item.url}#t=0.1` : item.url} className="w-full h-full object-cover" muted loop playsInline preload="metadata" autoPlay />
+            {item.url ? <VideoTile url={item.url} id={item.id} /> : null}
           </div>
         )
       case 'embed':
