@@ -594,9 +594,33 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomsLocal, tileSources, footprint.username])
 
-  // Wallpaper upload now flows through OwnerActionBar — that component
-  // owns the file input and the upload, calls handleWallpaperChange on
-  // completion. Nothing else to do here.
+  // Wallpaper upload — owned here so the per-room ⋯ popover can trigger
+  // it. The ⋯ popover renders a hidden file input pointing at this
+  // handler; selecting a file uploads to storage, then calls
+  // handleWallpaperChange to optimistic-update the page.
+  const wallpaperFileInputRef = useRef<HTMLInputElement>(null)
+  const [wallpaperUploading, setWallpaperUploading] = useState(false)
+  async function handleWallpaperPicked(file: File) {
+    if (wallpaperUploading || !footprint.serial_number) return
+    setWallpaperUploading(true)
+    try {
+      const { uploadWithProgress, resizeImage } = await import('@/lib/upload')
+      let resized: File
+      try { resized = await resizeImage(file, 2400) } catch { resized = file }
+      const filename = `${footprint.serial_number}/bg-${Date.now()}.jpg`
+      const publicUrl = await uploadWithProgress(
+        new File([resized], filename, { type: 'image/jpeg' }),
+        filename,
+        () => {},
+        footprint.username,
+      )
+      handleWallpaperChange(publicUrl)
+    } catch (e) {
+      console.error('wallpaper upload failed', e)
+    } finally {
+      setWallpaperUploading(false)
+    }
+  }
 
   function handleDragStart(event: DragStartEvent) {
     setDraggingTileId(String(event.active.id))
@@ -1286,84 +1310,127 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               </div>
             </div>
 
-            {/* Room pill inline panel — single render at the row level
-                instead of per-pill, so it never clips off-screen for
-                edge pills. Centered below the nav row. Bare icons +
-                bare delete link, no glass capsule. */}
-            {isOwner && editorMode && pillMenuOpenForId && activeRoomId === pillMenuOpenForId && (
-              <>
-                <div className="fixed inset-0 z-[39]" onClick={() => setPillMenuOpenForId(null)} />
-                <div
-                  data-no-wp-press
-                  className="absolute z-40 flex items-center gap-3 px-1 py-1 font-mono"
-                  style={{
-                    top: roomNavDocked ? 'calc(env(safe-area-inset-top, 0px) + 60px)' : 44,
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    backdropFilter: 'blur(16px)',
-                    WebkitBackdropFilter: 'blur(16px)',
-                    borderRadius: 4,
-                    whiteSpace: 'nowrap',
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <LayoutToggle current={roomLayout} onToggle={(next) => handleLayoutToggle(next)} />
-                  <span style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.18)' }} />
-                  {/* Lock toggle — public ↔ locked. Going to locked
-                      prompts for a 4-digit passcode inline. */}
-                  {(() => {
-                    const room = roomsLocal.find((r) => r.id === pillMenuOpenForId)
-                    const locked = !!(room as any)?.is_locked
-                    return (
-                      <button
-                        type="button"
-                        aria-label={locked ? 'unlock room' : 'lock room'}
-                        onClick={() => { handleRoomLockToggle(pillMenuOpenForId); setPillMenuOpenForId(null) }}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: locked ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.55)',
-                          cursor: 'pointer',
-                          padding: 4,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                        }}
-                      >
-                        {locked ? (
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
-                            <rect x="5" y="11" width="14" height="10" rx="1.5" />
-                            <path d="M8 11V7a4 4 0 018 0v4" />
-                          </svg>
-                        ) : (
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
-                            <rect x="5" y="11" width="14" height="10" rx="1.5" />
-                            <path d="M8 11V7a4 4 0 014-4 4 4 0 014 4" />
-                          </svg>
-                        )}
-                      </button>
-                    )
-                  })()}
-                  <span style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.18)' }} />
-                  <button
-                    type="button"
-                    aria-label="delete room"
-                    onClick={() => { handleRoomDelete(pillMenuOpenForId); setPillMenuOpenForId(null) }}
+            {/* Room ⋯ popover — vertical menu, single render at the row
+                level so it never clips off-screen for edge pills.
+                Centered below the nav row. Sections: room (rename
+                input via active pill, layout, lock, delete) +
+                page-level (wallpaper, public/private). One place to
+                find every setting. */}
+            {isOwner && editorMode && pillMenuOpenForId && activeRoomId === pillMenuOpenForId && (() => {
+              const room = roomsLocal.find((r) => r.id === pillMenuOpenForId)
+              const locked = !!(room as any)?.is_locked
+              const labelStyle: React.CSSProperties = { color: 'rgba(255,255,255,0.40)', fontSize: 10, letterSpacing: '0.06em', textTransform: 'lowercase' }
+              const rowStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px' }
+              const actionStyle: React.CSSProperties = { background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.85)', cursor: 'pointer', fontSize: 12, letterSpacing: '0.04em', textTransform: 'lowercase', padding: '6px 10px', fontFamily: "'DM Mono', monospace" }
+              return (
+                <>
+                  <div className="fixed inset-0 z-[39]" onClick={() => setPillMenuOpenForId(null)} />
+                  <div
+                    data-no-wp-press
+                    className="absolute z-40 flex flex-col font-mono"
                     style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: 'rgba(220,90,90,0.75)',
-                      cursor: 'pointer',
-                      fontSize: 10,
-                      letterSpacing: '0.08em',
-                      textTransform: 'lowercase',
-                      padding: 4,
+                      top: roomNavDocked ? 'calc(env(safe-area-inset-top, 0px) + 60px)' : 44,
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      background: 'rgba(0,0,0,0.72)',
+                      backdropFilter: 'blur(20px)',
+                      WebkitBackdropFilter: 'blur(20px)',
+                      border: '1px solid rgba(255,255,255,0.10)',
+                      borderRadius: 12,
+                      minWidth: 240,
+                      overflow: 'hidden',
                     }}
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    delete
-                  </button>
-                </div>
-              </>
-            )}
+                    {/* Room rename — clicking opens inline rename input via the pill itself.
+                        Here we just show the room name as a header. */}
+                    <div style={{ padding: '10px 12px 6px 12px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                      <span style={labelStyle}>room</span>
+                    </div>
+
+                    {/* Rename row */}
+                    <button
+                      type="button"
+                      onClick={() => { setRenameValue(room?.name || ''); /* close popover; the pill input opens via separate state */ setPillMenuOpenForId(null); /* reopen pill rename via cycle: setPillMenuOpenForId again on next tick triggers the rename mode */ setTimeout(() => setPillMenuOpenForId(pillMenuOpenForId), 0) }}
+                      style={{ ...rowStyle, ...actionStyle, justifyContent: 'flex-start' }}
+                    >
+                      rename
+                    </button>
+
+                    {/* Layout selector */}
+                    <div style={rowStyle}>
+                      <span style={labelStyle}>layout</span>
+                      <LayoutToggle current={roomLayout} onToggle={(next) => handleLayoutToggle(next)} />
+                    </div>
+
+                    {/* Lock toggle */}
+                    <button
+                      type="button"
+                      onClick={() => { handleRoomLockToggle(pillMenuOpenForId); setPillMenuOpenForId(null) }}
+                      style={{ ...rowStyle, ...actionStyle, justifyContent: 'space-between', width: '100%' }}
+                    >
+                      <span>{locked ? 'unlock' : 'lock'}</span>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" style={{ opacity: 0.65 }}>
+                        <rect x="5" y="11" width="14" height="10" rx="1.5" />
+                        {locked ? <path d="M8 11V7a4 4 0 018 0v4" /> : <path d="M8 11V7a4 4 0 014-4 4 4 0 014 4" />}
+                      </svg>
+                    </button>
+
+                    {/* Delete row */}
+                    <button
+                      type="button"
+                      onClick={() => { handleRoomDelete(pillMenuOpenForId); setPillMenuOpenForId(null) }}
+                      style={{ ...rowStyle, ...actionStyle, justifyContent: 'flex-start', color: 'rgba(220,90,90,0.85)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+                    >
+                      delete room
+                    </button>
+
+                    {/* Page-level controls — wallpaper, public/private */}
+                    <div style={{ padding: '10px 12px 6px 12px' }}>
+                      <span style={labelStyle}>page</span>
+                    </div>
+
+                    {/* Blur toggle */}
+                    <button
+                      type="button"
+                      onClick={() => handleBlurToggle(!backgroundBlurLocal)}
+                      style={{ ...rowStyle, ...actionStyle, justifyContent: 'space-between', width: '100%' }}
+                    >
+                      <span>blur</span>
+                      <span style={{ color: backgroundBlurLocal ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.40)', fontSize: 10 }}>{backgroundBlurLocal ? 'on' : 'off'}</span>
+                    </button>
+
+                    {/* Wallpaper upload */}
+                    <button
+                      type="button"
+                      onClick={() => wallpaperFileInputRef.current?.click()}
+                      disabled={wallpaperUploading}
+                      style={{ ...rowStyle, ...actionStyle, justifyContent: 'flex-start', opacity: wallpaperUploading ? 0.4 : 1 }}
+                    >
+                      {wallpaperUploading ? 'uploading…' : 'change wallpaper'}
+                    </button>
+
+                    {/* Public/private toggle */}
+                    <button
+                      type="button"
+                      onClick={() => handlePublishedChange(!publishedLocal)}
+                      style={{ ...rowStyle, ...actionStyle, justifyContent: 'space-between', width: '100%' }}
+                    >
+                      <span>visibility</span>
+                      <span style={{ color: publishedLocal ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.40)', fontSize: 10 }}>{publishedLocal ? 'public' : 'private'}</span>
+                    </button>
+                  </div>
+                  {/* Hidden file input for wallpaper upload */}
+                  <input
+                    ref={wallpaperFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleWallpaperPicked(f); e.target.value = '' }}
+                  />
+                </>
+              )
+            })()}
           </div>
         )}
 
@@ -1676,11 +1743,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         <FloatingCtaBar isOwner={isOwner} />
       )}
 
-      {/* Owner editor toolbar — persistent glass capsule centered at
-          bottom when editor mode is on. Holds all owner-side daily-use
-          controls as labeled, visible buttons: creation verbs (link,
-          text, collection, image), layout selector, wallpaper (blur +
-          upload), published toggle. */}
+      {/* Owner editor toolbar — bottom of page when editor mode is on.
+          Four labeled creation verbs (link, text, collection, image).
+          That's the entire bar. Page settings (layout, wallpaper,
+          public/private) live in the per-room ⋯ popover above. */}
       {isOwner && editorMode && !selectedTileId && !expanded && !claimActive && (
         <OwnerActionBar
           open={editorMode}
@@ -1690,13 +1756,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           onTileAdded={handleTileAdded}
           onTileReplaced={handleTileReplaced}
           onTileProgress={handleTileProgress}
-          currentLayout={roomLayout}
-          onLayoutChange={handleLayoutToggle}
-          backgroundBlur={backgroundBlurLocal}
-          onBlurToggle={handleBlurToggle}
-          onWallpaperChange={handleWallpaperChange}
-          published={publishedLocal}
-          onPublishedChange={handlePublishedChange}
         />
       )}
 

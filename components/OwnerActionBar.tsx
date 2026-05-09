@@ -2,49 +2,29 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { uploadWithProgress, resizeImage, detectImageAspect } from '@/lib/upload'
-import LayoutToggle from '@/components/LayoutToggle'
-import { type RoomLayout } from '@/lib/grid-layouts'
 
 /**
- * OwnerActionBar — persistent editor toolbar.
+ * OwnerActionBar — bottom toolbar with the four creation verbs only.
  *
- * Visible only when the owner has tapped "edit" at the top-right. A
- * single glass capsule centered at the bottom of the page, holding
- * every owner-side daily-use control as a labeled, tappable button —
- * not behind any gesture. Conventional editor pattern.
+ * Four buttons: link, text, collection, image. Each labeled. That's it.
+ * Page-level settings (wallpaper, public/private) and room-level
+ * settings (layout, lock, rename, delete) live in the per-room ⋯
+ * popover, not here. The bottom bar is for "what to add."
  *
- * Sections (left → right):
- *   - Creation verbs: link, text, collection, image upload
- *   - Layout selector: grid / horizontal / editorial mini-icons
- *   - Wallpaper: blur toggle, upload-wallpaper
- *   - Published: eye toggle
- *
- * Each verb expands an inline input above the bar when tapped. Layout
- * and toggles fire immediately. All mutations are optimistic plus
- * fire-and-forget server PATCH/POST — no save action.
+ * Each verb expands a small input above the bar when tapped. Submit
+ * fires an optimistic add + server POST. No save action.
  */
 
-type Verb = 'idle' | 'link' | 'text' | 'collection' | 'image'
+type Verb = 'idle' | 'link' | 'text' | 'collection'
 
 interface OwnerActionBarProps {
   open: boolean
   slug: string
   activeRoomId: string | null
   serialNumber: number | null
-  // Tile creation
   onTileAdded: (tile: any) => void
   onTileReplaced: (tempId: string, real: any) => void
   onTileProgress: (tempId: string, pct: number) => void
-  // Layout
-  currentLayout: RoomLayout
-  onLayoutChange: (next: RoomLayout) => void
-  // Wallpaper
-  backgroundBlur: boolean
-  onBlurToggle: (next: boolean) => void
-  onWallpaperChange: (publicUrl: string) => void
-  // Published
-  published: boolean
-  onPublishedChange: (next: boolean) => void
 }
 
 const glassBar: React.CSSProperties = {
@@ -63,13 +43,6 @@ export default function OwnerActionBar({
   onTileAdded,
   onTileReplaced,
   onTileProgress,
-  currentLayout,
-  onLayoutChange,
-  backgroundBlur,
-  onBlurToggle,
-  onWallpaperChange,
-  published,
-  onPublishedChange,
 }: OwnerActionBarProps) {
   const [verb, setVerb] = useState<Verb>('idle')
   const [linkUrl, setLinkUrl] = useState('')
@@ -77,8 +50,7 @@ export default function OwnerActionBar({
   const [containerLabel, setContainerLabel] = useState('')
   const [busy, setBusy] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const wallpaperFileInputRef = useRef<HTMLInputElement>(null)
-  const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null)
+  const inputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     if (!open) {
@@ -206,7 +178,6 @@ export default function OwnerActionBar({
         if (data.tile) onTileReplaced(tempId, data.tile)
       }
       URL.revokeObjectURL(previewUrl)
-      setVerb('idle')
     } catch (e) {
       console.error('image upload failed', e)
     } finally {
@@ -214,126 +185,49 @@ export default function OwnerActionBar({
     }
   }
 
-  async function handleWallpaperPicked(file: File) {
-    if (busy || !serialNumber) return
-    setBusy(true)
-    try {
-      let resized: File
-      try { resized = await resizeImage(file, 2400) } catch { resized = file }
-      const filename = `${serialNumber}/bg-${Date.now()}.jpg`
-      const publicUrl = await uploadWithProgress(
-        new File([resized], filename, { type: 'image/jpeg' }),
-        filename,
-        () => {},
-        slug,
-      )
-      onWallpaperChange(publicUrl)
-    } catch (e) {
-      console.error('wallpaper upload failed', e)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const verbBtnBase: React.CSSProperties = {
+  const buttonStyle: React.CSSProperties = {
     background: 'transparent',
     border: 'none',
-    color: 'rgba(255,255,255,0.7)',
-    width: 36,
-    height: 36,
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    color: 'rgba(255,255,255,0.85)',
+    padding: '8px 14px',
+    fontSize: 12,
+    letterSpacing: '0.04em',
+    textTransform: 'lowercase',
+    fontFamily: "'DM Mono', 'Courier New', monospace",
     cursor: 'pointer',
     borderRadius: 999,
   }
-  const verbActive: React.CSSProperties = {
-    ...verbBtnBase,
+  const buttonActive: React.CSSProperties = {
+    ...buttonStyle,
     background: 'rgba(255,255,255,0.10)',
-    color: 'rgba(255,255,255,0.95)',
+    color: 'rgba(255,255,255,0.98)',
   }
-
-  const divider = <span className="mx-0.5" style={{ width: 1, height: 18, background: 'rgba(255,255,255,0.10)' }} />
 
   return (
     <div
-      className="fixed left-1/2 -translate-x-1/2 z-30 flex items-center gap-0.5 px-2 py-1.5 font-mono"
+      className="fixed left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 px-2 py-1.5"
       style={{
         ...glassBar,
         bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
-        maxWidth: 'min(560px, calc(100vw - 24px))',
+        maxWidth: 'min(440px, calc(100vw - 24px))',
       }}
       data-owner-action-bar
     >
-      {/* Creation verbs */}
-      <button type="button" aria-label="add link" title="link" style={verb === 'link' ? verbActive : verbBtnBase} onClick={() => setVerb(verb === 'link' ? 'idle' : 'link')}>
-        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
-        </svg>
+      <button type="button" style={verb === 'link' ? buttonActive : buttonStyle} onClick={() => setVerb(verb === 'link' ? 'idle' : 'link')}>
+        link
       </button>
-      <button type="button" aria-label="add text" title="text" style={verb === 'text' ? verbActive : verbBtnBase} onClick={() => setVerb(verb === 'text' ? 'idle' : 'text')}>
-        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h10M4 18h7" />
-        </svg>
+      <button type="button" style={verb === 'text' ? buttonActive : buttonStyle} onClick={() => setVerb(verb === 'text' ? 'idle' : 'text')}>
+        text
       </button>
-      <button type="button" aria-label="add collection" title="collection" style={verb === 'collection' ? verbActive : verbBtnBase} onClick={() => setVerb(verb === 'collection' ? 'idle' : 'collection')}>
-        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
-          <rect x="3" y="4.5" width="18" height="15" rx="1.5" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 9.5h16.5M3.75 14h10.5" />
-        </svg>
+      <button type="button" style={verb === 'collection' ? buttonActive : buttonStyle} onClick={() => setVerb(verb === 'collection' ? 'idle' : 'collection')}>
+        collection
       </button>
-      <button type="button" aria-label="add image" title="image" style={verbBtnBase} onClick={() => fileInputRef.current?.click()}>
-        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5z" />
-        </svg>
+      <button type="button" style={buttonStyle} onClick={() => fileInputRef.current?.click()}>
+        image
       </button>
 
       <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImagePicked(f); e.target.value = '' }} />
-      <input ref={wallpaperFileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleWallpaperPicked(f); e.target.value = '' }} />
 
-      {divider}
-
-      {/* Layout selector */}
-      <div className="flex items-center px-1">
-        <LayoutToggle current={currentLayout} onToggle={onLayoutChange} />
-      </div>
-
-      {divider}
-
-      {/* Wallpaper controls */}
-      <button type="button" aria-label={`blur ${backgroundBlur ? 'on' : 'off'}`} title={`blur ${backgroundBlur ? 'on' : 'off'}`} style={backgroundBlur ? verbActive : verbBtnBase} onClick={() => onBlurToggle(!backgroundBlur)}>
-        <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="3" />
-          <circle cx="12" cy="12" r="6" strokeOpacity="0.55" />
-          <circle cx="12" cy="12" r="9" strokeOpacity="0.30" />
-        </svg>
-      </button>
-      <button type="button" aria-label="upload wallpaper" title="wallpaper" style={verbBtnBase} onClick={() => wallpaperFileInputRef.current?.click()}>
-        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5A1.5 1.5 0 014.5 6h15A1.5 1.5 0 0121 7.5v9a1.5 1.5 0 01-1.5 1.5h-15A1.5 1.5 0 013 16.5v-9z" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16l4.5-4.5a2 2 0 012.83 0L15 16" />
-        </svg>
-      </button>
-
-      {divider}
-
-      {/* Published toggle */}
-      <button type="button" aria-label={published ? 'set private' : 'set public'} title={published ? 'public' : 'private'} style={verbBtnBase} onClick={() => onPublishedChange(!published)}>
-        {published ? (
-          <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-        ) : (
-          <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.243 4.243L9.88 9.88" />
-          </svg>
-        )}
-      </button>
-
-      {/* Inline input panel — slides in above the verb row when a
-          creation verb is selected. Always visible on selection,
-          never hidden behind a gesture. */}
       {(verb === 'link' || verb === 'text' || verb === 'collection') && (
         <div
           className="absolute left-0 right-0 px-3 py-2 flex items-center gap-2"
@@ -345,20 +239,20 @@ export default function OwnerActionBar({
         >
           {verb === 'link' && (
             <>
-              <input ref={(el) => { inputRef.current = el }} type="url" inputMode="url" placeholder="paste any link…" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submitLink() }} className="flex-1 bg-transparent text-white/80 placeholder-white/30 outline-none text-sm" />
-              <button onClick={submitLink} disabled={!linkUrl.trim() || busy} className="text-xs text-white/60 hover:text-white/90 px-2 py-1 disabled:opacity-30">{busy ? '…' : 'add'}</button>
+              <input ref={inputRef} type="url" inputMode="url" placeholder="paste any link…" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submitLink() }} className="flex-1 bg-transparent text-white/85 placeholder-white/30 outline-none text-sm font-mono" />
+              <button onClick={submitLink} disabled={!linkUrl.trim() || busy} className="text-xs text-white/70 hover:text-white/95 px-2 py-1 disabled:opacity-30 font-mono">{busy ? '…' : 'add'}</button>
             </>
           )}
           {verb === 'text' && (
             <>
-              <input ref={(el) => { inputRef.current = el }} type="text" placeholder="a thought…" value={thoughtText} onChange={(e) => setThoughtText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submitThought() }} className="flex-1 bg-transparent text-white/80 placeholder-white/30 outline-none text-sm" />
-              <button onClick={submitThought} disabled={!thoughtText.trim() || busy} className="text-xs text-white/60 hover:text-white/90 px-2 py-1 disabled:opacity-30">{busy ? '…' : 'add'}</button>
+              <input ref={inputRef} type="text" placeholder="a thought…" value={thoughtText} onChange={(e) => setThoughtText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submitThought() }} className="flex-1 bg-transparent text-white/85 placeholder-white/30 outline-none text-sm font-mono" />
+              <button onClick={submitThought} disabled={!thoughtText.trim() || busy} className="text-xs text-white/70 hover:text-white/95 px-2 py-1 disabled:opacity-30 font-mono">{busy ? '…' : 'add'}</button>
             </>
           )}
           {verb === 'collection' && (
             <>
-              <input ref={(el) => { inputRef.current = el }} type="text" placeholder="collection name…" value={containerLabel} onChange={(e) => setContainerLabel(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submitContainer() }} className="flex-1 bg-transparent text-white/80 placeholder-white/30 outline-none text-sm" />
-              <button onClick={submitContainer} disabled={!containerLabel.trim() || busy} className="text-xs text-white/60 hover:text-white/90 px-2 py-1 disabled:opacity-30">{busy ? '…' : 'add'}</button>
+              <input ref={inputRef} type="text" placeholder="collection name…" value={containerLabel} onChange={(e) => setContainerLabel(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submitContainer() }} className="flex-1 bg-transparent text-white/85 placeholder-white/30 outline-none text-sm font-mono" />
+              <button onClick={submitContainer} disabled={!containerLabel.trim() || busy} className="text-xs text-white/70 hover:text-white/95 px-2 py-1 disabled:opacity-30 font-mono">{busy ? '…' : 'add'}</button>
             </>
           )}
         </div>
