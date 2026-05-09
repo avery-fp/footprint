@@ -894,6 +894,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     const size = Number(item.size || 1)
     if (size <= 1) {
       return {
+        gridColumn: 'span 1',
         width: '72%',
         marginLeft: 'auto',
         marginRight: 'auto',
@@ -901,12 +902,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     }
     if (size >= 3) {
       return {
+        gridColumn: 'span 2',
         width: '100%',
         marginLeft: 'auto',
         marginRight: 'auto',
       }
     }
     return {
+      gridColumn: 'span 1',
       width: '88%',
       marginLeft: 'auto',
       marginRight: 'auto',

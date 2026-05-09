@@ -2,7 +2,7 @@
  * Room-level layout configuration
  *
  * Three modes, three identities:
- *  - grid:       uniform masonry — every column the same width, tile height
+ *  - grid:       responsive grid — tile width follows size, tile height
  *                follows native aspect. Browse-mode reading.
  *  - horizontal: cinematic rail — fixed-height row of variable-width tiles,
  *                each rendered at its own native aspect. Swipe/scroll.
@@ -23,8 +23,8 @@ export type RoomLayout = 'grid' | 'horizontal' | 'editorial'
 
 interface LayoutConfig {
   /**
-   * Container around the tile loop. For grid + editorial-supporting this
-   * uses CSS columns (masonry). For horizontal it's a flex row.
+ * Container around the tile loop. Grid + editorial-supporting use CSS
+ * grid so S/M/L can actually change width. Horizontal is a flex row.
    */
   containerClass: string
   /**
@@ -38,12 +38,10 @@ interface LayoutConfig {
 
 const LAYOUTS: Record<RoomLayout, LayoutConfig> = {
   grid: {
-    // CSS columns gives Pinterest-style masonry where each column is the
-    // same width but tiles flow at their native heights. break-inside-avoid
-    // keeps a single tile from splitting across columns. Page-shoulders
-    // doctrine: 16px mobile, 24px tablet, 32px desktop horizontal padding.
-    containerClass: 'columns-2 md:columns-3 gap-2.5 md:gap-3 px-4 md:px-6 lg:px-8',
-    tileClass: 'mb-2.5 md:mb-3 break-inside-avoid relative overflow-hidden rounded-2xl',
+    // Actual grid, not CSS columns. Columns made size edits mostly
+    // decorative because items couldn't span real tracks.
+    containerClass: 'grid grid-cols-2 md:grid-cols-3 gap-2.5 md:gap-3 px-4 md:px-6 lg:px-8 items-start',
+    tileClass: 'relative overflow-hidden rounded-2xl',
   },
   horizontal: {
     containerClass: 'flex flex-row overflow-x-auto gap-4 pb-4 hide-scrollbar',
@@ -52,9 +50,9 @@ const LAYOUTS: Record<RoomLayout, LayoutConfig> = {
   },
   editorial: {
     // The supporting (post-hero) container — hero is rendered in a sibling
-    // wrapper. Two columns on every viewport keeps the magazine feel.
-    containerClass: 'columns-2 gap-2.5 md:gap-3 px-4 md:px-6 lg:px-8',
-    tileClass: 'mb-2.5 md:mb-3 break-inside-avoid relative overflow-hidden rounded-2xl',
+    // wrapper. Grid tracks let size edits remain visible here too.
+    containerClass: 'grid grid-cols-2 md:grid-cols-3 gap-2.5 md:gap-3 px-4 md:px-6 lg:px-8 items-start',
+    tileClass: 'relative overflow-hidden rounded-2xl',
   },
 }
 
