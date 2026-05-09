@@ -129,6 +129,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // panel open. The same id also drives the rename-input rendering on
   // that pill. One pill open at a time.
   const [pillMenuOpenForId, setPillMenuOpenForId] = useState<string | null>(null)
+  // pageSettingsOpen — toggles the page-level settings popover (blur,
+  // wallpaper, visibility). Lives behind a single dedicated button in
+  // the editor right column, not inside any per-room menu.
+  const [pageSettingsOpen, setPageSettingsOpen] = useState(false)
   // Unlocked rooms (visitor-side, per-tab). Mirrors sessionStorage
   // entries so a refresh restores the unlocked state for the same tab,
   // but closing the tab re-locks on next paint per the privacy doctrine.
@@ -1173,12 +1177,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       )}
 
       {/* Layout toggle + remix — fixed on the right side beneath edit/done.
-          Editor-mode only. */}
+          Editor-mode only. Sits below the docked-nav lane so it doesn't
+          collide with room pills when the nav is fixed at the top. */}
       {isOwner && editorMode && !expanded && (
         <div
           className="fixed z-30 flex flex-col items-center gap-2"
           style={{
-            top: 'calc(env(safe-area-inset-top, 0px) + 60px)',
+            top: 'calc(env(safe-area-inset-top, 0px) + 108px)',
             right: '16px',
           }}
           data-no-wp-press
@@ -1201,7 +1206,89 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               <path d="M3 21v-5h5" />
             </svg>
           </button>
+          <button
+            type="button"
+            onClick={() => setPageSettingsOpen((v) => !v)}
+            aria-label="page settings"
+            aria-pressed={pageSettingsOpen}
+            title="page settings"
+            className="p-1.5 rounded-md transition-opacity touch-manipulation"
+            style={{ color: 'white', opacity: pageSettingsOpen ? 0.7 : 0.3 }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.opacity = '0.7' }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.opacity = pageSettingsOpen ? '0.7' : '0.3' }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="5" cy="12" r="2" />
+              <circle cx="12" cy="12" r="2" />
+              <circle cx="19" cy="12" r="2" />
+            </svg>
+          </button>
         </div>
+      )}
+
+      {/* Page settings popover — single home for blur, wallpaper, and
+          visibility. Hoisted out of the per-room menu so these page-wide
+          controls aren't tied to any one room. */}
+      {isOwner && editorMode && !expanded && pageSettingsOpen && (
+        <>
+          <div className="fixed inset-0 z-[39]" onClick={() => setPageSettingsOpen(false)} />
+          <div
+            data-no-wp-press
+            className="fixed z-40 flex flex-col font-mono"
+            style={{
+              top: 'calc(env(safe-area-inset-top, 0px) + 108px)',
+              right: 56,
+              background: 'rgba(0,0,0,0.72)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255,255,255,0.10)',
+              borderRadius: 12,
+              minWidth: 220,
+              overflow: 'hidden',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ padding: '10px 12px 6px 12px' }}>
+              <span style={{ color: 'rgba(255,255,255,0.40)', fontSize: 10, letterSpacing: '0.06em', textTransform: 'lowercase' }}>page</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleBlurToggle(!backgroundBlurLocal)}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.85)', cursor: 'pointer', fontSize: 12, letterSpacing: '0.04em', textTransform: 'lowercase', fontFamily: "'DM Mono', monospace", width: '100%' }}
+            >
+              <span>blur</span>
+              <span style={{ color: backgroundBlurLocal ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.40)', fontSize: 10 }}>{backgroundBlurLocal ? 'on' : 'off'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => wallpaperFileInputRef.current?.click()}
+              disabled={wallpaperUploading}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', padding: '8px 12px', background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.85)', cursor: 'pointer', fontSize: 12, letterSpacing: '0.04em', textTransform: 'lowercase', fontFamily: "'DM Mono', monospace", opacity: wallpaperUploading ? 0.4 : 1 }}
+            >
+              {wallpaperUploading ? 'uploading…' : 'change wallpaper'}
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePublishedChange(!publishedLocal)}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.85)', cursor: 'pointer', fontSize: 12, letterSpacing: '0.04em', textTransform: 'lowercase', fontFamily: "'DM Mono', monospace", width: '100%' }}
+            >
+              <span>visibility</span>
+              <span style={{ color: publishedLocal ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.40)', fontSize: 10 }}>{publishedLocal ? 'public' : 'private'}</span>
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Hidden wallpaper file input — kept at the page level so it's
+          available regardless of which popover is open. */}
+      {isOwner && editorMode && (
+        <input
+          ref={wallpaperFileInputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleWallpaperPicked(f); e.target.value = '' }}
+        />
       )}
 
       <div
@@ -1288,7 +1375,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           <div className="relative mb-4 h-12 md:mb-6">
             <div
               className={`${roomNavDocked ? 'fixed inset-x-0' : 'absolute inset-x-0'} z-30 flex items-center justify-center px-4 py-2 transition-[top] duration-300`}
-              style={{ top: roomNavDocked ? 'calc(env(safe-area-inset-top, 0px) + 24px)' : 0 }}
+              style={{ top: roomNavDocked ? 'calc(env(safe-area-inset-top, 0px) + 60px)' : 0 }}
             >
               <div className="flex max-w-full items-center gap-3 overflow-x-auto hide-scrollbar px-1 font-mono" data-no-wp-press>
                 {visibleRooms.map((room) => (
@@ -1327,10 +1414,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
             {/* Room ⋯ popover — vertical menu, single render at the row
                 level so it never clips off-screen for edge pills.
-                Centered below the nav row. Sections: room (rename
-                input via active pill, layout, lock, delete) +
-                page-level (wallpaper, public/private). One place to
-                find every setting. */}
+                Centered below the nav row. Room-scoped only (rename,
+                lock, delete). Page-wide settings live behind the
+                page-settings button in the right column. */}
             {isOwner && editorMode && pillMenuOpenForId && activeRoomId === pillMenuOpenForId && (() => {
               const room = roomsLocal.find((r) => r.id === pillMenuOpenForId)
               const locked = !!(room as any)?.is_locked
@@ -1389,54 +1475,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                     <button
                       type="button"
                       onClick={() => { handleRoomDelete(pillMenuOpenForId); setPillMenuOpenForId(null) }}
-                      style={{ ...rowStyle, ...actionStyle, justifyContent: 'flex-start', color: 'rgba(220,90,90,0.85)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+                      style={{ ...rowStyle, ...actionStyle, justifyContent: 'flex-start', color: 'rgba(220,90,90,0.85)' }}
                     >
                       delete room
                     </button>
-
-                    {/* Page-level controls — wallpaper, public/private */}
-                    <div style={{ padding: '10px 12px 6px 12px' }}>
-                      <span style={labelStyle}>page</span>
-                    </div>
-
-                    {/* Blur toggle */}
-                    <button
-                      type="button"
-                      onClick={() => handleBlurToggle(!backgroundBlurLocal)}
-                      style={{ ...rowStyle, ...actionStyle, justifyContent: 'space-between', width: '100%' }}
-                    >
-                      <span>blur</span>
-                      <span style={{ color: backgroundBlurLocal ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.40)', fontSize: 10 }}>{backgroundBlurLocal ? 'on' : 'off'}</span>
-                    </button>
-
-                    {/* Wallpaper upload */}
-                    <button
-                      type="button"
-                      onClick={() => wallpaperFileInputRef.current?.click()}
-                      disabled={wallpaperUploading}
-                      style={{ ...rowStyle, ...actionStyle, justifyContent: 'flex-start', opacity: wallpaperUploading ? 0.4 : 1 }}
-                    >
-                      {wallpaperUploading ? 'uploading…' : 'change wallpaper'}
-                    </button>
-
-                    {/* Public/private toggle */}
-                    <button
-                      type="button"
-                      onClick={() => handlePublishedChange(!publishedLocal)}
-                      style={{ ...rowStyle, ...actionStyle, justifyContent: 'space-between', width: '100%' }}
-                    >
-                      <span>visibility</span>
-                      <span style={{ color: publishedLocal ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.40)', fontSize: 10 }}>{publishedLocal ? 'public' : 'private'}</span>
-                    </button>
                   </div>
-                  {/* Hidden file input for wallpaper upload */}
-                  <input
-                    ref={wallpaperFileInputRef}
-                    type="file"
-                    accept="image/*"
-                    style={{ display: 'none' }}
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleWallpaperPicked(f); e.target.value = '' }}
-                  />
                 </>
               )
             })()}
