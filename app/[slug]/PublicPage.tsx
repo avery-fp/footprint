@@ -868,28 +868,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const tileSizeStyle = (item: any): React.CSSProperties => {
     if (isHorizontal) return {}
     const size = Number(item.size || 1)
-    if (size <= 1) {
-      return {
-        gridColumn: 'span 1',
-        width: '72%',
-        marginLeft: 'auto',
-        marginRight: 'auto',
-      }
-    }
-    if (size >= 3) {
-      return {
-        gridColumn: 'span 2',
-        width: '100%',
-        marginLeft: 'auto',
-        marginRight: 'auto',
-      }
-    }
-    return {
-      gridColumn: 'span 1',
-      width: '88%',
-      marginLeft: 'auto',
-      marginRight: 'auto',
-    }
+    // S (1) and M (2) both fill their single column at 100%.
+    // Differentiation between S and M is expressed via aspect ratio (row
+    // height), not width percentage. L (3) spans two columns.
+    if (size >= 3) return { gridColumn: 'span 2' }
+    return { gridColumn: 'span 1' }
   }
 
   const fadeStyle = {
