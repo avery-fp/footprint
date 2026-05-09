@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 
 /**
- * OwnerTileSheet — three rows: shape, size, collection.
+ * OwnerTileSheet — shape, size, collection, room.
  *
  * Surfaces when an owner taps a tile in editor mode. Replaces the
  * OwnerActionBar at the same vertical position (one is open at a time
@@ -21,6 +21,7 @@ type Tile = {
   size?: number | null
   aspect?: string | null
   parent_tile_id?: string | null
+  room_id?: string | null
 }
 
 type TileSource = 'library' | 'links'
@@ -29,6 +30,7 @@ interface OwnerTileSheetProps {
   tile: Tile
   source: TileSource
   containers: Array<{ id: string; container_label?: string | null; title?: string | null }>
+  rooms: Array<{ id: string; name: string }>
   slug: string
   onClose: () => void
   /** Optimistic local update — runs synchronously before the network call. */
@@ -95,6 +97,7 @@ export default function OwnerTileSheet({
   tile,
   source,
   containers,
+  rooms,
   slug,
   onClose,
   onTileChange,
@@ -143,6 +146,14 @@ export default function OwnerTileSheet({
     // Tile leaves street-level when parented; close so the sheet doesn't
     // sit referencing a tile that's no longer in the active room.
     if (next) onClose()
+  }
+
+  function handleRoom(roomId: string) {
+    const next = roomId || null
+    if ((tile.room_id || '') === (next || '')) return
+    onTileChange(tile.id, { room_id: next })
+    patchTile({ room_id: next })
+    onClose()
   }
 
   function handleDelete() {
@@ -270,6 +281,32 @@ export default function OwnerTileSheet({
               {containers.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.container_label || c.title || 'collection'}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Row 4 — room */}
+        {rooms.length > 0 && (
+          <div style={{ ...rowStyle, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+            <span style={rowLabel}>room</span>
+            <select
+              value={tile.room_id || ''}
+              onChange={(e) => handleRoom(e.target.value)}
+              style={{
+                ...pillBase,
+                paddingRight: 28,
+                appearance: 'none',
+                WebkitAppearance: 'none',
+                MozAppearance: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="">none</option>
+              {rooms.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name || 'room'}
                 </option>
               ))}
             </select>

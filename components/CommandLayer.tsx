@@ -273,10 +273,9 @@ export default function CommandLayer({
 
   return (
     <>
-      {/* People memory — public-side affordance only. Owners don't see
-          this trigger; their corner belongs to the æ icon, and they
-          don't need the contact-save flow on their own page. */}
-      {!isOwner && (
+      {/* People/search memory — restored for owners too. This was visible
+          before the unified-page work and doubles as the discoverable
+          search/contact layer entry point. */}
       <div className="fixed left-4 top-4 z-40 md:left-6 md:top-5">
         <button
           type="button"
@@ -291,7 +290,6 @@ export default function CommandLayer({
           +
         </button>
       </div>
-      )}
 
       <AnimatePresence>
         {peopleOpen && (

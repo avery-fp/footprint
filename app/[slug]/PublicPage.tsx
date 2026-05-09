@@ -416,8 +416,16 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // size/aspect/parent_tile_id changes — keep it generic so 4.5 (rooms)
   // and 5 (drag-to-room) can lean on the same helper.
   const handleTileChange = useCallback((id: string, patch: Record<string, unknown>) => {
-    setLocalContent((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)))
-  }, [])
+    setLocalContent((prev) => {
+      if (
+        Object.prototype.hasOwnProperty.call(patch, 'room_id') &&
+        (patch.room_id || null) !== (activeRoomId || null)
+      ) {
+        return prev.filter((t) => t.id !== id)
+      }
+      return prev.map((t) => (t.id === id ? { ...t, ...patch } : t))
+    })
+  }, [activeRoomId])
 
   const handleTileDelete = useCallback((id: string) => {
     setLocalContent((prev) => prev.filter((t) => t.id !== id))
@@ -866,6 +874,12 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // tileAspectRatio. SAspectShell still refines image tiles at runtime
   // when their natural dimensions arrive — see renderImageWrapped below.
   const tileAspectCss = (item: any): string => {
+    // Explicit user shape always wins. The previous provider-first
+    // ordering made old embed/video tiles ignore shape changes in the
+    // editor because YouTube/Vimeo/SoundCloud forced 16:9 forever.
+    if (item.aspect === 'square' || item.aspect === 'wide' || item.aspect === 'tall') {
+      return tileAspectRatio(item.aspect)
+    }
     const isEmbedVid = item.type === 'youtube' || item.type === 'vimeo' ||
       item.url?.includes('youtube') || item.url?.includes('youtu.be')
     if (isEmbedVid) return '16 / 9'
@@ -873,6 +887,26 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     if (item.type === 'soundcloud') return '16 / 9'
     const resolved = resolveAspect(item.aspect, item.type, item.url)
     return tileAspectRatio(resolved)
+  }
+
+  const tileSizeStyle = (item: any): React.CSSProperties => {
+    if (isHorizontal) return {}
+    const size = Number(item.size || 1)
+    if (size >= 3) {
+      return {
+        columnSpan: 'all' as any,
+        WebkitColumnSpan: 'all' as any,
+        width: '100%',
+      }
+    }
+    if (size <= 1) {
+      return {
+        width: '76%',
+        marginLeft: 'auto',
+        marginRight: 'auto',
+      }
+    }
+    return { width: '100%' }
   }
 
   const fadeStyle = {
@@ -978,7 +1012,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     const aspectCss = tileAspectCss(item)
     const tileBody = renderTileBody(item, idx)
     const wrapperClass = layoutConfig.tileClass
-    const wrapperStyle: React.CSSProperties = { aspectRatio: aspectCss }
+    const wrapperStyle: React.CSSProperties = { aspectRatio: aspectCss, ...tileSizeStyle(item) }
     if (isOwner) {
       return (
         <SortableTileWrapper key={item.id} item={item} idx={idx} className={wrapperClass} style={wrapperStyle} disabled={!!expanded}>
@@ -995,7 +1029,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     if (item.type === 'image' && !explicit) {
       const resolved = resolveAspect(item.aspect, item.type, item.url)
       return (
-        <div key={item.id} className={wrapperClass}>
+        <div key={item.id} className={wrapperClass} style={tileSizeStyle(item)}>
           <SAspectShell initialAspect={resolved}>{tileBody}</SAspectShell>
         </div>
       )
@@ -1026,7 +1060,12 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       >
         {displayContent.map((item: any, idx: number) => {
           const aspectCss = tileAspectCss(item)
-          const railHeight = isMobile ? 'min(72vh, 540px)' : 'min(70vh, 640px)'
+          const size = Number(item.size || 1)
+          const railHeight = size >= 3
+            ? (isMobile ? 'min(78vh, 600px)' : 'min(76vh, 700px)')
+            : size <= 1
+              ? (isMobile ? 'min(58vh, 420px)' : 'min(54vh, 500px)')
+              : (isMobile ? 'min(72vh, 540px)' : 'min(70vh, 640px)')
           const wrapperStyle: React.CSSProperties = {
             height: railHeight,
             aspectRatio: aspectCss,
@@ -1059,7 +1098,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           <div className="px-4 md:px-6 lg:px-8 mb-2.5 md:mb-3">
             {(() => {
               const aspectCss = tileAspectCss(hero)
-              const wrapperStyle: React.CSSProperties = { aspectRatio: aspectCss }
+              const wrapperStyle: React.CSSProperties = { aspectRatio: aspectCss, ...tileSizeStyle(hero) }
               const body = renderTileBody(hero, 0)
               const wrapperClass = 'relative overflow-hidden rounded-2xl'
               if (isOwner) {
@@ -1130,6 +1169,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               transition: 'filter 0.8s ease',
             }}
             onLoad={() => setWallpaperLoaded(true)}
+            onLoadingComplete={() => setWallpaperLoaded(true)}
           />
           <div
             className="absolute inset-0 transition-all duration-800"
@@ -1308,6 +1348,16 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                   </button>
                 )}
               </div>
+
+              {isOwner && editorMode && (
+                <div
+                  className="absolute left-1/2 z-30 -translate-x-1/2"
+                  style={{ top: roomNavDocked ? 'calc(env(safe-area-inset-top, 0px) + 42px)' : 34 }}
+                  data-no-wp-press
+                >
+                  <LayoutToggle current={roomLayout} onToggle={(next) => handleLayoutToggle(next)} />
+                </div>
+              )}
             </div>
 
             {/* Room ⋯ popover — vertical menu, single render at the row
@@ -1356,12 +1406,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                     >
                       rename
                     </button>
-
-                    {/* Layout selector */}
-                    <div style={rowStyle}>
-                      <span style={labelStyle}>layout</span>
-                      <LayoutToggle current={roomLayout} onToggle={(next) => handleLayoutToggle(next)} />
-                    </div>
 
                     {/* Lock toggle */}
                     <button
@@ -1797,6 +1841,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             tile={tile as any}
             source={source as 'library' | 'links'}
             containers={containers as any}
+            rooms={visibleRooms.map((r) => ({ id: r.id, name: r.name }))}
             slug={footprint.username}
             onClose={() => setSelectedTileId(null)}
             onTileChange={handleTileChange}
