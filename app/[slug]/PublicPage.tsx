@@ -1173,12 +1173,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       )}
 
       {/* Layout toggle + remix — fixed on the right side beneath edit/done.
-          Editor-mode only. */}
+          Editor-mode only. Sits below the docked-nav lane so it doesn't
+          collide with room pills when the nav is fixed at the top. */}
       {isOwner && editorMode && !expanded && (
         <div
           className="fixed z-30 flex flex-col items-center gap-2"
           style={{
-            top: 'calc(env(safe-area-inset-top, 0px) + 60px)',
+            top: 'calc(env(safe-area-inset-top, 0px) + 108px)',
             right: '16px',
           }}
           data-no-wp-press
@@ -1288,7 +1289,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           <div className="relative mb-4 h-12 md:mb-6">
             <div
               className={`${roomNavDocked ? 'fixed inset-x-0' : 'absolute inset-x-0'} z-30 flex items-center justify-center px-4 py-2 transition-[top] duration-300`}
-              style={{ top: roomNavDocked ? 'calc(env(safe-area-inset-top, 0px) + 24px)' : 0 }}
+              style={{ top: roomNavDocked ? 'calc(env(safe-area-inset-top, 0px) + 60px)' : 0 }}
             >
               <div className="flex max-w-full items-center gap-3 overflow-x-auto hide-scrollbar px-1 font-mono" data-no-wp-press>
                 {visibleRooms.map((room) => (
