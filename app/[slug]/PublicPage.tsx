@@ -10,6 +10,7 @@ import { RemoveBubble } from '@/components/RemoveBubble'
 import FloatingCtaBar from '@/components/FloatingCtaBar'
 import SovereignTile from '@/components/SovereignTile'
 import CommandLayer from '@/components/CommandLayer'
+import OwnerActionBar from '@/components/OwnerActionBar'
 import OwnerTileSheet from '@/components/OwnerTileSheet'
 import RoomLockOverlay from '@/components/RoomLockOverlay'
 import EditAccessScreen from '@/components/EditAccessScreen'
@@ -111,18 +112,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // earn permanent chrome real estate. Eye flyout surfaces from the
   // top-left home toggle; wallpaper flyout surfaces at the touch point
   // where the owner long-pressed the wallpaper.
-  const [eyeFlyoutOpen, setEyeFlyoutOpen] = useState(false)
-  const [wallpaperFlyout, setWallpaperFlyout] = useState<{ x: number; y: number } | null>(null)
-  const [wallpaperFlyoutVerb, setWallpaperFlyoutVerb] = useState<'idle' | 'link' | 'text' | 'collection'>('idle')
-  const [wallpaperFlyoutValue, setWallpaperFlyoutValue] = useState('')
-  const [wallpaperUploading, setWallpaperUploading] = useState(false)
-  const wallpaperFileInputRef = useRef<HTMLInputElement>(null)
-  const tileImageInputRef = useRef<HTMLInputElement>(null)
-  const homeLongPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const homeLongPressFired = useRef(false)
-  const wpLongPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const wpLongPressFired = useRef(false)
-  const wpStartPos = useRef<{ x: number; y: number } | null>(null)
+  // Editor toolbar uses the OwnerActionBar component for all controls;
+  // wallpaper upload flows through there. No long-press gestures.
   // Per-room layout override for live reflow after a toggle click. Reset
   // when the underlying rooms prop changes (e.g. after navigation, when
   // the server-side data is fresh again).
@@ -478,73 +469,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [footprint.username])
 
-  // ── Long-press: corner home toggle ──
-  // Tap = toggle editor. Long-press (>=450ms, no drag) = surface eye
-  // flyout. The pointer-up handler distinguishes by checking the fired
-  // flag — if the long-press timer fired, swallow the tap.
-  const onHomePointerDown = useCallback((e: React.PointerEvent) => {
-    homeLongPressFired.current = false
-    if (homeLongPressTimer.current) clearTimeout(homeLongPressTimer.current)
-    homeLongPressTimer.current = setTimeout(() => {
-      homeLongPressFired.current = true
-      setEyeFlyoutOpen(true)
-      // Light haptic if the platform exposes it.
-      try { (navigator as any).vibrate?.(8) } catch {}
-    }, 450)
-  }, [])
-  const onHomePointerUp = useCallback(() => {
-    if (homeLongPressTimer.current) {
-      clearTimeout(homeLongPressTimer.current)
-      homeLongPressTimer.current = null
-    }
-    if (!homeLongPressFired.current) {
-      setEditorMode((v) => !v)
-      setEyeFlyoutOpen(false)
-    }
-  }, [])
-  const onHomePointerLeave = useCallback(() => {
-    if (homeLongPressTimer.current) {
-      clearTimeout(homeLongPressTimer.current)
-      homeLongPressTimer.current = null
-    }
-  }, [])
-
-  // ── Long-press: wallpaper area ──
-  // Fires only when editorMode is on. Filters out targets that are tiles,
-  // buttons, or other interactive chrome — only blank wallpaper-area
-  // touches surface the flyout. Movement >10px during the timer cancels
-  // (treat as a scroll/drag intent, not a long-press).
-  const onWallpaperPointerDown = useCallback((e: React.PointerEvent) => {
-    if (!isOwner || !editorMode || expanded) return
-    const t = e.target as Element | null
-    if (t && t.closest && t.closest('[data-tile-id], button, a, input, select, textarea, [role="dialog"], [data-owner-action-bar], [data-no-wp-press]')) return
-    wpLongPressFired.current = false
-    wpStartPos.current = { x: e.clientX, y: e.clientY }
-    if (wpLongPressTimer.current) clearTimeout(wpLongPressTimer.current)
-    const x = e.clientX
-    const y = e.clientY
-    wpLongPressTimer.current = setTimeout(() => {
-      wpLongPressFired.current = true
-      setWallpaperFlyout({ x, y })
-      try { (navigator as any).vibrate?.(8) } catch {}
-    }, 450)
-  }, [isOwner, editorMode, expanded])
-  const onWallpaperPointerMove = useCallback((e: React.PointerEvent) => {
-    if (!wpLongPressTimer.current || !wpStartPos.current) return
-    const dx = e.clientX - wpStartPos.current.x
-    const dy = e.clientY - wpStartPos.current.y
-    if (Math.hypot(dx, dy) > 10) {
-      clearTimeout(wpLongPressTimer.current)
-      wpLongPressTimer.current = null
-    }
-  }, [])
-  const onWallpaperPointerUp = useCallback(() => {
-    if (wpLongPressTimer.current) {
-      clearTimeout(wpLongPressTimer.current)
-      wpLongPressTimer.current = null
-    }
-    wpStartPos.current = null
-  }, [])
 
   // ── Room mutations ──
   // All optimistic — local state flips first, server PATCH/POST/DELETE
@@ -670,104 +594,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomsLocal, tileSources, footprint.username])
 
-  async function handleTileImagePicked(file: File) {
-    if (!footprint.serial_number) return
-    try {
-      let aspect = 'square'
-      try { aspect = await detectAspectShared(file) } catch {}
-      let resized: File
-      try { resized = await resizeShared(file) } catch { resized = file }
-      const filename = `${footprint.serial_number}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`
-      const contentType = resized.type || 'image/jpeg'
-      const tempId = `temp-${Date.now()}`
-      const previewUrl = URL.createObjectURL(file)
-      handleTileAdded({
-        id: tempId,
-        url: previewUrl,
-        type: 'image',
-        position: Number.MAX_SAFE_INTEGER,
-        room_id: activeRoomId,
-        size: 2,
-        aspect,
-        _temp: true,
-        _progress: 0,
-      })
-      const publicUrl = await uploadShared(
-        new File([resized], resized.name, { type: contentType }),
-        filename,
-        (pct) => handleTileProgress(tempId, pct),
-        footprint.username,
-      )
-      const res = await fetch('/api/upload/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          slug: footprint.username,
-          url: publicUrl,
-          room_id: activeRoomId,
-          aspect,
-          content_type: contentType,
-          size: 2,
-        }),
-      })
-      if (res.ok) {
-        const data = await res.json()
-        if (data.tile) handleTileReplaced(tempId, data.tile)
-      }
-      URL.revokeObjectURL(previewUrl)
-      setWallpaperFlyout(null)
-    } catch (e) {
-      console.error('image upload failed', e)
-    }
-  }
-
-  // ── Auto-quiet: 60s of inactivity in editor mode auto-exits ──
-  // The page returns to its public-rendered state on its own. The owner
-  // does not have to remember to leave edit mode; the page knows when it
-  // is being touched and when it is not.
-  useEffect(() => {
-    if (!editorMode) return
-    let lastTouch = Date.now()
-    const onActivity = () => { lastTouch = Date.now() }
-    const events: Array<keyof WindowEventMap> = ['pointerdown', 'pointermove', 'keydown', 'scroll', 'wheel', 'touchstart']
-    events.forEach((e) => window.addEventListener(e, onActivity, { passive: true }))
-    const interval = setInterval(() => {
-      if (Date.now() - lastTouch > 60_000) {
-        setEditorMode(false)
-        setEyeFlyoutOpen(false)
-        setWallpaperFlyout(null)
-        setSelectedTileId(null)
-        setPillMenuOpenForId(null)
-      }
-    }, 5_000)
-    return () => {
-      events.forEach((e) => window.removeEventListener(e, onActivity))
-      clearInterval(interval)
-    }
-  }, [editorMode])
-
-  async function handleWallpaperPicked(file: File) {
-    if (wallpaperUploading || !footprint.serial_number) return
-    setWallpaperUploading(true)
-    try {
-      const { uploadWithProgress, resizeImage } = await import('@/lib/upload')
-      let resized: File
-      try { resized = await resizeImage(file, 2400) } catch { resized = file }
-      const filename = `${footprint.serial_number}/bg-${Date.now()}.jpg`
-      const publicUrl = await uploadWithProgress(
-        new File([resized], filename, { type: 'image/jpeg' }),
-        filename,
-        () => {},
-        footprint.username,
-      )
-      handleWallpaperChange(publicUrl)
-      setWallpaperFlyout(null)
-    } catch (e) {
-      console.error('wallpaper upload failed', e)
-    } finally {
-      setWallpaperUploading(false)
-    }
-  }
+  // Wallpaper upload now flows through OwnerActionBar — that component
+  // owns the file input and the upload, calls handleWallpaperChange on
+  // completion. Nothing else to do here.
 
   function handleDragStart(event: DragStartEvent) {
     setDraggingTileId(String(event.active.id))
@@ -911,38 +740,60 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             }}
           />
         ) : (
-          <button
-            onClick={() => {
-              if (isOwner && editorMode && isActive) {
-                setRenameValue(room.name)
-                setPillMenuOpenForId(room.id)
-              } else {
-                goToRoom(room.id)
-              }
-            }}
-            className="transition-all duration-300 touch-manipulation flex items-center gap-1"
-            style={{
-              fontSize: '11px',
-              letterSpacing: '2.5px',
-              textTransform: 'lowercase',
-              fontWeight: isActive ? 400 : 300,
-              color: isActive ? 'white' : 'rgba(255,255,255,0.4)',
-              textShadow: '0 1px 8px rgba(0,0,0,0.5)',
-              background: 'none',
-              border: 'none',
-              padding: '8px 2px',
-              margin: '-8px -2px',
-              cursor: 'pointer',
-            }}
-          >
-            {room.name}
-            {room.is_locked && (
-              <svg width="9" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-label="locked" style={{ opacity: 0.55 }}>
-                <rect x="5" y="11" width="14" height="10" rx="1.5" />
-                <path d="M8 11V7a4 4 0 018 0v4" />
-              </svg>
+          <>
+            <button
+              onClick={() => goToRoom(room.id)}
+              className="transition-all duration-300 touch-manipulation flex items-center gap-1"
+              style={{
+                fontSize: '11px',
+                letterSpacing: '2.5px',
+                textTransform: 'lowercase',
+                fontWeight: isActive ? 400 : 300,
+                color: isActive ? 'white' : 'rgba(255,255,255,0.4)',
+                textShadow: '0 1px 8px rgba(0,0,0,0.5)',
+                background: 'none',
+                border: 'none',
+                padding: '8px 2px',
+                margin: '-8px -2px',
+                cursor: 'pointer',
+              }}
+            >
+              {room.name}
+              {room.is_locked && (
+                <svg width="9" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-label="locked" style={{ opacity: 0.55 }}>
+                  <rect x="5" y="11" width="14" height="10" rx="1.5" />
+                  <path d="M8 11V7a4 4 0 018 0v4" />
+                </svg>
+              )}
+            </button>
+            {/* Per-room edit icon — visible to owner in editor mode.
+                Tap opens the rename + lock + delete popover for this
+                room. Visible chrome, not hidden behind tap-on-pill. */}
+            {isOwner && editorMode && (
+              <button
+                type="button"
+                aria-label={`edit room ${room.name}`}
+                onClick={() => { setRenameValue(room.name); setPillMenuOpenForId(room.id) }}
+                className="touch-manipulation"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'rgba(255,255,255,0.45)',
+                  cursor: 'pointer',
+                  padding: '6px 4px',
+                  marginLeft: 2,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                }}
+              >
+                <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <circle cx="5" cy="12" r="1" />
+                  <circle cx="12" cy="12" r="1" />
+                  <circle cx="19" cy="12" r="1" />
+                </svg>
+              </button>
             )}
-          </button>
+          </>
         )}
       </div>
     )
@@ -1233,10 +1084,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     <div
       className={`relative flex min-h-[100dvh] w-full flex-col overflow-x-clip${isGrid ? ' fp-puzzle-page' : ''}`}
       style={{ background: theme.colors.background, color: theme.colors.text, '--fp-glass': theme.colors.glass, '--fp-text-muted': theme.colors.textMuted } as React.CSSProperties}
-      onPointerDown={onWallpaperPointerDown}
-      onPointerMove={onWallpaperPointerMove}
-      onPointerUp={onWallpaperPointerUp}
-      onPointerCancel={onWallpaperPointerUp}
     >
       {/* Wallpaper layer — GPU composited for 60fps scroll. Keyed by URL so
           a replaced wallpaper drops the previous decoded layer instead of
@@ -1286,125 +1133,37 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
       )}
 
-      {/* The æ icon — the one persistent owner-side affordance. Tap to
-          toggle editor mode. Long-press to surface the eye (public/
-          private) toggle. No bracket at rest; thin outline bracket
-          when editor mode is on (semantic state, the owner is
-          bracketed inside the editor frame). */}
+      {/* Edit / Done button — top-right corner. Visible at all times
+          for the owner (signed-in). Tap toggles editor mode; the
+          OwnerActionBar at the bottom and the room nav controls
+          surface together when editor is on. */}
       {isOwner && !expanded && (
-        <div
-          className="fixed z-30"
+        <button
+          type="button"
+          aria-label={editorMode ? 'done editing' : 'edit page'}
+          aria-pressed={editorMode}
+          onClick={() => setEditorMode((v) => !v)}
+          className="fixed z-30 touch-manipulation font-mono"
           style={{
             top: 'calc(env(safe-area-inset-top, 0px) + 16px)',
-            left: '16px',
+            right: '16px',
+            background: 'rgba(0,0,0,0.62)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255,255,255,0.10)',
+            color: 'rgba(255,255,255,0.92)',
+            borderRadius: 999,
+            padding: '8px 16px',
+            fontSize: 12,
+            letterSpacing: '0.06em',
+            textTransform: 'lowercase',
+            cursor: 'pointer',
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
           }}
         >
-          <button
-            type="button"
-            aria-label={editorMode ? 'exit editor' : 'enter editor'}
-            aria-pressed={editorMode}
-            onPointerDown={onHomePointerDown}
-            onPointerUp={onHomePointerUp}
-            onPointerLeave={onHomePointerLeave}
-            onPointerCancel={onHomePointerLeave}
-            onContextMenu={(e) => e.preventDefault()}
-            className="touch-manipulation"
-            style={{
-              position: 'relative',
-              width: 32,
-              height: 32,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'transparent',
-              backdropFilter: 'blur(8px)',
-              WebkitBackdropFilter: 'blur(8px)',
-              border: 'none',
-              padding: 0,
-              cursor: 'pointer',
-              userSelect: 'none',
-              WebkitUserSelect: 'none',
-              touchAction: 'manipulation',
-              fontFamily: 'serif',
-              fontSize: 18,
-              lineHeight: 1,
-              fontWeight: 300,
-              color: editorMode ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.55)',
-              letterSpacing: 0,
-              transition: 'color 200ms ease',
-            }}
-          >
-            <span style={{ display: 'inline-block', transform: 'translateY(-1px)' }}>æ</span>
-            {/* Thin outline bracket — appears only when editor mode is
-                on. Semantic indicator: the owner is contained inside
-                the editor state. */}
-            {editorMode && (
-              <>
-                <span aria-hidden="true" style={{ position: 'absolute', top: 0, left: 0, width: 6, height: 1, background: 'rgba(255,255,255,0.7)' }} />
-                <span aria-hidden="true" style={{ position: 'absolute', top: 0, left: 0, width: 1, height: 6, background: 'rgba(255,255,255,0.7)' }} />
-                <span aria-hidden="true" style={{ position: 'absolute', top: 0, right: 0, width: 6, height: 1, background: 'rgba(255,255,255,0.7)' }} />
-                <span aria-hidden="true" style={{ position: 'absolute', top: 0, right: 0, width: 1, height: 6, background: 'rgba(255,255,255,0.7)' }} />
-                <span aria-hidden="true" style={{ position: 'absolute', bottom: 0, left: 0, width: 6, height: 1, background: 'rgba(255,255,255,0.7)' }} />
-                <span aria-hidden="true" style={{ position: 'absolute', bottom: 0, left: 0, width: 1, height: 6, background: 'rgba(255,255,255,0.7)' }} />
-                <span aria-hidden="true" style={{ position: 'absolute', bottom: 0, right: 0, width: 6, height: 1, background: 'rgba(255,255,255,0.7)' }} />
-                <span aria-hidden="true" style={{ position: 'absolute', bottom: 0, right: 0, width: 1, height: 6, background: 'rgba(255,255,255,0.7)' }} />
-              </>
-            )}
-          </button>
-
-          {/* Eye toggle flyout — surfaces on long-press. Setup-time
-              control kept off the persistent chrome so it can't be
-              tapped accidentally. */}
-          {eyeFlyoutOpen && (
-            <>
-              <div
-                className="fixed inset-0 z-[35]"
-                onPointerDown={() => setEyeFlyoutOpen(false)}
-              />
-              <div
-                className="absolute z-[36] flex items-center gap-2 px-2 py-1 font-mono"
-                style={{
-                  top: 0,
-                  left: 40,
-                  backdropFilter: 'blur(16px)',
-                  WebkitBackdropFilter: 'blur(16px)',
-                  whiteSpace: 'nowrap',
-                  animation: 'fadeInUp 0.2s ease-out',
-                  borderRadius: 4,
-                }}
-                onPointerDown={(e) => e.stopPropagation()}
-              >
-                <button
-                  type="button"
-                  aria-label={publishedLocal ? 'set private' : 'set public'}
-                  onClick={() => { handlePublishedChange(!publishedLocal); setEyeFlyoutOpen(false) }}
-                  className="flex items-center gap-2 text-xs"
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'rgba(255,255,255,0.85)',
-                    cursor: 'pointer',
-                    letterSpacing: '0.04em',
-                    textTransform: 'lowercase',
-                    padding: 0,
-                  }}
-                >
-                  {publishedLocal ? (
-                    <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                  ) : (
-                    <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.243 4.243L9.88 9.88" />
-                    </svg>
-                  )}
-                  {publishedLocal ? 'public' : 'private'}
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+          {editorMode ? 'done' : 'edit'}
+        </button>
       )}
 
       <div
@@ -1917,165 +1676,30 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         <FloatingCtaBar isOwner={isOwner} />
       )}
 
-      {/* Persistent action bar removed by doctrine — creation verbs now
-          live inside the wallpaper long-press fly-out, surfaced only on
-          direct manipulation of the page surface. */}
-
-      {/* Wallpaper long-press flyout — surfaces six bare affordances at
-          the touch coordinate: blur, upload-bg, link, text, collection,
-          image. All "modify the surface or add new content" lives in
-          one gesture. Real backdrop-blur, no glass capsule, no fake
-          depth. */}
-      <input
-        ref={wallpaperFileInputRef}
-        type="file"
-        accept="image/*"
-        style={{ display: 'none' }}
-        onChange={(e) => {
-          const file = e.target.files?.[0]
-          if (file) handleWallpaperPicked(file)
-          e.target.value = ''
-        }}
-      />
-      <input
-        ref={tileImageInputRef}
-        type="file"
-        accept="image/*"
-        style={{ display: 'none' }}
-        onChange={(e) => {
-          const file = e.target.files?.[0]
-          if (file) handleTileImagePicked(file)
-          e.target.value = ''
-        }}
-      />
-      {wallpaperFlyout && (
-        <>
-          <div
-            className="fixed inset-0 z-[44]"
-            onPointerDown={() => { setWallpaperFlyout(null); setWallpaperFlyoutVerb('idle') }}
-          />
-          <div
-            data-no-wp-press
-            className="fixed z-[45] flex items-center gap-3 px-2 py-1 font-mono"
-            style={{
-              left: Math.max(12, Math.min(wallpaperFlyout.x - 120, (typeof window !== 'undefined' ? window.innerWidth : 375) - 256)),
-              top: Math.max(12, wallpaperFlyout.y - 48),
-              backdropFilter: 'blur(16px)',
-              WebkitBackdropFilter: 'blur(16px)',
-              animation: 'fadeInUp 0.18s ease-out',
-              borderRadius: 4,
-            }}
-            onPointerDown={(e) => e.stopPropagation()}
-          >
-            {wallpaperFlyoutVerb === 'idle' && (
-              <>
-                {/* blur */}
-                <button
-                  type="button"
-                  aria-label={`blur ${backgroundBlurLocal ? 'on' : 'off'}`}
-                  onClick={() => { handleBlurToggle(!backgroundBlurLocal); setWallpaperFlyout(null) }}
-                  style={{ background: 'transparent', border: 'none', color: backgroundBlurLocal ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.50)', cursor: 'pointer', padding: 4 }}
-                >
-                  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="3" />
-                    <circle cx="12" cy="12" r="6" strokeOpacity="0.5" />
-                    <circle cx="12" cy="12" r="9" strokeOpacity="0.25" />
-                  </svg>
-                </button>
-                {/* upload wallpaper */}
-                <button
-                  type="button"
-                  aria-label="upload wallpaper"
-                  onClick={() => wallpaperFileInputRef.current?.click()}
-                  style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.75)', cursor: 'pointer', padding: 4 }}
-                >
-                  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5A1.5 1.5 0 014.5 6h15A1.5 1.5 0 0121 7.5v9a1.5 1.5 0 01-1.5 1.5h-15A1.5 1.5 0 013 16.5v-9z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16l4.5-4.5a2 2 0 012.83 0L15 16" />
-                  </svg>
-                </button>
-                {/* link */}
-                <button
-                  type="button"
-                  aria-label="add link"
-                  onClick={() => setWallpaperFlyoutVerb('link')}
-                  style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.75)', cursor: 'pointer', padding: 4 }}
-                >
-                  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
-                  </svg>
-                </button>
-                {/* text */}
-                <button
-                  type="button"
-                  aria-label="add text"
-                  onClick={() => setWallpaperFlyoutVerb('text')}
-                  style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.75)', cursor: 'pointer', padding: 4 }}
-                >
-                  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h10M4 18h7" />
-                  </svg>
-                </button>
-                {/* collection */}
-                <button
-                  type="button"
-                  aria-label="add collection"
-                  onClick={() => setWallpaperFlyoutVerb('collection')}
-                  style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.75)', cursor: 'pointer', padding: 4 }}
-                >
-                  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
-                    <rect x="3" y="4.5" width="18" height="15" rx="1.5" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 9.5h16.5M3.75 14h10.5" />
-                  </svg>
-                </button>
-                {/* image (tile) */}
-                <button
-                  type="button"
-                  aria-label="add image"
-                  onClick={() => tileImageInputRef.current?.click()}
-                  style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.75)', cursor: 'pointer', padding: 4 }}
-                >
-                  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5z" />
-                  </svg>
-                </button>
-              </>
-            )}
-            {(wallpaperFlyoutVerb === 'link' || wallpaperFlyoutVerb === 'text' || wallpaperFlyoutVerb === 'collection') && (
-              <input
-                autoFocus
-                value={wallpaperFlyoutValue}
-                onChange={(e) => setWallpaperFlyoutValue(e.target.value)}
-                onKeyDown={async (e) => {
-                  if (e.key === 'Escape') { setWallpaperFlyoutVerb('idle'); setWallpaperFlyoutValue('') }
-                  if (e.key !== 'Enter') return
-                  const v = wallpaperFlyoutValue.trim()
-                  if (!v) return
-                  if (wallpaperFlyoutVerb === 'link') {
-                    const res = await fetch('/api/tiles', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug: footprint.username, url: v, room_id: activeRoomId }) }).catch(() => null)
-                    const data = res ? await res.json().catch(() => null) : null
-                    if (data?.tile) handleTileAdded(data.tile)
-                  } else if (wallpaperFlyoutVerb === 'text') {
-                    const res = await fetch('/api/tiles', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug: footprint.username, thought: v, room_id: activeRoomId }) }).catch(() => null)
-                    const data = res ? await res.json().catch(() => null) : null
-                    if (data?.tile) handleTileAdded(data.tile)
-                  } else {
-                    const res = await fetch('/api/containers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug: footprint.username, label: v, room_id: activeRoomId }) }).catch(() => null)
-                    const data = res ? await res.json().catch(() => null) : null
-                    if (data?.tile) handleTileAdded(data.tile)
-                  }
-                  setWallpaperFlyoutValue('')
-                  setWallpaperFlyoutVerb('idle')
-                  setWallpaperFlyout(null)
-                }}
-                placeholder={wallpaperFlyoutVerb === 'link' ? 'paste any link…' : wallpaperFlyoutVerb === 'text' ? 'a thought…' : 'collection name…'}
-                className="bg-transparent outline-none text-xs"
-                style={{ color: 'rgba(255,255,255,0.92)', minWidth: 200, padding: '4px 6px', fontFamily: "'DM Mono', monospace", letterSpacing: '0.04em' }}
-              />
-            )}
-          </div>
-        </>
+      {/* Owner editor toolbar — persistent glass capsule centered at
+          bottom when editor mode is on. Holds all owner-side daily-use
+          controls as labeled, visible buttons: creation verbs (link,
+          text, collection, image), layout selector, wallpaper (blur +
+          upload), published toggle. */}
+      {isOwner && editorMode && !selectedTileId && !expanded && !claimActive && (
+        <OwnerActionBar
+          open={editorMode}
+          slug={footprint.username}
+          activeRoomId={activeRoomId}
+          serialNumber={typeof footprint.serial_number === 'number' ? footprint.serial_number : null}
+          onTileAdded={handleTileAdded}
+          onTileReplaced={handleTileReplaced}
+          onTileProgress={handleTileProgress}
+          currentLayout={roomLayout}
+          onLayoutChange={handleLayoutToggle}
+          backgroundBlur={backgroundBlurLocal}
+          onBlurToggle={handleBlurToggle}
+          onWallpaperChange={handleWallpaperChange}
+          published={publishedLocal}
+          onPublishedChange={handlePublishedChange}
+        />
       )}
+
 
       {/* Edit-access overlay — surfaces when /{slug}?edit=1 is hit
           without an owner cookie. Email-code login on top of the
