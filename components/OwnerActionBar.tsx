@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { uploadWithProgress, resizeImage, detectImageAspect } from '@/lib/upload'
+import { uploadWithProgress, resizeImage, detectImageAspect, detectVideoAspect, isVideoFile } from '@/lib/upload'
 
 /**
  * OwnerActionBar — bottom toolbar with the four creation verbs only.
@@ -132,22 +132,32 @@ export default function OwnerActionBar({
     }
   }
 
+  // Handles both image and video uploads. Branches on isVideoFile:
+  // videos skip the image resize (resizeImage is image-only), use
+  // detectVideoAspect, and upload with their original content type so
+  // /api/upload/register routes them through the video pipeline.
   async function handleImagePicked(file: File) {
     if (busy || !serialNumber) return
     setBusy(true)
     try {
+      const isVideo = isVideoFile(file)
       let aspect = 'square'
-      try { aspect = await detectImageAspect(file) } catch {}
-      let resized: File
-      try { resized = await resizeImage(file) } catch { resized = file }
-      const filename = `${serialNumber}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`
-      const contentType = resized.type || 'image/jpeg'
+      try {
+        aspect = isVideo ? await detectVideoAspect(file) : await detectImageAspect(file)
+      } catch {}
+      let payload: File = file
+      if (!isVideo) {
+        try { payload = await resizeImage(file) } catch { payload = file }
+      }
+      const ext = isVideo ? (file.name.split('.').pop() || 'mp4').toLowerCase() : 'jpg'
+      const filename = `${serialNumber}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+      const contentType = payload.type || (isVideo ? 'video/mp4' : 'image/jpeg')
       const tempId = `temp-${Date.now()}`
       const previewUrl = URL.createObjectURL(file)
       onTileAdded({
         id: tempId,
         url: previewUrl,
-        type: 'image',
+        type: isVideo ? 'video' : 'image',
         position: Number.MAX_SAFE_INTEGER,
         room_id: activeRoomId,
         size: 2,
@@ -156,7 +166,7 @@ export default function OwnerActionBar({
         _progress: 0,
       })
       const publicUrl = await uploadWithProgress(
-        new File([resized], resized.name, { type: contentType }),
+        new File([payload], payload.name || filename, { type: contentType }),
         filename,
         (pct) => onTileProgress(tempId, pct),
         slug,
@@ -179,7 +189,7 @@ export default function OwnerActionBar({
       }
       URL.revokeObjectURL(previewUrl)
     } catch (e) {
-      console.error('image upload failed', e)
+      console.error('upload failed', e)
     } finally {
       setBusy(false)
     }
@@ -222,11 +232,17 @@ export default function OwnerActionBar({
       <button type="button" style={verb === 'collection' ? buttonActive : buttonStyle} onClick={() => setVerb(verb === 'collection' ? 'idle' : 'collection')}>
         collection
       </button>
-      <button type="button" style={buttonStyle} onClick={() => fileInputRef.current?.click()}>
-        image
+      <button
+        type="button"
+        aria-label="upload image or video"
+        title="upload"
+        style={buttonStyle}
+        onClick={() => fileInputRef.current?.click()}
+      >
+        upload
       </button>
 
-      <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImagePicked(f); e.target.value = '' }} />
+      <input ref={fileInputRef} type="file" accept="image/*,video/*" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImagePicked(f); e.target.value = '' }} />
 
       {(verb === 'link' || verb === 'text' || verb === 'collection') && (
         <div
