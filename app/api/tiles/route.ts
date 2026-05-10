@@ -331,8 +331,14 @@ export async function POST(request: NextRequest) {
           // deliberate compression chosen by the user, not the default). Other
           // link types start S so the grid keeps visual rhythm.
           size: ['youtube', 'vimeo', 'video', 'tiktok'].includes(parsed.type) ? 2 : 1,
+          // Video platforms (youtube, vimeo) write enrichment metadata but
+          // keep their identity-layer render_mode (typically 'embed'). The
+          // 'ghost' mode is for audio platforms only — a music video on
+          // YouTube is still a video and renders with its thumbnail visible.
           ...(needsEnrich ? {
-            render_mode: 'ghost',
+            render_mode: ['youtube', 'vimeo'].includes(parsed.type)
+              ? identityRenderMode
+              : 'ghost',
             artist: ghostArtist,
             thumbnail_url_hq: ghostThumbnailHq,
             media_id: ghostMediaId,

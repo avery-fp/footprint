@@ -334,7 +334,14 @@ export default function UnifiedTile({
   // render_mode='ghost' tiles must reach GhostTile regardless of URL shape.
   // mediaTypeFromUrl defaults to 'image' for any non-video URL, which would
   // intercept Twitter/TikTok/Instagram tiles before the ghost check ran.
-  const AUDIO_PLATFORMS = ['spotify', 'soundcloud', 'youtube', 'vimeo']
+  //
+  // Video platforms (youtube/vimeo + uploaded video) are NEVER ghosted —
+  // even in the sound room. A music video is still a video; the compact
+  // ghost UI hides the thumbnail and reads as "empty" to viewers. They
+  // fall through to the preview-card / embed branches below.
+  const VIDEO_PLATFORMS = new Set(['youtube', 'vimeo', 'video'])
+  const isVideoPlatform = VIDEO_PLATFORMS.has(item.type)
+  const AUDIO_PLATFORMS = ['spotify', 'soundcloud']
   const forceGhost = isSoundRoom && AUDIO_PLATFORMS.includes(item.type)
   const derivedGhostMediaId =
     item.type === 'youtube'
@@ -348,7 +355,7 @@ export default function UnifiedTile({
   // Error" page. Skip GhostTile and fall through to the preview-card path.
   const ghostMediaIdValidForPlatform =
     item.type !== 'tiktok' || (!!ghostMediaId && /^\d+$/.test(ghostMediaId))
-  if ((item.render_mode === 'ghost' || forceGhost) && ghostMediaId && ghostMediaIdValidForPlatform) {
+  if (!isVideoPlatform && (item.render_mode === 'ghost' || forceGhost) && ghostMediaId && ghostMediaIdValidForPlatform) {
     return (
       <div className="w-full h-full" data-tile-id={item.id} data-tile-type={`ghost-${item.type}`}>
         <GhostTile
