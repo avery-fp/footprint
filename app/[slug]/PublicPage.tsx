@@ -9,6 +9,8 @@ import WeatherEffect from '@/components/WeatherEffect'
 import { RemoveBubble } from '@/components/RemoveBubble'
 import FloatingCtaBar from '@/components/FloatingCtaBar'
 import SovereignTile from '@/components/SovereignTile'
+import ClaimPlaque from '@/components/ClaimPlaque'
+import DraftClaimForm from '@/components/DraftClaimForm'
 import CommandLayer from '@/components/CommandLayer'
 import OwnerActionBar from '@/components/OwnerActionBar'
 import OwnerTileSheet from '@/components/OwnerTileSheet'
@@ -106,8 +108,16 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // (action bar, layout selector, lock icons, tile sheet) becomes
   // interactive. There is no "edit page" — same page, same DOM, just
   // an overlay of editing affordances.
-  const [editorMode, setEditorMode] = useState(false)
+  // Drafts start in editor mode: the creator just hit "make yours" and
+  // landed here to build. There's no edit/done toggle on drafts (the
+  // top-right corner surfaces ClaimPlaque instead), so the action bar
+  // must already be reachable.
+  const [editorMode, setEditorMode] = useState(!!isDraft)
   const [selectedTileId, setSelectedTileId] = useState<string | null>(null)
+  // Draft claim sheet — opens from the ClaimPlaque in the top-right of
+  // the draft chrome. Collects desired username + owner PIN, then routes
+  // to Stripe via /api/checkout.
+  const [draftClaimOpen, setDraftClaimOpen] = useState(false)
   // Setup-time controls live behind long-press gestures so they don't
   // earn permanent chrome real estate. Eye flyout surfaces from the
   // top-left home toggle; wallpaper flyout surfaces at the touch point
@@ -1150,11 +1160,23 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
       )}
 
-      {/* Edit / Done button — top-right corner. Visible at all times
-          for the owner (signed-in). Tap toggles editor mode; the
-          OwnerActionBar at the bottom and the room nav controls
-          surface together when editor is on. */}
-      {isOwner && !expanded && (
+      {/* Top-right corner. On drafts, the edit-toggle is wasted real
+          estate (drafts are always editable) — surface the ClaimPlaque
+          ("go live → $10") instead, so the draft owner has a path from
+          building to paying. On claimed footprints, keep the edit/done
+          toggle behavior. */}
+      {isDraft && isOwner && !expanded && (
+        <div
+          className="fixed z-30"
+          style={{
+            top: 'calc(env(safe-area-inset-top, 0px) + 16px)',
+            right: '16px',
+          }}
+        >
+          <ClaimPlaque onClick={() => setDraftClaimOpen(true)} />
+        </div>
+      )}
+      {!isDraft && isOwner && !expanded && (
         <button
           type="button"
           aria-label={editorMode ? 'done editing' : 'edit page'}
@@ -1880,6 +1902,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           onComplete={(s) => { window.location.href = `/${s}` }}
           sessionId={initialParams.current.sessionId}
           returnUsername={initialParams.current.returnUsername}
+        />
+      )}
+
+      {/* Draft claim sheet — desired username + 6-digit PIN, then Stripe. */}
+      {draftClaimOpen && isDraft && (
+        <DraftClaimForm
+          draftSlug={footprint.username}
+          onClose={() => setDraftClaimOpen(false)}
         />
       )}
     </div>
