@@ -55,20 +55,37 @@ export function isVideoTile(type: string, url?: string): boolean {
 /**
  * Public grid — aspect ratio bundled into the class string.
  *
- * Mobile (grid-cols-2) keeps every tile at col-span-1 so the 2-column grid
- * pattern always reads as a grid. Only L (size 3) gets to span 2 cols on
- * desktop (grid-cols-3). Aspect-* on the wrapper drives the cell height —
- * row-span fights with auto-row tracks so it's dropped.
+ * Size × shape grammar. Mobile is 2-col, desktop is 3-col. Size pushes
+ * col-span up; shape sets aspect-ratio.
+ *
+ *   S (1) — col-span-1 everywhere.
+ *   M (2) — col-span-1 mobile, md:col-span-2 desktop. Steps up only on
+ *           the wider grid, where the extra column exists.
+ *   L (3) — col-span-2 mobile, md:col-span-3 desktop. The showcase pick;
+ *           full-bleed on both. User explicitly opted in via the L pill.
+ *
+ * Tall (aspect-[9/16]) is special-cased: at col-span-2 mobile it's
+ * ~178vw tall — two viewports for one tile — so tall caps at col-span-1
+ * mobile and md:col-span-2 desktop regardless of size. Same scroll-bomb
+ * logic at col-span-3 desktop.
  */
 export function getGridClass(size: number, aspect: string | null | undefined, _isVideo = false): string {
-  const cols = size >= 3 ? 'col-span-1 md:col-span-2' : 'col-span-1'
+  if (aspect === 'tall' || aspect === 'portrait') {
+    const cols = size >= 2 ? 'col-span-1 md:col-span-2' : 'col-span-1'
+    return `${cols} aspect-[9/16]`
+  }
+
+  const cols =
+    size >= 3 ? 'col-span-2 md:col-span-3' :
+    size >= 2 ? 'col-span-1 md:col-span-2' :
+    'col-span-1'
 
   if (aspect === 'wide' || aspect === 'landscape') return `${cols} aspect-video`
-  if (aspect === 'tall' || aspect === 'portrait') return `${cols} aspect-[9/16]`
   if (aspect === 'square') return `${cols} aspect-square`
 
-  // 'auto' / unspecified: size-driven aspect — bigger tiles read squarer.
-  if (size >= 3) return `${cols} aspect-square`
+  // 'auto' / unspecified: size drives aspect, so mobile S/M (which share
+  // col-span-1) still differentiate via a visible height delta.
+  if (size >= 3) return `${cols} aspect-video`
   if (size >= 2) return `${cols} aspect-[4/5]`
   return `${cols} aspect-[3/4]`
 }
