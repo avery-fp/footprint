@@ -81,8 +81,11 @@ export function getGridClass(size: number, aspect: string | null | undefined, is
     return `${cols} aspect-[9/16]`
   }
 
+  // L caps at md:col-span-2 (not md:col-span-3). The col-span-3 jump was
+  // too big — full grid width vs. two cols felt like a different page,
+  // not a sibling. Keep the gap to one column at most.
   const cols =
-    effectiveSize >= 3 ? 'col-span-2 md:col-span-3' :
+    effectiveSize >= 3 ? 'col-span-2 md:col-span-2' :
     effectiveSize >= 2 ? 'col-span-1 md:col-span-2' :
     'col-span-1'
 
