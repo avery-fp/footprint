@@ -12,6 +12,7 @@ module.exports = {
     'aspect-[9/16]',
     'aspect-[3/4]',
     'aspect-[4/3]',
+    'aspect-[4/5]',
     'col-span-1',
     'col-span-2',
     'row-span-1',
