@@ -1023,7 +1023,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // tile gets the right footprint from size × resolved-aspect.
   const renderMasonryTile = (item: any, idx: number) => {
     const resolved = resolveAspect(item.aspect, item.type, item.url)
-    const gridClass = getGridClass(Number(item.size || 1), resolved)
+    const gridClass = getGridClass(Number(item.size || 1), resolved, isVideoTile(item.type, item.url))
     const tileBody = renderTileBody(item, idx)
     const wrapperClass = `relative overflow-hidden rounded-2xl ${gridClass}`
     if (isOwner) {
