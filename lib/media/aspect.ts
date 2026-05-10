@@ -55,40 +55,22 @@ export function isVideoTile(type: string, url?: string): boolean {
 /**
  * Public grid — aspect ratio bundled into the class string.
  *
- * Shape × size grammar. The video-only span short-circuit is removed; layout
- * follows shape × size for every content type.
- *
- * Video square uses true-square geometry (1×1 / 2×2). Non-video square keeps
- * legacy size topology so existing image/text tiles don't shift in this PR.
- *
- * The `isVideo` parameter survives for caller compatibility and is consulted
- * only inside the square branch (where video and non-video diverge).
+ * Mobile (grid-cols-2) keeps every tile at col-span-1 so the 2-column grid
+ * pattern always reads as a grid. Only L (size 3) gets to span 2 cols on
+ * desktop (grid-cols-3). Aspect-* on the wrapper drives the cell height —
+ * row-span fights with auto-row tracks so it's dropped.
  */
 export function getGridClass(size: number, aspect: string | null | undefined, _isVideo = false): string {
-  if (aspect === 'wide' || aspect === 'landscape') {
-    if (size >= 3) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-2 aspect-video'
-    if (size >= 2) return 'col-span-2 row-span-1 md:col-span-2 md:row-span-1 aspect-video'
-    return 'col-span-2 row-span-1 aspect-video'
-  }
-  if (aspect === 'tall' || aspect === 'portrait') {
-    if (size >= 3) return 'col-span-1 row-span-3 md:col-span-2 md:row-span-3 aspect-[9/16]'
-    if (size >= 2) return 'col-span-1 row-span-2 md:col-span-2 md:row-span-2 aspect-[9/16]'
-    return 'col-span-1 row-span-2 aspect-[9/16]'
-  }
-  if (aspect === 'square') {
-    // Square at S spans 1×2 with a 3/4 vertical cell so its footprint
-    // matches wide-S (`2×1 aspect-video`) and tall-S (`1×2 aspect-[9/16]`)
-    // — three S shapes occupy two grid cells each, the row stays even.
-    // M and L keep true-square geometry (uniform image and video).
-    if (size >= 3) return 'col-span-2 row-span-2 aspect-square'
-    if (size >= 2) return 'col-span-2 row-span-1'
-    return 'col-span-1 row-span-2 aspect-[3/4]'
-  }
-  // Unspecified / 'auto': legacy 3-state size topology preserved
-  // S (1) = 1×2 aspect-[3/4]  →  M (2) = 2×1 aspect-[4/3]  →  L (3) = 2×2 aspect-square
-  if (size >= 3) return 'col-span-2 row-span-2 aspect-square'
-  if (size >= 2) return 'col-span-2 row-span-1 aspect-[4/3]'
-  return 'col-span-1 row-span-2 aspect-[3/4]'
+  const cols = size >= 3 ? 'col-span-1 md:col-span-2' : 'col-span-1'
+
+  if (aspect === 'wide' || aspect === 'landscape') return `${cols} aspect-video`
+  if (aspect === 'tall' || aspect === 'portrait') return `${cols} aspect-[9/16]`
+  if (aspect === 'square') return `${cols} aspect-square`
+
+  // 'auto' / unspecified: size-driven aspect — bigger tiles read squarer.
+  if (size >= 3) return `${cols} aspect-square`
+  if (size >= 2) return `${cols} aspect-[4/5]`
+  return `${cols} aspect-[3/4]`
 }
 
 /**
