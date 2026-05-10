@@ -136,35 +136,38 @@ export default function OwnerActionBar({
   // videos skip the image resize (resizeImage is image-only), use
   // detectVideoAspect, and upload with their original content type so
   // /api/upload/register routes them through the video pipeline.
-  async function handleImagePicked(file: File) {
-    if (busy || !serialNumber) return
-    setBusy(true)
+  //
+  // processFile does the work for one file. handleFilesPicked owns the
+  // busy flag for the whole batch so the inner loop can await each file
+  // without the per-file busy guard rejecting it.
+  async function processFile(file: File, batchIndex: number) {
+    if (!serialNumber) return
+    const isVideo = isVideoFile(file)
+    let aspect = 'square'
     try {
-      const isVideo = isVideoFile(file)
-      let aspect = 'square'
-      try {
-        aspect = isVideo ? await detectVideoAspect(file) : await detectImageAspect(file)
-      } catch {}
-      let payload: File = file
-      if (!isVideo) {
-        try { payload = await resizeImage(file) } catch { payload = file }
-      }
-      const ext = isVideo ? (file.name.split('.').pop() || 'mp4').toLowerCase() : 'jpg'
-      const filename = `${serialNumber}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
-      const contentType = payload.type || (isVideo ? 'video/mp4' : 'image/jpeg')
-      const tempId = `temp-${Date.now()}`
-      const previewUrl = URL.createObjectURL(file)
-      onTileAdded({
-        id: tempId,
-        url: previewUrl,
-        type: isVideo ? 'video' : 'image',
-        position: Number.MAX_SAFE_INTEGER,
-        room_id: activeRoomId,
-        size: 2,
-        aspect,
-        _temp: true,
-        _progress: 0,
-      })
+      aspect = isVideo ? await detectVideoAspect(file) : await detectImageAspect(file)
+    } catch {}
+    let payload: File = file
+    if (!isVideo) {
+      try { payload = await resizeImage(file) } catch { payload = file }
+    }
+    const ext = isVideo ? (file.name.split('.').pop() || 'mp4').toLowerCase() : 'jpg'
+    const filename = `${serialNumber}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+    const contentType = payload.type || (isVideo ? 'video/mp4' : 'image/jpeg')
+    const tempId = `temp-${Date.now()}-${batchIndex}-${Math.random().toString(36).slice(2, 6)}`
+    const previewUrl = URL.createObjectURL(file)
+    onTileAdded({
+      id: tempId,
+      url: previewUrl,
+      type: isVideo ? 'video' : 'image',
+      position: Number.MAX_SAFE_INTEGER,
+      room_id: activeRoomId,
+      size: 2,
+      aspect,
+      _temp: true,
+      _progress: 0,
+    })
+    try {
       const publicUrl = await uploadWithProgress(
         new File([payload], payload.name || filename, { type: contentType }),
         filename,
@@ -187,9 +190,26 @@ export default function OwnerActionBar({
         const data = await res.json()
         if (data.tile) onTileReplaced(tempId, data.tile)
       }
-      URL.revokeObjectURL(previewUrl)
     } catch (e) {
       console.error('upload failed', e)
+    } finally {
+      URL.revokeObjectURL(previewUrl)
+    }
+  }
+
+  // Multi-select supported up to MAX_BATCH. Sequential to keep server
+  // load predictable and to surface tiles in the order picked. The
+  // batch sets busy once so the file picker can't be retriggered
+  // mid-batch — but each file can still await its own upload.
+  const MAX_BATCH = 10
+  async function handleFilesPicked(files: File[]) {
+    if (busy || !serialNumber || files.length === 0) return
+    setBusy(true)
+    try {
+      const queue = files.slice(0, MAX_BATCH)
+      for (let i = 0; i < queue.length; i++) {
+        await processFile(queue[i], i)
+      }
     } finally {
       setBusy(false)
     }
@@ -242,7 +262,7 @@ export default function OwnerActionBar({
         upload
       </button>
 
-      <input ref={fileInputRef} type="file" accept="image/*,video/*" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImagePicked(f); e.target.value = '' }} />
+      <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple style={{ display: 'none' }} onChange={(e) => { const files = Array.from(e.target.files || []); if (files.length) handleFilesPicked(files); e.target.value = '' }} />
 
       {(verb === 'link' || verb === 'text' || verb === 'collection') && (
         <div
