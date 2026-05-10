@@ -22,7 +22,7 @@ import { useDepthExpansion } from '@/hooks/useDepthExpansion'
 import { moveChild, removeChild } from '@/lib/container-child-ops'
 import { getGridClass, resolveAspect, isVideoTile } from '@/lib/media/aspect'
 import { getFootprintDisplayTitle } from '@/lib/footprint'
-import { getRoomAtmosphere } from '@/lib/roomAtmosphere'
+import { getRoomAtmosphere, DEFAULT_FILTER, DEFAULT_OVERLAY } from '@/lib/roomAtmosphere'
 import {
   DndContext,
   closestCenter,
@@ -280,7 +280,22 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const isSoundRoom = activeRoom?.name?.toLowerCase() === 'sound'
   const activeRoomLocal = activeRoomId ? roomsLocal.find((r) => r.id === activeRoomId) : undefined
   const activeRoomLocked = !!(activeRoomLocal as any)?.is_locked && !isOwner && !!activeRoomId && !unlockedRoomIds.has(activeRoomId)
-  const { filter: wallpaperFilter, overlay: overlayColor } = getRoomAtmosphere(activeRoomIndex, isSoundRoom)
+  const roomLayout: RoomLayout = (
+    (activeRoomId && layoutOverride[activeRoomId]) ||
+    activeRoom?.layout ||
+    'grid'
+  ) as RoomLayout
+  const layoutConfig = getGridLayout(roomLayout)
+  const isHorizontal = roomLayout === 'horizontal'
+  const isGrid = roomLayout === 'grid'
+  // Grid is the product. Per-room atmospheric shifts (hue/saturation/overlay)
+  // bleed through tile gaps and translucent chrome, recoloring grid content
+  // as the visitor walks room → room. Lock the wallpaper to defaults in grid
+  // mode so the grid stays color-stable; horizontal rooms keep cinematic
+  // per-room atmosphere.
+  const { filter: wallpaperFilter, overlay: overlayColor } = isGrid
+    ? { filter: DEFAULT_FILTER, overlay: DEFAULT_OVERLAY }
+    : getRoomAtmosphere(activeRoomIndex, isSoundRoom)
 
   const handleShare = () => {
     navigator.clipboard.writeText(pageUrl)
@@ -874,14 +889,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // Provider embeds (YouTube/Vimeo = 16:9, Spotify = 9:16, SoundCloud =
   // 16:9) are content-native by definition — not letterbox.
   // ═══════════════════════════════════════════
-  const roomLayout: RoomLayout = (
-    (activeRoomId && layoutOverride[activeRoomId]) ||
-    activeRoom?.layout ||
-    'grid'
-  ) as RoomLayout
-  const layoutConfig = getGridLayout(roomLayout)
-  const isHorizontal = roomLayout === 'horizontal'
-  const isGrid = roomLayout === 'grid'
   const displayContent = isOwner ? localContent : content
 
   // Map any tile to a CSS aspect-ratio string. Provider embeds use their
