@@ -69,15 +69,21 @@ export function isVideoTile(type: string, url?: string): boolean {
  * mobile and md:col-span-2 desktop regardless of size. Same scroll-bomb
  * logic at col-span-3 desktop.
  */
-export function getGridClass(size: number, aspect: string | null | undefined, _isVideo = false): string {
+export function getGridClass(size: number, aspect: string | null | undefined, isVideo = false): string {
+  // Video tiles floor at M (size 2). Video at S is unreadable — playback
+  // controls don't fit, posters get crushed, and the eye can't track
+  // motion at thumbnail scale. The size pill still goes M → L; S just
+  // upgrades silently.
+  const effectiveSize = isVideo && size < 2 ? 2 : size
+
   if (aspect === 'tall' || aspect === 'portrait') {
-    const cols = size >= 2 ? 'col-span-1 md:col-span-2' : 'col-span-1'
+    const cols = effectiveSize >= 2 ? 'col-span-1 md:col-span-2' : 'col-span-1'
     return `${cols} aspect-[9/16]`
   }
 
   const cols =
-    size >= 3 ? 'col-span-2 md:col-span-3' :
-    size >= 2 ? 'col-span-1 md:col-span-2' :
+    effectiveSize >= 3 ? 'col-span-2 md:col-span-3' :
+    effectiveSize >= 2 ? 'col-span-1 md:col-span-2' :
     'col-span-1'
 
   if (aspect === 'wide' || aspect === 'landscape') return `${cols} aspect-video`
@@ -85,8 +91,8 @@ export function getGridClass(size: number, aspect: string | null | undefined, _i
 
   // 'auto' / unspecified: size drives aspect, so mobile S/M (which share
   // col-span-1) still differentiate via a visible height delta.
-  if (size >= 3) return `${cols} aspect-video`
-  if (size >= 2) return `${cols} aspect-[4/5]`
+  if (effectiveSize >= 3) return `${cols} aspect-video`
+  if (effectiveSize >= 2) return `${cols} aspect-[4/5]`
   return `${cols} aspect-[3/4]`
 }
 
