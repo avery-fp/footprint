@@ -4,16 +4,9 @@ import { createServerSupabaseClient } from '@/lib/supabase'
 import { parseURL } from '@/lib/parser'
 import { requireAdminOrMachine } from '@/src/aro/lib/auth'
 
-/**
- * Tile size rhythm pattern — creates visual variety like a hand-curated room.
- * Maps tile index → size (1=standard, 2=double/hero).
- * Pattern: hero, small, small, hero, small, small, small, ...
- */
-function getTileSize(index: number): number {
-  if (index === 0) return 2  // First tile: hero
-  if (index === 3) return 2  // 4th tile: hero
-  return 1                    // Rest: standard
-}
+// Resting emission is S across the board. Mints produce calm, dense rooms;
+// hero/anchor promotion is an editorial pick made after the fact, not baked
+// into the rhythm pattern.
 
 /**
  * POST /api/aro/mint
@@ -230,7 +223,7 @@ export async function POST(request: NextRequest) {
             image_url: publicUrl,
             position: index,
             room_id: room.id,
-            size: getTileSize(index),
+            size: 1,
           })
 
           if (insertError) throw insertError
@@ -301,7 +294,7 @@ export async function POST(request: NextRequest) {
           thumbnail: parsed.thumbnail_url,
           position: image_urls.length + (embed_urls?.length || 0),
           room_id: room.id,
-          size: 2,
+          size: 1,
         })
 
         tileCount++
