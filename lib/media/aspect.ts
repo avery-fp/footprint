@@ -62,36 +62,40 @@ export function isVideoTile(type: string, url?: string): boolean {
  *   M (2) — col-span-2 mobile (full), md:col-span-2 desktop (1/2). Editorial.
  *   L (3) — col-span-2 mobile (full), md:col-span-3 desktop (3/4). Anchor.
  *
- * Tall (aspect-[9/16]) is capped at col-span-1 mobile / md:col-span-2
- * desktop regardless of size — full-width tall at 9:16 is ~178vw tall on
- * mobile and ~56vh+ on desktop, a scroll bomb on either axis.
+ * Doctrine: size is the ONLY driver of physical grid footprint that grows.
+ * Aspect (wide/tall/square) and provider type (video/youtube/etc.) never
+ * promote col-span — a size=1 wide video and a size=1 tall image both
+ * span one column. Only an explicit size bump grows the footprint.
  *
- * Video render-time floor: video tiles floor at M. Emission defaults stay
- * at S (DB writes images and videos as size 1), but at render time a
- * landscape video at col-span-1 + aspect-video is a postage stamp on a
- * 4-col grid — aspect doesn't carry differentiation when the footprint
- * is that compressed. The floor is render-only and isVideo-gated; image
- * tiles stay at their true emitted size.
+ * The previous video render-time floor (size<2 → 2 for video) violated
+ * this — a YouTube tile saved at S silently rendered at M. Removed.
+ * Video bodies fill their container via w-full h-full + object-cover,
+ * so a smaller container yields a smaller video, not a broken one.
+ *
+ * Tall (aspect-[9/16]) keeps its scroll-bomb cap at col-span-1 mobile /
+ * md:col-span-2 desktop regardless of size — full-width tall at 9:16 is
+ * ~178vw tall on mobile. This is a demotion (never grows footprint) and
+ * is consistent with the doctrine (aspect cannot promote).
+ *
+ * isVideo is accepted for call-site stability but intentionally unused.
  */
-export function getGridClass(size: number, aspect: string | null | undefined, isVideo = false): string {
-  const effectiveSize = isVideo && size < 2 ? 2 : size
-
+export function getGridClass(size: number, aspect: string | null | undefined, _isVideo = false): string {
   if (aspect === 'tall' || aspect === 'portrait') {
-    const cols = effectiveSize >= 2 ? 'col-span-1 md:col-span-2' : 'col-span-1'
+    const cols = size >= 2 ? 'col-span-1 md:col-span-2' : 'col-span-1'
     return `${cols} aspect-[9/16]`
   }
 
   const cols =
-    effectiveSize >= 3 ? 'col-span-2 md:col-span-3' :
-    effectiveSize >= 2 ? 'col-span-2 md:col-span-2' :
+    size >= 3 ? 'col-span-2 md:col-span-3' :
+    size >= 2 ? 'col-span-2 md:col-span-2' :
     'col-span-1'
 
   if (aspect === 'wide' || aspect === 'landscape') return `${cols} aspect-video`
   if (aspect === 'square') return `${cols} aspect-square`
 
   // 'auto' / unspecified: size drives aspect for legacy image tiles.
-  if (effectiveSize >= 3) return `${cols} aspect-video`
-  if (effectiveSize >= 2) return `${cols} aspect-[4/5]`
+  if (size >= 3) return `${cols} aspect-video`
+  if (size >= 2) return `${cols} aspect-[4/5]`
   return `${cols} aspect-[3/4]`
 }
 
