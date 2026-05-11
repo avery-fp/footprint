@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
           image_url: cleanImageUrl,
           position: nextPosition,
           room_id: room_id || null,
-          size: 2,
+          size: 1,
         })
         .select()
         .single()
@@ -327,10 +327,10 @@ export async function POST(request: NextRequest) {
           thumbnail: parsed.thumbnail_url,
           position: nextPosition,
           room_id: room_id || null,
-          // Peak convention: media tiles default to M (resting state — S is a
-          // deliberate compression chosen by the user, not the default). Other
-          // link types start S so the grid keeps visual rhythm.
-          size: ['youtube', 'vimeo', 'video', 'tiktok'].includes(parsed.type) ? 2 : 1,
+          // All link tiles emit at S. Wide aspect is not a promotion signal —
+          // a small wide tile in a dense field is correct. Size inflation is
+          // an editorial pick, not ambient default.
+          size: 1,
           // Video platforms (youtube, vimeo) write enrichment metadata but
           // keep their identity-layer render_mode (typically 'embed'). The
           // 'ghost' mode is for audio platforms only — a music video on
@@ -386,7 +386,7 @@ export async function POST(request: NextRequest) {
       position: tile.position,
       source: tableName,
       room_id: tile.room_id || null,
-      size: tile.size ?? 2,
+      size: tile.size ?? 1,
       aspect: tile.aspect || null,
     } : {
       id: tile.id,

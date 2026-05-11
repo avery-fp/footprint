@@ -103,9 +103,10 @@ export async function POST(request: NextRequest) {
 
     const nextPosition = (maxPos?.position ?? -1) + 1
 
-    // Direct image/video uploads default to size 2 (M = resting state).
-    // S is a deliberate compression chosen by the user, not the default.
-    const resolvedSize = (size === 1 || size === 2 || size === 3) ? size : 2
+    // Resting state is S. Aspect carries differentiation; size inflation is
+    // an editorial pick, not ambient default. Users explicitly promote to
+    // M/L via the editor.
+    const resolvedSize = (size === 1 || size === 2 || size === 3) ? size : 1
 
     const { data: tile, error: insertError } = await supabase
       .from('library')
@@ -142,7 +143,7 @@ export async function POST(request: NextRequest) {
         position: tile.position,
         source: 'library',
         room_id: tile.room_id || null,
-        size: tile.size ?? resolvedSize,
+        size: tile.size ?? resolvedSize ?? 1,
         aspect: tile.aspect || aspect || null,
         caption: tile.caption || null,
         caption_hidden: tile.caption_hidden ?? false,

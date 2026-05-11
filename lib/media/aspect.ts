@@ -55,21 +55,22 @@ export function isVideoTile(type: string, url?: string): boolean {
 /**
  * Public grid — aspect ratio bundled into the class string.
  *
- * Size × shape grammar. Mobile is 2-col, desktop is 3-col. Size = col-span,
+ * Size × shape grammar. Mobile is 2-col, desktop is 4-col. Size = col-span,
  * shape = aspect-ratio. Each step is a real footprint jump.
  *
- *   S (1) — col-span-1 mobile (1/2), md:col-span-1 desktop (1/3).
- *   M (2) — col-span-2 mobile (full), md:col-span-2 desktop (2/3). Hero.
- *   L (3) — col-span-2 mobile (full), md:col-span-3 desktop (full). Showcase.
+ *   S (1) — col-span-1 mobile (1/2), md:col-span-1 desktop (1/4). Resting.
+ *   M (2) — col-span-2 mobile (full), md:col-span-2 desktop (1/2). Editorial.
+ *   L (3) — col-span-2 mobile (full), md:col-span-3 desktop (3/4). Anchor.
  *
  * Tall (aspect-[9/16]) is capped at col-span-1 mobile / md:col-span-2
  * desktop regardless of size — full-width tall at 9:16 is ~178vw tall on
  * mobile and ~56vh+ on desktop, a scroll bomb on either axis.
  *
- * Video floors silently at M so videos never render below hero size.
+ * No video-size floor. Wide aspect is not a promotion signal — a small
+ * wide tile in a dense field is correct and premium.
  */
-export function getGridClass(size: number, aspect: string | null | undefined, isVideo = false): string {
-  const effectiveSize = isVideo && size < 2 ? 2 : size
+export function getGridClass(size: number, aspect: string | null | undefined, _isVideo = false): string {
+  const effectiveSize = size
 
   if (aspect === 'tall' || aspect === 'portrait') {
     const cols = effectiveSize >= 2 ? 'col-span-1 md:col-span-2' : 'col-span-1'
