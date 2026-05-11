@@ -66,11 +66,15 @@ export function isVideoTile(type: string, url?: string): boolean {
  * desktop regardless of size — full-width tall at 9:16 is ~178vw tall on
  * mobile and ~56vh+ on desktop, a scroll bomb on either axis.
  *
- * No video-size floor. Wide aspect is not a promotion signal — a small
- * wide tile in a dense field is correct and premium.
+ * Video render-time floor: video tiles floor at M. Emission defaults stay
+ * at S (DB writes images and videos as size 1), but at render time a
+ * landscape video at col-span-1 + aspect-video is a postage stamp on a
+ * 4-col grid — aspect doesn't carry differentiation when the footprint
+ * is that compressed. The floor is render-only and isVideo-gated; image
+ * tiles stay at their true emitted size.
  */
-export function getGridClass(size: number, aspect: string | null | undefined, _isVideo = false): string {
-  const effectiveSize = size
+export function getGridClass(size: number, aspect: string | null | undefined, isVideo = false): string {
+  const effectiveSize = isVideo && size < 2 ? 2 : size
 
   if (aspect === 'tall' || aspect === 'portrait') {
     const cols = effectiveSize >= 2 ? 'col-span-1 md:col-span-2' : 'col-span-1'
