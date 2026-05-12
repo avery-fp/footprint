@@ -328,10 +328,10 @@ export default function GhostTile({
       }}
     >
       <ThumbnailBg
-        src={thumbUrl}
+        src={thumbnailExhausted ? null : thumbUrl}
         candidates={thumbCandidates}
         cropBars
-        onExhausted={platform === 'youtube' ? () => setThumbnailExhausted(true) : undefined}
+        onExhausted={() => setThumbnailExhausted(true)}
       />
 
       <div
