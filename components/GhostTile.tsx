@@ -294,6 +294,12 @@ export default function GhostTile({
     const post = (msg: Record<string, any>) => {
       try { iframe.contentWindow?.postMessage(JSON.stringify(msg), '*') } catch {}
     }
+    // The autoplay= URL param can be dropped when the iframe loads
+    // asynchronously after the user's tap — force playback via the JS API so
+    // the user's first tap is the only one needed, no native YouTube play
+    // button step.
+    post({ event: 'command', func: 'playVideo', args: '' })
+    setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 250)
     // Subscribe + unmute — settled timing (~800ms after load event).
     setTimeout(() => {
       post({ event: 'listening', id: media_id })

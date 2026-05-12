@@ -189,15 +189,21 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       })
     : []
   if (youtubeId && !iframeFailed) {
-    // postMessage unmute — mobile Safari enforces mute on iframe autoplay
-    // even after user gesture. enablejsapi=1 + postMessage bypasses this.
+    // The autoplay= URL param can be dropped when the iframe loads
+    // asynchronously after the user's tap (gesture context expires before
+    // the YouTube player initializes). Force playback via the JS API so
+    // the user's first tap is the only one needed — no native YouTube
+    // play button intermediate step. Unmute settles ~800ms later.
     const handleYTLoad = (e: React.SyntheticEvent<HTMLIFrameElement>) => {
       const iframe = e.currentTarget
+      const post = (msg: Record<string, any>) => {
+        try { iframe.contentWindow?.postMessage(JSON.stringify(msg), '*') } catch {}
+      }
+      post({ event: 'command', func: 'playVideo', args: '' })
+      setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 250)
       setTimeout(() => {
-        try {
-          iframe.contentWindow?.postMessage('{"event":"command","func":"unMute","args":""}', '*')
-          iframe.contentWindow?.postMessage('{"event":"command","func":"setVolume","args":[100]}', '*')
-        } catch {}
+        post({ event: 'command', func: 'unMute', args: '' })
+        post({ event: 'command', func: 'setVolume', args: [100] })
       }, 800)
     }
 
