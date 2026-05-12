@@ -1100,7 +1100,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     // ── GRID: uniform masonry. Every column is the same width; tiles
     //   flow at their native aspect ratios. No size-based span math. ──
     gridInner = (
-      <div className={layoutConfig.containerClass} style={{ ...fadeStyle, gridAutoFlow: 'dense' }}>
+      <div className={layoutConfig.containerClass} style={{ ...fadeStyle, gridAutoFlow: 'dense', gridAutoRows: 'auto' }}>
         {displayContent.map((item: any, idx: number) => renderMasonryTile(item, idx))}
       </div>
     )

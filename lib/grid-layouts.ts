@@ -34,7 +34,7 @@ interface LayoutConfig {
 
 const LAYOUTS: Record<RoomLayout, LayoutConfig> = {
   grid: {
-    containerClass: 'grid grid-cols-2 md:grid-cols-4 gap-2.5 md:gap-3 px-4 md:px-6 lg:px-8 items-start',
+    containerClass: 'grid grid-cols-2 md:grid-cols-4 gap-2.5 md:gap-3',
     tileClass: 'relative overflow-hidden rounded-2xl',
   },
   horizontal: {
