@@ -24,7 +24,7 @@ import { useDepthExpansion } from '@/hooks/useDepthExpansion'
 import { moveChild, removeChild } from '@/lib/container-child-ops'
 import { getGridClass, resolveAspect, isVideoTile } from '@/lib/media/aspect'
 import { getFootprintDisplayTitle } from '@/lib/footprint'
-import { getRoomAtmosphere, DEFAULT_FILTER, DEFAULT_OVERLAY } from '@/lib/roomAtmosphere'
+import { getRoomAtmosphere } from '@/lib/roomAtmosphere'
 import { wallpaperSourceFromTile } from '@/lib/tile-rendering'
 import {
   DndContext,
@@ -303,9 +303,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // as the visitor walks room → room. Lock the wallpaper to defaults in grid
   // mode so the grid stays color-stable; horizontal rooms keep cinematic
   // per-room atmosphere.
-  const { filter: wallpaperFilter, overlay: overlayColor } = isGrid
-    ? { filter: DEFAULT_FILTER, overlay: DEFAULT_OVERLAY }
-    : getRoomAtmosphere(activeRoomIndex, isSoundRoom)
+  const { filter: wallpaperFilter, overlay: overlayColor } = getRoomAtmosphere(activeRoomIndex, isSoundRoom)
 
   const handleShare = () => {
     navigator.clipboard.writeText(pageUrl)
