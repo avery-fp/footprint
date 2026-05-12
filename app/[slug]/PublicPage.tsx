@@ -456,41 +456,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     })
   }, [activeRoomId])
 
-  // Remix — randomise size AND aspect for every tile in the active room.
-  // Sizes: equal weight across S/M/L for maximum spread.
-  // Aspects: randomised for image/video/thought/link tiles; embed tiles
-  // (youtube, spotify, vimeo, soundcloud) keep their content-native aspect.
-  const handleRemix = useCallback(() => {
-    if (!localContent.length) return
-    const sizes: (1 | 2 | 3)[] = [1, 2, 3]
-    const aspects = ['square', 'wide', 'tall'] as const
-    const embedTypes = new Set(['youtube', 'vimeo', 'spotify', 'soundcloud'])
-    const picks = localContent.map((tile) => {
-      const isEmbed = embedTypes.has(tile.type)
-      return {
-        id: tile.id,
-        size: sizes[Math.floor(Math.random() * sizes.length)],
-        aspect: isEmbed ? tile.aspect : aspects[Math.floor(Math.random() * aspects.length)],
-        source: tileSources[tile.id] || (tile.type === 'image' || tile.type === 'video' ? 'library' : 'links'),
-      }
-    })
-    setLocalContent((prev) =>
-      prev.map((t) => {
-        const p = picks.find((x) => x.id === t.id)
-        return p ? { ...t, size: p.size, aspect: p.aspect } : t
-      })
-    )
-    Promise.all(
-      picks.map(({ id, size, aspect, source }) =>
-        fetch('/api/tiles', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id, size, aspect, source, slug: footprint.username }),
-        })
-      )
-    ).catch((e) => console.error('remix PATCH failed', e))
-  }, [localContent, tileSources, footprint.username])
-
   const handleTileDelete = useCallback((id: string) => {
     setLocalContent((prev) => prev.filter((t) => t.id !== id))
     setTileSources((prev) => {
@@ -1215,9 +1180,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </button>
       )}
 
-      {/* Layout toggle + remix — fixed on the right side beneath edit/done.
-          Editor-mode only. Sits below the docked-nav lane so it doesn't
-          collide with room pills when the nav is fixed at the top. */}
+      {/* Layout toggle + page settings — fixed on the right side beneath
+          edit/done. Editor-mode only. Sits below the docked-nav lane so
+          it doesn't collide with room pills when the nav is fixed at the
+          top. */}
       {isOwner && editorMode && !expanded && (
         <div
           className="fixed z-30 flex flex-col items-center gap-2"
@@ -1228,23 +1194,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           data-no-wp-press
         >
           <LayoutToggle current={roomLayout} onToggle={(next) => handleLayoutToggle(next)} />
-          <button
-            type="button"
-            onClick={handleRemix}
-            aria-label="Remix tile sizes"
-            title="remix"
-            className="p-1.5 rounded-md transition-opacity touch-manipulation"
-            style={{ color: 'white', opacity: 0.3 }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.opacity = '0.7' }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.opacity = '0.3' }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
-              <path d="M21 3v5h-5" />
-              <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
-              <path d="M3 21v-5h5" />
-            </svg>
-          </button>
           <button
             type="button"
             onClick={() => setPageSettingsOpen((v) => !v)}
