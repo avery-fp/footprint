@@ -53,47 +53,49 @@ export function isVideoTile(type: string, url?: string): boolean {
 // ── Grid class helpers ──────────────────────────────────────
 
 /**
- * Public grid — aspect ratio bundled into the class string.
+ * Public grid — aspect ratio + col/row spans bundled into the class string.
  *
- * Size × shape grammar. Mobile is 2-col, desktop is 4-col. Size = col-span,
- * shape = aspect-ratio. Each step is a real footprint jump.
+ * Size × shape × media grammar. Mobile is 2-col, desktop is 4-col. Size
+ * is the footprint class; aspect and video-ness still carry physical
+ * gravity (wide tiles span rows of width, tall tiles tower, videos
+ * anchor) so the room composes a masonry rhythm instead of uniform cells.
  *
- *   S (1) — col-span-1 mobile (1/2), md:col-span-1 desktop (1/4). Resting.
- *   M (2) — col-span-2 mobile (full), md:col-span-2 desktop (1/2). Editorial.
- *   L (3) — col-span-2 mobile (full), md:col-span-3 desktop (3/4). Anchor.
- *
- * Doctrine: size is the ONLY driver of physical grid footprint that grows.
- * Aspect (wide/tall/square) and provider type (video/youtube/etc.) never
- * promote col-span — a size=1 wide video and a size=1 tall image both
- * span one column. Only an explicit size bump grows the footprint.
- *
- * The previous video render-time floor (size<2 → 2 for video) violated
- * this — a YouTube tile saved at S silently rendered at M. Removed.
- * Video bodies fill their container via w-full h-full + object-cover,
- * so a smaller container yields a smaller video, not a broken one.
- *
- * Tall (aspect-[9/16]) keeps its scroll-bomb cap at col-span-1 mobile /
- * md:col-span-2 desktop regardless of size — full-width tall at 9:16 is
- * ~178vw tall on mobile. This is a demotion (never grows footprint) and
- * is consistent with the doctrine (aspect cannot promote).
- *
- * isVideo is accepted for call-site stability but intentionally unused.
+ * Video dominance: any video tile (uploaded, youtube, vimeo) gets a
+ * minimum half-row footprint (col-span-2 row-span-1) at every size, or
+ * a tall tower (col-span-1 row-span-2) when aspect is tall/portrait.
+ * Without this, size=1 wide videos render as postage stamps.
  */
-export function getGridClass(size: number, aspect: string | null | undefined, _isVideo = false): string {
-  if (aspect === 'tall' || aspect === 'portrait') {
-    const cols = size >= 2 ? 'col-span-1 md:col-span-2' : 'col-span-1'
-    return `${cols} aspect-[9/16]`
+export function getGridClass(size: number, aspect: string | null | undefined, isVideo = false): string {
+  if (isVideo) {
+    if (aspect === 'tall' || aspect === 'portrait') {
+      return 'col-span-1 row-span-2 aspect-[9/16]'
+    }
+    return 'col-span-2 row-span-1 aspect-video'
   }
 
+  if (aspect === 'wide' || aspect === 'landscape') {
+    if (size >= 3) return 'col-span-2 row-span-1 md:col-span-4 md:row-span-2 aspect-video'
+    if (size >= 2) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-1 aspect-video'
+    return 'col-span-2 row-span-1 aspect-video'
+  }
+
+  if (aspect === 'tall' || aspect === 'portrait') {
+    if (size >= 3) return 'col-span-2 row-span-3 md:col-span-2 md:row-span-4 aspect-[3/4]'
+    if (size >= 2) return 'col-span-1 row-span-3 md:col-span-2 md:row-span-3 aspect-[3/4]'
+    return 'col-span-1 row-span-2 aspect-[3/4]'
+  }
+
+  if (aspect === 'square') {
+    if (size >= 3) return 'col-span-2 row-span-2 md:col-span-3 md:row-span-3 aspect-square'
+    if (size >= 2) return 'col-span-2 row-span-2 aspect-square'
+    return 'col-span-1 aspect-square'
+  }
+
+  // 'auto' / unspecified: size drives aspect for legacy image tiles.
   const cols =
     size >= 3 ? 'col-span-2 md:col-span-3' :
     size >= 2 ? 'col-span-2 md:col-span-2' :
     'col-span-1'
-
-  if (aspect === 'wide' || aspect === 'landscape') return `${cols} aspect-video`
-  if (aspect === 'square') return `${cols} aspect-square`
-
-  // 'auto' / unspecified: size drives aspect for legacy image tiles.
   if (size >= 3) return `${cols} aspect-video`
   if (size >= 2) return `${cols} aspect-[4/5]`
   return `${cols} aspect-[3/4]`
