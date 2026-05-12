@@ -1471,6 +1471,16 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                       minWidth: 240,
                       overflow: 'hidden',
                     }}
+                    // The active pill renders as an autoFocused rename
+                    // <input> while this popover is open. Without this
+                    // preventDefault, mousedown on any popover button
+                    // moves focus from the input to the button, fires
+                    // the input's onBlur (which calls
+                    // setPillMenuOpenForId(null)), and unmounts the
+                    // popover before the click event lands — silently
+                    // killing lock/delete. preventDefault on mousedown
+                    // blocks the focus transfer; the click survives.
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={(e) => e.stopPropagation()}
                   >
                     {/* Room rename — clicking opens inline rename input via the pill itself.
