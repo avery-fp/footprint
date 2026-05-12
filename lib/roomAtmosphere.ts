@@ -19,14 +19,14 @@ export const ROOM_FILTERS = [
 export const DEFAULT_FILTER = 'blur(6px)'
 
 export const ROOM_OVERLAYS = [
-  'rgba(0,0,0,0.46)',
-  'rgba(0,0,0,0.43)',
-  'rgba(0,0,0,0.56)',
-  'rgba(0,0,0,0.50)',
-  'rgba(0,0,0,0.40)',
-  'rgba(0,0,0,0.60)',
+  'rgba(0,0,0,0.35)',
+  'rgba(0,0,0,0.30)',
+  'rgba(0,0,0,0.42)',
+  'rgba(0,0,0,0.38)',
+  'rgba(0,0,0,0.28)',
+  'rgba(0,0,0,0.45)',
 ]
-export const DEFAULT_OVERLAY = 'rgba(0,0,0,0.48)'
+export const DEFAULT_OVERLAY = 'rgba(0,0,0,0.35)'
 
 export const SOUND_ROOM_FILTER = 'blur(10px) brightness(0.25) saturate(1.8) hue-rotate(-15deg)'
 export const SOUND_ROOM_OVERLAY = 'rgba(0,0,0,0.50)'
