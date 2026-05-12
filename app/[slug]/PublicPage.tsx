@@ -884,15 +884,19 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // Sortable tile wrapper for owner drag
   function SortableTileWrapper({ item, idx, children, className, style: extraStyle, disabled }: { item: any; idx: number; children: React.ReactNode; className?: string; style?: React.CSSProperties; disabled?: boolean }) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id, disabled })
-    // The dragged tile lifts (scale + shadow) instead of fading. The
-    // previous opacity:0.4 read as "disappeared" — especially on video
-    // posters which are already dark. Other tiles in the grid animate
-    // out of the way via dnd-kit's transition; this wrapper just makes
-    // the moving tile feel like it's floating above them.
+    // The dragged tile lifts via shadow + zIndex. Scaling the tile in
+    // place pushed its top edge upward by ~2% of tile height (8–12px on
+    // tall video tiles), which read as a sudden upward lurch on
+    // desktop where MouseSensor activates mid-motion. The fallback
+    // transition is also suppressed while dragging — dnd-kit returns
+    // transition:null for the active tile so it tracks the cursor 1:1;
+    // forcing a 220ms ease over that null made the tile spring toward
+    // each new pointer position. Non-dragged tiles keep the fallback
+    // so reorder animation stays smooth.
     const baseTransform = CSS.Transform.toString(transform) || ''
     const style: React.CSSProperties = {
-      transform: isDragging ? `${baseTransform} scale(1.04)` : baseTransform,
-      transition: transition || 'transform 220ms cubic-bezier(0.2, 0.9, 0.3, 1)',
+      transform: baseTransform,
+      transition: isDragging ? 'none' : (transition || 'transform 220ms cubic-bezier(0.2, 0.9, 0.3, 1)'),
       ...(isDragging ? {
         zIndex: 50,
         boxShadow: '0 18px 48px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.35)',
