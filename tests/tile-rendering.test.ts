@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { resolveCanonicalType, canRenderPublicTile } from '@/lib/tile-rendering'
+import { resolveCanonicalType, canRenderPublicTile, wallpaperSourceFromTile } from '@/lib/tile-rendering'
 
 // ════════════════════════════════════════
 // resolveCanonicalType
@@ -348,5 +348,80 @@ describe('canRenderPublicTile', () => {
 
   it('REGRESSION: .mp4 URL is renderable regardless of stored type', () => {
     expect(canRenderPublicTile(makeTile({ type: 'link', url: 'https://example.com/file.mp4' }))).toBe(true)
+  })
+})
+
+// ════════════════════════════════════════
+// wallpaperSourceFromTile
+// ════════════════════════════════════════
+
+describe('wallpaperSourceFromTile', () => {
+  it('image upload returns its own url', () => {
+    expect(wallpaperSourceFromTile({
+      type: 'image',
+      url: 'https://cdn.example.com/photo.jpg',
+    })).toBe('https://cdn.example.com/photo.jpg')
+  })
+
+  it('video upload returns poster_url, not playback url', () => {
+    expect(wallpaperSourceFromTile({
+      type: 'video',
+      url: 'https://cdn.example.com/clip.mp4',
+      poster_url: 'https://cdn.example.com/clip-poster.jpg',
+    })).toBe('https://cdn.example.com/clip-poster.jpg')
+  })
+
+  it('video upload without poster returns null', () => {
+    expect(wallpaperSourceFromTile({
+      type: 'video',
+      url: 'https://cdn.example.com/clip.mp4',
+    })).toBeNull()
+  })
+
+  it('container returns container_cover_url', () => {
+    expect(wallpaperSourceFromTile({
+      type: 'container',
+      container_cover_url: 'https://cdn.example.com/cover.jpg',
+    })).toBe('https://cdn.example.com/cover.jpg')
+  })
+
+  it('container without cover returns null', () => {
+    expect(wallpaperSourceFromTile({ type: 'container' })).toBeNull()
+  })
+
+  it('provider tile prefers thumbnail_url_hq over thumbnail_url', () => {
+    expect(wallpaperSourceFromTile({
+      type: 'youtube',
+      url: 'https://youtube.com/watch?v=abc',
+      thumbnail_url: 'https://example.com/sd.jpg',
+      thumbnail_url_hq: 'https://example.com/hq.jpg',
+    })).toBe('https://example.com/hq.jpg')
+  })
+
+  it('provider tile falls back to thumbnail_url', () => {
+    expect(wallpaperSourceFromTile({
+      type: 'spotify',
+      url: 'https://open.spotify.com/track/abc',
+      thumbnail_url: 'https://example.com/sd.jpg',
+    })).toBe('https://example.com/sd.jpg')
+  })
+
+  it('provider tile with no thumb returns null', () => {
+    expect(wallpaperSourceFromTile({
+      type: 'twitter',
+      url: 'https://x.com/foo/status/123',
+    })).toBeNull()
+  })
+
+  it('thought tile always returns null (text-only)', () => {
+    expect(wallpaperSourceFromTile({
+      type: 'thought',
+      url: 'https://example.com',
+      thumbnail_url: 'https://example.com/thumb.jpg',
+    })).toBeNull()
+  })
+
+  it('image tile without url returns null', () => {
+    expect(wallpaperSourceFromTile({ type: 'image' })).toBeNull()
   })
 })

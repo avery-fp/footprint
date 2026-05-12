@@ -25,6 +25,7 @@ import { moveChild, removeChild } from '@/lib/container-child-ops'
 import { getGridClass, resolveAspect, isVideoTile } from '@/lib/media/aspect'
 import { getFootprintDisplayTitle } from '@/lib/footprint'
 import { getRoomAtmosphere, DEFAULT_FILTER, DEFAULT_OVERLAY } from '@/lib/roomAtmosphere'
+import { wallpaperSourceFromTile } from '@/lib/tile-rendering'
 import {
   DndContext,
   closestCenter,
@@ -1930,6 +1931,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         if (!tile) return null
         const source = tileSources[tile.id] || (tile.type === 'image' || tile.type === 'video' ? 'library' : 'links')
         const containers = (allContent || []).filter((t: any) => t.type === 'container')
+        const wallpaperUrl = wallpaperSourceFromTile(tile as any)
         return (
           <OwnerTileSheet
             tile={tile as any}
@@ -1940,6 +1942,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             onClose={() => setSelectedTileId(null)}
             onTileChange={handleTileChange}
             onTileDelete={handleTileDelete}
+            wallpaperUrl={wallpaperUrl}
+            onSetWallpaper={handleWallpaperChange}
           />
         )
       })()}
