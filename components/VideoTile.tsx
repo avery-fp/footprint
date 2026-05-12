@@ -208,7 +208,7 @@ export default function VideoTile({ src, playbackUrl, posterUrl, status, onWides
         className="relative w-full h-full aspect-video overflow-hidden"
       >
         {posterUrl ? (
-          <img src={posterUrl} alt="" className="w-full h-full object-cover" />
+          <img src={posterUrl} alt="" className="block w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full" style={{ background: 'rgba(0,0,0,0.3)' }} />
         )}
@@ -304,7 +304,7 @@ export default function VideoTile({ src, playbackUrl, posterUrl, status, onWides
             >
               <video
                 ref={videoRef}
-                className="w-full h-full cursor-pointer"
+                className="block w-full h-full cursor-pointer"
                 style={{ objectFit: isExpanded ? 'contain' : 'cover' }}
                 autoPlay
                 muted

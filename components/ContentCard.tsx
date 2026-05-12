@@ -444,7 +444,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               playsInline
               preload="metadata"
               poster={content.thumbnail_url || undefined}
-              className={`w-full ${aspectClass || 'aspect-video'} ${fitClass} cursor-pointer`}
+              className={`block w-full ${aspectClass || 'aspect-video'} ${fitClass} cursor-pointer`}
               onLoadedData={() => setIsLoaded(true)}
               onPlay={() => setIsVideoPlaying(true)}
               onPause={() => setIsVideoPlaying(false)}
@@ -569,7 +569,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           onKeyDown={(e) => { if (e.key === 'Enter') setShellOpen(true) }}
           ref={containerRef as any}
           className={`block w-full h-full fp-tile overflow-hidden relative cursor-pointer ${aspectClass}`}
-          style={{ background: 'rgba(255,255,255,0.04)' }}
+          // No parent tint behind the resting poster — any sub-pixel gap between
+          // the aspect-ratio box and the cover image would otherwise read as a
+          // thin top/bottom edge line.
+          style={{ background: 'transparent' }}
         >
           {thumbSrc && (
             <div className="fp-resting-video-frame z-[1]">
