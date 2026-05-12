@@ -1517,6 +1517,16 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                       minWidth: 240,
                       overflow: 'hidden',
                     }}
+                    // The active pill renders as an autoFocused rename
+                    // <input> while this popover is open. Without this
+                    // preventDefault, mousedown on lock/delete moves
+                    // focus from the input to the button, fires the
+                    // input's onBlur (which sets pillMenuOpenForId to
+                    // null), and unmounts the popover before the click
+                    // event can land — silently swallowing lock and
+                    // delete. preventDefault on mousedown blocks the
+                    // focus transfer; the click survives.
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={(e) => e.stopPropagation()}
                   >
                     {/* Room rename — clicking opens inline rename input via the pill itself.
@@ -1547,15 +1557,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                       </svg>
                     </button>
 
-                    {/* Delete row — disabled for launch.
-                        The control is removed from the popover entirely
-                        until the delete-room state machine (orphan
-                        rehoming + safe next-room navigation + blur-race)
-                        is proven safe end-to-end on prod. Rooms can be
-                        renamed or locked; permanent deletion is held
-                        back. handleRoomDelete is left in place so a
-                        future re-enable is a single-button restoration,
-                        not a re-implementation. */}
+                    {/* Delete row */}
+                    <button
+                      type="button"
+                      onClick={() => { handleRoomDelete(pillMenuOpenForId); setPillMenuOpenForId(null) }}
+                      style={{ ...rowStyle, ...actionStyle, justifyContent: 'flex-start', color: 'rgba(220,90,90,0.85)' }}
+                    >
+                      delete room
+                    </button>
                   </div>
                 </>
               )
