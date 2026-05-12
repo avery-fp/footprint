@@ -39,6 +39,13 @@ interface OwnerTileSheetProps {
   onTileChange: (id: string, patch: Partial<Tile>) => void
   /** Optimistic local removal — runs synchronously before the DELETE. */
   onTileDelete: (id: string) => void
+  /**
+   * Image URL derived from the tile by the parent. Null when the tile has
+   * no usable visual media — the row is hidden in that case (no dead button).
+   */
+  wallpaperUrl?: string | null
+  /** Optimistic wallpaper swap — parent updates local state + PATCHes. */
+  onSetWallpaper?: (url: string) => void
 }
 
 const SHAPES: Array<{ key: 'square' | 'wide' | 'tall'; label: string }> = [
@@ -104,6 +111,8 @@ export default function OwnerTileSheet({
   onClose,
   onTileChange,
   onTileDelete,
+  wallpaperUrl,
+  onSetWallpaper,
 }: OwnerTileSheetProps) {
   // ESC closes the sheet — common keyboard expectation for transient panels.
   useEffect(() => {
@@ -176,6 +185,18 @@ export default function OwnerTileSheet({
     onClose()
   }
 
+  function handleSetWallpaper() {
+    if (!wallpaperUrl || !onSetWallpaper) return
+    onSetWallpaper(wallpaperUrl)
+    onClose()
+  }
+
+  // Whether to surface the "use as wallpaper" row. Hidden when the tile
+  // has no usable visual media (text-only thoughts, links without a
+  // thumbnail, provider tiles missing their thumb) or when the parent
+  // hasn't wired the handler — no dead buttons.
+  const canSetWallpaper = !!(wallpaperUrl && onSetWallpaper)
+
   function handleDelete() {
     if (!window.confirm('delete this tile?')) return
     onTileDelete(tile.id)
@@ -247,10 +268,28 @@ export default function OwnerTileSheet({
           </button>
         </div>
 
+        {/* Row 0 — wallpaper. Sets the page's background_url to this
+            tile's media without opening the upload dialog. Hidden when
+            the tile has no usable image source (text, link without
+            thumb, provider tile missing thumb) — no dead controls. */}
+        {canSetWallpaper && (
+          <div style={rowStyle}>
+            <span style={rowLabel}>wallpaper</span>
+            <button
+              type="button"
+              onClick={handleSetWallpaper}
+              style={pillBase}
+              aria-label="use as wallpaper"
+            >
+              use as wallpaper
+            </button>
+          </div>
+        )}
+
         {/* Row 1 — shape. For video tiles 'square' is hidden — it
             collapses to wide in the grid engine, so showing it as a
             distinct pill would be a dead control. */}
-        <div style={rowStyle}>
+        <div style={canSetWallpaper ? { ...rowStyle, borderTop: '1px solid rgba(255,255,255,0.06)' } : rowStyle}>
           <span style={rowLabel}>shape</span>
           <div className="flex gap-2">
             {VISIBLE_SHAPES.map((s) => (

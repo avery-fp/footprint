@@ -126,3 +126,40 @@ export function canRenderPublicTile(item: TileRow): boolean {
   // ContentCard catch-all — same guard as UnifiedTile's final content branch
   return !!(url || thumbnail_url || embed_html)
 }
+
+// ── Wallpaper source derivation ──
+
+interface WallpaperTileRow {
+  type: string
+  url?: string | null
+  thumbnail_url?: string | null
+  thumbnail_url_hq?: string | null
+  poster_url?: string | null
+  container_cover_url?: string | null
+}
+
+/**
+ * Resolve a usable image URL from a tile to be used as the page wallpaper.
+ *
+ * Returns null when the tile has no usable visual media (text-only thoughts,
+ * links without a thumbnail, broken provider tiles, container tiles without
+ * a cover, video tiles without a poster). Callers MUST treat null as
+ * "wallpaper action unavailable" — no dead buttons.
+ */
+export function wallpaperSourceFromTile(tile: WallpaperTileRow): string | null {
+  if (tile.type === 'thought') return null
+
+  if (tile.type === 'container') return tile.container_cover_url || null
+
+  // Library video tiles: `url` is the playback stream, not an image.
+  // Only `poster_url` is a valid still frame for the wallpaper layer.
+  if (tile.type === 'video') return tile.poster_url || null
+
+  // Library image tiles: `url` is the CDN-transformed image itself.
+  if (tile.type === 'image') return tile.url || null
+
+  // Provider tiles (links table): the tile's `url` is the external link,
+  // not media. Use the high-res thumb if we have it, otherwise the
+  // standard thumb. No thumb → not wallpaperable.
+  return tile.thumbnail_url_hq || tile.thumbnail_url || null
+}
