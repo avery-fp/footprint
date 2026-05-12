@@ -150,7 +150,7 @@ function VideoTile({ url, id }: { url: string; id: string }) {
         <video
           ref={videoRef}
           src={videoSrc}
-          className="w-full h-full object-cover"
+          className="block w-full h-full object-cover"
           muted
           loop
           playsInline
