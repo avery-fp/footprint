@@ -679,47 +679,20 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     const newIndex = localContent.findIndex((item: any) => item.id === over.id)
     if (oldIndex === -1 || newIndex === -1) return
 
-    const prevLocal = localContent
-    const prevRooms = roomsLocal
-    const targetRoomId = activeRoomId
-
     const reordered = arrayMove(localContent, oldIndex, newIndex).map((item: any, index: number) => ({ ...item, position: index }))
     setLocalContent(reordered)
-    // Mirror the reorder into roomsLocal so baseContent (derived from
-    // roomsLocal[activeRoomId].content) stays consistent when the user
-    // switches rooms and comes back. Without this, leaving and returning
-    // to the room re-derives baseContent from the stale prop mirror and
-    // the useEffect on `content` resets localContent to the old order.
-    setRoomsLocal((prev) => prev.map((r) =>
-      r.id === targetRoomId ? { ...r, content: reordered } : r
-    ))
 
-    // Persist positions to server. Prefer the per-tile `source` field
-    // (set by loadFootprint and the POST response) over the tileSources
-    // map so freshly added tiles route to the correct table even before
-    // the tileSources effect catches up.
+    // Persist positions to server
     const positions = reordered.map((item: any) => ({
       id: item.id,
-      source: item.source || tileSources[item.id] || 'library',
+      source: tileSources[item.id] || 'library',
       position: item.position,
     }))
     fetch('/api/tiles', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ slug: footprint.username, positions }),
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error(`reorder failed: ${res.status}`)
-      })
-      .catch((e) => {
-        // Server rejected the write or the request never landed. Revert
-        // both local mirrors so what the user sees matches what's
-        // persisted — silently keeping the optimistic order would make
-        // the next refresh appear to "revert" the move.
-        console.error('Failed to save tile order; reverting:', e)
-        setLocalContent(prevLocal)
-        setRoomsLocal(prevRooms)
-      })
+    }).catch(e => console.error('Failed to save tile order:', e))
   }
 
   function handleChildDelete(child: any) {
