@@ -514,20 +514,35 @@ export async function PUT(request: NextRequest) {
       ;(bySource[p.source] = bySource[p.source] || []).push(p)
     }
 
-    // Update positions per table
-    const promises: PromiseLike<any>[] = []
-    for (const [source, items] of Object.entries(bySource)) {
-      for (const item of items) {
-        promises.push(
+    // Update positions per table.
+    // supabase-js does not throw on row-level update failures; the error
+    // is returned in the resolved result. Without inspecting each result
+    // a partial (or total) failure resolves silently and the endpoint
+    // returns 200 — which is the silent-lie path that makes the client's
+    // optimistic order survive until the next refetch, then snap back to
+    // the persisted (unchanged) order. Surface the failure instead.
+    const results = await Promise.all(
+      Object.entries(bySource).flatMap(([source, items]) =>
+        items.map((item) =>
           supabase
             .from(source)
             .update({ position: item.position })
             .eq('id', item.id)
             .eq('serial_number', serialNumber)
         )
-      }
+      )
+    )
+    const failed = results.filter((r: any) => r && r.error)
+    if (failed.length > 0) {
+      log.error(
+        { slug, failures: failed.length, firstError: (failed[0] as any).error },
+        'Reorder partial failure'
+      )
+      return NextResponse.json(
+        { error: 'Reorder failed', failures: failed.length },
+        { status: 500 }
+      )
     }
-    await Promise.all(promises)
 
     revalidatePath(`/${slug}`)
     return NextResponse.json({ success: true })
