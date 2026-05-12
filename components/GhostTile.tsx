@@ -334,8 +334,9 @@ export default function GhostTile({
         onExhausted={() => setThumbnailExhausted(true)}
       />
 
+      {/* Whole-tile play affordance — invisible click target. */}
       <div
-        className="absolute inset-0 flex items-center justify-center cursor-pointer"
+        className="absolute inset-0 cursor-pointer"
         style={{
           opacity: effectiveActivated ? 0 : 1,
           pointerEvents: effectiveActivated ? 'none' : 'auto',
@@ -343,20 +344,7 @@ export default function GhostTile({
           zIndex: 2,
         }}
         onClick={handlePlay}
-      >
-        <div
-          className="fp-ghost-play w-7 h-7 rounded-full flex items-center justify-center transition-opacity duration-300"
-          style={{
-            background: 'rgba(255,255,255,0.08)',
-            backdropFilter: 'blur(4px)',
-            WebkitBackdropFilter: 'blur(4px)',
-          }}
-        >
-          <svg className="w-2.5 h-2.5 text-white/70 ml-px" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M8 5v14l11-7z"/>
-          </svg>
-        </div>
-      </div>
+      />
 
       {/* Fallback: if iframe fails or times out, show a graceful link-out */}
       {effectiveActivated && iframeFailed && (
