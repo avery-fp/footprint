@@ -354,13 +354,35 @@ export default function OwnerTileSheet({
           </div>
         )}
 
-        {/* Row 4 — room dropdown — disabled for launch.
-            Hidden entirely until the cross-room move state machine
-            (server PATCH + local state mirror + activeRoomId switch
-            + container child cascade) is proven safe end-to-end on
-            prod. handleRoom and the PATCH room_id path are left in
-            place so a future re-enable is a single render block, not
-            a re-implementation. */}
+        {/* Row 4 — room dropdown — relocates the tile to another room.
+            Drag-to-room is intentionally still disabled in PublicPage's
+            handleDragEnd (overId.startsWith('room:') early-return); this
+            sheet is the only path that moves a tile cross-room. Parent's
+            handleTileChange filters the tile out of the active room
+            locally when room_id changes; the PATCH persists it. */}
+        {rooms.length > 0 && (
+          <div style={{ ...rowStyle, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+            <span style={rowLabel}>room</span>
+            <select
+              value={tile.room_id || ''}
+              onChange={(e) => handleRoom(e.target.value)}
+              style={{
+                ...pillBase,
+                paddingRight: 28,
+                appearance: 'none',
+                WebkitAppearance: 'none',
+                MozAppearance: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              {rooms.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name || 'room'}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
     </>
   )
