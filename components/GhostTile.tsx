@@ -429,7 +429,7 @@ export default function GhostTile({
                 if (tryFs(container)) return
                 if (video?.webkitEnterFullscreen) video.webkitEnterFullscreen()
               }}
-              className="absolute flex items-center justify-center text-white/85 hover:text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:opacity-100 transition-opacity duration-300"
+              className="absolute flex items-center justify-center text-white/85 hover:text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-300"
               style={{
                 bottom: 12,
                 right: 12,
