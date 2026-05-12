@@ -370,19 +370,28 @@ export default function GhostTile({
 
       {effectiveActivated && iframeSrc && !iframeFailed && (
         <div
-          className="absolute inset-0"
+          className="absolute inset-0 flex items-center justify-center"
           style={{
             opacity: iframeLoaded ? 1 : 0,
             transition: 'opacity 0.25s ease',
             zIndex: 1,
           }}
         >
+          {/* Iframe sized to its platform's native aspect, centered in the
+              cell. The blurred ThumbnailBg behind fills any mismatch so a
+              vertical TikTok in a wide cell reads as sharp-center +
+              blurred poster aura, not raw black side bars. */}
           <iframe
             src={iframeSrc}
-            className="w-full h-full"
+            className="block"
             width={platform === 'youtube' ? 1920 : undefined}
             height={platform === 'youtube' ? 1080 : undefined}
-            style={{ border: 'none' }}
+            style={{
+              border: 'none',
+              aspectRatio: platform === 'tiktok' || isInstagramReel ? '9 / 16' : '16 / 9',
+              maxWidth: '100%',
+              maxHeight: '100%',
+            }}
             allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
