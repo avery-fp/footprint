@@ -8,34 +8,28 @@
  * table so a room has the same atmosphere on both sides.
  */
 
-// Brightness ×1.25, saturation ×1.10, scrim opacity ×0.75 across the table.
-// The lift is multiplicative so the relative curve is preserved — the
-// darkest room stays darkest, the most-saturated room stays most-saturated,
-// only the floor rises. Sound keeps its dedicated constant for the same
-// reason: lifting it inside the array would collapse the "most saturated"
-// invariant ae relies on for the room's identity.
 export const ROOM_FILTERS = [
-  'blur(4px) brightness(0.56) saturate(0.94) hue-rotate(-8deg)',
-  'blur(2px) brightness(0.81) saturate(1.54) hue-rotate(25deg)',
-  'blur(8px) brightness(0.38) saturate(1.76) hue-rotate(-35deg)',
-  'blur(0px) brightness(0.69) saturate(0.22) hue-rotate(0deg)',
-  'blur(5px) brightness(0.88) saturate(1.32) hue-rotate(35deg)',
-  'blur(7px) brightness(0.44) saturate(0.44) hue-rotate(-20deg)',
+  'blur(4px) brightness(0.45) saturate(0.85) hue-rotate(-8deg)',
+  'blur(2px) brightness(0.65) saturate(1.4) hue-rotate(25deg)',
+  'blur(8px) brightness(0.3) saturate(1.6) hue-rotate(-35deg)',
+  'blur(0px) brightness(0.55) saturate(0.2) hue-rotate(0deg)',
+  'blur(5px) brightness(0.7) saturate(1.2) hue-rotate(35deg)',
+  'blur(7px) brightness(0.35) saturate(0.4) hue-rotate(-20deg)',
 ]
 export const DEFAULT_FILTER = 'blur(6px)'
 
 export const ROOM_OVERLAYS = [
-  'rgba(0,0,0,0.26)',
-  'rgba(0,0,0,0.23)',
-  'rgba(0,0,0,0.32)',
-  'rgba(0,0,0,0.29)',
-  'rgba(0,0,0,0.21)',
-  'rgba(0,0,0,0.34)',
+  'rgba(0,0,0,0.35)',
+  'rgba(0,0,0,0.30)',
+  'rgba(0,0,0,0.42)',
+  'rgba(0,0,0,0.38)',
+  'rgba(0,0,0,0.28)',
+  'rgba(0,0,0,0.45)',
 ]
-export const DEFAULT_OVERLAY = 'rgba(0,0,0,0.26)'
+export const DEFAULT_OVERLAY = 'rgba(0,0,0,0.35)'
 
-export const SOUND_ROOM_FILTER = 'blur(10px) brightness(0.31) saturate(1.98) hue-rotate(-15deg)'
-export const SOUND_ROOM_OVERLAY = 'rgba(0,0,0,0.38)'
+export const SOUND_ROOM_FILTER = 'blur(10px) brightness(0.25) saturate(1.8) hue-rotate(-15deg)'
+export const SOUND_ROOM_OVERLAY = 'rgba(0,0,0,0.50)'
 
 export interface RoomAtmosphere {
   filter: string
