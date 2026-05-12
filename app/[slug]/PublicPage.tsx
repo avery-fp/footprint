@@ -1197,6 +1197,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               filter: claimActive
                 ? 'blur(60px) brightness(0.15)'
                 : backgroundBlurLocal ? wallpaperFilter : 'none',
+              transform: claimActive ? 'none' : backgroundBlurLocal ? 'scale(1.05)' : 'none',
               transition: 'filter 0.8s ease',
             }}
             onLoad={() => setWallpaperLoaded(true)}
