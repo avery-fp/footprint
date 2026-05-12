@@ -463,6 +463,14 @@ input:-webkit-autofill:focus {
   50%      { background: rgba(255, 255, 255, 0.08); }
 }
 
+/* Upload progress — indeterminate sweep used by PublicPage's _temp tile
+   overlay before the XHR onprogress callback reports a real percentage.
+   Pure transform so it never reflows the grid. */
+@keyframes fp-upload-indeterminate {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+
 .vapor-box {
   background: rgba(255, 255, 255, 0.04);
 }

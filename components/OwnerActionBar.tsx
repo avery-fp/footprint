@@ -254,15 +254,17 @@ export default function OwnerActionBar({
       </button>
       <button
         type="button"
-        aria-label="upload image or video"
-        title="upload"
-        style={buttonStyle}
+        aria-label={busy ? 'uploading' : 'upload image or video'}
+        aria-busy={busy}
+        title={busy ? 'uploading…' : 'upload'}
+        disabled={busy}
+        style={{ ...buttonStyle, opacity: busy ? 0.55 : 1, cursor: busy ? 'progress' : 'pointer' }}
         onClick={() => fileInputRef.current?.click()}
       >
-        upload
+        {busy ? 'uploading…' : 'upload'}
       </button>
 
-      <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple style={{ display: 'none' }} onChange={(e) => { const files = Array.from(e.target.files || []); if (files.length) handleFilesPicked(files); e.target.value = '' }} />
+      <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple disabled={busy} style={{ display: 'none' }} onChange={(e) => { const files = Array.from(e.target.files || []); if (files.length) handleFilesPicked(files); e.target.value = '' }} />
 
       {(verb === 'link' || verb === 'text' || verb === 'collection') && (
         <div
