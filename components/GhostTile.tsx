@@ -3,8 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { audioManager } from '@/lib/audio-manager'
 import { parseEmbed, buildYouTubeEmbedUrl } from '@/lib/parseEmbed'
-import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getThumbnailCandidates } from '@/lib/media/thumbnails'
-import FieldBackground from '@/components/FieldBackground'
+import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getThumbnailCandidates, isBadOrMissingThumbnail } from '@/lib/media/thumbnails'
 
 // ════════════════════════════════════════
 // GHOST TILE — de-branded media renderer
@@ -59,6 +58,7 @@ export default function GhostTile({
   const [isPlaying, setIsPlaying] = useState(false)
   const [iframeLoaded, setIframeLoaded] = useState(false)
   const [iframeFailed, setIframeFailed] = useState(false)
+  const [thumbnailExhausted, setThumbnailExhausted] = useState(false)
   const iframeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const tileRef = useRef<HTMLDivElement | null>(null)
   const tileId = useRef(`ghost-${media_id}-${Math.random().toString(36).slice(2, 6)}`)
@@ -267,8 +267,16 @@ export default function GhostTile({
   // YouTube clip support: convert ms → integer seconds for start/end params.
   const ytClipStart = clip_start_ms ? Math.floor(clip_start_ms / 1000) : 0
   const ytClipEnd = clip_end_ms ? Math.ceil(clip_end_ms / 1000) : 0
+  // When the thumbnail facade can't render (empty url / chain lands on
+  // ytimg `default.jpg`), skip the dormant grey state and mount the
+  // YouTube embed directly so the tile shows YouTube's own player UI.
+  const shouldAutoActivateEmbed =
+    platform === 'youtube' && (isBadOrMissingThumbnail(thumbUrl) || thumbnailExhausted)
+  const effectiveActivated = isPlaying || shouldAutoActivateEmbed
   const iframeSrc = platform === 'youtube'
-    ? buildYouTubeEmbedUrl(media_id, { autoplay: true, mute: true, start: ytClipStart, end: ytClipEnd, hd: true })
+    // Auto-activated path: autoplay off so YouTube renders its own
+    // thumbnail/play UI. User-click path keeps autoplay+mute (mobile-Safari).
+    ? buildYouTubeEmbedUrl(media_id, { autoplay: isPlaying, mute: isPlaying, start: ytClipStart, end: ytClipEnd, hd: true })
     : platform === 'vimeo'
     // Vimeo respects `quality` param: "1080p" | "720p" | ... | "auto"
     ? `https://player.vimeo.com/video/${media_id}?title=0&byline=0&portrait=0&badge=0&dnt=1&autoplay=1&quality=1080p`
@@ -319,30 +327,18 @@ export default function GhostTile({
         clipPath: 'inset(0 round var(--fp-tile-radius, 0px))',
       }}
     >
-      {/* Chromatic atmosphere — blurred, saturated, dimmed echo of the
-          poster. Always present; sits at z=0. During playback it shows
-          through the iframe's side bars as natural optical spill from
-          the same image, not a flat scrim. */}
-      <FieldBackground imageUrl={thumbUrl} intensity="embed" />
-
-      {/* Sharp poster facade — the resting truth. Fades out when the
-          user taps play, revealing the FieldBackground behind the iframe. */}
-      <div
-        className="absolute inset-0"
-        style={{
-          opacity: isPlaying ? 0 : 1,
-          transition: 'opacity 0.4s ease',
-          pointerEvents: isPlaying ? 'none' : 'auto',
-        }}
-      >
-        <ThumbnailBg src={thumbUrl} candidates={thumbCandidates} cropBars />
-      </div>
+      <ThumbnailBg
+        src={thumbUrl}
+        candidates={thumbCandidates}
+        cropBars
+        onExhausted={platform === 'youtube' ? () => setThumbnailExhausted(true) : undefined}
+      />
 
       <div
         className="absolute inset-0 flex items-center justify-center cursor-pointer"
         style={{
-          opacity: isPlaying ? 0 : 1,
-          pointerEvents: isPlaying ? 'none' : 'auto',
+          opacity: effectiveActivated ? 0 : 1,
+          pointerEvents: effectiveActivated ? 'none' : 'auto',
           transition: 'opacity 0.4s ease',
           zIndex: 2,
         }}
@@ -363,7 +359,7 @@ export default function GhostTile({
       </div>
 
       {/* Fallback: if iframe fails or times out, show a graceful link-out */}
-      {isPlaying && iframeFailed && (
+      {effectiveActivated && iframeFailed && (
         <div className="fp-open-source-fallback absolute inset-0 flex flex-col items-center justify-center gap-2" style={{ zIndex: 3 }}>
           <a href={url} target="_blank" rel="noopener noreferrer"
             className="fp-open-source-link transition-colors">
@@ -372,7 +368,7 @@ export default function GhostTile({
         </div>
       )}
 
-      {isPlaying && iframeSrc && !iframeFailed && (
+      {effectiveActivated && iframeSrc && !iframeFailed && (
         <div
           className="absolute inset-0 flex items-center justify-center"
           style={{
@@ -433,7 +429,7 @@ export default function GhostTile({
                 if (tryFs(container)) return
                 if (video?.webkitEnterFullscreen) video.webkitEnterFullscreen()
               }}
-              className="absolute flex items-center justify-center text-white/85 hover:text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-300"
+              className="absolute flex items-center justify-center text-white/85 hover:text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:opacity-100 transition-opacity duration-300"
               style={{
                 bottom: 12,
                 right: 12,
