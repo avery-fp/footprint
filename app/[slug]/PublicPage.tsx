@@ -569,16 +569,72 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   }, [])
 
   const handleRoomDelete = useCallback((roomId: string) => {
-    if (!window.confirm('delete this room? Tiles in it will return to the home view.')) return
-    setRoomsLocal((prev) => prev.filter((r) => r.id !== roomId))
+    const target = roomsLocal.find((r) => r.id === roomId)
+    if (!target) return
+    const tilesInRoom = ((target as any).content || []) as any[]
+    const tileCount = tilesInRoom.length
+
+    // Pick the next room from the VISIBLE list. The prior implementation
+    // used roomsLocal.find which would happily land the user on a hidden
+    // (unnamed) row — those don't render any pill or content, so the
+    // page looked empty even though the tiles still existed. The same
+    // visible remainder is the orphan target: mirror the SSR orphan
+    // logic in app/[slug]/page.tsx so the immediate UI matches what a
+    // refresh would render.
+    const visibleRemaining = roomsLocal.filter((r) =>
+      r.id !== roomId && r.name && r.name.trim().length > 0
+    )
+    const orphanTargetId = visibleRemaining[0]?.id || null
+    const orphanTargetName = visibleRemaining[0]?.name || 'home'
+
+    const msg = tileCount > 0
+      ? `delete this room? ${tileCount} tile${tileCount === 1 ? '' : 's'} will move to ${orphanTargetName}.`
+      : 'delete this room?'
+    if (!window.confirm(msg)) return
+
+    const prevRooms = roomsLocal
+    const prevActive = activeRoomId
+
+    // Move tiles out of the deleted room into the orphan target so they
+    // don't blink out of every view between delete and the next refresh.
+    // Without this, tiles carry a room_id that no longer matches any
+    // room in roomsLocal and appear in no per-room content array — the
+    // "lost objects" failure mode.
+    setRoomsLocal((prev) =>
+      prev
+        .filter((r) => r.id !== roomId)
+        .map((r) =>
+          orphanTargetId && r.id === orphanTargetId && tilesInRoom.length > 0
+            ? {
+                ...r,
+                content: [
+                  ...(((r as any).content || []) as any[]),
+                  ...tilesInRoom.map((t: any) => ({ ...t, room_id: null })),
+                ],
+              } as any
+            : r
+        )
+    )
+
     if (activeRoomId === roomId) {
-      const next = roomsLocal.find((r) => r.id !== roomId)
-      setActiveRoomId(next?.id || null)
+      setActiveRoomId(orphanTargetId)
     }
-    fetch(`/api/rooms?id=${encodeURIComponent(roomId)}&slug=${encodeURIComponent(footprint.username)}`, {
-      method: 'DELETE',
-      credentials: 'include',
-    }).catch((e) => console.error('room delete failed', e))
+
+    fetch(
+      `/api/rooms?id=${encodeURIComponent(roomId)}&slug=${encodeURIComponent(footprint.username)}`,
+      { method: 'DELETE', credentials: 'include' }
+    )
+      .then((res) => {
+        if (!res.ok) throw new Error(`delete failed: ${res.status}`)
+      })
+      .catch((e) => {
+        // Server rejected the delete or never responded. Restore the
+        // room (with its tiles) and the prior active selection so what
+        // the user sees matches what's persisted.
+        console.error('room delete failed; reverting', e)
+        setRoomsLocal(prevRooms)
+        setActiveRoomId(prevActive)
+      })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [footprint.username, activeRoomId, roomsLocal])
 
