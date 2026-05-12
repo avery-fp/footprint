@@ -19,12 +19,12 @@ export const ROOM_FILTERS = [
 export const DEFAULT_FILTER = 'blur(6px)'
 
 export const ROOM_OVERLAYS = [
-  'rgba(0,0,0,0.35)',
   'rgba(0,0,0,0.30)',
-  'rgba(0,0,0,0.42)',
+  'rgba(0,0,0,0.30)',
+  'rgba(0,0,0,0.34)',
   'rgba(0,0,0,0.38)',
   'rgba(0,0,0,0.28)',
-  'rgba(0,0,0,0.45)',
+  'rgba(0,0,0,0.36)',
 ]
 export const DEFAULT_OVERLAY = 'rgba(0,0,0,0.35)'
 
