@@ -43,7 +43,6 @@ import {
   rectSortingStrategy,
   useSortable,
 } from '@dnd-kit/sortable'
-import { useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 
 interface Room {
@@ -668,28 +667,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     const { active, over } = event
     if (!over || active.id === over.id) return
 
-    // Drop-on-room — relocate the tile to that room. Active is the
-    // tile id, over.id matches a room droppable id (prefixed below).
+    // Drag may only reorder within the active room. Cross-room migration
+    // via drag was removed — too easy to accidentally vacuum tiles into
+    // another room when the sticky room nav sits in the path of natural
+    // reorder gestures. Moving tiles between rooms requires an explicit
+    // UI action (future work), never a drag side-effect.
     const overId = String(over.id)
-    if (overId.startsWith('room:')) {
-      // Drag never migrates rooms on mobile. The top room nav sits in the
-      // path of natural reorder gestures and would otherwise vacuum tiles
-      // into another room. Mobile room transfer must be an explicit move
-      // action, not a drag side-effect.
-      if (isMobile) return
-      const targetRoomId = overId.slice('room:'.length)
-      const tileId = String(active.id)
-      const source = tileSources[tileId] || 'library'
-      // Optimistic — remove from current room's localContent (it'll
-      // reappear when the user navigates to the target room).
-      setLocalContent((prev) => prev.filter((t) => t.id !== tileId))
-      fetch('/api/tiles', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: tileId, source, slug: footprint.username, room_id: targetRoomId }),
-      }).catch((e) => console.error('Failed to assign room:', e))
-      return
-    }
+    if (overId.startsWith('room:')) return
 
     const oldIndex = localContent.findIndex((item: any) => item.id === active.id)
     const newIndex = localContent.findIndex((item: any) => item.id === over.id)
@@ -766,20 +750,15 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     }
   }
 
-  // Per-pill render: wraps the pill in `useDroppable` when isOwner so
-  // it can receive a drop from a tile drag (the send-to-room gesture).
-  // Stranger render skips the droppable wiring entirely.
+  // Per-pill render: no drop targets. Drag may only reorder within
+  // the active room — cross-room migration via drag was removed.
   function RoomPillNode({ room }: { room: any }) {
     const isActive = activeRoomId === room.id
     const isOpen = isOwner && editorMode && pillMenuOpenForId === room.id
-    // Mobile: pills are never drop targets. Reorder gestures pass through
-    // the sticky top nav and would otherwise accidentally migrate tiles.
-    const { setNodeRef, isOver } = useDroppable({ id: `room:${room.id}`, disabled: !isOwner || !draggingTileId || isMobile })
+    // Room pills are NOT drop targets. Drag is reorder-within-room only.
     return (
       <div
-        ref={isOwner ? setNodeRef : undefined}
         className="relative flex items-center"
-        style={isOver ? { background: 'rgba(255,255,255,0.06)', borderRadius: 4, transition: 'background 120ms ease' } : undefined}
       >
         {isOpen ? (
           <input
