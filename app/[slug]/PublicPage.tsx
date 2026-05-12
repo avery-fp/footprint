@@ -456,41 +456,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     })
   }, [activeRoomId])
 
-  // Remix — randomise size AND aspect for every tile in the active room.
-  // Sizes: equal weight across S/M/L for maximum spread.
-  // Aspects: randomised for image/video/thought/link tiles; embed tiles
-  // (youtube, spotify, vimeo, soundcloud) keep their content-native aspect.
-  const handleRemix = useCallback(() => {
-    if (!localContent.length) return
-    const sizes: (1 | 2 | 3)[] = [1, 2, 3]
-    const aspects = ['square', 'wide', 'tall'] as const
-    const embedTypes = new Set(['youtube', 'vimeo', 'spotify', 'soundcloud'])
-    const picks = localContent.map((tile) => {
-      const isEmbed = embedTypes.has(tile.type)
-      return {
-        id: tile.id,
-        size: sizes[Math.floor(Math.random() * sizes.length)],
-        aspect: isEmbed ? tile.aspect : aspects[Math.floor(Math.random() * aspects.length)],
-        source: tileSources[tile.id] || (tile.type === 'image' || tile.type === 'video' ? 'library' : 'links'),
-      }
-    })
-    setLocalContent((prev) =>
-      prev.map((t) => {
-        const p = picks.find((x) => x.id === t.id)
-        return p ? { ...t, size: p.size, aspect: p.aspect } : t
-      })
-    )
-    Promise.all(
-      picks.map(({ id, size, aspect, source }) =>
-        fetch('/api/tiles', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id, size, aspect, source, slug: footprint.username }),
-        })
-      )
-    ).catch((e) => console.error('remix PATCH failed', e))
-  }, [localContent, tileSources, footprint.username])
-
   const handleTileDelete = useCallback((id: string) => {
     setLocalContent((prev) => prev.filter((t) => t.id !== id))
     setTileSources((prev) => {
