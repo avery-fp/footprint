@@ -9,14 +9,14 @@
  */
 
 export const ROOM_FILTERS = [
-  'blur(8px) brightness(0.45) saturate(0.85) hue-rotate(-8deg)',
-  'blur(4px) brightness(0.65) saturate(1.4) hue-rotate(25deg)',
-  'blur(16px) brightness(0.3) saturate(1.6) hue-rotate(-35deg)',
+  'blur(4px) brightness(0.45) saturate(0.85) hue-rotate(-8deg)',
+  'blur(2px) brightness(0.65) saturate(1.4) hue-rotate(25deg)',
+  'blur(8px) brightness(0.3) saturate(1.6) hue-rotate(-35deg)',
   'blur(0px) brightness(0.55) saturate(0.2) hue-rotate(0deg)',
-  'blur(10px) brightness(0.7) saturate(1.2) hue-rotate(35deg)',
-  'blur(14px) brightness(0.35) saturate(0.4) hue-rotate(-20deg)',
+  'blur(5px) brightness(0.7) saturate(1.2) hue-rotate(35deg)',
+  'blur(7px) brightness(0.35) saturate(0.4) hue-rotate(-20deg)',
 ]
-export const DEFAULT_FILTER = 'blur(12px)'
+export const DEFAULT_FILTER = 'blur(6px)'
 
 export const ROOM_OVERLAYS = [
   'rgba(0,0,0,0.35)',
@@ -28,7 +28,7 @@ export const ROOM_OVERLAYS = [
 ]
 export const DEFAULT_OVERLAY = 'rgba(0,0,0,0.35)'
 
-export const SOUND_ROOM_FILTER = 'blur(20px) brightness(0.25) saturate(1.8) hue-rotate(-15deg)'
+export const SOUND_ROOM_FILTER = 'blur(10px) brightness(0.25) saturate(1.8) hue-rotate(-15deg)'
 export const SOUND_ROOM_OVERLAY = 'rgba(0,0,0,0.50)'
 
 export interface RoomAtmosphere {
