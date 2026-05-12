@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { audioManager } from '@/lib/audio-manager'
 import { parseEmbed, buildYouTubeEmbedUrl } from '@/lib/parseEmbed'
 import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getThumbnailCandidates, isBadOrMissingThumbnail } from '@/lib/media/thumbnails'
+import FieldBackground from '@/components/FieldBackground'
 
 // ════════════════════════════════════════
 // GHOST TILE — de-branded media renderer
@@ -334,8 +335,9 @@ export default function GhostTile({
         onExhausted={() => setThumbnailExhausted(true)}
       />
 
+      {/* The whole tile is the play affordance — invisible click target, no chrome. */}
       <div
-        className="absolute inset-0 flex items-center justify-center cursor-pointer"
+        className="absolute inset-0 cursor-pointer"
         style={{
           opacity: effectiveActivated ? 0 : 1,
           pointerEvents: effectiveActivated ? 'none' : 'auto',
@@ -343,20 +345,7 @@ export default function GhostTile({
           zIndex: 2,
         }}
         onClick={handlePlay}
-      >
-        <div
-          className="fp-ghost-play w-7 h-7 rounded-full flex items-center justify-center transition-opacity duration-300"
-          style={{
-            background: 'rgba(255,255,255,0.08)',
-            backdropFilter: 'blur(4px)',
-            WebkitBackdropFilter: 'blur(4px)',
-          }}
-        >
-          <svg className="w-2.5 h-2.5 text-white/70 ml-px" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M8 5v14l11-7z"/>
-          </svg>
-        </div>
-      </div>
+      />
 
       {/* Fallback: if iframe fails or times out, show a graceful link-out */}
       {effectiveActivated && iframeFailed && (
@@ -531,31 +520,35 @@ function ThumbnailBg({
     <div className="absolute inset-0" style={{ background: 'rgba(0, 0, 0, 0.6)' }} />
   )
   return (
-    <div className={cropBars ? 'fp-resting-video-frame' : 'absolute inset-0'}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={src}
-        alt=""
-        className={cropBars ? 'fp-resting-video-media' : 'absolute inset-0 w-full h-full object-cover'}
-        style={{}}
-        loading="eager"
-        decoding="async"
-        referrerPolicy="no-referrer"
-        onLoad={(e) => {
-          applyThumbnailLoadGuard(e.currentTarget, candidates)
-          // Chain landed on the lowest-res `/default.jpg` — every higher-res
-          // ytimg variant returned the grey unavailable placeholder.
-          const finalSrc = e.currentTarget.currentSrc || e.currentTarget.src
-          if (onExhausted && /\/vi\/[^/]+\/default\.jpg/.test(finalSrc)) {
-            onExhausted()
-          }
-        }}
-        onError={(e) => {
-          const advanced = applyNextThumbnailFallback(e.currentTarget, candidates)
-          if (!advanced) onExhausted?.()
-        }}
-      />
-    </div>
+    <>
+      {/* Cover the void with a blurred duplicate of the same poster. */}
+      {cropBars && <FieldBackground imageUrl={src} intensity="embed" />}
+      <div className={cropBars ? 'fp-resting-video-frame' : 'absolute inset-0'}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={src}
+          alt=""
+          className={cropBars ? 'fp-resting-video-media' : 'absolute inset-0 w-full h-full object-cover'}
+          style={{}}
+          loading="eager"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onLoad={(e) => {
+            applyThumbnailLoadGuard(e.currentTarget, candidates)
+            // Chain landed on the lowest-res `/default.jpg` — every higher-res
+            // ytimg variant returned the grey unavailable placeholder.
+            const finalSrc = e.currentTarget.currentSrc || e.currentTarget.src
+            if (onExhausted && /\/vi\/[^/]+\/default\.jpg/.test(finalSrc)) {
+              onExhausted()
+            }
+          }}
+          onError={(e) => {
+            const advanced = applyNextThumbnailFallback(e.currentTarget, candidates)
+            if (!advanced) onExhausted?.()
+          }}
+        />
+      </div>
+    </>
   )
 }
 

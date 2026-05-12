@@ -211,6 +211,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           className="w-full h-full fp-tile overflow-hidden cursor-pointer relative group bg-black"
           onClick={handleActivate}
         >
+          {/* Cover the void with a blurred duplicate of the same poster. */}
+          <FieldBackground imageUrl={thumbSrc} intensity="embed" />
           <div className="fp-resting-video-frame">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -227,13 +229,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 applyNextThumbnailFallback(e.currentTarget, youtubeThumbCandidates)
               }}
             />
-          </div>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center opacity-60 group-hover:opacity-100 group-hover:scale-110 transition-all duration-200">
-              <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z"/>
-              </svg>
-            </div>
           </div>
         </div>
       )
@@ -573,20 +568,24 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           style={{ background: 'rgba(255,255,255,0.04)' }}
         >
           {thumbSrc && (
-            <div className="fp-resting-video-frame z-[1]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={thumbSrc}
-                alt=""
-                className="fp-resting-video-media"
-                loading="eager"
-                decoding="async"
-                onError={() => setSocialThumbFailed(true)}
-              />
-            </div>
+            <>
+              {/* Cover the void with a blurred duplicate of the same poster. */}
+              <FieldBackground imageUrl={thumbSrc} intensity="embed" />
+              <div className="fp-resting-video-frame z-[1]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={thumbSrc}
+                  alt=""
+                  className="fp-resting-video-media"
+                  loading="eager"
+                  decoding="async"
+                  onError={() => setSocialThumbFailed(true)}
+                />
+              </div>
+            </>
           )}
           {/* Text overlay — caption atop thumb, readable via text-shadow */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-5">
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-5 z-[2]">
             <p
               className={`whitespace-pre-wrap text-center text-white/80 fp-text-shadow ${typo} line-clamp-6`}
               style={{ fontWeight: 500 }}
@@ -639,20 +638,24 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           style={{ background: 'rgba(255,255,255,0.04)' }}
         >
           {thumbSrc && (
-            <div className="fp-resting-video-frame z-[1]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={thumbSrc}
-                alt=""
-                className="fp-resting-video-media"
-                loading="eager"
-                decoding="async"
-                onError={() => setSocialThumbFailed(true)}
-              />
-            </div>
+            <>
+              {/* Cover the void with a blurred duplicate of the same poster. */}
+              <FieldBackground imageUrl={thumbSrc} intensity="embed" />
+              <div className="fp-resting-video-frame z-[1]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={thumbSrc}
+                  alt=""
+                  className="fp-resting-video-media"
+                  loading="eager"
+                  decoding="async"
+                  onError={() => setSocialThumbFailed(true)}
+                />
+              </div>
+            </>
           )}
           {/* Text overlay — caption atop thumb */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-5">
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-5 z-[2]">
             <p
               className={`whitespace-pre-wrap text-center text-white/80 fp-text-shadow ${typo} line-clamp-6`}
               style={{ fontWeight: 500 }}

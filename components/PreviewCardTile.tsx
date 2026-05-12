@@ -1,6 +1,7 @@
 'use client'
 
 import { applyNextThumbnailFallback, applyThumbnailLoadGuard } from '@/lib/media/thumbnails'
+import FieldBackground from '@/components/FieldBackground'
 
 /**
  * PREVIEW CARD TILE — Universal fallback rendering
@@ -43,6 +44,8 @@ export default function PreviewCardTile({
         className="block w-full h-full relative overflow-hidden"
         style={{ borderRadius: 'inherit' }}
       >
+        {/* Cover the void with a blurred duplicate of the same poster (video URLs only). */}
+        {cropThumbnail && <FieldBackground imageUrl={thumbSrc} intensity="embed" />}
         <div className={cropThumbnail ? 'fp-resting-video-frame' : 'absolute inset-0'}>
           {/* Album art / thumbnail — full bleed */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
