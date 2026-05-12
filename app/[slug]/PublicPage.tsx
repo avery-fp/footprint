@@ -672,6 +672,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     // tile id, over.id matches a room droppable id (prefixed below).
     const overId = String(over.id)
     if (overId.startsWith('room:')) {
+      // Drag never migrates rooms on mobile. The top room nav sits in the
+      // path of natural reorder gestures and would otherwise vacuum tiles
+      // into another room. Mobile room transfer must be an explicit move
+      // action, not a drag side-effect.
+      if (isMobile) return
       const targetRoomId = overId.slice('room:'.length)
       const tileId = String(active.id)
       const source = tileSources[tileId] || 'library'
@@ -767,7 +772,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   function RoomPillNode({ room }: { room: any }) {
     const isActive = activeRoomId === room.id
     const isOpen = isOwner && editorMode && pillMenuOpenForId === room.id
-    const { setNodeRef, isOver } = useDroppable({ id: `room:${room.id}`, disabled: !isOwner || !draggingTileId })
+    // Mobile: pills are never drop targets. Reorder gestures pass through
+    // the sticky top nav and would otherwise accidentally migrate tiles.
+    const { setNodeRef, isOver } = useDroppable({ id: `room:${room.id}`, disabled: !isOwner || !draggingTileId || isMobile })
     return (
       <div
         ref={isOwner ? setNodeRef : undefined}
