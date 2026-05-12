@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { isVideoTile } from '@/lib/media/aspect'
 
 /**
  * OwnerTileSheet — shape, size, collection, room.
@@ -18,6 +19,7 @@ import { useEffect } from 'react'
 type Tile = {
   id: string
   type: string
+  url?: string | null
   size?: number | null
   aspect?: string | null
   parent_tile_id?: string | null
@@ -117,6 +119,24 @@ export default function OwnerTileSheet({
     stored === 'square' || stored === 'wide' || stored === 'tall' ? stored : null
   const currentSize = (tile.size || 1) as 1 | 2 | 3
   const isContainer = tile.type === 'container'
+
+  // ── Honest controls: video tiles bypass `size` entirely in the public
+  //    grid engine (lib/media/aspect.ts getGridClass, isVideo branch),
+  //    and their only meaningful aspect distinction is tall vs not-tall
+  //    — 'square' and 'wide' both render at aspect-video. Hide controls
+  //    that would produce no visible change to honor the no-dead-control
+  //    doctrine. The grid engine is unchanged; this is render-time gating
+  //    of the editor surface only.
+  const isVideo = isVideoTile(tile.type, tile.url || undefined)
+  const VISIBLE_SHAPES = isVideo
+    ? SHAPES.filter((s) => s.key !== 'square')
+    : SHAPES
+  // Legacy rows may carry aspect='square' on video tiles (predates the
+  // hide). For those, light the 'wide' pill so the highlighted state
+  // matches what the user actually sees in the grid.
+  const highlightedShape = isVideo && resolvedShape === 'square'
+    ? 'wide'
+    : resolvedShape
 
   function patchTile(body: Record<string, unknown>) {
     fetch('/api/tiles', {
@@ -227,16 +247,18 @@ export default function OwnerTileSheet({
           </button>
         </div>
 
-        {/* Row 1 — shape */}
+        {/* Row 1 — shape. For video tiles 'square' is hidden — it
+            collapses to wide in the grid engine, so showing it as a
+            distinct pill would be a dead control. */}
         <div style={rowStyle}>
           <span style={rowLabel}>shape</span>
           <div className="flex gap-2">
-            {SHAPES.map((s) => (
+            {VISIBLE_SHAPES.map((s) => (
               <button
                 key={s.key}
                 type="button"
                 onClick={() => handleShape(s.key)}
-                style={resolvedShape === s.key ? pillActive : pillBase}
+                style={highlightedShape === s.key ? pillActive : pillBase}
               >
                 {s.label}
               </button>
@@ -244,22 +266,28 @@ export default function OwnerTileSheet({
           </div>
         </div>
 
-        {/* Row 2 — size */}
-        <div style={{ ...rowStyle, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-          <span style={rowLabel}>size</span>
-          <div className="flex gap-2">
-            {SIZES.map((s) => (
-              <button
-                key={s.key}
-                type="button"
-                onClick={() => handleSize(s.key)}
-                style={currentSize === s.key ? pillActive : pillBase}
-              >
-                {s.label}
-              </button>
-            ))}
+        {/* Row 2 — size. Hidden for video tiles: the grid engine
+            (lib/media/aspect.ts) ignores `size` on the video branch
+            and renders a fixed col/row-span footprint regardless of
+            S/M/L. Surfacing the pills as clickable when they have no
+            visible effect would be a dead control. */}
+        {!isVideo && (
+          <div style={{ ...rowStyle, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+            <span style={rowLabel}>size</span>
+            <div className="flex gap-2">
+              {SIZES.map((s) => (
+                <button
+                  key={s.key}
+                  type="button"
+                  onClick={() => handleSize(s.key)}
+                  style={currentSize === s.key ? pillActive : pillBase}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Row 3 — collection — hidden when the tile IS a collection */}
         {!isContainer && containers.length > 0 && (
@@ -287,30 +315,13 @@ export default function OwnerTileSheet({
           </div>
         )}
 
-        {/* Row 4 — room dropdown — relocates the tile to another room */}
-        {rooms.length > 0 && (
-          <div style={{ ...rowStyle, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-            <span style={rowLabel}>room</span>
-            <select
-              value={tile.room_id || ''}
-              onChange={(e) => handleRoom(e.target.value)}
-              style={{
-                ...pillBase,
-                paddingRight: 28,
-                appearance: 'none',
-                WebkitAppearance: 'none',
-                MozAppearance: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              {rooms.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name || 'room'}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        {/* Row 4 — room dropdown — disabled for launch.
+            Hidden entirely until the cross-room move state machine
+            (server PATCH + local state mirror + activeRoomId switch
+            + container child cascade) is proven safe end-to-end on
+            prod. handleRoom and the PATCH room_id path are left in
+            place so a future re-enable is a single render block, not
+            a re-implementation. */}
       </div>
     </>
   )

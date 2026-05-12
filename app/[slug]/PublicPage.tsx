@@ -1019,6 +1019,52 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             childCount={containerMeta[item.id]?.childCount}
             firstChildThumb={containerMeta[item.id]?.firstThumb}
           />
+          {/* Upload progress overlay — only on optimistic temp tiles
+              (created by OwnerActionBar.processFile with _temp + _progress).
+              Before this, uploads ran silently and a half-uploaded tile
+              looked indistinguishable from a stuck one. Indeterminate
+              bar until the XHR progress callback reports the first
+              non-zero percentage; deterministic fill after that.
+              Pointer-events: none so it never blocks the editor click
+              interceptor that opens the tile sheet. No grid/aspect math
+              is touched — this is a visual overlay on the existing
+              tile body. */}
+          {item._temp && (
+            <div
+              aria-hidden="true"
+              className="absolute inset-x-0 bottom-0 z-10"
+              style={{ pointerEvents: 'none' }}
+            >
+              <div
+                style={{
+                  height: 3,
+                  width: '100%',
+                  background: 'rgba(0,0,0,0.35)',
+                  overflow: 'hidden',
+                }}
+              >
+                {typeof item._progress === 'number' && item._progress > 0 ? (
+                  <div
+                    style={{
+                      height: '100%',
+                      width: `${Math.max(2, Math.min(100, item._progress))}%`,
+                      background: 'rgba(255,255,255,0.92)',
+                      transition: 'width 180ms linear',
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      height: '100%',
+                      width: '40%',
+                      background: 'rgba(255,255,255,0.85)',
+                      animation: 'fp-upload-indeterminate 1.1s ease-in-out infinite',
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+          )}
         </div>
         {/* Editor-mode click interceptor — opens the tile sheet on tap. */}
         {isOwner && editorMode && !expanded && (
@@ -1501,14 +1547,15 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                       </svg>
                     </button>
 
-                    {/* Delete row */}
-                    <button
-                      type="button"
-                      onClick={() => { handleRoomDelete(pillMenuOpenForId); setPillMenuOpenForId(null) }}
-                      style={{ ...rowStyle, ...actionStyle, justifyContent: 'flex-start', color: 'rgba(220,90,90,0.85)' }}
-                    >
-                      delete room
-                    </button>
+                    {/* Delete row — disabled for launch.
+                        The control is removed from the popover entirely
+                        until the delete-room state machine (orphan
+                        rehoming + safe next-room navigation + blur-race)
+                        is proven safe end-to-end on prod. Rooms can be
+                        renamed or locked; permanent deletion is held
+                        back. handleRoomDelete is left in place so a
+                        future re-enable is a single-button restoration,
+                        not a re-implementation. */}
                   </div>
                 </>
               )
