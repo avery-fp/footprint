@@ -16,6 +16,7 @@ import OwnerActionBar from '@/components/OwnerActionBar'
 import OwnerTileSheet from '@/components/OwnerTileSheet'
 import RoomLockOverlay from '@/components/RoomLockOverlay'
 import EditAccessScreen from '@/components/EditAccessScreen'
+import GiftModal from '@/components/GiftModal'
 import { uploadWithProgress as uploadShared, resizeImage as resizeShared, detectImageAspect as detectAspectShared } from '@/lib/upload'
 import { getGridLayout, tileAspectRatio, LAYOUT_LABELS, type RoomLayout } from '@/lib/grid-layouts'
 import LayoutToggle from '@/components/LayoutToggle'
@@ -345,6 +346,27 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       }
     })()
   }, [footprint.username])
+
+  // Gifts: fetched only for the owner of a CLAIMED footprint. Drafts have
+  // no gifts (purchase hasn't happened yet), and visitors never see this.
+  // The endpoint itself enforces edit-auth, so this is also a defense-in-depth
+  // gate so we don't render the icon on the wrong surface.
+  const [giftsRemaining, setGiftsRemaining] = useState(0)
+  const [giftModalOpen, setGiftModalOpen] = useState(false)
+  useEffect(() => {
+    if (!isOwner || isDraft) return
+    let cancelled = false
+    fetch(`/api/gifts/remaining?slug=${encodeURIComponent(footprint.username)}`, {
+      credentials: 'include',
+      cache: 'no-store',
+    })
+      .then((r) => (r.ok ? r.json() : { remaining: 0 }))
+      .then((data) => {
+        if (!cancelled) setGiftsRemaining(Number(data?.remaining) || 0)
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [isOwner, isDraft, footprint.username])
 
   // Navigate to room
   const goToRoom = useCallback((roomId: string | null) => {
@@ -1315,32 +1337,72 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
       )}
       {!isDraft && isOwner && !expanded && (
-        <button
-          type="button"
-          aria-label={editorMode ? 'done editing' : 'edit page'}
-          aria-pressed={editorMode}
-          onClick={() => setEditorMode((v) => !v)}
-          className="fixed z-30 touch-manipulation font-mono"
+        <div
+          className="fixed z-30 flex items-center gap-2"
           style={{
             top: 'calc(env(safe-area-inset-top, 0px) + 16px)',
             right: '16px',
-            background: 'rgba(0,0,0,0.62)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255,255,255,0.10)',
-            color: 'rgba(255,255,255,0.92)',
-            borderRadius: 999,
-            padding: '8px 16px',
-            fontSize: 12,
-            letterSpacing: '0.06em',
-            textTransform: 'lowercase',
-            cursor: 'pointer',
-            userSelect: 'none',
-            WebkitUserSelect: 'none',
           }}
         >
-          {editorMode ? 'done' : 'edit'}
-        </button>
+          {/* Gift icon — only when in edit mode AND owner has unsent
+              gifts. Hidden once gifts_remaining hits 0. The /api/gifts/remaining
+              endpoint enforces edit-auth, so this never reveals anything to
+              non-owners. */}
+          {editorMode && giftsRemaining > 0 && (
+            <button
+              type="button"
+              aria-label={`Send a gift (${giftsRemaining} remaining)`}
+              title="Send a gift"
+              onClick={() => setGiftModalOpen(true)}
+              className="touch-manipulation flex items-center justify-center"
+              style={{
+                background: 'rgba(0,0,0,0.62)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255,255,255,0.10)',
+                color: 'rgba(255,255,255,0.85)',
+                borderRadius: 999,
+                width: 36,
+                height: 36,
+                cursor: 'pointer',
+                userSelect: 'none',
+                WebkitUserSelect: 'none',
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="20 12 20 22 4 22 4 12" />
+                <rect x="2" y="7" width="20" height="5" />
+                <line x1="12" y1="22" x2="12" y2="7" />
+                <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" />
+                <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
+              </svg>
+            </button>
+          )}
+          <button
+            type="button"
+            aria-label={editorMode ? 'done editing' : 'edit page'}
+            aria-pressed={editorMode}
+            onClick={() => setEditorMode((v) => !v)}
+            className="touch-manipulation font-mono"
+            style={{
+              background: 'rgba(0,0,0,0.62)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              border: '1px solid rgba(255,255,255,0.10)',
+              color: 'rgba(255,255,255,0.92)',
+              borderRadius: 999,
+              padding: '8px 16px',
+              fontSize: 12,
+              letterSpacing: '0.06em',
+              textTransform: 'lowercase',
+              cursor: 'pointer',
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
+            }}
+          >
+            {editorMode ? 'done' : 'edit'}
+          </button>
+        </div>
       )}
 
       {/* Layout toggle + page settings — fixed on the right side beneath
@@ -2058,6 +2120,17 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         <DraftClaimForm
           draftSlug={footprint.username}
           onClose={() => setDraftClaimOpen(false)}
+        />
+      )}
+
+      {/* Gift modal — opens from the gift icon next to edit/done. Only
+          mounted for the owner of a claimed footprint. */}
+      {giftModalOpen && isOwner && !isDraft && (
+        <GiftModal
+          slug={footprint.username}
+          giftsRemaining={giftsRemaining}
+          onGiftSent={(remaining) => setGiftsRemaining(remaining)}
+          onClose={() => setGiftModalOpen(false)}
         />
       )}
     </div>
