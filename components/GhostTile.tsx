@@ -59,8 +59,22 @@ export default function GhostTile({
   const [iframeLoaded, setIframeLoaded] = useState(false)
   const [iframeFailed, setIframeFailed] = useState(false)
   const [thumbnailExhausted, setThumbnailExhausted] = useState(false)
+  const [theaterOpen, setTheaterOpen] = useState(false)
   const iframeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const tileRef = useRef<HTMLDivElement | null>(null)
+
+  // Pause the underlying tile YouTube player while the theater overlay is
+  // open so audio doesn't double-up.
+  useEffect(() => {
+    if (!theaterOpen) return
+    const tileIframe = tileRef.current?.querySelector('iframe') as HTMLIFrameElement | null
+    try {
+      tileIframe?.contentWindow?.postMessage(
+        JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }),
+        '*'
+      )
+    } catch {}
+  }, [theaterOpen])
   const tileId = useRef(`ghost-${media_id}-${Math.random().toString(36).slice(2, 6)}`)
 
 
@@ -386,7 +400,7 @@ export default function GhostTile({
               maxWidth: '100%',
               maxHeight: '100%',
             }}
-            allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
             loading="lazy"
@@ -404,24 +418,35 @@ export default function GhostTile({
               aria-label="Fullscreen"
               onClick={(e) => {
                 e.stopPropagation()
-                // Try in order: iframe direct (works on iOS 16+, desktop) →
-                // tile container → vendor-prefixed → iOS-native video API
-                // (webkitEnterFullscreen on the underlying <video> if the
-                // embed exposes one). Any one succeeding is enough.
                 const btn = e.currentTarget as HTMLElement
                 const container = (btn.closest('[data-tile]') as HTMLElement) || tileRef.current
                 const iframe = container?.querySelector('iframe') as HTMLElement | null
-                const video = container?.querySelector('video') as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null
-                const tryFs = (el: HTMLElement | null): boolean => {
-                  if (!el) return false
-                  const anyEl = el as any
-                  if (el.requestFullscreen) { el.requestFullscreen().catch(() => {}); return true }
-                  if (anyEl.webkitRequestFullscreen) { anyEl.webkitRequestFullscreen(); return true }
-                  return false
+                // iOS Safari blocks fullscreen on cross-origin iframes; coarse
+                // pointer is the cleanest proxy for that environment.
+                const isCoarsePointer =
+                  typeof window !== 'undefined' &&
+                  window.matchMedia?.('(pointer: coarse)').matches
+                if (isCoarsePointer) {
+                  setTheaterOpen(true)
+                  return
                 }
-                if (tryFs(iframe)) return
-                if (tryFs(container)) return
-                if (video?.webkitEnterFullscreen) video.webkitEnterFullscreen()
+                const tryFs = (el: HTMLElement | null): Promise<boolean> => {
+                  if (!el) return Promise.resolve(false)
+                  const anyEl = el as any
+                  if (el.requestFullscreen) {
+                    return el.requestFullscreen().then(() => true).catch(() => false)
+                  }
+                  if (anyEl.webkitRequestFullscreen) {
+                    try { anyEl.webkitRequestFullscreen(); return Promise.resolve(true) } catch { return Promise.resolve(false) }
+                  }
+                  return Promise.resolve(false)
+                }
+                tryFs(iframe).then((ok) => {
+                  if (ok) return
+                  tryFs(container).then((ok2) => {
+                    if (!ok2) setTheaterOpen(true)
+                  })
+                })
               }}
               className="absolute flex items-center justify-center text-white/85 hover:text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-300"
               style={{
@@ -445,6 +470,91 @@ export default function GhostTile({
           )}
         </div>
       )}
+      {platform === 'youtube' && theaterOpen && iframeSrc && (
+        <TheaterOverlay src={iframeSrc} onClose={() => setTheaterOpen(false)} />
+      )}
+    </div>
+  )
+}
+
+// ════════════════════════════════════════
+// THEATER OVERLAY — mobile YouTube fullscreen fallback.
+// iOS Safari blocks cross-origin iframe fullscreen; this gives the same
+// feel via a fixed viewport-sized cover. Reuses the existing embed URL,
+// locks body scroll, closes on Esc or backdrop click.
+// ════════════════════════════════════════
+function TheaterOverlay({ src, onClose }: { src: string; onClose: () => void }) {
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = prevOverflow
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [onClose])
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 2147483646,
+        background: 'rgba(0,0,0,0.96)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: 'relative',
+          width: 'min(100vw, calc(100vh * 16 / 9))',
+          height: 'min(100vh, calc(100vw * 9 / 16))',
+          maxWidth: '100vw',
+          maxHeight: '100vh',
+        }}
+      >
+        <iframe
+          src={src}
+          style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+          allowFullScreen
+          referrerPolicy="strict-origin-when-cross-origin"
+        />
+      </div>
+      <button
+        type="button"
+        aria-label="Close"
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          top: 'max(12px, env(safe-area-inset-top))',
+          right: 'max(12px, env(safe-area-inset-right))',
+          width: 40,
+          height: 40,
+          borderRadius: 999,
+          background: 'rgba(0,0,0,0.55)',
+          backdropFilter: 'blur(10px) saturate(140%)',
+          WebkitBackdropFilter: 'blur(10px) saturate(140%)',
+          boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.12)',
+          color: 'rgba(255,255,255,0.9)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2147483647,
+          border: 'none',
+          cursor: 'pointer',
+        }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M18 6L6 18M6 6l12 12" />
+        </svg>
+      </button>
     </div>
   )
 }
