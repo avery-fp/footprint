@@ -118,7 +118,7 @@ export default function FloatingCtaBar({ isOwner = false }: { isOwner?: boolean 
             touchAction: 'manipulation',
           }}
         >
-          {loading ? 'preparing…' : 'make yours →'}
+          {loading ? 'preparing…' : 'own your footprint →'}
         </button>
         <button
           onClick={() => setDismissed(true)}

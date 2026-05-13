@@ -18,7 +18,7 @@ const MONO = "'JetBrains Mono', monospace"
  * If an owner with an edit-token cookie hits this page (slug isn't
  * published yet, but they hold the token), we bounce them to /home.
  *
- * Otherwise: soft "not claimed yet" copy with a quiet 'make yours →'.
+ * Otherwise: soft "not claimed yet" copy with a quiet 'own your footprint →'.
  */
 export default function NotFound() {
   const pathname = usePathname()
@@ -131,7 +131,7 @@ export default function NotFound() {
             className="text-white/70 hover:text-white/95 transition-colors duration-200 text-[14px] disabled:opacity-50 disabled:cursor-default"
             style={{ fontFamily: DM, background: 'none', border: 'none', cursor: claimLoading ? 'default' : 'pointer' }}
           >
-            {claimLoading ? 'preparing…' : 'make yours →'}
+            {claimLoading ? 'preparing…' : 'own your footprint →'}
           </button>
 
           {claimError && (
