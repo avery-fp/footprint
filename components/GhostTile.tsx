@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { audioManager } from '@/lib/audio-manager'
 import { parseEmbed, buildYouTubeEmbedUrl } from '@/lib/parseEmbed'
 import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getThumbnailCandidates, isBadOrMissingThumbnail } from '@/lib/media/thumbnails'
+import { tryNativeFullscreen, isCoarsePointer } from '@/lib/fullscreen'
+import TheaterOverlay from '@/components/TheaterOverlay'
 
 // ════════════════════════════════════════
 // GHOST TILE — de-branded media renderer
@@ -60,6 +62,19 @@ export default function GhostTile({
   const [iframeFailed, setIframeFailed] = useState(false)
   const [thumbnailExhausted, setThumbnailExhausted] = useState(false)
   const [theaterOpen, setTheaterOpen] = useState(false)
+  // Mobile tap-reveal-fade for the fullscreen chip. Hover-only visibility
+  // is a no-op on touch; permanently visible is visual clutter. Tapping
+  // the playing tile surfaces the chip; 1500ms of inactivity hides it.
+  const [chipRevealed, setChipRevealed] = useState(false)
+  const chipFadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const revealChip = useCallback(() => {
+    setChipRevealed(true)
+    if (chipFadeTimerRef.current) clearTimeout(chipFadeTimerRef.current)
+    chipFadeTimerRef.current = setTimeout(() => setChipRevealed(false), 1500)
+  }, [])
+  useEffect(() => () => {
+    if (chipFadeTimerRef.current) clearTimeout(chipFadeTimerRef.current)
+  }, [])
   const iframeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const tileRef = useRef<HTMLDivElement | null>(null)
 
@@ -346,6 +361,10 @@ export default function GhostTile({
         // clip-path clips cross-origin iframes (overflow:hidden alone doesn't)
         clipPath: 'inset(0 round var(--fp-tile-radius, 0px))',
       }}
+      // Mobile tap-reveal-fade for the fullscreen chip. Pointer events fire
+      // before the embedded player consumes the gesture, so the chip surfaces
+      // even when the tap lands on the iframe itself.
+      onPointerDown={platform === 'youtube' ? revealChip : undefined}
     >
       <ThumbnailBg
         src={thumbnailExhausted ? null : thumbUrl}
@@ -411,39 +430,26 @@ export default function GhostTile({
             }}
             onError={() => { setIframeFailed(true) }}
           />
-          {/* Replace the YouTube watermark hit area with our fullscreen control. */}
+          {/* Replace the YouTube watermark hit area with our fullscreen control.
+              Coarse pointer (mobile) → straight to theater because iOS Safari
+              blocks cross-origin iframe fullscreen. Fine pointer (desktop) →
+              try the iframe, fall back to the container, fall back to theater. */}
           {platform === 'youtube' && (
             <button
               type="button"
-              aria-label="Fullscreen"
+              aria-label={isCoarsePointer() ? 'Theater' : 'Fullscreen'}
               onClick={(e) => {
                 e.stopPropagation()
                 const btn = e.currentTarget as HTMLElement
                 const container = (btn.closest('[data-tile]') as HTMLElement) || tileRef.current
                 const iframe = container?.querySelector('iframe') as HTMLElement | null
-                // iOS Safari blocks fullscreen on cross-origin iframes; coarse
-                // pointer is the cleanest proxy for that environment.
-                const isCoarsePointer =
-                  typeof window !== 'undefined' &&
-                  window.matchMedia?.('(pointer: coarse)').matches
-                if (isCoarsePointer) {
+                if (isCoarsePointer()) {
                   setTheaterOpen(true)
                   return
                 }
-                const tryFs = (el: HTMLElement | null): Promise<boolean> => {
-                  if (!el) return Promise.resolve(false)
-                  const anyEl = el as any
-                  if (el.requestFullscreen) {
-                    return el.requestFullscreen().then(() => true).catch(() => false)
-                  }
-                  if (anyEl.webkitRequestFullscreen) {
-                    try { anyEl.webkitRequestFullscreen(); return Promise.resolve(true) } catch { return Promise.resolve(false) }
-                  }
-                  return Promise.resolve(false)
-                }
-                tryFs(iframe).then((ok) => {
+                tryNativeFullscreen(iframe).then((ok) => {
                   if (ok) return
-                  tryFs(container).then((ok2) => {
+                  tryNativeFullscreen(container).then((ok2) => {
                     if (!ok2) setTheaterOpen(true)
                   })
                 })
@@ -460,6 +466,10 @@ export default function GhostTile({
                 backdropFilter: 'blur(10px) saturate(140%)',
                 WebkitBackdropFilter: 'blur(10px) saturate(140%)',
                 boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08)',
+                // Inline override wins for the mobile reveal-fade. Undefined
+                // lets the Tailwind opacity-0 / group-hover:opacity-100 pair
+                // drive desktop hover behavior.
+                opacity: chipRevealed ? 1 : undefined,
                 pointerEvents: 'auto',
               }}
             >
@@ -473,88 +483,6 @@ export default function GhostTile({
       {platform === 'youtube' && theaterOpen && iframeSrc && (
         <TheaterOverlay src={iframeSrc} onClose={() => setTheaterOpen(false)} />
       )}
-    </div>
-  )
-}
-
-// ════════════════════════════════════════
-// THEATER OVERLAY — mobile YouTube fullscreen fallback.
-// iOS Safari blocks cross-origin iframe fullscreen; this gives the same
-// feel via a fixed viewport-sized cover. Reuses the existing embed URL,
-// locks body scroll, closes on Esc or backdrop click.
-// ════════════════════════════════════════
-function TheaterOverlay({ src, onClose }: { src: string; onClose: () => void }) {
-  useEffect(() => {
-    const prevOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', onKey)
-    return () => {
-      document.body.style.overflow = prevOverflow
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [onClose])
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      onClick={onClose}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 2147483646,
-        background: 'rgba(0,0,0,0.96)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          position: 'relative',
-          width: 'min(100vw, calc(100vh * 16 / 9))',
-          height: 'min(100vh, calc(100vw * 9 / 16))',
-          maxWidth: '100vw',
-          maxHeight: '100vh',
-        }}
-      >
-        <iframe
-          src={src}
-          style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-          allowFullScreen
-          referrerPolicy="strict-origin-when-cross-origin"
-        />
-      </div>
-      <button
-        type="button"
-        aria-label="Close"
-        onClick={onClose}
-        style={{
-          position: 'fixed',
-          top: 'max(12px, env(safe-area-inset-top))',
-          right: 'max(12px, env(safe-area-inset-right))',
-          width: 40,
-          height: 40,
-          borderRadius: 999,
-          background: 'rgba(0,0,0,0.55)',
-          backdropFilter: 'blur(10px) saturate(140%)',
-          WebkitBackdropFilter: 'blur(10px) saturate(140%)',
-          boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.12)',
-          color: 'rgba(255,255,255,0.9)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 2147483647,
-          border: 'none',
-          cursor: 'pointer',
-        }}
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M18 6L6 18M6 6l12 12" />
-        </svg>
-      </button>
     </div>
   )
 }

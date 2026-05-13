@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useState, useRef, useEffect } from 'react'
+import { memo, useState, useRef, useEffect, useCallback } from 'react'
 import ContentCardBase from '@/components/ContentCard'
 import GhostTileBase from '@/components/GhostTile'
 import TileImage from '@/components/TileImage'
@@ -17,6 +17,7 @@ import { isNewStyleRenderMode } from '@/lib/media/types'
 import type { RenderMode } from '@/lib/media/types'
 import DepthTile from '@/components/DepthTile'
 import { matchDepthProvider } from '@/lib/depth-providers'
+import { tryNativeFullscreen, tryVideoEnterFullscreen } from '@/lib/fullscreen'
 
 const ContainerTile = memo(ContainerTileBase)
 
@@ -96,6 +97,20 @@ function VideoTile({ url, id }: { url: string; id: string }) {
   // can't fit 4+ tiles each ≥50% visible. Off-cap tiles freeze on the last
   // frame (or poster), which still reads as "alive" without burning N decoders.
   const [isPlayable, setIsPlayable] = useState(false)
+  // Mobile tap-reveal-fade for the fullscreen chip. Uploaded video does
+  // get real native fullscreen on iOS via webkitEnterFullscreen, so this
+  // chip is never dead — but the spec asks for the same reveal pattern
+  // across all video surfaces so mobile doesn't accumulate permanent chrome.
+  const [chipRevealed, setChipRevealed] = useState(false)
+  const chipFadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const revealChip = useCallback(() => {
+    setChipRevealed(true)
+    if (chipFadeTimerRef.current) clearTimeout(chipFadeTimerRef.current)
+    chipFadeTimerRef.current = setTimeout(() => setChipRevealed(false), 1500)
+  }, [])
+  useEffect(() => () => {
+    if (chipFadeTimerRef.current) clearTimeout(chipFadeTimerRef.current)
+  }, [])
 
   useEffect(() => {
     const el = containerRef.current
@@ -139,7 +154,13 @@ function VideoTile({ url, id }: { url: string; id: string }) {
     : undefined
 
   return (
-    <div ref={containerRef} className="w-full h-full relative group" data-tile-id={id} data-tile-type="video">
+    <div
+      ref={containerRef}
+      className="w-full h-full relative group"
+      data-tile-id={id}
+      data-tile-type="video"
+      onPointerDown={revealChip}
+    >
       <div className="absolute inset-0 cursor-pointer" onClick={(e) => {
         const v = e.currentTarget.querySelector('video')
         if (!v) return
@@ -166,18 +187,19 @@ function VideoTile({ url, id }: { url: string; id: string }) {
         aria-label="Fullscreen"
         onClick={(e) => {
           e.stopPropagation()
-          const v = videoRef.current as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null
-          if (v && typeof v.webkitEnterFullscreen === 'function') {
-            try { v.webkitEnterFullscreen(); return } catch {}
-          }
-          if (v?.requestFullscreen) {
-            v.requestFullscreen().catch(() => {})
-            return
-          }
-          const container = containerRef.current
-          if (container?.requestFullscreen) container.requestFullscreen().catch(() => {})
+          // Uploaded video has the real fullscreen API on every supported
+          // platform: webkitEnterFullscreen for iOS Safari (the only path
+          // that surfaces the native player chrome), requestFullscreen for
+          // everything else. Container fallback is the safety net for
+          // browsers that reject the video element specifically.
+          const v = videoRef.current
+          if (tryVideoEnterFullscreen(v)) return
+          tryNativeFullscreen(v).then((ok) => {
+            if (ok) return
+            tryNativeFullscreen(containerRef.current)
+          })
         }}
-        className="absolute flex items-center justify-center text-white/85 hover:text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:opacity-100 transition-opacity duration-300"
+        className="absolute flex items-center justify-center text-white/85 hover:text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-300"
         style={{
           bottom: 12,
           right: 12,
@@ -189,6 +211,9 @@ function VideoTile({ url, id }: { url: string; id: string }) {
           backdropFilter: 'blur(10px) saturate(140%)',
           WebkitBackdropFilter: 'blur(10px) saturate(140%)',
           boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08)',
+          // Inline override drives the mobile reveal-fade; undefined falls
+          // through to the Tailwind opacity-0 / group-hover pair on desktop.
+          opacity: chipRevealed ? 1 : undefined,
           pointerEvents: 'auto',
         }}
       >

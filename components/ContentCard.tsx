@@ -19,6 +19,8 @@ import ArtifactTile from '@/components/ArtifactTile'
 import MusicTile from '@/components/MusicTile'
 import ReaderTile from '@/components/ReaderTile'
 import { sanitizeLinkMeta, normalizeLinkObject } from '@/lib/link-object'
+import { tryNativeFullscreen, isCoarsePointer } from '@/lib/fullscreen'
+import TheaterOverlay from '@/components/TheaterOverlay'
 
 // ════════════════════════════════════════
 // Glass Embed Frame — imported from extracted component
@@ -118,6 +120,32 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const audioIdRef = useRef(`card-${content.id}`)
+  // Fullscreen affordance for the YouTube embed branch: mirrors GhostTile
+  // so cross-origin-iframe-fullscreen failures (iOS Safari) drop into the
+  // Footprint Theater overlay instead of producing a dead tap.
+  const [theaterOpen, setTheaterOpen] = useState(false)
+  const [chipRevealed, setChipRevealed] = useState(false)
+  const chipFadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const revealChip = useCallback(() => {
+    setChipRevealed(true)
+    if (chipFadeTimerRef.current) clearTimeout(chipFadeTimerRef.current)
+    chipFadeTimerRef.current = setTimeout(() => setChipRevealed(false), 1500)
+  }, [])
+  useEffect(() => () => {
+    if (chipFadeTimerRef.current) clearTimeout(chipFadeTimerRef.current)
+  }, [])
+  // Pause the underlying YouTube iframe while theater is open so audio
+  // doesn't double up. Same pattern as GhostTile.
+  useEffect(() => {
+    if (!theaterOpen) return
+    const tileIframe = containerRef.current?.querySelector('iframe') as HTMLIFrameElement | null
+    try {
+      tileIframe?.contentWindow?.postMessage(
+        JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }),
+        '*'
+      )
+    } catch {}
+  }, [theaterOpen])
 
   // FIDELIO: Detect post vs profile for social embeds
   const socialVariant = detectVariant(content.type, content.url)
@@ -240,7 +268,12 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     // YouTube activated state — mute=1 for reliable autoplay, postMessage unmutes after load
     const ytActivatedSrc = buildYouTubeEmbedUrl(youtubeId, { start: extractYouTubeStart(content.url) })
     return (
-      <div ref={containerRef} className="w-full max-w-full h-full fp-tile overflow-hidden relative group" style={{ background: '#000' }}>
+      <div
+        ref={containerRef}
+        className="w-full max-w-full h-full fp-tile overflow-hidden relative group"
+        style={{ background: '#000' }}
+        onPointerDown={revealChip}
+      >
         <FieldBackground imageUrl={youtubeThumbCandidates[0]} intensity="embed" />
         <iframe
           src={ytActivatedSrc}
@@ -253,27 +286,25 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         />
         <button
           type="button"
-          aria-label="Fullscreen"
+          aria-label={isCoarsePointer() ? 'Theater' : 'Fullscreen'}
           onClick={(e) => {
             e.stopPropagation()
-            // iOS Safari only fullscreens iframes (16+) and <video> elements.
-            // Calling requestFullscreen on a div is a no-op there — that's
-            // why the button was "decorative" on mobile. Try iframe → tile
-            // container → vendor-prefixed → iOS-native video.
             const btn = e.currentTarget as HTMLElement
             const container = (btn.closest('[data-tile]') as HTMLElement) || containerRef.current
             const iframe = container?.querySelector('iframe') as HTMLElement | null
-            const video = container?.querySelector('video') as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null
-            const tryFs = (el: HTMLElement | null): boolean => {
-              if (!el) return false
-              const anyEl = el as any
-              if (el.requestFullscreen) { el.requestFullscreen().catch(() => {}); return true }
-              if (anyEl.webkitRequestFullscreen) { anyEl.webkitRequestFullscreen(); return true }
-              return false
+            // Coarse pointer (iOS Safari, Android browsers) blocks cross-origin
+            // iframe fullscreen — go straight to theater so the tap is never
+            // dead. Desktop tries iframe → container → theater fallback.
+            if (isCoarsePointer()) {
+              setTheaterOpen(true)
+              return
             }
-            if (tryFs(iframe)) return
-            if (tryFs(container)) return
-            if (video?.webkitEnterFullscreen) video.webkitEnterFullscreen()
+            tryNativeFullscreen(iframe).then((ok) => {
+              if (ok) return
+              tryNativeFullscreen(container).then((ok2) => {
+                if (!ok2) setTheaterOpen(true)
+              })
+            })
           }}
           className="absolute flex items-center justify-center text-white/85 hover:text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-300"
           style={{
@@ -287,6 +318,9 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             backdropFilter: 'blur(10px) saturate(140%)',
             WebkitBackdropFilter: 'blur(10px) saturate(140%)',
             boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08)',
+            // Inline override for mobile tap-reveal-fade; undefined lets the
+            // Tailwind opacity-0 / group-hover:opacity-100 pair drive desktop.
+            opacity: chipRevealed ? 1 : undefined,
             pointerEvents: 'auto',
           }}
         >
@@ -294,6 +328,9 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             <path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6"/>
           </svg>
         </button>
+        {theaterOpen && (
+          <TheaterOverlay src={ytActivatedSrc} onClose={() => setTheaterOpen(false)} />
+        )}
       </div>
     )
   }
