@@ -26,8 +26,10 @@ export default function TextExpandTile({
 }: TextExpandTileProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [overflows, setOverflows] = useState(false)
+  const [dormantOverflows, setDormantOverflows] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const dormantTextRef = useRef<HTMLParagraphElement>(null)
   // Drag guard: distinguish a clean tap from a scroll/drag gesture.
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null)
   const didDragRef = useRef(false)
@@ -99,6 +101,21 @@ export default function TextExpandTile({
     const el = scrollRef.current
     if (!el) return
     setOverflows(el.scrollHeight > el.clientHeight + 1)
+  }, [isExpanded, text])
+
+  // Detect dormant overflow so we can fade instead of letting the browser
+  // paint a hard "..." ellipsis (the line-clamp behavior we're replacing).
+  // ResizeObserver keeps the fade/affordance in sync as the grid cell width
+  // changes — different widths wrap to different line counts.
+  useLayoutEffect(() => {
+    if (isExpanded) return
+    const el = dormantTextRef.current
+    if (!el) { setDormantOverflows(false); return }
+    const check = () => setDormantOverflows(el.scrollHeight > el.clientHeight + 1)
+    check()
+    const ro = new ResizeObserver(check)
+    ro.observe(el)
+    return () => ro.disconnect()
   }, [isExpanded, text])
 
   useLayoutEffect(() => {
@@ -211,19 +228,48 @@ export default function TextExpandTile({
           </p>
         </div>
       ) : (
-        <p
-          className={`whitespace-pre-wrap text-center ${isPublicView ? 'text-white' : 'opacity-85'} ${dormantTypo}`}
-          style={{
-            fontWeight: 300,
-            lineHeight: 1.5,
-            display: '-webkit-box',
-            WebkitBoxOrient: 'vertical',
-            WebkitLineClamp: dormantLines,
-            overflow: 'hidden',
-          }}
-        >
-          {text}
-        </p>
+        <div className="relative w-full">
+          {/* Dormant clamp via maxHeight + overflow:hidden (not
+              -webkit-line-clamp) so the browser does NOT paint a hard "…"
+              ellipsis. When overflowing, a soft mask fade communicates
+              "more below" — intentional excerpt, not accidental cutoff. */}
+          <p
+            ref={dormantTextRef}
+            className={`whitespace-pre-wrap text-center ${isPublicView ? 'text-white' : 'opacity-85'} ${dormantTypo}`}
+            style={{
+              fontWeight: 300,
+              lineHeight: 1.5,
+              maxHeight: `${dormantLines * 1.5}em`,
+              overflow: 'hidden',
+              ...(dormantOverflows
+                ? {
+                    maskImage:
+                      'linear-gradient(to bottom, black calc(100% - 18px), transparent 100%)',
+                    WebkitMaskImage:
+                      'linear-gradient(to bottom, black calc(100% - 18px), transparent 100%)',
+                  }
+                : null),
+            }}
+          >
+            {text}
+          </p>
+          {dormantOverflows && (
+            <span
+              aria-hidden
+              className="absolute left-1/2 -translate-x-1/2"
+              style={{
+                bottom: -10,
+                color: isPublicView ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.40)',
+                fontSize: 10,
+                letterSpacing: '0.18em',
+                pointerEvents: 'none',
+                userSelect: 'none',
+              }}
+            >
+              ⌄
+            </span>
+          )}
+        </div>
       )}
     </motion.div>
   )
