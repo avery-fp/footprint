@@ -46,6 +46,14 @@ interface OwnerTileSheetProps {
   wallpaperUrl?: string | null
   /** Optimistic wallpaper swap — parent updates local state + PATCHes. */
   onSetWallpaper?: (url: string) => void
+  /**
+   * Cross-room move. When provided, the room dropdown calls this instead
+   * of onTileChange so the parent can both relocate the tile in
+   * roomsLocal AND switch the active room to the destination. Without it
+   * the moved tile would silently vanish from the source room with no
+   * confirmation that the move worked.
+   */
+  onTileMovedToRoom?: (id: string, destRoomId: string) => void
 }
 
 const SHAPES: Array<{ key: 'square' | 'wide' | 'tall'; label: string }> = [
@@ -113,6 +121,7 @@ export default function OwnerTileSheet({
   onTileDelete,
   wallpaperUrl,
   onSetWallpaper,
+  onTileMovedToRoom,
 }: OwnerTileSheetProps) {
   // ESC closes the sheet — common keyboard expectation for transient panels.
   useEffect(() => {
@@ -180,7 +189,15 @@ export default function OwnerTileSheet({
   function handleRoom(roomId: string) {
     const next = roomId || null
     if ((tile.room_id || '') === (next || '')) return
-    onTileChange(tile.id, { room_id: next })
+    // If the parent wires onTileMovedToRoom, defer to it: it updates the
+    // destination room's content array AND switches the active room so
+    // the moved tile is visibly there instead of silently disappearing
+    // from the source. Fall back to onTileChange for the unwire/null case.
+    if (next && onTileMovedToRoom) {
+      onTileMovedToRoom(tile.id, next)
+    } else {
+      onTileChange(tile.id, { room_id: next })
+    }
     patchTile({ room_id: next })
     onClose()
   }

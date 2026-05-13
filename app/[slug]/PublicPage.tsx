@@ -463,6 +463,41 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     })
   }, [])
 
+  // Cross-room move from the tile sheet. Without this, picking a new room
+  // in the dropdown left the user on the source room with the tile gone
+  // — indistinguishable from delete. Here we relocate the tile inside
+  // roomsLocal (source → destination) and navigate to the destination so
+  // the move is unmistakable. The PATCH is still fired by the sheet.
+  const handleTileMovedToRoom = useCallback(
+    (tileId: string, destRoomId: string) => {
+      const sourceRoomId = activeRoomId
+      if (!sourceRoomId || !destRoomId || sourceRoomId === destRoomId) return
+      const sourceTile = localContent.find((t: any) => t.id === tileId)
+      if (!sourceTile) return
+      const moved = { ...sourceTile, room_id: destRoomId }
+      setRoomsLocal((prev) =>
+        prev.map((r) => {
+          if (r.id === sourceRoomId) {
+            return {
+              ...r,
+              content: ((r as any).content || []).filter((t: any) => t.id !== tileId),
+            } as any
+          }
+          if (r.id === destRoomId) {
+            return {
+              ...r,
+              content: [...(((r as any).content || []) as any[]), moved],
+            } as any
+          }
+          return r
+        })
+      )
+      setLocalContent((prev) => prev.filter((t) => t.id !== tileId))
+      goToRoom(destRoomId)
+    },
+    [activeRoomId, localContent, goToRoom]
+  )
+
   // \u2500\u2500 Optimistic owner mutations: footprint settings \u2500\u2500
   async function patchFootprint(body: Record<string, unknown>) {
     try {
@@ -1953,6 +1988,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             onTileDelete={handleTileDelete}
             wallpaperUrl={wallpaperUrl}
             onSetWallpaper={handleWallpaperChange}
+            onTileMovedToRoom={handleTileMovedToRoom}
           />
         )
       })()}
