@@ -62,19 +62,6 @@ export default function GhostTile({
   const [iframeFailed, setIframeFailed] = useState(false)
   const [thumbnailExhausted, setThumbnailExhausted] = useState(false)
   const [theaterOpen, setTheaterOpen] = useState(false)
-  // Mobile tap-reveal-fade for the fullscreen chip. Hover-only visibility
-  // is a no-op on touch; permanently visible is visual clutter. Tapping
-  // the playing tile surfaces the chip; 1500ms of inactivity hides it.
-  const [chipRevealed, setChipRevealed] = useState(false)
-  const chipFadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const revealChip = useCallback(() => {
-    setChipRevealed(true)
-    if (chipFadeTimerRef.current) clearTimeout(chipFadeTimerRef.current)
-    chipFadeTimerRef.current = setTimeout(() => setChipRevealed(false), 1500)
-  }, [])
-  useEffect(() => () => {
-    if (chipFadeTimerRef.current) clearTimeout(chipFadeTimerRef.current)
-  }, [])
   const iframeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const tileRef = useRef<HTMLDivElement | null>(null)
 
@@ -361,10 +348,6 @@ export default function GhostTile({
         // clip-path clips cross-origin iframes (overflow:hidden alone doesn't)
         clipPath: 'inset(0 round var(--fp-tile-radius, 0px))',
       }}
-      // Mobile tap-reveal-fade for the fullscreen chip. Pointer events fire
-      // before the embedded player consumes the gesture, so the chip surfaces
-      // even when the tap lands on the iframe itself.
-      onPointerDown={platform === 'youtube' ? revealChip : undefined}
     >
       <ThumbnailBg
         src={thumbnailExhausted ? null : thumbUrl}
@@ -454,7 +437,7 @@ export default function GhostTile({
                   })
                 })
               }}
-              className="absolute flex items-center justify-center text-white/85 hover:text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-300"
+              className="absolute flex items-center justify-center text-white/85 hover:text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:opacity-60 transition-opacity duration-300"
               style={{
                 bottom: 12,
                 right: 12,
@@ -466,10 +449,6 @@ export default function GhostTile({
                 backdropFilter: 'blur(10px) saturate(140%)',
                 WebkitBackdropFilter: 'blur(10px) saturate(140%)',
                 boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08)',
-                // Inline override wins for the mobile reveal-fade. Undefined
-                // lets the Tailwind opacity-0 / group-hover:opacity-100 pair
-                // drive desktop hover behavior.
-                opacity: chipRevealed ? 1 : undefined,
                 pointerEvents: 'auto',
               }}
             >

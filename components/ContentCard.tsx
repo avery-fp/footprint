@@ -124,16 +124,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // so cross-origin-iframe-fullscreen failures (iOS Safari) drop into the
   // Footprint Theater overlay instead of producing a dead tap.
   const [theaterOpen, setTheaterOpen] = useState(false)
-  const [chipRevealed, setChipRevealed] = useState(false)
-  const chipFadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const revealChip = useCallback(() => {
-    setChipRevealed(true)
-    if (chipFadeTimerRef.current) clearTimeout(chipFadeTimerRef.current)
-    chipFadeTimerRef.current = setTimeout(() => setChipRevealed(false), 1500)
-  }, [])
-  useEffect(() => () => {
-    if (chipFadeTimerRef.current) clearTimeout(chipFadeTimerRef.current)
-  }, [])
   // Pause the underlying YouTube iframe while theater is open so audio
   // doesn't double up. Same pattern as GhostTile.
   useEffect(() => {
@@ -272,7 +262,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         ref={containerRef}
         className="w-full max-w-full h-full fp-tile overflow-hidden relative group"
         style={{ background: '#000' }}
-        onPointerDown={revealChip}
       >
         <FieldBackground imageUrl={youtubeThumbCandidates[0]} intensity="embed" />
         <iframe
@@ -306,7 +295,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               })
             })
           }}
-          className="absolute flex items-center justify-center text-white/85 hover:text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-300"
+          className="absolute flex items-center justify-center text-white/85 hover:text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:opacity-60 transition-opacity duration-300"
           style={{
             bottom: 12,
             right: 12,
@@ -318,9 +307,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             backdropFilter: 'blur(10px) saturate(140%)',
             WebkitBackdropFilter: 'blur(10px) saturate(140%)',
             boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08)',
-            // Inline override for mobile tap-reveal-fade; undefined lets the
-            // Tailwind opacity-0 / group-hover:opacity-100 pair drive desktop.
-            opacity: chipRevealed ? 1 : undefined,
             pointerEvents: 'auto',
           }}
         >
