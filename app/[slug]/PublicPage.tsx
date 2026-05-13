@@ -882,22 +882,28 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // Sortable tile wrapper for owner drag
   function SortableTileWrapper({ item, idx, children, className, style: extraStyle, disabled }: { item: any; idx: number; children: React.ReactNode; className?: string; style?: React.CSSProperties; disabled?: boolean }) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id, disabled })
-    // The dragged tile lifts via shadow + zIndex. Scaling the tile in
-    // place pushed its top edge upward by ~2% of tile height (8–12px on
-    // tall video tiles), which read as a sudden upward lurch on
-    // desktop where MouseSensor activates mid-motion. The fallback
-    // transition is also suppressed while dragging — dnd-kit returns
-    // transition:null for the active tile so it tracks the cursor 1:1;
-    // forcing a 220ms ease over that null made the tile spring toward
-    // each new pointer position. Non-dragged tiles keep the fallback
-    // so reorder animation stays smooth.
-    const baseTransform = CSS.Transform.toString(transform) || ''
+    // Desktop drag activation used to paint the wrapper on a new
+    // compositor layer at the same instant it gained a translate3d, a
+    // shadow, and a zIndex bump. Promoting the layer at that moment
+    // recentered its paint box around the freshly-added shadow and
+    // read as an upward pop, because the shadow extends downward and
+    // MouseSensor's 4px distance threshold fires mid-motion. Removing
+    // scale(1.04) in #410 was correct but not sufficient. We now
+    // pre-promote the layer (baseline translate3d(0,0,0) + will-change)
+    // and keep the boxShadow property present at all times (none → real)
+    // so neither the transform stack nor the paint bounds change
+    // discontinuously at activation. Mobile uses delay:200, so any
+    // layer settling completes during the hold — the pop wasn't visible
+    // there. Transition stays suppressed while dragging so the active
+    // tile tracks the cursor 1:1.
+    const baseTransform = CSS.Transform.toString(transform) || 'translate3d(0,0,0)'
     const style: React.CSSProperties = {
       transform: baseTransform,
       transition: isDragging ? 'none' : (transition || 'transform 220ms cubic-bezier(0.2, 0.9, 0.3, 1)'),
+      willChange: 'transform',
+      boxShadow: isDragging ? '0 18px 48px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.35)' : 'none',
       ...(isDragging ? {
         zIndex: 50,
-        boxShadow: '0 18px 48px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.35)',
         cursor: 'grabbing',
       } : null),
       ...extraStyle,
