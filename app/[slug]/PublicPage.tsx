@@ -794,6 +794,36 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     }).catch(e => console.error('Failed to delete child tile:', e))
   }
 
+  // Promote a child tile out of its container and back into the current
+  // room's grid. PATCH clears parent_tile_id AND sets room_id to the
+  // current active room so the tile is visible in the grid the user is
+  // standing in (children carry a null room_id by default, so without
+  // this they'd be orphaned outside any room).
+  function handleChildMoveOut(child: any) {
+    if (!activeRoomId) return
+    setLocalChildren((prev) => removeChild(prev, child.id))
+    const moved = { ...child, parent_tile_id: null, room_id: activeRoomId }
+    setRoomsLocal((prev) =>
+      prev.map((r) =>
+        r.id === activeRoomId
+          ? ({ ...r, content: [...(((r as any).content || []) as any[]), moved] } as any)
+          : r
+      )
+    )
+    setLocalContent((prev) => [...prev, moved])
+    fetch('/api/tiles', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: child.id,
+        source: child.source,
+        slug: footprint.username,
+        parent_tile_id: null,
+        room_id: activeRoomId,
+      }),
+    }).catch((e) => console.error('Failed to move child out of collection:', e))
+  }
+
   function handleChildMove(idx: number, dir: -1 | 1) {
     const next = moveChild(localChildren, idx, dir)
     if (next === localChildren) return
@@ -1741,9 +1771,21 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                             layout="rail"
                             isMobile={isMobile}
                           />
-                          {/* Owner-only controls — delete + reorder */}
+                          {/* Owner-only controls — move-out + delete + reorder */}
                           {isOwner && (
                             <div className="absolute inset-0 z-10 pointer-events-none">
+                              <button
+                                className="absolute top-2 left-2 pointer-events-auto w-7 h-7 flex items-center justify-center rounded-full touch-manipulation transition-colors hover:bg-white/[0.12]"
+                                style={{ background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.12)' }}
+                                onClick={() => handleChildMoveOut(child)}
+                                aria-label="Move out of collection"
+                                title="Move out of collection"
+                              >
+                                {/* Up-and-out arrow — promotes child back to the room grid */}
+                                <svg className="w-3 h-3 text-white/60" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L20 4M20 4h-7M20 4v7M5 8v11a1 1 0 001 1h11" />
+                                </svg>
+                              </button>
                               <button
                                 className="absolute top-2 right-2 pointer-events-auto w-7 h-7 flex items-center justify-center rounded-full touch-manipulation transition-colors hover:bg-red-500/30"
                                 style={{ background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.12)' }}
