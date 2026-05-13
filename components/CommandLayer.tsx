@@ -273,22 +273,10 @@ export default function CommandLayer({
 
   return (
     <>
-      {/* People/search memory — restored for owners too. This was visible
-          before the unified-page work and doubles as the discoverable
-          search/contact layer entry point. */}
+      {/* People/search memory — restored for owners too. The visual
+          magnifying-glass entry was redundant (search opens via `/` and
+          from the people sheet); only the people `+` lives here now. */}
       <div className="fixed left-4 top-4 z-40 md:left-6 md:top-5 flex items-center gap-1">
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-label="Search this space"
-          className="flex h-8 w-8 items-center justify-center rounded-full text-white/28 outline-none transition-colors duration-200 hover:text-white/55 focus-visible:ring-2 focus-visible:ring-white/20"
-          style={{ background: 'transparent' }}
-        >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="7" />
-            <path d="M21 21l-4.3-4.3" />
-          </svg>
-        </button>
         <button
           type="button"
           onClick={handlePeopleOpen}
