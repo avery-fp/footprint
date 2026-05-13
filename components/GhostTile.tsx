@@ -414,24 +414,27 @@ export default function GhostTile({
             onError={() => { setIframeFailed(true) }}
           />
           {/* Replace the YouTube watermark hit area with our fullscreen control.
-              Coarse pointer (mobile) → straight to theater because iOS Safari
-              blocks cross-origin iframe fullscreen. Fine pointer (desktop) →
-              try the iframe, fall back to the container, fall back to theater. */}
+              Every device tries native iframe fullscreen first. Desktop and
+              Android Chrome succeed — that gives the user real YouTube
+              fullscreen with rotation, system controls, etc. iOS Safari
+              rejects cross-origin iframe fullscreen at the browser level
+              (Apple restriction with no JS workaround), so the promise
+              rejection drops the user into Footprint Theater. */}
           {platform === 'youtube' && (
             <button
               type="button"
-              aria-label={isCoarsePointer() ? 'Theater' : 'Fullscreen'}
+              aria-label="Fullscreen"
               onClick={(e) => {
                 e.stopPropagation()
                 const btn = e.currentTarget as HTMLElement
                 const container = (btn.closest('[data-tile]') as HTMLElement) || tileRef.current
                 const iframe = container?.querySelector('iframe') as HTMLElement | null
-                if (isCoarsePointer()) {
-                  setTheaterOpen(true)
-                  return
-                }
                 tryNativeFullscreen(iframe).then((ok) => {
                   if (ok) return
+                  // Skip container fallback on coarse pointer — fullscreen on
+                  // a div is awkward on mobile (no rotation, sizing quirks).
+                  // Theater is the cleaner mobile fallback.
+                  if (isCoarsePointer()) { setTheaterOpen(true); return }
                   tryNativeFullscreen(container).then((ok2) => {
                     if (!ok2) setTheaterOpen(true)
                   })

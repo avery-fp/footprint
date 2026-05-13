@@ -275,21 +275,21 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         />
         <button
           type="button"
-          aria-label={isCoarsePointer() ? 'Theater' : 'Fullscreen'}
+          aria-label="Fullscreen"
           onClick={(e) => {
             e.stopPropagation()
             const btn = e.currentTarget as HTMLElement
             const container = (btn.closest('[data-tile]') as HTMLElement) || containerRef.current
             const iframe = container?.querySelector('iframe') as HTMLElement | null
-            // Coarse pointer (iOS Safari, Android browsers) blocks cross-origin
-            // iframe fullscreen — go straight to theater so the tap is never
-            // dead. Desktop tries iframe → container → theater fallback.
-            if (isCoarsePointer()) {
-              setTheaterOpen(true)
-              return
-            }
+            // Every device tries native iframe fullscreen first. Desktop +
+            // Android Chrome succeed; iOS Safari rejects (Apple blocks
+            // cross-origin iframe fullscreen — no JS workaround), and the
+            // promise rejection drops the user into Footprint Theater.
             tryNativeFullscreen(iframe).then((ok) => {
               if (ok) return
+              // Skip container fallback on coarse pointer — div fullscreen
+              // is awkward on mobile. Theater is cleaner.
+              if (isCoarsePointer()) { setTheaterOpen(true); return }
               tryNativeFullscreen(container).then((ok2) => {
                 if (!ok2) setTheaterOpen(true)
               })
