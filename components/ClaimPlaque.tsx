@@ -6,7 +6,7 @@ import { MouseEventHandler } from 'react'
  * ClaimPlaque — the jurisdiction marker between draft and authored.
  *
  * Not a CTA. A sealed state object that names what the room is (Draft) and what
- * it can become (Go live  $10). Quiet at rest, precise under attention, final
+ * it can become (Own your footprint  $10). Quiet at rest, precise under attention, final
  * when engaged. Lives at the top-right of the builder chrome on desktop;
  * slots into the header action row on mobile.
  *
@@ -38,7 +38,7 @@ export default function ClaimPlaque({
       type="button"
       onClick={onClick}
       disabled={loading || disabled}
-      aria-label="Go live — $10"
+      aria-label="Own your footprint — $10"
       className={[
         // Layout
         'group font-mono flex flex-col items-start justify-center gap-0.5',
@@ -77,7 +77,7 @@ export default function ClaimPlaque({
           lineHeight: 1.15,
         }}
       >
-        {loading ? '...' : 'go live \u2192 $10'}
+        {loading ? '...' : 'own your footprint \u2192'}
       </span>
     </button>
   )
