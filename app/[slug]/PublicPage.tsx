@@ -114,6 +114,17 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // must already be reachable.
   const [editorMode, setEditorMode] = useState(!!isDraft)
   const [selectedTileId, setSelectedTileId] = useState<string | null>(null)
+  // Editor-mode tile-tap scroll anchor. The interceptor sits inside a
+  // dnd-kit Sortable wrapper, which exposes role="button" + tabIndex=0
+  // for keyboard a11y. Clicking the interceptor moves focus to that
+  // focusable ancestor; browsers then auto-scroll the focused element
+  // into view, which reads as the page jumping toward the top of the
+  // tile (often near the top of the page). We capture the user's
+  // scroll position at pointerdown and restore it after the click
+  // settles, so the tile they tapped stays put while the editor sheet
+  // opens. Read by handleTilePointerDownForAnchor + the layoutEffect
+  // below.
+  const tileEditScrollAnchor = useRef<number | null>(null)
   // Draft claim sheet — opens from the ClaimPlaque in the top-right of
   // the draft chrome. Collects desired username + owner PIN, then routes
   // to Stripe via /api/checkout.
@@ -345,6 +356,21 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       }
     })()
   }, [footprint.username])
+
+  // Restore scroll position after the tile-edit sheet opens. If the
+  // browser scrolled the Sortable wrapper into view on focus during
+  // the click, this snaps the page back so the tapped tile stays put
+  // while the editor sheet (fixed-positioned) appears below it.
+  useEffect(() => {
+    if (selectedTileId === null) return
+    const anchor = tileEditScrollAnchor.current
+    if (anchor === null) return
+    tileEditScrollAnchor.current = null
+    const restore = () => window.scrollTo({ top: anchor, behavior: 'auto' })
+    // Two rAFs: first lets React commit the new render, second runs after
+    // the browser has had a chance to apply its focus-induced scroll.
+    requestAnimationFrame(() => requestAnimationFrame(restore))
+  }, [selectedTileId])
 
   // Navigate to room
   const goToRoom = useCallback((roomId: string | null) => {
@@ -1140,10 +1166,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             </div>
           )}
         </div>
-        {/* Editor-mode click interceptor — opens the tile sheet on tap. */}
+        {/* Editor-mode click interceptor — opens the tile sheet on tap.
+            See tileEditScrollAnchor above: we snapshot the scroll Y at
+            pointerdown so the page can be restored if the browser scrolls
+            the focusable Sortable wrapper into view on focus. */}
         {isOwner && editorMode && !expanded && (
           <div
             className="absolute inset-0 z-20 cursor-pointer"
+            onPointerDown={() => { tileEditScrollAnchor.current = window.scrollY }}
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSelectedTileId(item.id) }}
           />
         )}
