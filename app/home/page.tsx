@@ -15,7 +15,13 @@ export default function HomeDraftStartPage() {
         const res = await fetch('/api/draft/create', { method: 'POST' })
         const data = await res.json()
         if (res.ok && data?.tempSlug) {
-          window.location.href = `/${data.tempSlug}/home`
+          // Land on the draft page itself, not /{tempSlug}/home — there is
+          // no [slug]/home route, so the suffix used to 404 into the root
+          // not-found ("This footprint hasn't been claimed yet"), forcing
+          // the user to click "own your footprint →" a second time to
+          // create a fresh draft via the not-found CTA. /{tempSlug} renders
+          // the draft editor directly (isDraft=true → ownerView=true).
+          window.location.href = `/${data.tempSlug}`
           return
         }
       } catch {
