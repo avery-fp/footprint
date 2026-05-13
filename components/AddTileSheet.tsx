@@ -61,7 +61,6 @@ export default function AddTileSheet({
   const [thoughtValue, setThoughtValue] = useState('')
   const [detectedType, setDetectedType] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const cameraInputRef = useRef<HTMLInputElement>(null)
   const urlInputRef = useRef<HTMLInputElement>(null)
   const thoughtInputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -138,27 +137,57 @@ export default function AddTileSheet({
         style={{ animation: 'slideUp 200ms ease-out' }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Mode tabs */}
-        <div className="flex items-center gap-0 mb-5 bg-white/[0.04] rounded-lg p-0.5">
+        {/* Primary action icons — upload, link, text. The icons replace
+            the old text mode-tabs ("link / upload" + "thought") and the
+            in-mode upload/record buttons. Upload triggers the file
+            picker directly (which on mobile exposes both gallery and
+            camera, so a separate record button is no longer needed).
+            Link and text toggle the input below. */}
+        <div className="flex items-center gap-2 mb-5">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            aria-label="Upload"
+            title="Upload"
+            className="flex-1 flex items-center justify-center py-3 rounded-lg bg-white/[0.04] text-white/60 hover:bg-white/[0.08] hover:text-white/80 transition-colors"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+          </button>
           <button
             onClick={() => setMode('url')}
-            className={`flex-1 py-2 text-[12px] font-mono tracking-wider rounded-md transition-all ${
+            aria-label="Link"
+            title="Link"
+            aria-pressed={mode === 'url'}
+            className={`flex-1 flex items-center justify-center py-3 rounded-lg transition-colors ${
               mode === 'url'
                 ? 'bg-white/10 text-white/80'
-                : 'text-white/30 hover:text-white/50'
+                : 'bg-white/[0.04] text-white/60 hover:bg-white/[0.08] hover:text-white/80'
             }`}
           >
-            link / upload
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5" />
+              <path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5" />
+            </svg>
           </button>
           <button
             onClick={() => setMode('thought')}
-            className={`flex-1 py-2 text-[12px] font-mono tracking-wider rounded-md transition-all ${
+            aria-label="Text"
+            title="Text"
+            aria-pressed={mode === 'thought'}
+            className={`flex-1 flex items-center justify-center py-3 rounded-lg transition-colors ${
               mode === 'thought'
                 ? 'bg-white/10 text-white/80'
-                : 'text-white/30 hover:text-white/50'
+                : 'bg-white/[0.04] text-white/60 hover:bg-white/[0.08] hover:text-white/80'
             }`}
           >
-            thought
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polyline points="4 7 4 4 20 4 20 7" />
+              <line x1="9" y1="20" x2="15" y2="20" />
+              <line x1="12" y1="4" x2="12" y2="20" />
+            </svg>
           </button>
         </div>
 
@@ -187,39 +216,14 @@ export default function AddTileSheet({
               )}
             </div>
 
-            {/* Actions row */}
-            <div className="flex items-center gap-2">
+            {urlValue.trim() && (
               <button
-                onClick={() => fileInputRef.current?.click()}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[13px] font-mono text-white/60 hover:text-white/80 transition-all"
-                style={{
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                }}
+                onClick={handleSubmitUrl}
+                className="w-full py-3 rounded-xl bg-white text-black text-[13px] font-medium hover:bg-white/90 transition-all"
               >
-                <span className="text-white/40">↑</span>
-                upload
+                add
               </button>
-              <button
-                onClick={() => cameraInputRef.current?.click()}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[13px] font-mono text-white/60 hover:text-white/80 transition-all"
-                style={{
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                }}
-              >
-                <span className="text-white/40">●</span>
-                record
-              </button>
-              {urlValue.trim() && (
-                <button
-                  onClick={handleSubmitUrl}
-                  className="flex-1 py-3 rounded-xl bg-white text-black text-[13px] font-medium hover:bg-white/90 transition-all"
-                >
-                  add
-                </button>
-              )}
-            </div>
+            )}
           </>
         ) : (
           <>
@@ -249,21 +253,13 @@ export default function AddTileSheet({
           </>
         )}
 
-        {/* Hidden file input — gallery picker */}
+        {/* Hidden file input — opens gallery; on mobile the picker also
+            exposes camera capture, replacing the dedicated record button. */}
         <input
           ref={fileInputRef}
           type="file"
           accept="image/*,video/*"
           multiple
-          className="hidden"
-          onChange={handleFileSelect}
-        />
-        {/* Hidden file input — direct camera capture (phone) */}
-        <input
-          ref={cameraInputRef}
-          type="file"
-          accept="video/*"
-          capture="environment"
           className="hidden"
           onChange={handleFileSelect}
         />
