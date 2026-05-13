@@ -198,7 +198,7 @@ export default function RemixPage() {
 
       {/* CTA */}
       <div style={styles.ctaSection}>
-        <h2 style={styles.ctaTitle}>Make yours</h2>
+        <h2 style={styles.ctaTitle}>own your footprint</h2>
         <p style={{ ...styles.ctaDescription, color: data.theme.colors.textMuted }}>
           Get your own footprint with this space&apos;s style. Swap, add, or
           remove anything to make it yours.
@@ -217,7 +217,7 @@ export default function RemixPage() {
                 : '#000000',
           }}
         >
-          {checkingOut ? 'Loading...' : 'Make yours'}
+          {checkingOut ? 'Loading...' : 'own your footprint →'}
         </button>
         <p style={{ ...styles.ctaNote, color: data.theme.colors.textMuted }}>
           Yours forever. Customize everything.

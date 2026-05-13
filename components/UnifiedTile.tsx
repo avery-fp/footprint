@@ -249,8 +249,7 @@ export default function UnifiedTile({
         data-tile-id={item.id}
         data-tile-type="cta"
       >
-        <span className="text-white/90 text-center block" style={{ fontSize: 'clamp(28px, 8vw, 56px)', fontWeight: 300, letterSpacing: '-0.03em', lineHeight: 1 }}>yours</span>
-        <span className="text-white/35 group-hover:text-white/60 transition-colors mt-3 text-center block" style={{ fontSize: '12px', fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase' }}>make one →</span>
+        <span className="text-white/85 group-hover:text-white transition-colors text-center block" style={{ fontSize: 'clamp(16px, 3.4vw, 22px)', fontWeight: 400, letterSpacing: '0.01em', lineHeight: 1.2 }}>own your footprint →</span>
       </a>
     )
   }
@@ -518,16 +517,10 @@ export default function UnifiedTile({
         data-tile-type="cta"
       >
         <span
-          className="text-white/90 text-center block"
-          style={{ fontSize: 'clamp(28px, 8vw, 56px)', fontWeight: 300, letterSpacing: '-0.03em', lineHeight: 1 }}
+          className="text-white/85 group-hover:text-white transition-colors text-center block"
+          style={{ fontSize: 'clamp(16px, 3.4vw, 22px)', fontWeight: 400, letterSpacing: '0.01em', lineHeight: 1.2 }}
         >
-          yours
-        </span>
-        <span
-          className="text-white/35 group-hover:text-white/60 transition-colors mt-3 text-center block"
-          style={{ fontSize: '12px', fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase' }}
-        >
-          make one →
+          own your footprint →
         </span>
       </a>
     )

@@ -55,7 +55,7 @@ export default function EmptyHomeOrigin({
         className="absolute right-4 top-4 z-30 rounded-full bg-[#11100e] px-5 py-3 text-[12px] font-medium tracking-[0.01em] text-[#fbf8f1] transition-opacity hover:opacity-90 disabled:cursor-default disabled:opacity-55 md:right-8 md:top-8"
         style={{ boxShadow: '0 8px 18px rgba(20,17,13,0.14)' }}
       >
-        {goLiveLoading ? '...' : <>go live &rarr; $10</>}
+        {goLiveLoading ? '...' : <>own your footprint &rarr;</>}
       </button>
 
       <div className="absolute inset-x-0 top-[38%] z-10 flex -translate-y-1/2 flex-col items-center px-6">
