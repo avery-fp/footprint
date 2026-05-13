@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { isVideoTile } from '@/lib/media/aspect'
 
 /**
@@ -24,6 +24,8 @@ type Tile = {
   aspect?: string | null
   parent_tile_id?: string | null
   room_id?: string | null
+  caption?: string | null
+  caption_hidden?: boolean | null
 }
 
 type TileSource = 'library' | 'links'
@@ -130,6 +132,18 @@ export default function OwnerTileSheet({
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
+  // ── Note state for image tiles. Library tiles only — links has no
+  //    caption column and PATCH /api/tiles will return 400 if we try.
+  //    Textarea persists on blur (not keystroke) so we don't spam PATCH.
+  const [noteDraft, setNoteDraft] = useState(tile.caption || '')
+  const noteSavedRef = useRef(tile.caption || '')
+  useEffect(() => {
+    // Reset when switching between tiles in the same sheet instance.
+    setNoteDraft(tile.caption || '')
+    noteSavedRef.current = tile.caption || ''
+  }, [tile.id, tile.caption])
+  const captionHiddenCurrent = !!tile.caption_hidden
+
   // Resolved aspect for highlight: the user's stored pick wins; smart
   // defaults are not pre-lit (they're invisible defaults, not selections).
   const stored = tile.aspect
@@ -207,6 +221,27 @@ export default function OwnerTileSheet({
     onSetWallpaper(wallpaperUrl)
     onClose()
   }
+
+  function handleNoteBlur() {
+    // Skip the PATCH when nothing changed — typing then blurring without
+    // edits should be a no-op, not a phantom network call.
+    const next = noteDraft.trim()
+    if (next === (noteSavedRef.current || '')) return
+    noteSavedRef.current = next
+    onTileChange(tile.id, { caption: next || null })
+    patchTile({ caption: next })
+  }
+
+  function handleVisibility(nextHidden: boolean) {
+    if (nextHidden === captionHiddenCurrent) return
+    onTileChange(tile.id, { caption_hidden: nextHidden })
+    patchTile({ caption_hidden: nextHidden })
+  }
+
+  // Note row is library-only. Text/link tiles (links source) have no
+  // caption column — surfacing the controls there would be a dead
+  // control that PATCH /api/tiles now rejects with a 400.
+  const showNoteRow = source === 'library'
 
   // Whether to surface the "use as wallpaper" row. Hidden when the tile
   // has no usable visual media (text-only thoughts, links without a
@@ -303,10 +338,65 @@ export default function OwnerTileSheet({
           </div>
         )}
 
+        {/* Row 0.5 — note. Library tiles only. Two display modes per
+            V1 spec: visible / tap to reveal. The textarea persists on
+            blur; the visibility pills persist on click. */}
+        {showNoteRow && (
+          <div
+            style={
+              canSetWallpaper
+                ? { ...rowStyle, borderTop: '1px solid rgba(255,255,255,0.06)', flexDirection: 'column', alignItems: 'stretch', gap: 10 }
+                : { ...rowStyle, flexDirection: 'column', alignItems: 'stretch', gap: 10 }
+            }
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={rowLabel}>note</span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleVisibility(false)}
+                  style={!captionHiddenCurrent ? pillActive : pillBase}
+                  aria-pressed={!captionHiddenCurrent}
+                >
+                  visible
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleVisibility(true)}
+                  style={captionHiddenCurrent ? pillActive : pillBase}
+                  aria-pressed={captionHiddenCurrent}
+                >
+                  tap to reveal
+                </button>
+              </div>
+            </div>
+            <textarea
+              value={noteDraft}
+              onChange={(e) => setNoteDraft(e.target.value)}
+              onBlur={handleNoteBlur}
+              placeholder="add a note..."
+              rows={2}
+              style={{
+                width: '100%',
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.10)',
+                borderRadius: 12,
+                padding: '10px 12px',
+                color: 'rgba(255,255,255,0.85)',
+                fontFamily: "'DM Mono', 'Courier New', monospace",
+                fontSize: 13,
+                lineHeight: 1.5,
+                outline: 'none',
+                resize: 'none',
+              }}
+            />
+          </div>
+        )}
+
         {/* Row 1 — shape. For video tiles 'square' is hidden — it
             collapses to wide in the grid engine, so showing it as a
             distinct pill would be a dead control. */}
-        <div style={canSetWallpaper ? { ...rowStyle, borderTop: '1px solid rgba(255,255,255,0.06)' } : rowStyle}>
+        <div style={(canSetWallpaper || showNoteRow) ? { ...rowStyle, borderTop: '1px solid rgba(255,255,255,0.06)' } : rowStyle}>
           <span style={rowLabel}>shape</span>
           <div className="flex gap-2">
             {VISIBLE_SHAPES.map((s) => (
