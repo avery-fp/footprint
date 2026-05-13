@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { isVideoTile } from '@/lib/media/aspect'
 
 /**
@@ -24,6 +24,8 @@ type Tile = {
   aspect?: string | null
   parent_tile_id?: string | null
   room_id?: string | null
+  title?: string | null
+  thumbnail_url_override?: string | null
 }
 
 type TileSource = 'library' | 'links'
@@ -166,6 +168,51 @@ export default function OwnerTileSheet({
     }).catch((e) => console.error('tile PATCH threw', e))
   }
 
+  // ── Link authoring: title + thumbnail override ──
+  // Only surfaced for link tiles (source === 'links'). Stripe/payment
+  // tiles inherit the same controls so users can author them rather than
+  // accepting the generic CTA fallback.
+  const isLinkTile = source === 'links' && tile.type !== 'container' && tile.type !== 'thought'
+  const [titleDraft, setTitleDraft] = useState(tile.title || '')
+  const [thumbUploading, setThumbUploading] = useState(false)
+  const [thumbError, setThumbError] = useState<string | null>(null)
+  const thumbInputRef = useRef<HTMLInputElement>(null)
+
+  function commitTitle(next: string) {
+    const trimmed = next.trim()
+    const current = (tile.title || '').trim()
+    if (trimmed === current) return
+    onTileChange(tile.id, { title: trimmed || null })
+    patchTile({ title: trimmed })
+  }
+
+  async function handleThumbnailPick(file: File) {
+    setThumbError(null)
+    setThumbUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('slug', slug)
+      const res = await fetch('/api/tiles/thumbnail', { method: 'POST', body: formData })
+      const data = await res.json()
+      if (!res.ok || !data?.url) {
+        setThumbError(data?.error || 'upload failed')
+        return
+      }
+      onTileChange(tile.id, { thumbnail_url_override: data.url })
+      patchTile({ thumbnail_url_override: data.url })
+    } catch {
+      setThumbError('upload failed')
+    } finally {
+      setThumbUploading(false)
+    }
+  }
+
+  function handleClearThumbnail() {
+    onTileChange(tile.id, { thumbnail_url_override: null })
+    patchTile({ thumbnail_url_override: null })
+  }
+
   function handleShape(next: 'square' | 'wide' | 'tall') {
     onTileChange(tile.id, { aspect: next })
     patchTile({ aspect: next })
@@ -285,12 +332,82 @@ export default function OwnerTileSheet({
           </button>
         </div>
 
+        {/* Link authoring — title + thumbnail override. Surfaced only on
+            link tiles (Stripe/payment included). Library tiles use their
+            own captioning UI. Hidden for containers and thoughts. */}
+        {isLinkTile && (
+          <>
+            <div style={rowStyle}>
+              <span style={rowLabel}>title</span>
+              <input
+                type="text"
+                value={titleDraft}
+                onChange={(e) => setTitleDraft(e.target.value)}
+                onBlur={(e) => commitTitle(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+                maxLength={200}
+                placeholder="optional"
+                style={{
+                  ...pillBase,
+                  textAlign: 'right',
+                  minWidth: 160,
+                  maxWidth: 280,
+                }}
+              />
+            </div>
+            <div style={{ ...rowStyle, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+              <span style={rowLabel}>image</span>
+              <div className="flex items-center gap-2">
+                {tile.thumbnail_url_override && (
+                  <button
+                    type="button"
+                    onClick={handleClearThumbnail}
+                    style={pillBase}
+                    aria-label="remove image"
+                  >
+                    remove
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => thumbInputRef.current?.click()}
+                  disabled={thumbUploading}
+                  style={pillBase}
+                  aria-label={tile.thumbnail_url_override ? 'replace image' : 'add image'}
+                >
+                  {thumbUploading
+                    ? 'uploading…'
+                    : tile.thumbnail_url_override
+                    ? 'replace'
+                    : 'add image'}
+                </button>
+                <input
+                  ref={thumbInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp,image/heic"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    if (f) handleThumbnailPick(f)
+                    e.target.value = ''
+                  }}
+                />
+              </div>
+            </div>
+            {thumbError && (
+              <p style={{ ...rowLabel, color: 'rgba(220,90,90,0.7)', padding: '0 4px 6px' }}>
+                {thumbError}
+              </p>
+            )}
+          </>
+        )}
+
         {/* Row 0 — wallpaper. Sets the page's background_url to this
             tile's media without opening the upload dialog. Hidden when
             the tile has no usable image source (text, link without
             thumb, provider tile missing thumb) — no dead controls. */}
         {canSetWallpaper && (
-          <div style={rowStyle}>
+          <div style={isLinkTile ? { ...rowStyle, borderTop: '1px solid rgba(255,255,255,0.06)' } : rowStyle}>
             <span style={rowLabel}>wallpaper</span>
             <button
               type="button"
@@ -306,7 +423,7 @@ export default function OwnerTileSheet({
         {/* Row 1 — shape. For video tiles 'square' is hidden — it
             collapses to wide in the grid engine, so showing it as a
             distinct pill would be a dead control. */}
-        <div style={canSetWallpaper ? { ...rowStyle, borderTop: '1px solid rgba(255,255,255,0.06)' } : rowStyle}>
+        <div style={(canSetWallpaper || isLinkTile) ? { ...rowStyle, borderTop: '1px solid rgba(255,255,255,0.06)' } : rowStyle}>
           <span style={rowLabel}>shape</span>
           <div className="flex gap-2">
             {VISIBLE_SHAPES.map((s) => (

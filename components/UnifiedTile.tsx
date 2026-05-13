@@ -74,6 +74,7 @@ interface UnifiedTileProps {
     media_kind?: string | null
     caption?: string | null
     caption_hidden?: boolean | null
+    thumbnail_url_override?: string | null
   }
   index: number
   size: number
@@ -231,12 +232,30 @@ export default function UnifiedTile({
     )
   }
 
-  // ── Pay / "yours" CTA — early return for same reason as thought: render_mode
+  // ── Pay / link tile — early return for same reason as thought: render_mode
   // can be 'embed' from identity intake, which would route to ContentCard.
+  //
+  // Authoring rule: a payment/Stripe tile with a user-set title or a
+  // thumbnail override is rendered as a real authored link tile (opens the
+  // destination in a new tab via PreviewCardTileBase). With neither set
+  // it falls back to the canonical claim CTA pointing at /home.
   if (
     item.type === 'payment' ||
     (item.url && (item.url.includes('buy.stripe.com') || item.url.includes('checkout.stripe.com')))
   ) {
+    const authored = Boolean((item.title && item.title.trim()) || item.thumbnail_url_override)
+    if (authored && item.url) {
+      return (
+        <div className="w-full h-full" data-tile-id={item.id} data-tile-type="payment-authored">
+          <PreviewCardTileBase
+            url={item.url}
+            thumbnailUrl={item.thumbnail_url_override || null}
+            title={item.title || null}
+            subtitle={null}
+          />
+        </div>
+      )
+    }
     return (
       <a
         href="/home"
@@ -494,16 +513,28 @@ export default function UnifiedTile({
     )
   }
 
-  // ── "yours" CTA tile — invites visitors to build their own ──
-  // Rubin-pass: this is the single ask on the page. Make it breathe.
-  // Hero type, no chrome, the whole tile is the target. Subtle 2-line
-  // hierarchy (action → label) reads cleanly at any size.
+  // ── Payment link safety net — same authoring rule as the early-return
+  // branch above. Authored (custom title or thumbnail) → PreviewCardTileBase
+  // opens the destination; unauthored → canonical claim CTA fallback.
   const isPaymentLink = item.url && (
     item.url.includes('buy.stripe.com') ||
     item.url.includes('checkout.stripe.com') ||
     item.type === 'payment'
   )
   if (isPaymentLink) {
+    const authored = Boolean((item.title && item.title.trim()) || item.thumbnail_url_override)
+    if (authored && item.url) {
+      return (
+        <div className="w-full h-full" data-tile-id={item.id} data-tile-type="payment-authored">
+          <PreviewCardTileBase
+            url={item.url}
+            thumbnailUrl={item.thumbnail_url_override || null}
+            title={item.title || null}
+            subtitle={null}
+          />
+        </div>
+      )
+    }
     return (
       <a
         href="/home"

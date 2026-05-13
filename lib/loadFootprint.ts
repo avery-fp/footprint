@@ -43,6 +43,7 @@ export interface Tile {
   render_mode?: string
   artist?: string | null
   thumbnail_url_hq?: string | null
+  thumbnail_url_override?: string | null
   media_id?: string | null
   container_label?: string | null
   container_cover_url?: string | null
@@ -135,6 +136,7 @@ function mapLinkRow(row: any): Tile {
     render_mode: row.render_mode || 'embed',
     artist: row.artist || null,
     thumbnail_url_hq: row.thumbnail_url_hq || null,
+    thumbnail_url_override: row.thumbnail_url_override || null,
     media_id: row.media_id || null,
     container_label: row.container_label || null,
     container_cover_url: row.container_cover_url || null,

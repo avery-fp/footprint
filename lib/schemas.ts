@@ -168,6 +168,9 @@ export const tilesPatchSchema = z.object({
   aspect: z.enum(['square', 'wide', 'tall', 'auto']).optional(),
   caption: z.string().optional(),
   title: z.string().optional(),
+  // User-supplied thumbnail override for link/payment tiles. Empty string
+  // clears the override; null also clears. Persisted only on `links`.
+  thumbnail_url_override: z.string().nullable().optional(),
   room_id: z.string().nullable().optional(),
   parent_tile_id: z.string().nullable().optional(),
 })
