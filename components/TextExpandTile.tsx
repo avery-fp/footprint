@@ -130,15 +130,7 @@ export default function TextExpandTile({
     }
   }, [isPublicView, isExpanded])
 
-  const dormantSurface = isPublicView
-    ? {
-        background: 'rgba(255, 255, 255, 0.06)',
-        backdropFilter: 'blur(20px) saturate(120%)',
-        WebkitBackdropFilter: 'blur(20px) saturate(120%)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-        minHeight: isExpanded ? undefined : '200px',
-      }
-    : undefined
+  const dormantSurface = isPublicView ? { background: 'transparent' } : undefined
 
   const baseClasses = isPublicView
     ? 'flex items-center justify-center p-5 cursor-pointer transition-opacity hover:opacity-95 rounded-2xl'

@@ -287,7 +287,7 @@ export default function UnifiedTile({
     return (
       <div
         className="fp-text-tile-shell w-full h-full"
-        style={{ background: 'rgba(255,255,255,0.10)' }}
+        style={{ background: 'transparent' }}
         data-tile-id={item.id}
         data-tile-type="thought"
       >
@@ -443,7 +443,7 @@ export default function UnifiedTile({
     return (
       <div
         className="fp-text-tile-shell w-full h-full"
-        style={{ background: 'rgba(255,255,255,0.10)' }}
+        style={{ background: 'transparent' }}
         data-tile-id={item.id}
         data-tile-type="thought"
       >

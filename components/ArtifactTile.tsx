@@ -20,6 +20,8 @@ interface ArtifactTileProps {
   description: string | null
   actionUrl: string
   aspectClass?: string
+  /** Drop the glass plate on text-only render so the tile sits flush on wallpaper. */
+  transparent?: boolean
 }
 
 export default function ArtifactTile({
@@ -29,6 +31,7 @@ export default function ArtifactTile({
   description,
   actionUrl,
   aspectClass = 'aspect-square',
+  transparent = false,
 }: ArtifactTileProps) {
   const [imgFailed, setImgFailed] = useState(false)
   const showImage = !!image && !imgFailed
@@ -45,6 +48,8 @@ export default function ArtifactTile({
       style={
         showImage
           ? { background: '#000' }
+          : transparent
+          ? { background: 'transparent' }
           : {
               background: 'rgba(255,255,255,0.09)',
               backdropFilter: 'blur(20px)',

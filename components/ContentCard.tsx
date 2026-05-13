@@ -570,6 +570,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         description={description}
         actionUrl={content.url}
         aspectClass={aspectClass}
+        transparent
       />
     )
   }
