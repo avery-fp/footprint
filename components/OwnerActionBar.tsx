@@ -274,11 +274,11 @@ export default function OwnerActionBar({
     background: 'transparent',
     border: 'none',
     color: 'rgba(255,255,255,0.85)',
-    padding: '8px 14px',
-    fontSize: 12,
-    letterSpacing: '0.04em',
-    textTransform: 'lowercase',
-    fontFamily: "'DM Mono', 'Courier New', monospace",
+    width: 40,
+    height: 40,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     cursor: 'pointer',
     borderRadius: 999,
   }
@@ -298,14 +298,44 @@ export default function OwnerActionBar({
       }}
       data-owner-action-bar
     >
-      <button type="button" style={verb === 'link' ? buttonActive : buttonStyle} onClick={() => setVerb(verb === 'link' ? 'idle' : 'link')}>
-        link
+      <button
+        type="button"
+        aria-label="add link"
+        title="add link"
+        style={verb === 'link' ? buttonActive : buttonStyle}
+        onClick={() => setVerb(verb === 'link' ? 'idle' : 'link')}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5" />
+          <path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5" />
+        </svg>
       </button>
-      <button type="button" style={verb === 'text' ? buttonActive : buttonStyle} onClick={() => setVerb(verb === 'text' ? 'idle' : 'text')}>
-        text
+      <button
+        type="button"
+        aria-label="add text"
+        title="add text"
+        style={verb === 'text' ? buttonActive : buttonStyle}
+        onClick={() => setVerb(verb === 'text' ? 'idle' : 'text')}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M4 6h16" />
+          <path d="M12 6v14" />
+          <path d="M9 20h6" />
+        </svg>
       </button>
-      <button type="button" style={verb === 'collection' ? buttonActive : buttonStyle} onClick={() => setVerb(verb === 'collection' ? 'idle' : 'collection')}>
-        collection
+      <button
+        type="button"
+        aria-label="add collection"
+        title="add collection"
+        style={verb === 'collection' ? buttonActive : buttonStyle}
+        onClick={() => setVerb(verb === 'collection' ? 'idle' : 'collection')}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect x="3" y="3" width="7" height="7" rx="1.2" />
+          <rect x="14" y="3" width="7" height="7" rx="1.2" />
+          <rect x="3" y="14" width="7" height="7" rx="1.2" />
+          <rect x="14" y="14" width="7" height="7" rx="1.2" />
+        </svg>
       </button>
       <button
         type="button"
@@ -316,7 +346,11 @@ export default function OwnerActionBar({
         style={{ ...buttonStyle, opacity: busy ? 0.55 : 1, cursor: busy ? 'progress' : 'pointer' }}
         onClick={() => fileInputRef.current?.click()}
       >
-        {busy ? 'uploading…' : 'upload'}
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M12 4v12" />
+          <path d="M7 9l5-5 5 5" />
+          <path d="M4 20h16" />
+        </svg>
       </button>
 
       <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple disabled={busy} style={{ display: 'none' }} onChange={(e) => { const files = Array.from(e.target.files || []); if (files.length) handleFilesPicked(files); e.target.value = '' }} />
