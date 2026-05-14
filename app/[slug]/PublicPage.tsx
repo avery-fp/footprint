@@ -1386,28 +1386,35 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       {!isDraft && isOwner && !expanded && !claimActive && giftsRemaining !== null && giftsRemaining > 0 && (
         <button
           type="button"
-          aria-label="give a footprint"
+          aria-label="gift a footprint"
+          title="gift a footprint"
           onClick={() => setGiftModalOpen(true)}
-          className="fixed z-30 touch-manipulation font-mono"
+          className="fixed z-30 touch-manipulation"
           style={{
             top: 'calc(env(safe-area-inset-top, 0px) + 16px)',
-            right: '88px',
+            right: '72px',
             background: 'rgba(0,0,0,0.62)',
             backdropFilter: 'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',
             border: '1px solid rgba(255,255,255,0.10)',
             color: 'rgba(255,255,255,0.92)',
             borderRadius: 999,
-            padding: '8px 16px',
-            fontSize: 12,
-            letterSpacing: '0.06em',
-            textTransform: 'lowercase',
+            width: 40,
+            height: 40,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             cursor: 'pointer',
             userSelect: 'none',
             WebkitUserSelect: 'none',
           }}
         >
-          gift
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="3" y="8" width="18" height="13" rx="1.5" />
+            <path d="M3 12h18" />
+            <path d="M12 8v13" />
+            <path d="M7.5 8a2.5 2.5 0 0 1 0-5C10 3 12 8 12 8s2-5 4.5-5a2.5 2.5 0 0 1 0 5" />
+          </svg>
         </button>
       )}
       {!isDraft && isOwner && !expanded && (

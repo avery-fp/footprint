@@ -38,7 +38,7 @@ export default function ClaimPlaque({
       type="button"
       onClick={onClick}
       disabled={loading || disabled}
-      aria-label="Own your footprint — $10"
+      aria-label="make yours — $10"
       className={[
         // Layout
         'group font-mono flex flex-col items-start justify-center gap-0.5',
@@ -77,7 +77,7 @@ export default function ClaimPlaque({
           lineHeight: 1.15,
         }}
       >
-        {loading ? '...' : 'own your footprint \u2192'}
+        {loading ? '...' : 'make yours \u2192'}
       </span>
     </button>
   )
