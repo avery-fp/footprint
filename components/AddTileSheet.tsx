@@ -227,7 +227,8 @@ export default function AddTileSheet({
           </>
         ) : (
           <>
-            {/* Thought textarea */}
+            {/* Thought textarea — six rows of breathing room so users can
+                draft before save. Enter submits; Shift+Enter is a newline. */}
             <textarea
               ref={thoughtInputRef}
               value={thoughtValue}
@@ -239,7 +240,8 @@ export default function AddTileSheet({
                 }
               }}
               placeholder="write something..."
-              rows={3}
+              rows={6}
+              style={{ minHeight: 160 }}
               className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-4 py-3.5 text-[14px] text-white/80 placeholder:text-white/25 font-mono focus:outline-none focus:border-white/20 transition-colors resize-none mb-4"
             />
             {thoughtValue.trim() && (
