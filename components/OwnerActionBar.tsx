@@ -35,12 +35,16 @@ const glassBar: React.CSSProperties = {
   borderRadius: 999,
 }
 
-const ghostPanel: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.04)',
-  backdropFilter: 'blur(32px) saturate(140%)',
-  WebkitBackdropFilter: 'blur(32px) saturate(140%)',
-  border: '1px solid rgba(255,255,255,0.03)',
-  boxShadow: '0 1px 0 rgba(255,255,255,0.02) inset, 0 8px 32px rgba(0,0,0,0.18)',
+// Active input panels (link URL, thought text, collection name) need
+// enough body to read as a real input surface — not a wireframe ghost.
+// Darker dim under a saturated blur so typed text sits on glass, not on
+// the page beneath.
+const inputPanel: React.CSSProperties = {
+  background: 'rgba(0,0,0,0.55)',
+  backdropFilter: 'blur(28px) saturate(140%)',
+  WebkitBackdropFilter: 'blur(28px) saturate(140%)',
+  border: '1px solid rgba(255,255,255,0.12)',
+  boxShadow: '0 8px 32px rgba(0,0,0,0.30)',
 }
 
 export default function OwnerActionBar({
@@ -304,7 +308,10 @@ export default function OwnerActionBar({
         style={{
           ...glassBar,
           bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
-          maxWidth: 'min(360px, calc(100vw - 24px))',
+          // Reserve right-edge real-estate for the bottom-right cluster
+          // (gift + collection pills). The center bar must never extend
+          // into that lane, even on narrow viewports.
+          maxWidth: 'min(220px, calc(100vw - 184px))',
         }}
         data-owner-action-bar
       >
@@ -351,18 +358,21 @@ export default function OwnerActionBar({
 
         <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple disabled={busy} style={{ display: 'none' }} onChange={(e) => { const files = Array.from(e.target.files || []); if (files.length) handleFilesPicked(files); e.target.value = '' }} />
 
-        {(verb === 'link' || verb === 'text' || verb === 'collection') && (
+        {(verb === 'link' || verb === 'text') && (
         <div
           className={`absolute left-0 right-0 px-3 py-2.5 flex gap-2 ${verb === 'text' ? 'flex-col items-stretch' : 'items-center'}`}
           style={{
-            ...ghostPanel,
+            ...inputPanel,
             bottom: 'calc(100% + 10px)',
             borderRadius: 18,
+            // Active input panels span wider than the (narrowed) center
+            // bar so URLs and thoughts have room to breathe.
+            minWidth: 'min(320px, calc(100vw - 48px))',
           }}
         >
           {verb === 'link' && (
             <>
-              <input ref={inputRef as React.RefObject<HTMLInputElement>} type="url" inputMode="url" placeholder="paste any link…" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submitLink() }} className="flex-1 bg-transparent text-white/85 placeholder-white/30 outline-none text-sm font-mono" />
+              <input ref={inputRef as React.RefObject<HTMLInputElement>} type="url" inputMode="url" placeholder="paste any link…" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submitLink() }} className="flex-1 bg-transparent text-white/[0.78] placeholder:text-white/[0.35] outline-none text-sm font-mono" />
               <button onClick={submitLink} disabled={!linkUrl.trim() || busy} className="text-xs text-white/70 hover:text-white/95 px-2 py-1 disabled:opacity-30 font-mono">{busy ? '…' : 'add'}</button>
             </>
           )}
@@ -385,7 +395,7 @@ export default function OwnerActionBar({
                 }}
                 rows={6}
                 style={{ minHeight: 160, resize: 'none' }}
-                className="w-full bg-transparent text-white/85 placeholder-white/30 outline-none text-sm font-mono"
+                className="w-full bg-transparent text-white/[0.78] placeholder:text-white/[0.35] outline-none text-sm font-mono"
               />
               <div className="flex items-center gap-2">
                 {/* Attach image — optional. Image + text becomes one
@@ -469,15 +479,42 @@ export default function OwnerActionBar({
               />
             </>
           )}
-          {verb === 'collection' && (
-            <>
-              <input ref={inputRef as React.RefObject<HTMLInputElement>} type="text" placeholder="collection name…" value={containerLabel} onChange={(e) => setContainerLabel(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submitContainer() }} className="flex-1 bg-transparent text-white/85 placeholder-white/30 outline-none text-sm font-mono" />
-              <button onClick={submitContainer} disabled={!containerLabel.trim() || busy} className="text-xs text-white/70 hover:text-white/95 px-2 py-1 disabled:opacity-30 font-mono">{busy ? '…' : 'add'}</button>
-            </>
-          )}
         </div>
       )}
       </div>
+
+      {/* Collection input panel — anchored above the collection trigger
+          at bottom-right, never above the center bar. Keeps panel and
+          trigger visually connected. */}
+      {verb === 'collection' && (
+        <div
+          className="fixed z-30 px-3 py-2.5 flex gap-2 items-center"
+          style={{
+            ...inputPanel,
+            bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px + 36px + 10px)',
+            right: 16,
+            borderRadius: 18,
+            minWidth: 'min(280px, calc(100vw - 32px))',
+          }}
+        >
+          <input
+            ref={inputRef as React.RefObject<HTMLInputElement>}
+            type="text"
+            placeholder="collection name…"
+            value={containerLabel}
+            onChange={(e) => setContainerLabel(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') submitContainer() }}
+            className="flex-1 bg-transparent text-white/[0.78] placeholder:text-white/[0.35] outline-none text-sm font-mono"
+          />
+          <button
+            onClick={submitContainer}
+            disabled={!containerLabel.trim() || busy}
+            className="text-xs text-white/70 hover:text-white/95 px-2 py-1 disabled:opacity-30 font-mono"
+          >
+            {busy ? '…' : 'add'}
+          </button>
+        </div>
+      )}
 
       {/* Collection — quiet, separate. A collection is a room/container
           action, not a quick-add primitive. Sits adjacent to the main

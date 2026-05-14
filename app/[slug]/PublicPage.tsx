@@ -1383,7 +1383,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           <ClaimPlaque onClick={() => setDraftClaimOpen(true)} />
         </div>
       )}
-      {!isDraft && isOwner && !expanded && !claimActive && giftsRemaining !== null && giftsRemaining > 0 && (
+      {/* Gift — owner edit-mode only, lives in the bottom owner cluster
+          next to the collection control. Hidden when giftsRemaining hits
+          zero, when not in edit mode, and on stranger views. */}
+      {!isDraft && isOwner && editorMode && !expanded && !claimActive && giftsRemaining !== null && giftsRemaining > 0 && (
         <button
           type="button"
           aria-label="gift a footprint"
@@ -1391,25 +1394,26 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           onClick={() => setGiftModalOpen(true)}
           className="fixed z-30 touch-manipulation"
           style={{
-            top: 'calc(env(safe-area-inset-top, 0px) + 16px)',
-            right: '72px',
-            background: 'rgba(0,0,0,0.62)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255,255,255,0.10)',
-            color: 'rgba(255,255,255,0.92)',
+            bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
+            right: '64px',
+            background: 'rgba(255,255,255,0.05)',
+            backdropFilter: 'blur(28px) saturate(140%)',
+            WebkitBackdropFilter: 'blur(28px) saturate(140%)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            color: 'rgba(255,255,255,0.62)',
             borderRadius: 999,
-            width: 40,
-            height: 40,
-            display: 'flex',
+            width: 36,
+            height: 36,
+            display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
             userSelect: 'none',
             WebkitUserSelect: 'none',
+            transition: 'color 160ms ease',
           }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <rect x="3" y="8" width="18" height="13" rx="1.5" />
             <path d="M3 12h18" />
             <path d="M12 8v13" />
@@ -2053,11 +2057,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
       )}
 
-      {/* Return affordance — quiet doorway. Routes to /{slug}?edit=1
-          where EditAccessScreen surfaces as a full-page overlay for the
-          email + 6-digit code flow. Server-side hint suppresses this
-          for owners on first paint (no flash). */}
-      {!isOwnerHinted && !isDraft && (
+      {/* Return affordance — quiet doorway for strangers/recovery only.
+          Hidden once the viewer is authenticated as owner (and therefore
+          when edit mode is active, which is owner-gated). Server-side
+          hint suppresses for owners on first paint (no flash). */}
+      {!isOwnerHinted && !isDraft && !isOwner && (
         <a
           href={`/${footprint.username}?edit=1`}
           className="fixed bottom-4 right-4 z-20 font-mono text-[11px] text-white/[0.15] hover:text-white/40 transition-colors duration-300 px-2 py-1 select-none touch-manipulation"
