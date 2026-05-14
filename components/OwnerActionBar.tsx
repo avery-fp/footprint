@@ -28,11 +28,19 @@ interface OwnerActionBarProps {
 }
 
 const glassBar: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.06)',
-  backdropFilter: 'blur(24px) saturate(140%)',
-  WebkitBackdropFilter: 'blur(24px) saturate(140%)',
-  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.05)',
+  backdropFilter: 'blur(28px) saturate(140%)',
+  WebkitBackdropFilter: 'blur(28px) saturate(140%)',
+  border: '1px solid rgba(255,255,255,0.06)',
   borderRadius: 999,
+}
+
+const ghostPanel: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.04)',
+  backdropFilter: 'blur(32px) saturate(140%)',
+  WebkitBackdropFilter: 'blur(32px) saturate(140%)',
+  border: '1px solid rgba(255,255,255,0.03)',
+  boxShadow: '0 1px 0 rgba(255,255,255,0.02) inset, 0 8px 32px rgba(0,0,0,0.18)',
 }
 
 export default function OwnerActionBar({
@@ -273,7 +281,7 @@ export default function OwnerActionBar({
   const buttonStyle: React.CSSProperties = {
     background: 'transparent',
     border: 'none',
-    color: 'rgba(255,255,255,0.85)',
+    color: 'rgba(255,255,255,0.62)',
     width: 40,
     height: 40,
     display: 'inline-flex',
@@ -281,87 +289,75 @@ export default function OwnerActionBar({
     justifyContent: 'center',
     cursor: 'pointer',
     borderRadius: 999,
+    transition: 'color 160ms ease, background-color 160ms ease',
   }
   const buttonActive: React.CSSProperties = {
     ...buttonStyle,
-    background: 'rgba(255,255,255,0.10)',
-    color: 'rgba(255,255,255,0.98)',
+    background: 'rgba(255,255,255,0.06)',
+    color: 'rgba(255,255,255,0.95)',
   }
 
   return (
-    <div
-      className="fixed left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 px-2 py-1.5"
-      style={{
-        ...glassBar,
-        bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
-        maxWidth: 'min(440px, calc(100vw - 24px))',
-      }}
-      data-owner-action-bar
-    >
-      <button
-        type="button"
-        aria-label="add link"
-        title="add link"
-        style={verb === 'link' ? buttonActive : buttonStyle}
-        onClick={() => setVerb(verb === 'link' ? 'idle' : 'link')}
+    <>
+      <div
+        className="fixed left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 px-1.5 py-1"
+        style={{
+          ...glassBar,
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
+          maxWidth: 'min(360px, calc(100vw - 24px))',
+        }}
+        data-owner-action-bar
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5" />
-          <path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5" />
-        </svg>
-      </button>
-      <button
-        type="button"
-        aria-label="add text"
-        title="add text"
-        style={verb === 'text' ? buttonActive : buttonStyle}
-        onClick={() => setVerb(verb === 'text' ? 'idle' : 'text')}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M4 6h16" />
-          <path d="M12 6v14" />
-          <path d="M9 20h6" />
-        </svg>
-      </button>
-      <button
-        type="button"
-        aria-label="add collection"
-        title="add collection"
-        style={verb === 'collection' ? buttonActive : buttonStyle}
-        onClick={() => setVerb(verb === 'collection' ? 'idle' : 'collection')}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <rect x="3" y="3" width="7" height="7" rx="1.2" />
-          <rect x="14" y="3" width="7" height="7" rx="1.2" />
-          <rect x="3" y="14" width="7" height="7" rx="1.2" />
-          <rect x="14" y="14" width="7" height="7" rx="1.2" />
-        </svg>
-      </button>
-      <button
-        type="button"
-        aria-label={busy ? 'uploading' : 'upload image or video'}
-        aria-busy={busy}
-        title={busy ? 'uploading…' : 'upload'}
-        disabled={busy}
-        style={{ ...buttonStyle, opacity: busy ? 0.55 : 1, cursor: busy ? 'progress' : 'pointer' }}
-        onClick={() => fileInputRef.current?.click()}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M12 4v12" />
-          <path d="M7 9l5-5 5 5" />
-          <path d="M4 20h16" />
-        </svg>
-      </button>
+        <button
+          type="button"
+          aria-label="add link"
+          title="add link"
+          style={verb === 'link' ? buttonActive : buttonStyle}
+          onClick={() => setVerb(verb === 'link' ? 'idle' : 'link')}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5" />
+            <path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          aria-label="add text"
+          title="add text"
+          style={verb === 'text' ? buttonActive : buttonStyle}
+          onClick={() => setVerb(verb === 'text' ? 'idle' : 'text')}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M4 6h16" />
+            <path d="M12 6v14" />
+            <path d="M9 20h6" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          aria-label={busy ? 'uploading' : 'upload image or video'}
+          aria-busy={busy}
+          title={busy ? 'uploading…' : 'upload'}
+          disabled={busy}
+          style={{ ...buttonStyle, opacity: busy ? 0.5 : 1, cursor: busy ? 'progress' : 'pointer' }}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 4v12" />
+            <path d="M7 9l5-5 5 5" />
+            <path d="M4 20h16" />
+          </svg>
+        </button>
 
-      <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple disabled={busy} style={{ display: 'none' }} onChange={(e) => { const files = Array.from(e.target.files || []); if (files.length) handleFilesPicked(files); e.target.value = '' }} />
+        <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple disabled={busy} style={{ display: 'none' }} onChange={(e) => { const files = Array.from(e.target.files || []); if (files.length) handleFilesPicked(files); e.target.value = '' }} />
 
-      {(verb === 'link' || verb === 'text' || verb === 'collection') && (
+        {(verb === 'link' || verb === 'text' || verb === 'collection') && (
         <div
-          className={`absolute left-0 right-0 px-3 py-2 flex gap-2 ${verb === 'text' ? 'flex-col items-stretch' : 'items-center'}`}
+          className={`absolute left-0 right-0 px-3 py-2.5 flex gap-2 ${verb === 'text' ? 'flex-col items-stretch' : 'items-center'}`}
           style={{
-            ...glassBar,
-            bottom: 'calc(100% + 8px)',
-            borderRadius: 16,
+            ...ghostPanel,
+            bottom: 'calc(100% + 10px)',
+            borderRadius: 18,
           }}
         >
           {verb === 'link' && (
@@ -481,6 +477,39 @@ export default function OwnerActionBar({
           )}
         </div>
       )}
-    </div>
+      </div>
+
+      {/* Collection — quiet, separate. A collection is a room/container
+          action, not a quick-add primitive. Sits adjacent to the main
+          bar so it remains discoverable without crowding the verbs. */}
+      <button
+        type="button"
+        aria-label="add collection"
+        title="add collection"
+        onClick={() => setVerb(verb === 'collection' ? 'idle' : 'collection')}
+        className="fixed z-30 touch-manipulation"
+        style={{
+          ...glassBar,
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
+          right: 16,
+          width: 36,
+          height: 36,
+          padding: 0,
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: verb === 'collection' ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.55)',
+          opacity: 0.92,
+          transition: 'color 160ms ease',
+        }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect x="3" y="3" width="7" height="7" rx="1.2" />
+          <rect x="14" y="3" width="7" height="7" rx="1.2" />
+          <rect x="3" y="14" width="7" height="7" rx="1.2" />
+          <rect x="14" y="14" width="7" height="7" rx="1.2" />
+        </svg>
+      </button>
+    </>
   )
 }
