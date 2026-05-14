@@ -1,169 +1,53 @@
 'use client'
 
-import { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react'
-import { motion } from 'framer-motion'
+import { useLayoutEffect, useRef, useState } from 'react'
 
 /**
- * TEXT EXPAND TILE — in-place pop-over expansion.
+ * TEXT TILE — always-on full text, no click-to-expand.
  *
- * Dormant: glass surface in the grid, text clamped to `dormantLines`.
- * Expanded: the tile lifts in place (absolute within its grid cell, z-raised),
- * grows downward to fit the text up to a max-height, scrolls internally past that.
- * Tap again, tap outside, or Escape to collapse.
+ * Public view: tile sits flush on the wallpaper (parent wrappers neutralized
+ * to transparent + overflow visible), text grows downward to fit content, and
+ * scrolls internally past a max-height when very long.
+ * Editor view: keeps fp-tile/fp-surface chrome so the editor still reads the
+ * thought as a distinct card; the editor-mode click overlay opens the sheet.
  */
 
 interface TextExpandTileProps {
   text: string
   isPublicView?: boolean
-  /** Dormant clamp. Spec says 3. */
-  dormantLines?: number
 }
 
-export default function TextExpandTile({
-  text,
-  isPublicView = false,
-  dormantLines = 3,
-}: TextExpandTileProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
-  const [overflows, setOverflows] = useState(false)
-  const [dormantOverflows, setDormantOverflows] = useState(false)
+export default function TextExpandTile({ text, isPublicView = false }: TextExpandTileProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const dormantTextRef = useRef<HTMLParagraphElement>(null)
-  // Drag guard: distinguish a clean tap from a scroll/drag gesture.
-  const pointerStartRef = useRef<{ x: number; y: number } | null>(null)
-  const didDragRef = useRef(false)
-
-  const len = text.length
-  const dormantTypo =
-    len <= 6
-      ? 'text-[28px] font-light tracking-[-0.035em] leading-none'
-      : len <= 20
-      ? 'text-[18px] font-light tracking-[-0.025em] leading-tight'
-      : len <= 60
-      ? 'text-[15px] font-light tracking-[-0.01em] leading-snug'
-      : 'text-[15px] font-light tracking-[-0.01em] leading-relaxed'
-
-  const collapse = useCallback(() => setIsExpanded(false), [])
-  const toggle = useCallback(() => setIsExpanded((v) => !v), [])
-
-  // Pointer-movement guard: if the pointer travels >6px between down and up,
-  // treat it as a scroll/drag and suppress the toggle.
-  const onPointerDown = useCallback((e: React.PointerEvent) => {
-    pointerStartRef.current = { x: e.clientX, y: e.clientY }
-    didDragRef.current = false
-  }, [])
-  const onPointerMove = useCallback((e: React.PointerEvent) => {
-    const start = pointerStartRef.current
-    if (!start) return
-    const dx = e.clientX - start.x
-    const dy = e.clientY - start.y
-    if (dx * dx + dy * dy > 36) didDragRef.current = true
-  }, [])
-  const onClick = useCallback(() => {
-    if (didDragRef.current) {
-      didDragRef.current = false
-      pointerStartRef.current = null
-      return
-    }
-    pointerStartRef.current = null
-    toggle()
-  }, [toggle])
-
-  // Escape collapses when expanded
-  useEffect(() => {
-    if (!isExpanded) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') collapse()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [isExpanded, collapse])
-
-  // Outside click collapses when expanded
-  useEffect(() => {
-    if (!isExpanded) return
-    const onDown = (e: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
-        collapse()
-      }
-    }
-    document.addEventListener('mousedown', onDown)
-    return () => document.removeEventListener('mousedown', onDown)
-  }, [isExpanded, collapse])
+  const [overflows, setOverflows] = useState(false)
 
   // Detect actual overflow so the bottom fade only applies when there is more text below.
   useLayoutEffect(() => {
-    if (!isExpanded) {
-      setOverflows(false)
-      return
-    }
     const el = scrollRef.current
     if (!el) return
     setOverflows(el.scrollHeight > el.clientHeight + 1)
-  }, [isExpanded, text])
+  }, [text])
 
-  // Detect dormant overflow so we can fade instead of letting the browser
-  // paint a hard "..." ellipsis (the line-clamp behavior we're replacing).
-  // ResizeObserver keeps the fade/affordance in sync as the grid cell width
-  // changes — different widths wrap to different line counts.
+  // Public-view: the tile sits inside a fixed-aspect media cell. Neutralize
+  // the inherited chrome so the text reads as flush wallpaper content, and
+  // let the tile grow downward beyond the cell.
   useLayoutEffect(() => {
-    if (isExpanded) return
-    const el = dormantTextRef.current
-    if (!el) { setDormantOverflows(false); return }
-    const check = () => setDormantOverflows(el.scrollHeight > el.clientHeight + 1)
-    check()
-    const ro = new ResizeObserver(check)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [isExpanded, text])
-
-  useLayoutEffect(() => {
-    if (!isPublicView || !isExpanded) return
-
+    if (!isPublicView) return
     const shell = rootRef.current?.closest<HTMLElement>('.fp-text-tile-shell')
     const chrome = rootRef.current?.closest<HTMLElement>('.fp-tile-hover')
     if (!shell || !chrome) return
-
-    const previous = {
-      shellBackground: shell.style.background,
-      chromeOverflow: chrome.style.overflow,
-      chromeBackground: chrome.style.background,
-      chromeBorderColor: chrome.style.borderColor,
-    }
-
-    // Expanded text should carry its own glass chrome instead of inheriting
-    // the fixed-aspect media cell underneath it.
     shell.style.background = 'transparent'
     chrome.style.overflow = 'visible'
     chrome.style.background = 'transparent'
     chrome.style.borderColor = 'transparent'
-
-    return () => {
-      shell.style.background = previous.shellBackground
-      chrome.style.overflow = previous.chromeOverflow
-      chrome.style.background = previous.chromeBackground
-      chrome.style.borderColor = previous.chromeBorderColor
-    }
-  }, [isPublicView, isExpanded])
-
-  const dormantSurface = isPublicView
-    ? {
-        background: 'rgba(255, 255, 255, 0.06)',
-        backdropFilter: 'blur(20px) saturate(120%)',
-        WebkitBackdropFilter: 'blur(20px) saturate(120%)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-        minHeight: isExpanded ? undefined : '200px',
-      }
-    : undefined
+  }, [isPublicView])
 
   const baseClasses = isPublicView
-    ? 'flex items-center justify-center p-5 cursor-pointer transition-opacity hover:opacity-95 rounded-2xl'
-    : 'fp-tile fp-surface flex items-center justify-center p-5 cursor-pointer transition-opacity hover:opacity-95 rounded-2xl'
+    ? 'flex items-center justify-center p-5 rounded-2xl'
+    : 'fp-tile fp-surface flex items-center justify-center p-5 rounded-2xl'
 
-  // When expanded, lift the tile above siblings within its grid cell's stacking context.
-  // Cell retains its aspect; the tile grows downward only.
-  const expandedPositionStyle = isExpanded
+  const positionStyle = isPublicView
     ? ({
         position: 'absolute',
         left: 0,
@@ -171,106 +55,43 @@ export default function TextExpandTile({
         top: 0,
         zIndex: 30,
         height: 'auto',
+        background: 'transparent',
       } as const)
     : ({ position: 'relative', width: '100%', height: '100%' } as const)
 
   return (
-    <motion.div
-      ref={rootRef}
-      layout
-      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-      role="button"
-      tabIndex={0}
-      aria-expanded={isExpanded}
-      data-text-expanded={isExpanded ? 'true' : 'false'}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onClick={onClick}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          toggle()
-        }
-      }}
-      className={baseClasses}
-      style={{ ...dormantSurface, ...expandedPositionStyle }}
-    >
-      {isExpanded ? (
-        <div
-          ref={scrollRef}
-          className="w-full"
+    <div ref={rootRef} className={baseClasses} style={positionStyle}>
+      <div
+        ref={scrollRef}
+        className="w-full"
+        style={{
+          maxHeight: 'min(480px, 70vh)',
+          overflowY: 'auto',
+          scrollbarWidth: 'none',
+          WebkitOverflowScrolling: 'touch',
+          ...(overflows
+            ? {
+                maskImage:
+                  'linear-gradient(to bottom, black calc(100% - 16px), transparent 100%)',
+                WebkitMaskImage:
+                  'linear-gradient(to bottom, black calc(100% - 16px), transparent 100%)',
+              }
+            : null),
+        }}
+      >
+        <p
+          className={`whitespace-pre-wrap text-center ${isPublicView ? 'text-white' : 'opacity-90'}`}
           style={{
-            maxHeight: 'min(480px, 70vh)',
-            overflowY: 'auto',
-            scrollbarWidth: 'none',
-            WebkitOverflowScrolling: 'touch',
-            ...(overflows
-              ? {
-                  maskImage:
-                    'linear-gradient(to bottom, black calc(100% - 16px), transparent 100%)',
-                  WebkitMaskImage:
-                    'linear-gradient(to bottom, black calc(100% - 16px), transparent 100%)',
-                }
-              : null),
+            fontSize: 16,
+            fontWeight: 300,
+            lineHeight: 1.6,
+            letterSpacing: '-0.01em',
+            paddingBottom: overflows ? 16 : 0,
           }}
         >
-          <p
-            className={`whitespace-pre-wrap text-center ${isPublicView ? 'text-white' : 'opacity-90'}`}
-            style={{
-              fontSize: 16,
-              fontWeight: 300,
-              lineHeight: 1.6,
-              letterSpacing: '-0.01em',
-              paddingBottom: overflows ? 16 : 0,
-            }}
-          >
-            {text}
-          </p>
-        </div>
-      ) : (
-        <div className="relative w-full">
-          {/* Dormant clamp via maxHeight + overflow:hidden (not
-              -webkit-line-clamp) so the browser does NOT paint a hard "…"
-              ellipsis. When overflowing, a soft mask fade communicates
-              "more below" — intentional excerpt, not accidental cutoff. */}
-          <p
-            ref={dormantTextRef}
-            className={`whitespace-pre-wrap text-center ${isPublicView ? 'text-white' : 'opacity-85'} ${dormantTypo}`}
-            style={{
-              fontWeight: 300,
-              lineHeight: 1.5,
-              maxHeight: `${dormantLines * 1.5}em`,
-              overflow: 'hidden',
-              ...(dormantOverflows
-                ? {
-                    maskImage:
-                      'linear-gradient(to bottom, black calc(100% - 18px), transparent 100%)',
-                    WebkitMaskImage:
-                      'linear-gradient(to bottom, black calc(100% - 18px), transparent 100%)',
-                  }
-                : null),
-            }}
-          >
-            {text}
-          </p>
-          {dormantOverflows && (
-            <span
-              aria-hidden
-              className="absolute left-1/2 -translate-x-1/2"
-              style={{
-                bottom: -10,
-                color: isPublicView ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.40)',
-                fontSize: 10,
-                letterSpacing: '0.18em',
-                pointerEvents: 'none',
-                userSelect: 'none',
-              }}
-            >
-              ⌄
-            </span>
-          )}
-        </div>
-      )}
-    </motion.div>
+          {text}
+        </p>
+      </div>
+    </div>
   )
 }
