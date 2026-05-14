@@ -575,6 +575,10 @@ export async function PATCH(request: NextRequest) {
     if (title !== undefined) updates.title = title
     if (room_id !== undefined) updates.room_id = room_id || null
     if (parent_tile_id !== undefined) updates.parent_tile_id = parent_tile_id || null
+    // thumbnail_url_override lives only on `links`; library tiles ignore it.
+    if (thumbnail_url_override !== undefined && source === 'links') {
+      updates.thumbnail_url_override = thumbnail_url_override || null
+    }
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
