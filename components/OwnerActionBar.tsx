@@ -49,8 +49,25 @@ export default function OwnerActionBar({
   const [thoughtText, setThoughtText] = useState('')
   const [containerLabel, setContainerLabel] = useState('')
   const [busy, setBusy] = useState(false)
+  // Optional image attached to a thought. When present, submitThought
+  // routes through the upload pipeline and stores the text as the
+  // image's caption (caption_hidden=false). Surface = image, depth = thought.
+  const [attachedImage, setAttachedImage] = useState<File | null>(null)
+  const [attachedPreviewUrl, setAttachedPreviewUrl] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const inputRef = useRef<HTMLInputElement | null>(null)
+  const thoughtImageInputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null)
+
+  // Clear the attached image whenever the sheet closes or the user
+  // switches away from the text verb — leaving it parked across verb
+  // switches would be a surprise the next time they open text mode.
+  function clearAttachedImage() {
+    setAttachedImage(null)
+    setAttachedPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return null
+    })
+  }
 
   useEffect(() => {
     if (!open) {
@@ -58,8 +75,21 @@ export default function OwnerActionBar({
       setLinkUrl('')
       setThoughtText('')
       setContainerLabel('')
+      clearAttachedImage()
     }
   }, [open])
+
+  useEffect(() => {
+    if (verb !== 'text') clearAttachedImage()
+  }, [verb])
+
+  // Final safety net: revoke any outstanding blob URL on unmount.
+  useEffect(() => () => {
+    setAttachedPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return null
+    })
+  }, [])
 
   useEffect(() => {
     if (verb === 'idle') return
@@ -93,6 +123,22 @@ export default function OwnerActionBar({
   async function submitThought() {
     const text = thoughtText.trim()
     if (!text || busy) return
+    // Image + text: route through the existing upload pipeline. The
+    // text rides along as the image's caption (caption_hidden=false).
+    // No new endpoint, no new table — one image tile with note depth.
+    if (attachedImage) {
+      if (!serialNumber) return
+      setBusy(true)
+      try {
+        await processFile(attachedImage, 0, { caption: text })
+        setThoughtText('')
+        clearAttachedImage()
+        setVerb('idle')
+      } finally {
+        setBusy(false)
+      }
+      return
+    }
     setBusy(true)
     try {
       const res = await fetch('/api/tiles', {
@@ -140,7 +186,11 @@ export default function OwnerActionBar({
   // processFile does the work for one file. handleFilesPicked owns the
   // busy flag for the whole batch so the inner loop can await each file
   // without the per-file busy guard rejecting it.
-  async function processFile(file: File, batchIndex: number) {
+  async function processFile(
+    file: File,
+    batchIndex: number,
+    opts?: { caption?: string }
+  ) {
     if (!serialNumber) return
     const isVideo = isVideoFile(file)
     let aspect = 'square'
@@ -184,6 +234,11 @@ export default function OwnerActionBar({
           aspect,
           content_type: contentType,
           size: 2,
+          // Image + thought becomes one image tile with a visible
+          // note. Owner can flip to tap-to-reveal later via the tile
+          // editor. Empty caption short-circuited upstream so we
+          // never persist an empty string.
+          ...(opts?.caption ? { caption: opts.caption, caption_hidden: false } : {}),
         }),
       })
       if (res.ok) {
@@ -268,7 +323,7 @@ export default function OwnerActionBar({
 
       {(verb === 'link' || verb === 'text' || verb === 'collection') && (
         <div
-          className="absolute left-0 right-0 px-3 py-2 flex items-center gap-2"
+          className={`absolute left-0 right-0 px-3 py-2 flex gap-2 ${verb === 'text' ? 'flex-col items-stretch' : 'items-center'}`}
           style={{
             ...glassBar,
             bottom: 'calc(100% + 8px)',
@@ -277,19 +332,116 @@ export default function OwnerActionBar({
         >
           {verb === 'link' && (
             <>
-              <input ref={inputRef} type="url" inputMode="url" placeholder="paste any link…" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submitLink() }} className="flex-1 bg-transparent text-white/85 placeholder-white/30 outline-none text-sm font-mono" />
+              <input ref={inputRef as React.RefObject<HTMLInputElement>} type="url" inputMode="url" placeholder="paste any link…" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submitLink() }} className="flex-1 bg-transparent text-white/85 placeholder-white/30 outline-none text-sm font-mono" />
               <button onClick={submitLink} disabled={!linkUrl.trim() || busy} className="text-xs text-white/70 hover:text-white/95 px-2 py-1 disabled:opacity-30 font-mono">{busy ? '…' : 'add'}</button>
             </>
           )}
           {verb === 'text' && (
             <>
-              <input ref={inputRef} type="text" placeholder="a thought…" value={thoughtText} onChange={(e) => setThoughtText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submitThought() }} className="flex-1 bg-transparent text-white/85 placeholder-white/30 outline-none text-sm font-mono" />
-              <button onClick={submitThought} disabled={!thoughtText.trim() || busy} className="text-xs text-white/70 hover:text-white/95 px-2 py-1 disabled:opacity-30 font-mono">{busy ? '…' : 'add'}</button>
+              {/* Roomy textarea — six rows / 160px minimum so drafting
+                  feels comfortable. Enter submits, Shift+Enter is a
+                  newline (matches the prior single-line Enter semantic
+                  for muscle memory). */}
+              <textarea
+                ref={inputRef as React.RefObject<HTMLTextAreaElement>}
+                placeholder="a thought…"
+                value={thoughtText}
+                onChange={(e) => setThoughtText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    submitThought()
+                  }
+                }}
+                rows={6}
+                style={{ minHeight: 160, resize: 'none' }}
+                className="w-full bg-transparent text-white/85 placeholder-white/30 outline-none text-sm font-mono"
+              />
+              <div className="flex items-center gap-2">
+                {/* Attach image — optional. Image + text becomes one
+                    image tile with the text as a visible caption. */}
+                <button
+                  type="button"
+                  onClick={() => thoughtImageInputRef.current?.click()}
+                  aria-label={attachedImage ? 'change attached image' : 'attach image'}
+                  title={attachedImage ? 'change image' : 'attach image'}
+                  disabled={busy}
+                  className="text-white/55 hover:text-white/85 transition-colors p-1 disabled:opacity-30"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <path d="M21 15l-5-5L5 21" />
+                  </svg>
+                </button>
+                {attachedPreviewUrl && (
+                  <div className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={attachedPreviewUrl}
+                      alt="attachment preview"
+                      style={{
+                        width: 32,
+                        height: 32,
+                        objectFit: 'cover',
+                        borderRadius: 6,
+                        border: '1px solid rgba(255,255,255,0.10)',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={clearAttachedImage}
+                      aria-label="remove attached image"
+                      title="remove"
+                      style={{
+                        position: 'absolute',
+                        top: -6,
+                        right: -6,
+                        width: 16,
+                        height: 16,
+                        borderRadius: 999,
+                        background: 'rgba(0,0,0,0.85)',
+                        border: '1px solid rgba(255,255,255,0.20)',
+                        color: 'rgba(255,255,255,0.85)',
+                        fontSize: 10,
+                        lineHeight: 1,
+                        cursor: 'pointer',
+                        padding: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+                <div className="flex-1" />
+                <button onClick={submitThought} disabled={!thoughtText.trim() || busy} className="text-xs text-white/70 hover:text-white/95 px-2 py-1 disabled:opacity-30 font-mono">{busy ? '…' : 'add'}</button>
+              </div>
+              <input
+                ref={thoughtImageInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  e.target.value = ''
+                  if (!file) return
+                  // Replace any prior attachment cleanly so we never
+                  // accumulate dangling blob URLs.
+                  setAttachedPreviewUrl((prev) => {
+                    if (prev) URL.revokeObjectURL(prev)
+                    return URL.createObjectURL(file)
+                  })
+                  setAttachedImage(file)
+                }}
+              />
             </>
           )}
           {verb === 'collection' && (
             <>
-              <input ref={inputRef} type="text" placeholder="collection name…" value={containerLabel} onChange={(e) => setContainerLabel(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submitContainer() }} className="flex-1 bg-transparent text-white/85 placeholder-white/30 outline-none text-sm font-mono" />
+              <input ref={inputRef as React.RefObject<HTMLInputElement>} type="text" placeholder="collection name…" value={containerLabel} onChange={(e) => setContainerLabel(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submitContainer() }} className="flex-1 bg-transparent text-white/85 placeholder-white/30 outline-none text-sm font-mono" />
               <button onClick={submitContainer} disabled={!containerLabel.trim() || busy} className="text-xs text-white/70 hover:text-white/95 px-2 py-1 disabled:opacity-30 font-mono">{busy ? '…' : 'add'}</button>
             </>
           )}
