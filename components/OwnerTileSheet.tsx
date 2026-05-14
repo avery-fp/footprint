@@ -187,6 +187,11 @@ export default function OwnerTileSheet({
   // tiles inherit the same controls so users can author them rather than
   // accepting the generic CTA fallback.
   const isLinkTile = source === 'links' && tile.type !== 'container' && tile.type !== 'thought'
+  // Embed-rendered tiles paint fullbleed with no Footprint chrome surface
+  // for an authored title — the row would be a dead control. Thumbnail
+  // override stays available because broken provider thumbs do happen.
+  const EMBED_TYPES = ['youtube', 'spotify', 'vimeo', 'soundcloud', 'tiktok', 'instagram', 'twitter', 'bandcamp']
+  const showTitleRow = isLinkTile && !EMBED_TYPES.includes(tile.type)
   const [titleDraft, setTitleDraft] = useState(tile.title || '')
   const [thumbUploading, setThumbUploading] = useState(false)
   const [thumbError, setThumbError] = useState<string | null>(null)
@@ -368,9 +373,11 @@ export default function OwnerTileSheet({
         </div>
 
         {/* Link authoring — title + thumbnail override. Surfaced only on
-            link tiles (Stripe/payment included). Library tiles use their
-            own captioning UI. Hidden for containers and thoughts. */}
-        {isLinkTile && (
+            link tiles (Stripe/payment included). Title row hidden for
+            embed types (YouTube, Spotify, etc.) where authored titles
+            have no rendering surface. Library tiles use their own
+            captioning UI. Hidden for containers and thoughts. */}
+        {showTitleRow && (
           <>
             <div style={rowStyle}>
               <span style={rowLabel}>title</span>
@@ -390,7 +397,12 @@ export default function OwnerTileSheet({
                 }}
               />
             </div>
-            <div style={{ ...rowStyle, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          </>
+        )}
+
+        {isLinkTile && (
+          <>
+            <div style={showTitleRow ? { ...rowStyle, borderTop: '1px solid rgba(255,255,255,0.06)' } : rowStyle}>
               <span style={rowLabel}>image</span>
               <div className="flex items-center gap-2">
                 {tile.thumbnail_url_override && (

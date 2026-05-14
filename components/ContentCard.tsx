@@ -19,7 +19,7 @@ import ArtifactTile from '@/components/ArtifactTile'
 import MusicTile from '@/components/MusicTile'
 import ReaderTile from '@/components/ReaderTile'
 import { sanitizeLinkMeta, normalizeLinkObject } from '@/lib/link-object'
-import { tryNativeFullscreen, isCoarsePointer } from '@/lib/fullscreen'
+import { tryNativeFullscreen } from '@/lib/fullscreen'
 import TheaterOverlay from '@/components/TheaterOverlay'
 
 // ════════════════════════════════════════
@@ -273,6 +273,23 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           referrerPolicy="strict-origin-when-cross-origin"
           onLoad={handleYTLoad}
         />
+        {/* Mobile (coarse pointer): tap anywhere on the tile opens focus
+            mode. Provider iframes can't be trusted to native-fullscreen on
+            iOS, so we don't try — focus mode is the affordance. */}
+        <button
+          type="button"
+          aria-label="Open focus mode"
+          onClick={(e) => { e.stopPropagation(); setTheaterOpen(true) }}
+          className="absolute inset-0 hidden [@media(pointer:coarse)]:block"
+          style={{
+            zIndex: 3,
+            background: 'transparent',
+            border: 'none',
+            padding: 0,
+            cursor: 'pointer',
+          }}
+        />
+        {/* Desktop (fine pointer): hover chip → native fullscreen. */}
         <button
           type="button"
           aria-label="Fullscreen"
@@ -281,28 +298,21 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             const btn = e.currentTarget as HTMLElement
             const container = (btn.closest('[data-tile]') as HTMLElement) || containerRef.current
             const iframe = container?.querySelector('iframe') as HTMLElement | null
-            // Every device tries native iframe fullscreen first. Desktop +
-            // Android Chrome succeed; iOS Safari rejects (Apple blocks
-            // cross-origin iframe fullscreen — no JS workaround), and the
-            // promise rejection drops the user into Footprint Theater.
             tryNativeFullscreen(iframe).then((ok) => {
               if (ok) return
-              // Skip container fallback on coarse pointer — div fullscreen
-              // is awkward on mobile. Theater is cleaner.
-              if (isCoarsePointer()) { setTheaterOpen(true); return }
               tryNativeFullscreen(container).then((ok2) => {
                 if (!ok2) setTheaterOpen(true)
               })
             })
           }}
-          className="absolute flex items-center justify-center text-white/85 hover:text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:opacity-60 transition-opacity duration-300"
+          className="absolute items-center justify-center text-white/85 hover:text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-300 hidden [@media(pointer:fine)]:flex"
           style={{
             bottom: 12,
             right: 12,
             width: 28,
             height: 28,
             borderRadius: 999,
-            zIndex: 3,
+            zIndex: 4,
             background: 'rgba(0,0,0,0.45)',
             backdropFilter: 'blur(10px) saturate(140%)',
             WebkitBackdropFilter: 'blur(10px) saturate(140%)',
