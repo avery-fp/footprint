@@ -88,6 +88,7 @@ export default function TheaterOverlay({
         type="button"
         aria-label="Close"
         onClick={onClose}
+        className="[@media(pointer:coarse)]:hidden"
         style={{
           position: 'fixed',
           top: 'max(12px, env(safe-area-inset-top))',
