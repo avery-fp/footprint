@@ -1,0 +1,21 @@
+-- 030_link_thumbnail_override.sql
+-- User-supplied thumbnail override for link/payment tiles.
+--
+-- WHY
+--   `links.thumbnail` and `links.thumbnail_url_hq` carry provider-derived
+--   thumbnails (Stripe has none; YouTube/Spotify/etc. populate them at
+--   parse time). Authoring a payment-link or generic-link tile needs a
+--   separate field so the user override can coexist with the auto-derived
+--   value and survive re-parses.
+--
+-- SHAPE
+--   thumbnail_url_override TEXT NULL. NULL means "no override; use the
+--   provider thumbnail or the canonical CTA fallback for payment tiles."
+--
+-- READS
+--   loadFootprint maps this onto Tile.thumbnail_url_override; UnifiedTile's
+--   payment branch routes the tile through PreviewCardTileBase when either
+--   title or thumbnail_url_override is set, and falls back to the canonical
+--   "own your footprint →" CTA when both are empty.
+
+ALTER TABLE links ADD COLUMN IF NOT EXISTS thumbnail_url_override TEXT;

@@ -62,19 +62,6 @@ export default function GhostTile({
   const [iframeFailed, setIframeFailed] = useState(false)
   const [thumbnailExhausted, setThumbnailExhausted] = useState(false)
   const [theaterOpen, setTheaterOpen] = useState(false)
-  // Mobile tap-reveal-fade for the fullscreen chip. Hover-only visibility
-  // is a no-op on touch; permanently visible is visual clutter. Tapping
-  // the playing tile surfaces the chip; 1500ms of inactivity hides it.
-  const [chipRevealed, setChipRevealed] = useState(false)
-  const chipFadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const revealChip = useCallback(() => {
-    setChipRevealed(true)
-    if (chipFadeTimerRef.current) clearTimeout(chipFadeTimerRef.current)
-    chipFadeTimerRef.current = setTimeout(() => setChipRevealed(false), 1500)
-  }, [])
-  useEffect(() => () => {
-    if (chipFadeTimerRef.current) clearTimeout(chipFadeTimerRef.current)
-  }, [])
   const iframeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const tileRef = useRef<HTMLDivElement | null>(null)
 
@@ -361,10 +348,6 @@ export default function GhostTile({
         // clip-path clips cross-origin iframes (overflow:hidden alone doesn't)
         clipPath: 'inset(0 round var(--fp-tile-radius, 0px))',
       }}
-      // Mobile tap-reveal-fade for the fullscreen chip. Pointer events fire
-      // before the embedded player consumes the gesture, so the chip surfaces
-      // even when the tap lands on the iframe itself.
-      onPointerDown={platform === 'youtube' ? revealChip : undefined}
     >
       <ThumbnailBg
         src={thumbnailExhausted ? null : thumbUrl}
@@ -431,30 +414,33 @@ export default function GhostTile({
             onError={() => { setIframeFailed(true) }}
           />
           {/* Replace the YouTube watermark hit area with our fullscreen control.
-              Coarse pointer (mobile) → straight to theater because iOS Safari
-              blocks cross-origin iframe fullscreen. Fine pointer (desktop) →
-              try the iframe, fall back to the container, fall back to theater. */}
+              Every device tries native iframe fullscreen first. Desktop and
+              Android Chrome succeed — that gives the user real YouTube
+              fullscreen with rotation, system controls, etc. iOS Safari
+              rejects cross-origin iframe fullscreen at the browser level
+              (Apple restriction with no JS workaround), so the promise
+              rejection drops the user into Footprint Theater. */}
           {platform === 'youtube' && (
             <button
               type="button"
-              aria-label={isCoarsePointer() ? 'Theater' : 'Fullscreen'}
+              aria-label="Fullscreen"
               onClick={(e) => {
                 e.stopPropagation()
                 const btn = e.currentTarget as HTMLElement
                 const container = (btn.closest('[data-tile]') as HTMLElement) || tileRef.current
                 const iframe = container?.querySelector('iframe') as HTMLElement | null
-                if (isCoarsePointer()) {
-                  setTheaterOpen(true)
-                  return
-                }
                 tryNativeFullscreen(iframe).then((ok) => {
                   if (ok) return
+                  // Skip container fallback on coarse pointer — fullscreen on
+                  // a div is awkward on mobile (no rotation, sizing quirks).
+                  // Theater is the cleaner mobile fallback.
+                  if (isCoarsePointer()) { setTheaterOpen(true); return }
                   tryNativeFullscreen(container).then((ok2) => {
                     if (!ok2) setTheaterOpen(true)
                   })
                 })
               }}
-              className="absolute flex items-center justify-center text-white/85 hover:text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-300"
+              className="absolute flex items-center justify-center text-white/85 hover:text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:opacity-60 transition-opacity duration-300"
               style={{
                 bottom: 12,
                 right: 12,
@@ -466,10 +452,6 @@ export default function GhostTile({
                 backdropFilter: 'blur(10px) saturate(140%)',
                 WebkitBackdropFilter: 'blur(10px) saturate(140%)',
                 boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08)',
-                // Inline override wins for the mobile reveal-fade. Undefined
-                // lets the Tailwind opacity-0 / group-hover:opacity-100 pair
-                // drive desktop hover behavior.
-                opacity: chipRevealed ? 1 : undefined,
                 pointerEvents: 'auto',
               }}
             >

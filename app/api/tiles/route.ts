@@ -548,7 +548,18 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json()
     const v = validateBody(tilesPatchSchema, body)
     if (!v.success) return v.response
-    const { id, source, slug, size, caption, title, room_id, aspect, parent_tile_id } = v.data
+    const { id, source, slug, size, caption, caption_hidden, title, thumbnail_url_override, room_id, aspect, parent_tile_id } = v.data
+
+    // Caption fields are library-only (the `links` table has no caption or
+    // caption_hidden column). Silently dropping would be a dead-control bug —
+    // the editor would appear to save but the value would never persist. Fail
+    // loudly instead so the client can surface the mistake.
+    if ((caption !== undefined || caption_hidden !== undefined) && source !== 'library') {
+      return NextResponse.json(
+        { error: 'caption fields are only supported for library (image) tiles' },
+        { status: 400 }
+      )
+    }
 
     const supabase = createServerSupabaseClient()
     const serialNumber = await getSerialNumber(request, supabase, slug)
@@ -560,9 +571,14 @@ export async function PATCH(request: NextRequest) {
     if (size !== undefined) updates.size = size
     if (aspect !== undefined) updates.aspect = aspect
     if (caption !== undefined) updates.caption = caption || null
+    if (caption_hidden !== undefined) updates.caption_hidden = caption_hidden
     if (title !== undefined) updates.title = title
     if (room_id !== undefined) updates.room_id = room_id || null
     if (parent_tile_id !== undefined) updates.parent_tile_id = parent_tile_id || null
+    // thumbnail_url_override lives only on `links`; library tiles ignore it.
+    if (thumbnail_url_override !== undefined && source === 'links') {
+      updates.thumbnail_url_override = thumbnail_url_override || null
+    }
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
