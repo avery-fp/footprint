@@ -11,6 +11,7 @@ import FloatingCtaBar from '@/components/FloatingCtaBar'
 import SovereignTile from '@/components/SovereignTile'
 import ClaimPlaque from '@/components/ClaimPlaque'
 import DraftClaimForm from '@/components/DraftClaimForm'
+import GiftModal from '@/components/GiftModal'
 import CommandLayer from '@/components/CommandLayer'
 import OwnerActionBar from '@/components/OwnerActionBar'
 import OwnerTileSheet from '@/components/OwnerTileSheet'
@@ -236,6 +237,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
   // ── Integrated Void Transition ──
   const [claimActive, setClaimActive] = useState(false)
+  const [giftsRemaining, setGiftsRemaining] = useState<number | null>(null)
+  const [giftModalOpen, setGiftModalOpen] = useState(false)
 
   // Capture URL params at construction time, BEFORE the cleanup effect
   // runs. SovereignTile mounts lazily (after auth check + claim activation),
@@ -371,6 +374,27 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       }
     })()
   }, [footprint.username])
+
+  // Owner-only: fetch remaining gift count. Endpoint already gates on
+  // edit auth; strangers always get 0 and the button never appears.
+  useEffect(() => {
+    if (!isOwner || isDraft) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const r = await fetch(`/api/gifts/remaining?slug=${encodeURIComponent(footprint.username)}`, {
+          credentials: 'include',
+          cache: 'no-store',
+        })
+        if (!r.ok) return
+        const data = await r.json()
+        if (!cancelled) setGiftsRemaining(typeof data?.remaining === 'number' ? data.remaining : 0)
+      } catch {
+        // non-critical
+      }
+    })()
+    return () => { cancelled = true }
+  }, [isOwner, isDraft, footprint.username])
 
   // Restore scroll position after the tile-edit sheet opens. If the
   // browser scrolled the Sortable wrapper into view on focus during
@@ -1359,6 +1383,33 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           <ClaimPlaque onClick={() => setDraftClaimOpen(true)} />
         </div>
       )}
+      {!isDraft && isOwner && !expanded && !claimActive && giftsRemaining !== null && giftsRemaining > 0 && (
+        <button
+          type="button"
+          aria-label="give a footprint"
+          onClick={() => setGiftModalOpen(true)}
+          className="fixed z-30 touch-manipulation font-mono"
+          style={{
+            top: 'calc(env(safe-area-inset-top, 0px) + 16px)',
+            right: '88px',
+            background: 'rgba(0,0,0,0.62)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255,255,255,0.10)',
+            color: 'rgba(255,255,255,0.92)',
+            borderRadius: 999,
+            padding: '8px 16px',
+            fontSize: 12,
+            letterSpacing: '0.06em',
+            textTransform: 'lowercase',
+            cursor: 'pointer',
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+          }}
+        >
+          gift
+        </button>
+      )}
       {!isDraft && isOwner && !expanded && (
         <button
           type="button"
@@ -2008,8 +2059,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </a>
       )}
 
-      {/* Floating CTA bar — viewers only, hidden for owner and during claim */}
-      {!isDraft && !claimActive && authChecked && !isOwner && (
+      {/* Floating CTA bar — owned pages are artifacts, not Footprint
+          inventory. The acquisition CTA only fires on unclaimed pages
+          (drafts) and on the /ae showroom. Never on a stranger's view of
+          a paid claimed footprint. */}
+      {(isDraft || footprint.username === 'ae') && !claimActive && authChecked && !isOwner && (
         <FloatingCtaBar isOwner={isOwner} />
       )}
 
@@ -2103,6 +2157,15 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         <DraftClaimForm
           draftSlug={footprint.username}
           onClose={() => setDraftClaimOpen(false)}
+        />
+      )}
+
+      {giftModalOpen && isOwner && !isDraft && giftsRemaining !== null && (
+        <GiftModal
+          slug={footprint.username}
+          giftsRemaining={giftsRemaining}
+          onGiftSent={(remaining) => setGiftsRemaining(remaining)}
+          onClose={() => setGiftModalOpen(false)}
         />
       )}
     </div>
