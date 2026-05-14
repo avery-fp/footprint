@@ -24,6 +24,8 @@ type Tile = {
   aspect?: string | null
   parent_tile_id?: string | null
   room_id?: string | null
+  title?: string | null
+  thumbnail_url_override?: string | null
   caption?: string | null
   caption_hidden?: boolean | null
 }
