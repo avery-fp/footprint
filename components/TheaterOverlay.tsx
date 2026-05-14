@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 /**
  * THEATER OVERLAY — fixed viewport-sized cinema fallback.
@@ -10,9 +10,12 @@ import { useEffect } from 'react'
  * this overlay instead. Same embed URL, same frame; the difference is
  * the surrounding chrome is ours, not the OS's.
  *
+ * YouTube embeds: tile iframes load with mute=1 for reliable autoplay and
+ * are unmuted via postMessage. This overlay re-runs that pattern on its
+ * own iframe so focus mode has audio, and pauses sibling YouTube iframes
+ * on mount so the tile behind the backdrop doesn't double-play.
+ *
  * Contract:
- *   - Caller pauses the underlying tile's player before opening (no
- *     duplicate audio).
  *   - Locks body scroll while mounted.
  *   - Closes on Escape, backdrop tap, or close button.
  *   - 16:9 frame centered in the viewport; portrait clip URLs (TikTok,
@@ -28,22 +31,57 @@ interface TheaterOverlayProps {
 const DEFAULT_ALLOW =
   'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen'
 
+const isYouTube = (url: string) => url.includes('youtube')
+
 export default function TheaterOverlay({
   src,
   onClose,
   aspect = '16 / 9',
   allow = DEFAULT_ALLOW,
 }: TheaterOverlayProps) {
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+
   useEffect(() => {
     const prevOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
+
+    // Pause any other YouTube iframes (typically the underlying tile) so
+    // we don't get duplicate audio once our iframe unmutes.
+    if (isYouTube(src)) {
+      const own = iframeRef.current
+      document.querySelectorAll<HTMLIFrameElement>('iframe').forEach((f) => {
+        if (f === own || !isYouTube(f.src)) return
+        try {
+          f.contentWindow?.postMessage(
+            JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }),
+            '*',
+          )
+        } catch {}
+      })
+    }
+
     return () => {
       document.body.style.overflow = prevOverflow
       window.removeEventListener('keydown', onKey)
     }
-  }, [onClose])
+  }, [onClose, src])
+
+  const handleLoad = () => {
+    if (!isYouTube(src)) return
+    const iframe = iframeRef.current
+    if (!iframe) return
+    const post = (msg: Record<string, any>) => {
+      try { iframe.contentWindow?.postMessage(JSON.stringify(msg), '*') } catch {}
+    }
+    post({ event: 'command', func: 'playVideo', args: '' })
+    setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 250)
+    setTimeout(() => {
+      post({ event: 'command', func: 'unMute', args: '' })
+      post({ event: 'command', func: 'setVolume', args: [100] })
+    }, 800)
+  }
 
   const frame =
     aspect === '9 / 16'
@@ -77,11 +115,13 @@ export default function TheaterOverlay({
         }}
       >
         <iframe
+          ref={iframeRef}
           src={src}
           style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
           allow={allow}
           allowFullScreen
           referrerPolicy="strict-origin-when-cross-origin"
+          onLoad={handleLoad}
         />
       </div>
       <button
