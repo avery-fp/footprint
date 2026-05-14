@@ -242,6 +242,13 @@ export default function UnifiedTile({
   const caption = item.caption || null
   const captionHidden = item.caption_hidden ?? false
   const [captionVisible, setCaptionVisible] = useState(!captionHidden && !!caption)
+  // Resync visibility when the owner flips visible ↔ tap-to-reveal in the
+  // editor, or when a different tile takes this slot. Without this, the
+  // initial `useState` value sticks and the public view (or a re-render after
+  // PATCH) doesn't reflect the chosen mode until full reload.
+  useEffect(() => {
+    setCaptionVisible(!captionHidden && !!caption)
+  }, [item.id, captionHidden, caption])
 
   // ── Container tile — a door, not a window ──
   if (item.type === 'container') {
