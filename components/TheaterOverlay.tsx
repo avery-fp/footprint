@@ -88,7 +88,7 @@ export default function TheaterOverlay({
         type="button"
         aria-label="Close"
         onClick={onClose}
-        className="[@media(pointer:coarse)]:hidden"
+        className="flex [@media(pointer:coarse)]:hidden"
         style={{
           position: 'fixed',
           top: 'max(12px, env(safe-area-inset-top))',
@@ -101,7 +101,6 @@ export default function TheaterOverlay({
           WebkitBackdropFilter: 'blur(10px) saturate(140%)',
           boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.12)',
           color: 'rgba(255,255,255,0.9)',
-          display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 2147483647,
