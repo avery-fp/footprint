@@ -187,6 +187,21 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     setWallpaperLoaded(false)
   }, [footprint.background_url])
   useEffect(() => { setWallpaperLoaded(false) }, [wallpaperUrlLocal])
+  // Cached-image race: when the wallpaper bytes are already in the
+  // browser cache (bfcache on iOS, return visits, prior preload), the
+  // <img>'s load event fires before React attaches its synthetic
+  // onLoad listener. wallpaperLoaded stays false, the layer stays at
+  // opacity-0, and the page reads as if it has no wallpaper — the
+  // "default" mobile symptom. Check img.complete on mount and after
+  // each URL change to flip the latch when load already happened.
+  const wallpaperLayerRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (!wallpaperUrlLocal) return
+    const img = wallpaperLayerRef.current?.querySelector('img')
+    if (img && img.complete && img.naturalWidth > 0) {
+      setWallpaperLoaded(true)
+    }
+  }, [wallpaperUrlLocal])
   const [backgroundBlurLocal, setBackgroundBlurLocal] = useState<boolean>(footprint.background_blur !== false)
   useEffect(() => { setBackgroundBlurLocal(footprint.background_blur !== false) }, [footprint.background_blur])
 
@@ -1282,7 +1297,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           a replaced wallpaper drops the previous decoded layer instead of
           repainting it under the new src while the new bytes load. */}
       {wallpaperUrlLocal && (
-        <div key={wallpaperUrlLocal} className="fixed inset-0 z-0 fp-wallpaper-gpu">
+        <div key={wallpaperUrlLocal} ref={wallpaperLayerRef} className="fixed inset-0 z-0 fp-wallpaper-gpu">
           <Image
             src={wallpaperUrlLocal}
             alt=""
