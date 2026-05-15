@@ -16,6 +16,7 @@ import SocialEmbed from '@/components/SocialEmbed'
 import TextExpandTile from '@/components/TextExpandTile'
 import FallbackCard from '@/components/FallbackCard'
 import ArtifactTile from '@/components/ArtifactTile'
+import TwitterTile from '@/components/TwitterTile'
 import MusicTile from '@/components/MusicTile'
 import ReaderTile from '@/components/ReaderTile'
 import { sanitizeLinkMeta, normalizeLinkObject } from '@/lib/link-object'
@@ -549,24 +550,26 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }
 
   // ════════════════════════════════════════
-  // TWITTER / X — ArtifactTile fallback
+  // TWITTER / X — glass tile, click-to-expand XEmbed
   // Matched by URL, not stored type — seals pic.twitter.com and mistyped tiles.
-  // Clean object. Tweet text as title. "X" as provider. No embed.
+  // Compact resting state; ArtifactShell + SocialEmbed on tap.
   // ════════════════════════════════════════
   if (/(?:twitter\.com|x\.com)/i.test(content.url)) {
-    const { title, creator, image, description, provider } = sanitizeLinkMeta(
+    const { title, creator, image } = sanitizeLinkMeta(
       { title: content.title, creator: content.artist, image: getBestThumbnailUrl(content), description: content.description },
       content.url
     )
+    const isPost = /\/status\/\d+/.test(content.url)
+    const handleMatch = content.url.match(/(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]+)/)
+    const handle = creator || (handleMatch ? `@${handleMatch[1]}` : null)
     return (
-      <ArtifactTile
+      <TwitterTile
         title={title}
-        provider={provider}
+        authorHandle={handle}
         image={image}
-        description={description}
-        actionUrl={content.url}
+        url={content.url}
         aspectClass={aspectClass}
-        transparent
+        variant={isPost ? 'post' : 'profile'}
       />
     )
   }
