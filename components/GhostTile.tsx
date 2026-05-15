@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { audioManager } from '@/lib/audio-manager'
-import { parseEmbed, buildYouTubeEmbedUrl } from '@/lib/parseEmbed'
+import { buildYouTubeEmbedUrl } from '@/lib/parseEmbed'
 import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getThumbnailCandidates, isBadOrMissingThumbnail } from '@/lib/media/thumbnails'
 import { tryNativeFullscreen } from '@/lib/fullscreen'
 import TheaterOverlay from '@/components/TheaterOverlay'
+import MusicEmbedTile from '@/components/MusicEmbedTile'
 
 // ════════════════════════════════════════
 // GHOST TILE — de-branded media renderer
@@ -17,15 +18,6 @@ import TheaterOverlay from '@/components/TheaterOverlay'
 // ════════════════════════════════════════
 
 const GHOST_PAUSE_EVENT = 'ghost-tile-pause'
-
-const MUSIC_EMBED_SHELL_STYLE: React.CSSProperties = {
-  borderRadius: 'inherit',
-  background: 'rgba(255,255,255,0.08)',
-  backdropFilter: 'blur(24px) saturate(150%)',
-  WebkitBackdropFilter: 'blur(24px) saturate(150%)',
-  boxShadow:
-    'inset 0 1px 0 rgba(255,255,255,0.16), inset 0 0 0 1px rgba(255,255,255,0.12), 0 18px 42px rgba(0,0,0,0.28)',
-}
 
 type Archetype = 'audio' | 'visual'
 
@@ -183,104 +175,35 @@ export default function GhostTile({
   const thumbUrl = thumbCandidates[0] || null
 
   // ════════════════════════════════════════
-  // SPOTIFY — inline iframe playback
-  // 30s preview for anon users, full track for logged-in.
+  // MUSIC — use the same cover/player renderer as newly-added tiles.
   // ════════════════════════════════════════
   if (platform === 'spotify') {
-    const embed = parseEmbed(url)
-    if (embed) {
-      if (displayMode === 'cover') {
-        return (
-          <div className="w-full h-full relative overflow-hidden fp-tile" style={{ borderRadius: 'inherit' }}>
-            <MusicCoverTile
-              thumbUrl={thumbUrl}
-              thumbCandidates={thumbCandidates}
-              title={title}
-              artist={artist}
-              isPlaying={isPlaying}
-              onPlay={handlePlay}
-            />
-            {isPlaying && (
-              <iframe
-                src={embed.embedUrl}
-                width="1"
-                height="1"
-                aria-hidden="true"
-                tabIndex={-1}
-                style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
-                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                loading="lazy"
-              />
-            )}
-          </div>
-        )
-      }
-      return (
-        <div
-          className="w-full h-full relative overflow-hidden fp-tile"
-          style={MUSIC_EMBED_SHELL_STYLE}
-        >
-          <iframe
-            src={embed.embedUrl}
-            className="w-full h-full"
-            style={{ border: 0, borderRadius: 'inherit' }}
-            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-            loading="lazy"
-          />
-        </div>
-      )
-    }
+    return (
+      <MusicEmbedTile
+        url={url}
+        provider="spotify"
+        title={title || 'Spotify'}
+        artist={artist}
+        image={thumbUrl}
+        displayMode={displayMode}
+      />
+    )
   }
 
   // ════════════════════════════════════════
-  // APPLE MUSIC — inline iframe playback
+  // APPLE MUSIC
   // ════════════════════════════════════════
   if (platform === 'apple_music' || isAppleMusicUrl(url)) {
-    const embed = parseEmbed(url)
-    if (embed) {
-      if (displayMode === 'cover') {
-        return (
-          <div className="w-full h-full relative overflow-hidden fp-tile" style={{ borderRadius: 'inherit' }}>
-            <MusicCoverTile
-              thumbUrl={thumbUrl}
-              thumbCandidates={thumbCandidates}
-              title={title}
-              artist={artist}
-              isPlaying={isPlaying}
-              onPlay={handlePlay}
-            />
-            {isPlaying && (
-              <iframe
-                src={embed.embedUrl}
-                width="1"
-                height="1"
-                aria-hidden="true"
-                tabIndex={-1}
-                style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
-                allow="autoplay *; encrypted-media *; fullscreen *"
-                sandbox="allow-forms allow-scripts allow-same-origin allow-popups"
-                loading="lazy"
-              />
-            )}
-          </div>
-        )
-      }
-      return (
-        <div
-          className="w-full h-full relative overflow-hidden fp-tile"
-          style={MUSIC_EMBED_SHELL_STYLE}
-        >
-          <iframe
-            src={embed.embedUrl}
-            className="w-full h-full"
-            style={{ border: 0, borderRadius: 'inherit', colorScheme: 'normal' }}
-            allow="autoplay *; encrypted-media *; fullscreen *"
-            sandbox="allow-forms allow-scripts allow-same-origin allow-popups"
-            loading="lazy"
-          />
-        </div>
-      )
-    }
+    return (
+      <MusicEmbedTile
+        url={url}
+        provider="apple_music"
+        title={title || 'Apple Music'}
+        artist={artist}
+        image={thumbUrl}
+        displayMode={displayMode}
+      />
+    )
   }
 
   // ════════════════════════════════════════
@@ -642,47 +565,6 @@ function ThumbnailBg({
         }}
       />
     </div>
-  )
-}
-
-function MusicCoverTile({
-  thumbUrl,
-  thumbCandidates,
-  title,
-  artist,
-  isPlaying,
-  onPlay,
-}: {
-  thumbUrl: string | null
-  thumbCandidates: string[]
-  title?: string
-  artist?: string
-  isPlaying?: boolean
-  onPlay: () => void
-}) {
-  return (
-    <button
-      type="button"
-      className="w-full h-full relative overflow-hidden fp-tile group text-left"
-      style={{ borderRadius: 'inherit', background: 'rgba(255,255,255,0.06)' }}
-      onClick={onPlay}
-      aria-label={title ? `Play ${title}` : 'Play music'}
-    >
-      <ThumbnailBg src={thumbUrl} candidates={thumbCandidates} />
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.22) 48%, rgba(0,0,0,0.08) 100%)',
-        }}
-      />
-      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity duration-200">
-        {isPlaying ? <WaveformBars /> : <PlayIcon />}
-      </div>
-      <div className="absolute inset-x-0 bottom-0 p-4">
-        <TitleBlock title={title} artist={artist} />
-      </div>
-    </button>
   )
 }
 

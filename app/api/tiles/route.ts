@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
       error = result.error
     } else {
       // Determine if this needs metadata enrichment at save time
-      const needsEnrich = ['youtube', 'spotify', 'twitter', 'tiktok', 'instagram', 'vimeo', 'soundcloud', 'bandcamp', 'github', 'letterboxd'].includes(parsed.type)
+      const needsEnrich = ['youtube', 'spotify', 'apple_music', 'twitter', 'tiktok', 'instagram', 'vimeo', 'soundcloud', 'bandcamp', 'github', 'letterboxd'].includes(parsed.type)
 
       // Fetch oEmbed / OG metadata at creation time
       let ghostArtist: string | null = null
@@ -130,8 +130,8 @@ export async function POST(request: NextRequest) {
             'Accept-Language': 'en-US,en;q=0.9',
           }
 
-          // Instagram: scrape og:image directly (no public oEmbed)
-          if (parsed.type === 'instagram') {
+          // Instagram / Apple Music: scrape OG tags directly (no public oEmbed).
+          if (parsed.type === 'instagram' || parsed.type === 'apple_music') {
             // Strategy 1: Direct OG scrape
             try {
               const res = await fetch(parsed.url, {
@@ -147,11 +147,16 @@ export async function POST(request: NextRequest) {
                 const ogTitle = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i)?.[1]
                   || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:title["']/i)?.[1]
                 if (ogTitle) enrichedTitle = ogTitle.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+                if (parsed.type === 'apple_music') {
+                  const ogDescription = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i)?.[1]
+                    || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:description["']/i)?.[1]
+                  if (ogDescription) ghostArtist = ogDescription.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+                }
               }
             } catch { /* silent fallback */ }
 
             // Strategy 2: Embed page scrape if OG failed
-            if (!ghostThumbnailHq && parsed.external_id) {
+            if (parsed.type === 'instagram' && !ghostThumbnailHq && parsed.external_id) {
               try {
                 const embedRes = await fetch(`https://www.instagram.com/p/${parsed.external_id}/embed/`, {
                   signal: AbortSignal.timeout(5000),

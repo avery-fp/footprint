@@ -16,6 +16,7 @@ import { buildYouTubeEmbedUrl } from '@/lib/parseEmbed'
 export type ContentType =
   | 'youtube'
   | 'spotify'
+  | 'apple_music'
   | 'twitter'
   | 'instagram'
   | 'tiktok'
@@ -62,7 +63,7 @@ const PATTERNS: Record<string, { regex: RegExp; type: ContentType }[]> = {
     { regex: /open\.spotify\.com\/(track|album|playlist|artist|episode)\/([a-zA-Z0-9]+)/, type: 'spotify' },
   ],
   applemusic: [
-    { regex: /music\.apple\.com\/([a-z]{2})\/(album|playlist|song|station|music-video)\/([^/?]+)\/([a-z0-9.]+)/i, type: 'link' as const },
+    { regex: /music\.apple\.com\/([a-z]{2})\/(album|playlist|song|station|music-video)\/([^/?]+)\/([a-z0-9.]+)/i, type: 'apple_music' },
   ],
   twitter: [
     { regex: /(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]+)\/status\/(\d+)/, type: 'twitter' },
@@ -236,6 +237,7 @@ async function parseByType(type: ContentType, url: string, match: RegExpMatchArr
   switch (type) {
     case 'youtube': return parseYouTube(url, match)
     case 'spotify': return await parseSpotify(url, match)
+    case 'apple_music': return parseAppleMusic(url, match)
     case 'twitter': return parseTwitter(url, match)
     case 'instagram': return parseInstagram(url, match)
     case 'tiktok': return parseTikTok(url, match)
@@ -325,16 +327,15 @@ function parseAppleMusic(url: string, match: RegExpMatchArray): ParsedContent {
   // Clean title from slug
   const title = slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 
-  // Apple Music embeds can't render cleanly — treat as a plain link tile
   return {
-    type: 'link',
+    type: 'apple_music',
     variant: null,
     url,
-    external_id: null,
+    external_id: id,
     title,
     description: 'Apple Music',
     thumbnail_url: null,
-    embed_html: null,
+    embed_html: `<iframe src="${embedUrl}" frameborder="0" loading="lazy" class="w-full"></iframe>`,
   }
 }
 
@@ -539,6 +540,7 @@ export function getContentIcon(type: ContentType): string {
   const icons: Record<ContentType, string> = {
     youtube: '▶',
     spotify: '♫',
+    apple_music: '♫',
     twitter: '𝕏',
     instagram: '◎',
     tiktok: '♪',

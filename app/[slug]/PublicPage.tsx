@@ -1084,11 +1084,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     if (isEmbedVid) return '16 / 9'
     // Music defaults to cover-first in the grid. Explicit wide picks become
     // compact inline players; square picks remain album-art objects.
-    if (item.type === 'spotify') return '1 / 1'
-    if (
-      item.type === 'apple_music' &&
-      (item.url?.includes('/song/') || item.url?.includes('/music-video/') || item.url?.includes('?i='))
-    ) return '3 / 1'
+    if (item.type === 'spotify' || item.type === 'apple_music') return '1 / 1'
     if (item.type === 'soundcloud') return '16 / 9'
     const resolved = resolveAspect(item.aspect, item.type, item.url)
     return tileAspectRatio(resolved)
@@ -1251,12 +1247,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     // Spotify's compact embed locks at ~152px tall. Without self-start, CSS
     // grid stretches the cell to match the tallest sibling in the same row,
     // leaving black space below the iframe. Self-start keeps it fitted.
-    const isCompactAppleMusic =
-      item.type === 'apple_music' &&
-      (item.url?.includes('/song/') || item.url?.includes('/music-video/') || item.url?.includes('?i='))
     const fitClass =
-      (item.type === 'spotify' && resolved === 'wide') ||
-      (isCompactAppleMusic && resolved === 'wide')
+      ((item.type === 'spotify' || item.type === 'apple_music') && resolved === 'wide')
         ? ' self-start'
         : ''
     const wrapperClass = `relative overflow-hidden rounded-2xl ${gridClass}${fitClass}`

@@ -68,6 +68,15 @@ describe('parseURL', () => {
     })
   })
 
+  describe('Apple Music detection', () => {
+    it('parses Apple Music track URLs as music tiles', async () => {
+      const result = await parseURL('https://music.apple.com/us/album/song-name/123456789?i=987654321')
+      expect(result.type).toBe('apple_music')
+      expect(result.external_id).toBe('987654321')
+      expect(result.embed_html).toContain('embed.music.apple.com')
+    })
+  })
+
   describe('Twitter/X detection', () => {
     it('parses twitter.com URL', async () => {
       const result = await parseURL('https://twitter.com/user/status/123456789')

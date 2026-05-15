@@ -30,8 +30,8 @@ export function resolveAspect(
   if (type === 'tiktok') return 'tall'
   if (url?.includes('/shorts/')) return 'tall'
   // Music defaults to cover art in the grid. Users can deliberately switch
-  // Spotify wide when they want the compact inline player treatment.
-  if (type === 'spotify') return 'square'
+  // wide when they want the compact player treatment.
+  if (type === 'spotify' || type === 'apple_music') return 'square'
   if (type === 'youtube' || type === 'vimeo') return 'wide'
   if (type === 'video') return 'square'
   if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return 'square'
@@ -75,10 +75,8 @@ export function getGridClass(size: number, aspect: string | null | undefined, is
     return 'col-span-2 row-span-1 aspect-video'
   }
 
-  // Spotify: compact horizontal bar matching the native 152px-height embed.
-  // 3:1 reads as a music tile, not a video block — smaller default footprint
-  // even at size=1 wide.
-  if (type === 'spotify' && (aspect === 'wide' || aspect === 'landscape')) {
+  // Music: compact horizontal bar when the user explicitly picks wide.
+  if ((type === 'spotify' || type === 'apple_music') && (aspect === 'wide' || aspect === 'landscape')) {
     if (size >= 3) return 'col-span-2 row-span-1 md:col-span-4 md:row-span-1 aspect-[3/1]'
     if (size >= 2) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-1 aspect-[3/1]'
     return 'col-span-2 row-span-1 aspect-[3/1]'

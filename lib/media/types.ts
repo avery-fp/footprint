@@ -92,6 +92,7 @@ const KIND_MAP: Record<string, MediaKind> = {
   vimeo:      'video',
   video:      'video',
   spotify:    'music',
+  apple_music:'music',
   soundcloud: 'music',
   bandcamp:   'music',
   twitter:    'social',
@@ -114,6 +115,7 @@ export function contentTypeToKind(ct: ContentType | string): MediaKind {
 const PROVIDER_MAP: Record<string, MediaProvider> = {
   youtube:    'youtube',
   spotify:    'spotify',
+  apple_music:'apple_music',
   twitter:    'x',
   instagram:  'instagram',
   tiktok:     'tiktok',
