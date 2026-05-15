@@ -17,7 +17,7 @@ import TextExpandTile from '@/components/TextExpandTile'
 import FallbackCard from '@/components/FallbackCard'
 import ArtifactTile from '@/components/ArtifactTile'
 import TwitterTile from '@/components/TwitterTile'
-import GhostTile from '@/components/GhostTile'
+import MusicEmbedTile from '@/components/MusicEmbedTile'
 import ReaderTile from '@/components/ReaderTile'
 import { sanitizeLinkMeta, normalizeLinkObject } from '@/lib/link-object'
 import { tryNativeFullscreen } from '@/lib/fullscreen'
@@ -333,9 +333,9 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }
 
   // ════════════════════════════════════════
-  // SPOTIFY — square = cover-first, wide = compact player
+  // MUSIC — square = cover-first, wide = compact glass facade
   // ════════════════════════════════════════
-  if (content.type === 'spotify') {
+  if (content.type === 'spotify' || content.type === 'apple_music') {
     const thumbSrc = getBestThumbnailUrl(content)
     const { title, creator } = sanitizeLinkMeta(
       { title: content.title, creator: content.artist },
@@ -343,29 +343,14 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     )
     const isWideMusic = effectiveAspect === 'wide' || effectiveAspect === 'landscape'
 
-    if (isWideMusic) {
-      return (
-        <GhostTile
-          url={content.url}
-          platform="spotify"
-          media_id={content.id}
-          title={title}
-          artist={creator || undefined}
-          thumbnail_url={thumbSrc || undefined}
-          displayMode="player"
-        />
-      )
-    }
-
     return (
-      <GhostTile
+      <MusicEmbedTile
         url={content.url}
-        platform="spotify"
-        media_id={content.id}
+        provider={content.type}
         title={title}
         artist={creator || undefined}
-        thumbnail_url={thumbSrc || undefined}
-        displayMode="cover"
+        image={thumbSrc}
+        displayMode={isWideMusic ? 'player' : 'cover'}
       />
     )
   }
