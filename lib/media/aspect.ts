@@ -77,9 +77,9 @@ export function getGridClass(size: number, aspect: string | null | undefined, is
 
   // Music: compact horizontal bar when the user explicitly picks wide.
   if ((type === 'spotify' || type === 'apple_music') && (aspect === 'wide' || aspect === 'landscape')) {
-    if (size >= 3) return 'col-span-2 row-span-1 md:col-span-4 md:row-span-1 aspect-[3/1]'
-    if (size >= 2) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-1 aspect-[3/1]'
-    return 'col-span-2 row-span-1 aspect-[3/1]'
+    if (size >= 3) return 'col-span-2 row-span-1 md:col-span-4 md:row-span-1 aspect-[9/2]'
+    if (size >= 2) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-1 aspect-[9/2]'
+    return 'col-span-2 row-span-1 aspect-[9/2]'
   }
 
   if (aspect === 'wide' || aspect === 'landscape') {
