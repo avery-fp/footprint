@@ -1,18 +1,15 @@
 'use client'
 
 /**
- * TWITTER TILE — glass, compact, click-to-expand
+ * TWITTER TILE — inline fitted post
  *
- * Resting state: a frosted-glass card that shows the tweet text + author
- * handle (and a small media thumb if the tweet had one). No full-bleed
- * dark backdrop, no orphaned empty space.
- *
- * On tap: ArtifactShell pulls forward with the real XEmbed (post URLs)
- * or TwitterTimeline (profile URLs) — same pattern as TikTok/Instagram.
+ * Renders the real X embed inside the tile cell, scoped to the cell's
+ * aspect-class. Lazy-mounts widgets.js via IntersectionObserver so the
+ * grid doesn't pay the script cost for off-screen tweets. No facade,
+ * no shell — the post IS the tile.
  */
 
-import { useState } from 'react'
-import ArtifactShell from '@/components/ArtifactShell'
+import { useEffect, useRef, useState } from 'react'
 import SocialEmbed from '@/components/SocialEmbed'
 
 interface TwitterTileProps {
@@ -27,119 +24,96 @@ interface TwitterTileProps {
 export default function TwitterTile({
   title,
   authorHandle,
-  image,
   url,
   aspectClass = 'aspect-square',
   variant = 'post',
 }: TwitterTileProps) {
-  const [shellOpen, setShellOpen] = useState(false)
-  const [imgFailed, setImgFailed] = useState(false)
-  const showImage = !!image && !imgFailed
+  const ref = useRef<HTMLDivElement>(null)
+  const [inView, setInView] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setInView(true)
+          observer.disconnect()
+        }
+      },
+      { rootMargin: '300px' },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   const len = title.length
-  const titleTypo = showImage
-    ? 'text-[12px] tracking-[-0.005em] leading-snug'
-    : len <= 80
-    ? 'text-[14px] tracking-[-0.01em] leading-snug'
-    : len <= 180
-    ? 'text-[12px] tracking-[-0.005em] leading-relaxed'
-    : 'text-[11px] tracking-normal leading-relaxed'
+  const placeholderTypo =
+    len <= 80
+      ? 'text-[14px] leading-snug'
+      : len <= 180
+      ? 'text-[12px] leading-relaxed'
+      : 'text-[11px] leading-relaxed'
 
   return (
-    <>
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => setShellOpen(true)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            setShellOpen(true)
-          }
-        }}
-        className={`block w-full h-full fp-tile overflow-hidden relative cursor-pointer group ${aspectClass}`}
-        style={{
-          background: 'rgba(255, 255, 255, 0.06)',
-          backdropFilter: 'blur(22px) saturate(140%)',
-          WebkitBackdropFilter: 'blur(22px) saturate(140%)',
-          boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.08)',
-        }}
-      >
-        {/* Header — author handle + X glyph, compact */}
-        <div className="absolute top-2.5 left-3 right-3 flex items-center justify-between z-[2]">
-          <span
-            className="text-white/55 truncate"
-            style={{ fontSize: '11px', fontWeight: 500, letterSpacing: '-0.005em' }}
-          >
-            {authorHandle || ''}
-          </span>
-          <span
-            className="text-white/35 shrink-0 ml-2 select-none"
-            style={{ fontSize: '13px', fontWeight: 300 }}
-          >
-            𝕏
-          </span>
+    <div
+      ref={ref}
+      className={`block w-full h-full fp-tile overflow-hidden relative ${aspectClass}`}
+      style={{
+        background: 'rgba(255, 255, 255, 0.04)',
+        boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.06)',
+      }}
+    >
+      {/* Real X post — fitted, scrolls inside the cell when taller than aspect */}
+      {inView && (
+        <div
+          className="absolute inset-0 overflow-y-auto overflow-x-hidden"
+          style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
+        >
+          <div className="flex justify-center">
+            <SocialEmbed
+              url={url}
+              type="twitter"
+              variant={variant}
+              onLoad={() => setLoaded(true)}
+            />
+          </div>
         </div>
+      )}
 
-        {showImage ? (
-          /* ── With media: thumb + caption stacked, dense ── */
-          <div className="absolute inset-0 pt-9 pb-7 px-3 flex flex-col gap-2">
-            <div
-              className="w-full overflow-hidden rounded-md relative"
-              style={{ flex: '1 1 60%', background: 'rgba(0,0,0,0.2)' }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={image!}
-                alt=""
-                className="absolute inset-0 w-full h-full object-cover"
-                loading="lazy"
-                onError={() => setImgFailed(true)}
-              />
-            </div>
-            <p
-              className={`text-white/85 line-clamp-3 whitespace-pre-wrap ${titleTypo}`}
-              style={{ fontWeight: 500, flex: '0 0 auto' }}
-            >
-              {title}
-            </p>
-          </div>
-        ) : (
-          /* ── Text-only: tweet centered, breathing room minimal ── */
-          <div className="absolute inset-0 pt-9 pb-7 px-4 flex items-center">
-            <p
-              className={`text-white/85 whitespace-pre-wrap line-clamp-6 ${titleTypo}`}
-              style={{ fontWeight: 500 }}
-            >
-              {title}
-            </p>
-          </div>
-        )}
-
-        {/* Affordance — subtle expand hint, brightens on hover */}
-        <span
-          className="absolute bottom-2.5 left-1/2 -translate-x-1/2 text-white/25 group-hover:text-white/60 transition-colors duration-200 select-none"
+      {/* Glass placeholder — replaced once the iframe inserts */}
+      {!loaded && (
+        <div
+          className="absolute inset-0 pointer-events-none flex flex-col justify-center px-4 py-3 gap-2"
           style={{
-            fontSize: '9px',
-            fontWeight: 500,
-            letterSpacing: '0.14em',
-            textTransform: 'uppercase',
+            background: 'rgba(255, 255, 255, 0.06)',
+            backdropFilter: 'blur(22px) saturate(140%)',
+            WebkitBackdropFilter: 'blur(22px) saturate(140%)',
           }}
         >
-          expand →
-        </span>
-      </div>
-
-      {shellOpen && (
-        <ArtifactShell onDismiss={() => setShellOpen(false)} fallbackUrl={url}>
-          <SocialEmbed
-            url={url}
-            type="twitter"
-            variant={variant}
-            onError={() => setShellOpen(false)}
-          />
-        </ArtifactShell>
+          <div className="flex items-center justify-between">
+            <span
+              className="text-white/55 truncate"
+              style={{ fontSize: '11px', fontWeight: 500 }}
+            >
+              {authorHandle || ''}
+            </span>
+            <span
+              className="text-white/35 shrink-0 ml-2 select-none"
+              style={{ fontSize: '13px', fontWeight: 300 }}
+            >
+              𝕏
+            </span>
+          </div>
+          <p
+            className={`text-white/80 whitespace-pre-wrap line-clamp-6 ${placeholderTypo}`}
+            style={{ fontWeight: 500 }}
+          >
+            {title}
+          </p>
+        </div>
       )}
-    </>
+    </div>
   )
 }
