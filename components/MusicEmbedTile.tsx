@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { parseEmbed } from '@/lib/parseEmbed'
 
 type MusicProvider = 'spotify' | 'apple_music'
@@ -69,26 +69,20 @@ export default function MusicEmbedTile({
     )
   }
 
+  if (playerOpen) {
+    return <MusicIframe src={embed.embedUrl} provider={provider} title={title} />
+  }
+
   return (
-    <>
-      <MusicFacade
-        provider={provider}
-        title={title}
-        artist={artist}
-        image={showArtwork ? image : null}
-        displayMode="cover"
-        onPlay={() => setPlayerOpen(true)}
-        onImageError={() => setImgFailed(true)}
-      />
-      {playerOpen && (
-        <MusicPlayerOverlay
-          src={embed.embedUrl}
-          provider={provider}
-          title={title}
-          onClose={() => setPlayerOpen(false)}
-        />
-      )}
-    </>
+    <MusicFacade
+      provider={provider}
+      title={title}
+      artist={artist}
+      image={showArtwork ? image : null}
+      displayMode="cover"
+      onPlay={() => setPlayerOpen(true)}
+      onImageError={() => setImgFailed(true)}
+    />
   )
 }
 
@@ -147,7 +141,7 @@ function MusicFacade({
   return (
     <button
       type="button"
-      className="group relative flex h-full w-full items-center gap-4 overflow-hidden px-3 py-3 text-left fp-tile"
+      className="group relative flex h-full w-full items-center gap-4 overflow-hidden px-3 py-2.5 text-left fp-tile"
       style={MUSIC_SHELL_STYLE}
       onClick={onPlay}
       aria-label={`Play ${title}`}
@@ -165,10 +159,25 @@ function MusicFacade({
       </div>
       <div className="min-w-0 flex-1">
         <MusicMeta title={title} artist={artist} align="left" />
+        {provider === 'spotify' && (
+          <span className="mt-1.5 inline-flex rounded-[2px] bg-white/90 px-1.5 py-0.5 text-[9px] font-medium leading-none text-black/80">
+            Preview
+          </span>
+        )}
       </div>
-      <div className="flex h-full shrink-0 items-center gap-4 pr-1">
+      <div className="absolute right-3 top-3">
         <ProviderMark provider={provider} />
-        <PlayIcon compact />
+      </div>
+      <div className="absolute bottom-2.5 right-3 flex shrink-0 items-center gap-3">
+        {provider === 'spotify' && (
+          <>
+            <CircleIcon label="Add">
+              <path d="M12 5v14M5 12h14" />
+            </CircleIcon>
+            <MoreIcon />
+          </>
+        )}
+        <PlayIcon compact solid={provider === 'spotify'} />
       </div>
     </button>
   )
@@ -183,8 +192,16 @@ function MusicIframe({
   provider: MusicProvider
   title: string
 }) {
+  const isSpotify = provider === 'spotify'
+
   return (
-    <div className="relative h-full w-full overflow-hidden fp-tile" style={MUSIC_SHELL_STYLE}>
+    <div
+      className="relative h-full w-full overflow-hidden fp-tile"
+      style={{
+        ...MUSIC_SHELL_STYLE,
+        background: isSpotify ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.92)',
+      }}
+    >
       <iframe
         src={src}
         title={title}
@@ -194,67 +211,6 @@ function MusicIframe({
         sandbox={provider === 'apple_music' ? 'allow-forms allow-scripts allow-same-origin allow-popups' : undefined}
         loading="lazy"
       />
-    </div>
-  )
-}
-
-function MusicPlayerOverlay({
-  src,
-  provider,
-  title,
-  onClose,
-}: {
-  src: string
-  provider: MusicProvider
-  title: string
-  onClose: () => void
-}) {
-  useEffect(() => {
-    const prevOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', onKey)
-    return () => {
-      document.body.style.overflow = prevOverflow
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [onClose])
-
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      className="fixed inset-0 z-[2147483646] flex items-center justify-center p-4"
-      style={{
-        background: 'rgba(0,0,0,0.58)',
-        backdropFilter: 'blur(20px) brightness(0.55)',
-        WebkitBackdropFilter: 'blur(20px) brightness(0.55)',
-      }}
-      onClick={onClose}
-    >
-      <div
-        className="relative w-full overflow-hidden rounded-2xl"
-        style={{ maxWidth: 560, height: provider === 'spotify' ? 152 : 175 }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <MusicIframe src={src} provider={provider} title={title} />
-      </div>
-      <button
-        type="button"
-        aria-label="Close"
-        onClick={onClose}
-        className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full text-white/90"
-        style={{
-          background: 'rgba(0,0,0,0.55)',
-          backdropFilter: 'blur(10px) saturate(140%)',
-          WebkitBackdropFilter: 'blur(10px) saturate(140%)',
-          boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.12)',
-        }}
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <path d="M18 6 6 18M6 6l12 12" />
-        </svg>
-      </button>
     </div>
   )
 }
@@ -306,20 +262,51 @@ function ProviderMark({ provider }: { provider: MusicProvider }) {
   )
 }
 
-function PlayIcon({ compact = false }: { compact?: boolean }) {
+function CircleIcon({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="flex h-6 w-6 items-center justify-center rounded-full"
+      style={{ border: '1.5px solid rgba(255,255,255,0.84)' }}
+      title={label}
+    >
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" className="text-white/90">
+        {children}
+      </svg>
+    </span>
+  )
+}
+
+function MoreIcon() {
+  return (
+    <span aria-hidden="true" className="flex h-6 w-6 items-center justify-center gap-1 text-white/70">
+      <span className="h-1 w-1 rounded-full bg-current" />
+      <span className="h-1 w-1 rounded-full bg-current" />
+      <span className="h-1 w-1 rounded-full bg-current" />
+    </span>
+  )
+}
+
+function PlayIcon({ compact = false, solid = false }: { compact?: boolean; solid?: boolean }) {
   return (
     <span
       className="flex items-center justify-center rounded-full"
       style={{
         width: compact ? 30 : 44,
         height: compact ? 30 : 44,
-        background: 'rgba(0,0,0,0.38)',
-        border: '1px solid rgba(255,255,255,0.16)',
+        background: solid ? 'rgba(255,255,255,0.96)' : 'rgba(0,0,0,0.38)',
+        border: solid ? 'none' : '1px solid rgba(255,255,255,0.16)',
         backdropFilter: 'blur(10px)',
         WebkitBackdropFilter: 'blur(10px)',
       }}
     >
-      <svg width={compact ? 13 : 16} height={compact ? 13 : 16} viewBox="0 0 24 24" fill="currentColor" className="ml-0.5 text-white/90">
+      <svg
+        width={compact ? 13 : 16}
+        height={compact ? 13 : 16}
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        className={solid ? 'ml-0.5 text-black/90' : 'ml-0.5 text-white/90'}
+      >
         <path d="M8 5v14l11-7z" />
       </svg>
     </span>
