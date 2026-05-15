@@ -584,14 +584,57 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
     }
 
-    const { error } = await supabase
+    let { error } = await supabase
       .from(source)
       .update(updates)
       .eq('id', id)
       .eq('serial_number', serialNumber)
 
+    // Self-heal: prod may not yet have migration 030 (thumbnail_url_override).
+    // Postgres reports missing column with code 42703 / PGRST204. Fall back to
+    // writing the override into the legacy `thumbnail` column so the image
+    // still persists. UnifiedTile reads `thumbnail_url` (transformed from
+    // `thumbnail`) as a fallback for preview/link_only rendering, so this
+    // keeps the feature working until the migration is applied.
+    if (
+      error &&
+      source === 'links' &&
+      updates.thumbnail_url_override !== undefined &&
+      ((error as any).code === '42703' || (error as any).code === 'PGRST204' ||
+        /thumbnail_url_override/.test((error as any).message || ''))
+    ) {
+      const fallbackUpdates = { ...updates }
+      const overrideValue = fallbackUpdates.thumbnail_url_override
+      delete fallbackUpdates.thumbnail_url_override
+      fallbackUpdates.thumbnail = overrideValue
+      const retry = await supabase
+        .from(source)
+        .update(fallbackUpdates)
+        .eq('id', id)
+        .eq('serial_number', serialNumber)
+      error = retry.error
+    }
+
     if (error) {
-      return NextResponse.json({ error: 'Internal error' }, { status: 500 })
+      log.error({
+        op: 'tiles_PATCH_update',
+        slug,
+        source,
+        id,
+        fields: Object.keys(updates),
+        code: (error as any).code,
+        message: (error as any).message,
+        details: (error as any).details,
+        hint: (error as any).hint,
+      }, 'Tile update failed')
+      return NextResponse.json(
+        {
+          error: (error as any).message || 'Internal error',
+          code: (error as any).code || null,
+          hint: (error as any).hint || null,
+        },
+        { status: 500 }
+      )
     }
 
     revalidatePath(`/${slug}`)
