@@ -47,42 +47,63 @@ export default function MusicEmbedTile({
   }
 
   if (displayMode === 'player') {
-    if (playerOpen) {
-      return (
-        <MusicIframe
-          src={embed.embedUrl}
+    return (
+      <MusicSurface active={playerOpen} src={embed.embedUrl} provider={provider} title={title}>
+        <MusicFacade
           provider={provider}
           title={title}
+          artist={artist}
+          image={image}
+          displayMode="player"
+          onPlay={() => setPlayerOpen(true)}
+          onImageError={() => setImgFailed(true)}
         />
-      )
-    }
-    return (
+      </MusicSurface>
+    )
+  }
+
+  return (
+    <MusicSurface active={playerOpen} src={embed.embedUrl} provider={provider} title={title}>
       <MusicFacade
         provider={provider}
         title={title}
         artist={artist}
-        image={image}
-        displayMode="player"
+        image={showArtwork ? image : null}
+        displayMode="cover"
         onPlay={() => setPlayerOpen(true)}
         onImageError={() => setImgFailed(true)}
       />
-    )
-  }
+    </MusicSurface>
+  )
+}
 
-  if (playerOpen) {
-    return <MusicIframe src={embed.embedUrl} provider={provider} title={title} />
-  }
-
+function MusicSurface({
+  active,
+  src,
+  provider,
+  title,
+  children,
+}: {
+  active: boolean
+  src: string
+  provider: MusicProvider
+  title: string
+  children: ReactNode
+}) {
   return (
-    <MusicFacade
-      provider={provider}
-      title={title}
-      artist={artist}
-      image={showArtwork ? image : null}
-      displayMode="cover"
-      onPlay={() => setPlayerOpen(true)}
-      onImageError={() => setImgFailed(true)}
-    />
+    <div className="relative h-full w-full">
+      {children}
+      {active && (
+        <iframe
+          src={`${src}${src.includes('?') ? '&' : '?'}autoplay=1`}
+          title={`${title} playback`}
+          className="pointer-events-none absolute opacity-0"
+          style={{ border: 0, left: -9999, top: 0, width: 400, height: provider === 'spotify' ? 152 : 175 }}
+          allow={playerAllow(provider)}
+          sandbox={provider === 'apple_music' ? 'allow-forms allow-scripts allow-same-origin allow-popups' : undefined}
+        />
+      )}
+    </div>
   )
 }
 
@@ -180,38 +201,6 @@ function MusicFacade({
         <PlayIcon compact solid={provider === 'spotify'} />
       </div>
     </button>
-  )
-}
-
-function MusicIframe({
-  src,
-  provider,
-  title,
-}: {
-  src: string
-  provider: MusicProvider
-  title: string
-}) {
-  const isSpotify = provider === 'spotify'
-
-  return (
-    <div
-      className="relative h-full w-full overflow-hidden fp-tile"
-      style={{
-        ...MUSIC_SHELL_STYLE,
-        background: isSpotify ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.92)',
-      }}
-    >
-      <iframe
-        src={src}
-        title={title}
-        className="h-full w-full"
-        style={{ border: 0, borderRadius: 'inherit', colorScheme: provider === 'apple_music' ? 'normal' : undefined }}
-        allow={playerAllow(provider)}
-        sandbox={provider === 'apple_music' ? 'allow-forms allow-scripts allow-same-origin allow-popups' : undefined}
-        loading="lazy"
-      />
-    </div>
   )
 }
 

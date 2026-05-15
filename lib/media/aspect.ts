@@ -23,15 +23,22 @@ export function resolveAspect(
   type: string,
   url?: string
 ): string {
+  const isMusic = type === 'spotify' || type === 'apple_music'
+
+  // Music intentionally has only two useful forms: compact bar or square
+  // cover. Legacy tall values collapse to the bar instead of creating
+  // cropped provider-player states.
+  if (isMusic) {
+    if (stored === 'square') return 'square'
+    return 'wide'
+  }
+
   // User-set shape wins.
   if (stored === 'square' || stored === 'wide' || stored === 'tall') return stored
 
   // Smart defaults (only when stored is null / undefined / 'auto' / unknown)
   if (type === 'tiktok') return 'tall'
   if (url?.includes('/shorts/')) return 'tall'
-  // Music defaults to cover art in the grid. Users can deliberately switch
-  // wide when they want the compact player treatment.
-  if (type === 'spotify' || type === 'apple_music') return 'square'
   if (type === 'youtube' || type === 'vimeo') return 'wide'
   if (type === 'video') return 'square'
   if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return 'square'
