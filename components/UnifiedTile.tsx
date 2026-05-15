@@ -275,13 +275,13 @@ export default function UnifiedTile({
     item.type === 'payment' ||
     (item.url && (item.url.includes('buy.stripe.com') || item.url.includes('checkout.stripe.com')))
   ) {
-    const authored = Boolean((item.title && item.title.trim()) || item.thumbnail_url_override)
+    const authored = Boolean((item.title && item.title.trim()) || item.thumbnail_url_override || item.thumbnail_url)
     if (authored && item.url) {
       return (
         <div className="w-full h-full" data-tile-id={item.id} data-tile-type="payment-authored">
           <PreviewCardTileBase
             url={item.url}
-            thumbnailUrl={item.thumbnail_url_override || null}
+            thumbnailUrl={item.thumbnail_url_override || item.thumbnail_url || null}
             title={item.title || null}
             subtitle={null}
           />
@@ -554,13 +554,13 @@ export default function UnifiedTile({
     item.type === 'payment'
   )
   if (isPaymentLink) {
-    const authored = Boolean((item.title && item.title.trim()) || item.thumbnail_url_override)
+    const authored = Boolean((item.title && item.title.trim()) || item.thumbnail_url_override || item.thumbnail_url)
     if (authored && item.url) {
       return (
         <div className="w-full h-full" data-tile-id={item.id} data-tile-type="payment-authored">
           <PreviewCardTileBase
             url={item.url}
-            thumbnailUrl={item.thumbnail_url_override || null}
+            thumbnailUrl={item.thumbnail_url_override || item.thumbnail_url || null}
             title={item.title || null}
             subtitle={null}
           />
