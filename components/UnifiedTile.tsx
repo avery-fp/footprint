@@ -370,6 +370,35 @@ export default function UnifiedTile({
           </div>
         )
       case 'preview_card': {
+        // TikTok with a canonical numeric video ID routes through ContentCard
+        // so click-to-play inline iframe (audio on) works instead of a
+        // dead-link card. vm.tiktok.com shortcodes don't resolve at the
+        // player endpoint and continue to use the preview card.
+        if (item.type === 'tiktok' && /tiktok\.com\/@[^/]+\/video\/\d+/.test(item.url || '')) {
+          return (
+            <div className="w-full h-full" data-tile-id={item.id} data-tile-type="tiktok-inline">
+              <ContentCard
+                content={{
+                  id: item.id,
+                  url: item.url,
+                  type: item.type,
+                  title: item.title,
+                  description: item.description,
+                  thumbnail_url: item.thumbnail_url,
+                  embed_html: item.embed_html,
+                  external_id: item.media_id,
+                  artist: item.artist,
+                  thumbnail_url_hq: item.thumbnail_url_hq,
+                }}
+                tileSize={size}
+                aspect={aspect}
+                isPublicView={mode === 'public'}
+                isExpanded={isExpanded}
+                isMobile={isMobile}
+              />
+            </div>
+          )
+        }
         const previewThumbnailCandidates = getPreviewThumbnailCandidates(item)
         const previewMeta = sanitizeLinkMeta({ title: item.title, creator: item.artist }, item.url || '')
         return (

@@ -572,11 +572,20 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }
 
   // ════════════════════════════════════════
-  // TIKTOK — first-party closed state, ArtifactShell on tap
-  // FIDELIO: No third-party scripts until shell opens
+  // TIKTOK — facade thumbnail, inline iframe on tap (YouTube-style)
+  // TikTok's official player accepts numeric video IDs at
+  //   https://www.tiktok.com/player/v1/{id} — autoplay=1 with audio on.
+  // vm.tiktok.com shortcodes don't resolve at the player endpoint, so those
+  // fall through to ArtifactShell as a fallback path.
   // ════════════════════════════════════════
   if (content.type === 'tiktok') {
     const thumbSrc = getBestThumbnailUrl(content)
+    // Numeric video ID from the canonical tiktok.com/@user/video/{id} shape.
+    // external_id (when present) wins; otherwise extract from the URL.
+    const tiktokId = (content.external_id && /^\d+$/.test(content.external_id))
+      ? content.external_id
+      : content.url.match(/tiktok\.com\/@[^/]+\/video\/(\d+)/)?.[1] || null
+    const canPlayInline = !!tiktokId
 
     // Thumb 404 or no content at all → FallbackCard. Spec Task 3.
     if (thumbSrc && socialThumbFailed) {
@@ -594,19 +603,46 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       ? 'text-[12px] tracking-[-0.005em] leading-relaxed'
       : 'text-[11px] tracking-normal leading-relaxed'
 
+    // Activated state — iframe replaces the facade in the same tile.
+    if (canPlayInline && isActivated && tiktokId) {
+      const tiktokSrc = `https://www.tiktok.com/player/v1/${tiktokId}?autoplay=1&music_info=1&description=0&rel=0&closed_caption=0&loop=0&native_context_menu=0&progress_bar=1`
+      return (
+        <div
+          ref={containerRef}
+          className={`block w-full h-full fp-tile overflow-hidden relative ${aspectClass}`}
+          style={{ background: '#000' }}
+        >
+          <iframe
+            src={tiktokSrc}
+            className="w-full h-full"
+            style={{ border: 'none' }}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+            allowFullScreen
+            referrerPolicy="strict-origin-when-cross-origin"
+          />
+        </div>
+      )
+    }
+
+    // Resting tile bg: transparent only when an image will actually paint
+    // behind the text. Without a thumb, transparent reads as a grey ghost
+    // against the wrapper tint — fall back to frosted glass so the tile
+    // looks intentional and the play affordance is legible.
+    const hasVisualBg = !!thumbSrc && !socialThumbFailed
     return (
       <>
         <div
           role="button"
           tabIndex={0}
-          onClick={() => setShellOpen(true)}
-          onKeyDown={(e) => { if (e.key === 'Enter') setShellOpen(true) }}
+          onClick={() => canPlayInline ? setIsActivated(true) : setShellOpen(true)}
+          onKeyDown={(e) => { if (e.key === 'Enter') (canPlayInline ? setIsActivated(true) : setShellOpen(true)) }}
           ref={containerRef as any}
           className={`block w-full h-full fp-tile overflow-hidden relative cursor-pointer ${aspectClass}`}
-          // No parent tint behind the resting poster — any sub-pixel gap between
-          // the aspect-ratio box and the cover image would otherwise read as a
-          // thin top/bottom edge line.
-          style={{ background: 'transparent' }}
+          style={hasVisualBg ? { background: 'transparent' } : {
+            background: 'rgba(255,255,255,0.06)',
+            backdropFilter: 'blur(20px) saturate(120%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(120%)',
+          }}
         >
           {thumbSrc && (
             <div className="fp-resting-video-frame z-[1]">
@@ -622,13 +658,21 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             </div>
           )}
           {/* Text overlay — caption atop thumb, readable via text-shadow */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-5">
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-5 gap-3">
             <p
               className={`whitespace-pre-wrap text-center text-white/80 fp-text-shadow ${typo} line-clamp-6`}
               style={{ fontWeight: 500 }}
             >
               {tiktokText}
             </p>
+            {canPlayInline && !hasVisualBg && (
+              <span
+                className="text-white/40 uppercase tracking-widest font-mono"
+                style={{ fontSize: '10px', fontWeight: 500, letterSpacing: '0.18em' }}
+              >
+                tap to play
+              </span>
+            )}
           </div>
         </div>
         {shellOpen && (
