@@ -1082,9 +1082,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     const isEmbedVid = item.type === 'youtube' || item.type === 'vimeo' ||
       item.url?.includes('youtube') || item.url?.includes('youtu.be')
     if (isEmbedVid) return '16 / 9'
-    // Spotify compact embed: 3:1 horizontal bar matches the native player
-    // dimensions (artwork left, controls right, no cropping).
+    // Single-track music embeds are compact horizontal objects, not portrait
+    // cards. Collections stay on their natural taller layout.
     if (item.type === 'spotify') return '3 / 1'
+    if (
+      item.type === 'apple_music' &&
+      (item.url?.includes('/song/') || item.url?.includes('/music-video/') || item.url?.includes('?i='))
+    ) return '3 / 1'
     if (item.type === 'soundcloud') return '16 / 9'
     const resolved = resolveAspect(item.aspect, item.type, item.url)
     return tileAspectRatio(resolved)
@@ -1247,7 +1251,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     // Spotify's compact embed locks at ~152px tall. Without self-start, CSS
     // grid stretches the cell to match the tallest sibling in the same row,
     // leaving black space below the iframe. Self-start keeps it fitted.
-    const fitClass = item.type === 'spotify' ? ' self-start' : ''
+    const isCompactAppleMusic =
+      item.type === 'apple_music' &&
+      (item.url?.includes('/song/') || item.url?.includes('/music-video/') || item.url?.includes('?i='))
+    const fitClass = item.type === 'spotify' || isCompactAppleMusic ? ' self-start' : ''
     const wrapperClass = `relative overflow-hidden rounded-2xl ${gridClass}${fitClass}`
     if (isOwner) {
       return (
