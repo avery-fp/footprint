@@ -29,9 +29,9 @@ export function resolveAspect(
   // Smart defaults (only when stored is null / undefined / 'auto' / unknown)
   if (type === 'tiktok') return 'tall'
   if (url?.includes('/shorts/')) return 'tall'
-  // Spotify's compact embed (152px native height, controls in a horizontal
-  // bar) gets cut off in square or tall containers — default to wide.
-  if (type === 'spotify') return 'wide'
+  // Music defaults to cover art in the grid. Users can deliberately switch
+  // Spotify wide when they want the compact inline player treatment.
+  if (type === 'spotify') return 'square'
   if (type === 'youtube' || type === 'vimeo') return 'wide'
   if (type === 'video') return 'square'
   if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return 'square'

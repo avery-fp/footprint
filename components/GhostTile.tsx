@@ -51,6 +51,7 @@ interface GhostTileProps {
   clip_start_ms?: number
   /** YouTube clip end time (ms) — if set, iframe stops here */
   clip_end_ms?: number
+  displayMode?: 'cover' | 'player'
 
   onPlay?: () => void
 }
@@ -64,6 +65,7 @@ export default function GhostTile({
   thumbnail_url,
   clip_start_ms,
   clip_end_ms,
+  displayMode = 'player',
   onPlay,
 }: GhostTileProps) {
   const [isPlaying, setIsPlaying] = useState(false)
@@ -187,6 +189,17 @@ export default function GhostTile({
   if (platform === 'spotify') {
     const embed = parseEmbed(url)
     if (embed) {
+      if (displayMode === 'cover' && !isPlaying) {
+        return (
+          <MusicCoverTile
+            thumbUrl={thumbUrl}
+            thumbCandidates={thumbCandidates}
+            title={title}
+            artist={artist}
+            onPlay={handlePlay}
+          />
+        )
+      }
       return (
         <div
           className="w-full h-full relative overflow-hidden fp-tile"
@@ -210,6 +223,17 @@ export default function GhostTile({
   if (platform === 'apple_music' || isAppleMusicUrl(url)) {
     const embed = parseEmbed(url)
     if (embed) {
+      if (displayMode === 'cover' && !isPlaying) {
+        return (
+          <MusicCoverTile
+            thumbUrl={thumbUrl}
+            thumbCandidates={thumbCandidates}
+            title={title}
+            artist={artist}
+            onPlay={handlePlay}
+          />
+        )
+      }
       return (
         <div
           className="w-full h-full relative overflow-hidden fp-tile"
@@ -587,6 +611,45 @@ function ThumbnailBg({
         }}
       />
     </div>
+  )
+}
+
+function MusicCoverTile({
+  thumbUrl,
+  thumbCandidates,
+  title,
+  artist,
+  onPlay,
+}: {
+  thumbUrl: string | null
+  thumbCandidates: string[]
+  title?: string
+  artist?: string
+  onPlay: () => void
+}) {
+  return (
+    <button
+      type="button"
+      className="w-full h-full relative overflow-hidden fp-tile group text-left"
+      style={{ borderRadius: 'inherit', background: 'rgba(255,255,255,0.06)' }}
+      onClick={onPlay}
+      aria-label={title ? `Play ${title}` : 'Play music'}
+    >
+      <ThumbnailBg src={thumbUrl} candidates={thumbCandidates} />
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.22) 48%, rgba(0,0,0,0.08) 100%)',
+        }}
+      />
+      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity duration-200">
+        <PlayIcon />
+      </div>
+      <div className="absolute inset-x-0 bottom-0 p-4">
+        <TitleBlock title={title} artist={artist} />
+      </div>
+    </button>
   )
 }
 
