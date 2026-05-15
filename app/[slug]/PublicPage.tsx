@@ -7,6 +7,7 @@ import SAspectShell from '@/components/SAspectShell'
 
 import WeatherEffect from '@/components/WeatherEffect'
 import { RemoveBubble } from '@/components/RemoveBubble'
+import { PlusButton } from '@/components/PlusButton'
 import FloatingCtaBar from '@/components/FloatingCtaBar'
 import SovereignTile from '@/components/SovereignTile'
 import ClaimPlaque from '@/components/ClaimPlaque'
@@ -2012,6 +2013,18 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         <div style={{ height: '40px' }} />
 
       </div>
+
+      {/* Save-to-Rolodex — fixed top-left for visitors. Hidden for owners
+          and on drafts. Gated on authChecked to avoid a flash for owners
+          before auth resolves. */}
+      {!isDraft && authChecked && !isOwner && !claimActive && (
+        <div
+          className="fixed top-4 left-4"
+          style={{ zIndex: expanded ? 60 : 20 }}
+        >
+          <PlusButton slug={footprint.username} />
+        </div>
+      )}
 
       {/* Serial number — fixed bottom-left, tappable for visitors */}
       {!isDraft && serial && !claimActive && (
