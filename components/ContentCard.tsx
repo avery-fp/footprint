@@ -17,7 +17,7 @@ import TextExpandTile from '@/components/TextExpandTile'
 import FallbackCard from '@/components/FallbackCard'
 import ArtifactTile from '@/components/ArtifactTile'
 import TwitterTile from '@/components/TwitterTile'
-import MusicTile from '@/components/MusicTile'
+import GhostTile from '@/components/GhostTile'
 import ReaderTile from '@/components/ReaderTile'
 import { sanitizeLinkMeta, normalizeLinkObject } from '@/lib/link-object'
 import { tryNativeFullscreen } from '@/lib/fullscreen'
@@ -333,7 +333,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }
 
   // ════════════════════════════════════════
-  // SPOTIFY — MusicTile. Artwork + title + artist. Tap opens Spotify.
+  // SPOTIFY — square = cover-first, wide = compact player
   // ════════════════════════════════════════
   if (content.type === 'spotify') {
     const thumbSrc = getBestThumbnailUrl(content)
@@ -341,14 +341,31 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       { title: content.title, creator: content.artist },
       content.url
     )
+    const isWideMusic = effectiveAspect === 'wide' || effectiveAspect === 'landscape'
+
+    if (isWideMusic) {
+      return (
+        <GhostTile
+          url={content.url}
+          platform="spotify"
+          media_id={content.id}
+          title={title}
+          artist={creator || undefined}
+          thumbnail_url={thumbSrc || undefined}
+          displayMode="player"
+        />
+      )
+    }
+
     return (
-      <MusicTile
+      <GhostTile
+        url={content.url}
+        platform="spotify"
+        media_id={content.id}
         title={title}
-        creator={creator}
-        image={thumbSrc}
-        provider="Spotify"
-        actionUrl={content.url}
-        aspectClass={aspectClass}
+        artist={creator || undefined}
+        thumbnail_url={thumbSrc || undefined}
+        displayMode="cover"
       />
     )
   }
