@@ -189,15 +189,30 @@ export default function GhostTile({
   if (platform === 'spotify') {
     const embed = parseEmbed(url)
     if (embed) {
-      if (displayMode === 'cover' && !isPlaying) {
+      if (displayMode === 'cover') {
         return (
-          <MusicCoverTile
-            thumbUrl={thumbUrl}
-            thumbCandidates={thumbCandidates}
-            title={title}
-            artist={artist}
-            onPlay={handlePlay}
-          />
+          <div className="w-full h-full relative overflow-hidden fp-tile" style={{ borderRadius: 'inherit' }}>
+            <MusicCoverTile
+              thumbUrl={thumbUrl}
+              thumbCandidates={thumbCandidates}
+              title={title}
+              artist={artist}
+              isPlaying={isPlaying}
+              onPlay={handlePlay}
+            />
+            {isPlaying && (
+              <iframe
+                src={embed.embedUrl}
+                width="1"
+                height="1"
+                aria-hidden="true"
+                tabIndex={-1}
+                style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
+                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                loading="lazy"
+              />
+            )}
+          </div>
         )
       }
       return (
@@ -223,15 +238,31 @@ export default function GhostTile({
   if (platform === 'apple_music' || isAppleMusicUrl(url)) {
     const embed = parseEmbed(url)
     if (embed) {
-      if (displayMode === 'cover' && !isPlaying) {
+      if (displayMode === 'cover') {
         return (
-          <MusicCoverTile
-            thumbUrl={thumbUrl}
-            thumbCandidates={thumbCandidates}
-            title={title}
-            artist={artist}
-            onPlay={handlePlay}
-          />
+          <div className="w-full h-full relative overflow-hidden fp-tile" style={{ borderRadius: 'inherit' }}>
+            <MusicCoverTile
+              thumbUrl={thumbUrl}
+              thumbCandidates={thumbCandidates}
+              title={title}
+              artist={artist}
+              isPlaying={isPlaying}
+              onPlay={handlePlay}
+            />
+            {isPlaying && (
+              <iframe
+                src={embed.embedUrl}
+                width="1"
+                height="1"
+                aria-hidden="true"
+                tabIndex={-1}
+                style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
+                allow="autoplay *; encrypted-media *; fullscreen *"
+                sandbox="allow-forms allow-scripts allow-same-origin allow-popups"
+                loading="lazy"
+              />
+            )}
+          </div>
         )
       }
       return (
@@ -619,12 +650,14 @@ function MusicCoverTile({
   thumbCandidates,
   title,
   artist,
+  isPlaying,
   onPlay,
 }: {
   thumbUrl: string | null
   thumbCandidates: string[]
   title?: string
   artist?: string
+  isPlaying?: boolean
   onPlay: () => void
 }) {
   return (
@@ -644,7 +677,7 @@ function MusicCoverTile({
         }}
       />
       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity duration-200">
-        <PlayIcon />
+        {isPlaying ? <WaveformBars /> : <PlayIcon />}
       </div>
       <div className="absolute inset-x-0 bottom-0 p-4">
         <TitleBlock title={title} artist={artist} />
