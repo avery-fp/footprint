@@ -510,6 +510,12 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const handleTileChange = useCallback((id: string, patch: Record<string, unknown>) => {
     setLocalContent((prev) => {
       if (
+        Object.prototype.hasOwnProperty.call(patch, 'parent_tile_id') &&
+        patch.parent_tile_id != null
+      ) {
+        return prev.filter((t) => t.id !== id)
+      }
+      if (
         Object.prototype.hasOwnProperty.call(patch, 'room_id') &&
         (patch.room_id || null) !== (activeRoomId || null)
       ) {
@@ -1209,7 +1215,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             See tileEditScrollAnchor above: we snapshot the scroll Y at
             pointerdown so the page can be restored if the browser scrolls
             the focusable Sortable wrapper into view on focus. */}
-        {isOwner && editorMode && !expanded && (
+        {isOwner && editorMode && !expanded && !isContainer && (
           <div
             className="absolute inset-0 z-20 cursor-pointer"
             onPointerDown={() => { tileEditScrollAnchor.current = window.scrollY }}
@@ -1217,7 +1223,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           />
         )}
         {/* Container click interceptor — only containers are doors. */}
-        {isContainer && !expanded && !(isOwner && editorMode) && (
+        {isContainer && !expanded && (
           <div className="absolute inset-0 z-10 cursor-pointer" onClick={() => expand(item.id)} />
         )}
       </div>
@@ -1848,7 +1854,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                       {localChildren.map((child: any, idx: number) => (
                         <div
                           key={child.id}
-                          className="flex-shrink-0 snap-center relative overflow-hidden rounded-2xl"
+                          className="group flex-shrink-0 snap-center relative overflow-hidden rounded-2xl"
                           style={{
                             width: 'min(85vw, 580px)',
                             height: '75%',
@@ -1880,11 +1886,12 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                           />
                           {/* Owner-only controls — move-out + delete + reorder */}
                           {isOwner && (
-                            <div className="absolute inset-0 z-10 pointer-events-none">
+                            <div className="absolute inset-0 z-10 pointer-events-none sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150">
                               <button
+                                type="button"
                                 className="absolute top-2 left-2 pointer-events-auto w-7 h-7 flex items-center justify-center rounded-full touch-manipulation transition-colors hover:bg-white/[0.12]"
                                 style={{ background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.12)' }}
-                                onClick={() => handleChildMoveOut(child)}
+                                onClick={(e) => { e.stopPropagation(); handleChildMoveOut(child) }}
                                 aria-label="Move out of collection"
                                 title="Move out of collection"
                               >
@@ -1894,9 +1901,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                                 </svg>
                               </button>
                               <button
+                                type="button"
                                 className="absolute top-2 right-2 pointer-events-auto w-7 h-7 flex items-center justify-center rounded-full touch-manipulation transition-colors hover:bg-red-500/30"
                                 style={{ background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.12)' }}
-                                onClick={() => handleChildDelete(child)}
+                                onClick={(e) => { e.stopPropagation(); handleChildDelete(child) }}
                                 aria-label="Remove item"
                               >
                                 <svg className="w-3 h-3 text-white/60" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -1905,6 +1913,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                               </button>
                               <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-2 pointer-events-auto">
                                 <button
+                                  type="button"
                                   className="w-7 h-7 flex items-center justify-center rounded-full touch-manipulation transition-opacity"
                                   style={{
                                     background: 'rgba(0,0,0,0.55)',
@@ -1912,7 +1921,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                                     opacity: idx === 0 ? 0.3 : 1,
                                     cursor: idx === 0 ? 'default' : 'pointer',
                                   }}
-                                  onClick={() => handleChildMove(idx, -1)}
+                                  onClick={(e) => { e.stopPropagation(); handleChildMove(idx, -1) }}
                                   disabled={idx === 0}
                                   aria-label="Move left"
                                 >
@@ -1921,6 +1930,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                                   </svg>
                                 </button>
                                 <button
+                                  type="button"
                                   className="w-7 h-7 flex items-center justify-center rounded-full touch-manipulation transition-opacity"
                                   style={{
                                     background: 'rgba(0,0,0,0.55)',
@@ -1928,7 +1938,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                                     opacity: idx === localChildren.length - 1 ? 0.3 : 1,
                                     cursor: idx === localChildren.length - 1 ? 'default' : 'pointer',
                                   }}
-                                  onClick={() => handleChildMove(idx, 1)}
+                                  onClick={(e) => { e.stopPropagation(); handleChildMove(idx, 1) }}
                                   disabled={idx === localChildren.length - 1}
                                   aria-label="Move right"
                                 >
