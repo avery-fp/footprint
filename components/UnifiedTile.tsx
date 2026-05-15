@@ -405,7 +405,7 @@ export default function UnifiedTile({
           <div className="w-full h-full" data-tile-id={item.id} data-tile-type="link-only">
             <PreviewCardTileBase
               url={item.url}
-              thumbnailUrl={item.thumbnail_url_override || null}
+              thumbnailUrl={item.thumbnail_url_override || item.thumbnail_url || null}
               title={linkMeta.title}
               subtitle={null}
             />
