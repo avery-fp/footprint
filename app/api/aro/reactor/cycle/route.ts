@@ -10,7 +10,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await runCycle({ once: true })
+    const result = await runCycle({ once: true, sendBatchSize: 25 })
     return NextResponse.json({ ok: true, result })
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })
