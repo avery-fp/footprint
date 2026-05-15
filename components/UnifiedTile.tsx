@@ -481,6 +481,7 @@ export default function UnifiedTile({
           thumbnail_url={item.thumbnail_url_hq || item.thumbnail_url || undefined}
           clip_start_ms={(item as any).clip_start_ms ?? undefined}
           clip_end_ms={(item as any).clip_end_ms ?? undefined}
+          displayMode={aspect === 'wide' || aspect === 'landscape' ? 'player' : 'cover'}
         />
       </div>
     )
