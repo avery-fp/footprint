@@ -18,6 +18,15 @@ import TheaterOverlay from '@/components/TheaterOverlay'
 
 const GHOST_PAUSE_EVENT = 'ghost-tile-pause'
 
+const MUSIC_EMBED_SHELL_STYLE: React.CSSProperties = {
+  borderRadius: 'inherit',
+  background: 'rgba(255,255,255,0.08)',
+  backdropFilter: 'blur(24px) saturate(150%)',
+  WebkitBackdropFilter: 'blur(24px) saturate(150%)',
+  boxShadow:
+    'inset 0 1px 0 rgba(255,255,255,0.16), inset 0 0 0 1px rgba(255,255,255,0.12), 0 18px 42px rgba(0,0,0,0.28)',
+}
+
 type Archetype = 'audio' | 'visual'
 
 function getArchetype(platform: string, _url: string): Archetype {
@@ -181,7 +190,7 @@ export default function GhostTile({
       return (
         <div
           className="w-full h-full relative overflow-hidden fp-tile"
-          style={{ borderRadius: 'inherit' }}
+          style={MUSIC_EMBED_SHELL_STYLE}
         >
           <iframe
             src={embed.embedUrl}
@@ -204,7 +213,7 @@ export default function GhostTile({
       return (
         <div
           className="w-full h-full relative overflow-hidden fp-tile"
-          style={{ borderRadius: 'inherit' }}
+          style={MUSIC_EMBED_SHELL_STYLE}
         >
           <iframe
             src={embed.embedUrl}
