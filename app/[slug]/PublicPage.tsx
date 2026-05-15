@@ -1082,7 +1082,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     const isEmbedVid = item.type === 'youtube' || item.type === 'vimeo' ||
       item.url?.includes('youtube') || item.url?.includes('youtu.be')
     if (isEmbedVid) return '16 / 9'
-    if (item.type === 'spotify') return '9 / 16'
+    // Spotify compact embed: 3:1 horizontal bar matches the native player
+    // dimensions (artwork left, controls right, no cropping).
+    if (item.type === 'spotify') return '3 / 1'
     if (item.type === 'soundcloud') return '16 / 9'
     const resolved = resolveAspect(item.aspect, item.type, item.url)
     return tileAspectRatio(resolved)
@@ -1240,7 +1242,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // tile gets the right footprint from size × resolved-aspect.
   const renderMasonryTile = (item: any, idx: number) => {
     const resolved = resolveAspect(item.aspect, item.type, item.url)
-    const gridClass = getGridClass(Number(item.size || 1), resolved, isVideoTile(item.type, item.url))
+    const gridClass = getGridClass(Number(item.size || 1), resolved, isVideoTile(item.type, item.url), item.type)
     const tileBody = renderTileBody(item, idx)
     const wrapperClass = `relative overflow-hidden rounded-2xl ${gridClass}`
     if (isOwner) {
