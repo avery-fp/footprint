@@ -1244,7 +1244,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     const resolved = resolveAspect(item.aspect, item.type, item.url)
     const gridClass = getGridClass(Number(item.size || 1), resolved, isVideoTile(item.type, item.url), item.type)
     const tileBody = renderTileBody(item, idx)
-    const wrapperClass = `relative overflow-hidden rounded-2xl ${gridClass}`
+    // Spotify's compact embed locks at ~152px tall. Without self-start, CSS
+    // grid stretches the cell to match the tallest sibling in the same row,
+    // leaving black space below the iframe. Self-start keeps it fitted.
+    const fitClass = item.type === 'spotify' ? ' self-start' : ''
+    const wrapperClass = `relative overflow-hidden rounded-2xl ${gridClass}${fitClass}`
     if (isOwner) {
       return (
         <SortableTileWrapper key={item.id} item={item} idx={idx} className={wrapperClass} disabled={!!expanded}>

@@ -399,33 +399,6 @@ export default function UnifiedTile({
             </div>
           )
         }
-        // Twitter/X routes through ContentCard so the glass TwitterTile
-        // renders (compact resting state, ArtifactShell + XEmbed on tap)
-        // instead of the dark full-bleed PreviewCardTile.
-        if (/(?:twitter\.com|x\.com)/i.test(item.url || '')) {
-          return (
-            <div className="w-full h-full" data-tile-id={item.id} data-tile-type="twitter-glass">
-              <ContentCard
-                content={{
-                  id: item.id,
-                  url: item.url,
-                  type: item.type,
-                  title: item.title,
-                  description: item.description,
-                  thumbnail_url: item.thumbnail_url,
-                  embed_html: item.embed_html,
-                  artist: item.artist,
-                  thumbnail_url_hq: item.thumbnail_url_hq,
-                }}
-                tileSize={size}
-                aspect={aspect}
-                isPublicView={mode === 'public'}
-                isExpanded={isExpanded}
-                isMobile={isMobile}
-              />
-            </div>
-          )
-        }
         const previewThumbnailCandidates = getPreviewThumbnailCandidates(item)
         const previewMeta = sanitizeLinkMeta({ title: item.title, creator: item.artist }, item.url || '')
         return (
