@@ -1082,9 +1082,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     const isEmbedVid = item.type === 'youtube' || item.type === 'vimeo' ||
       item.url?.includes('youtube') || item.url?.includes('youtu.be')
     if (isEmbedVid) return '16 / 9'
-    // Single-track music embeds are compact horizontal objects, not portrait
-    // cards. Collections stay on their natural taller layout.
-    if (item.type === 'spotify') return '3 / 1'
+    // Music defaults to cover-first in the grid. Explicit wide picks become
+    // compact inline players; square picks remain album-art objects.
+    if (item.type === 'spotify') return '1 / 1'
     if (
       item.type === 'apple_music' &&
       (item.url?.includes('/song/') || item.url?.includes('/music-video/') || item.url?.includes('?i='))
@@ -1254,7 +1254,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     const isCompactAppleMusic =
       item.type === 'apple_music' &&
       (item.url?.includes('/song/') || item.url?.includes('/music-video/') || item.url?.includes('?i='))
-    const fitClass = item.type === 'spotify' || isCompactAppleMusic ? ' self-start' : ''
+    const fitClass =
+      (item.type === 'spotify' && resolved === 'wide') ||
+      (isCompactAppleMusic && resolved === 'wide')
+        ? ' self-start'
+        : ''
     const wrapperClass = `relative overflow-hidden rounded-2xl ${gridClass}${fitClass}`
     if (isOwner) {
       return (
