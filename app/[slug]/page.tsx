@@ -136,7 +136,9 @@ export default async function FootprintPage({ params, searchParams }: Props) {
   // Drafts have no public-facing serial — empty string keeps the bottom-left
   // serial flyout inert (PublicPage already gates it on `!isDraft && serial`,
   // both signals point the same way for safety).
-  const serial = isDraft ? '' : footprint.serial_number.toString().padStart(4, '0')
+  const serial = isDraft || footprint.serial_number == null
+    ? ''
+    : footprint.serial_number.toString().padStart(4, '0')
   const theme = getTheme(footprint.dimension || 'midnight')
   const pageUrl = `https://footprint.onl/${params.slug}`
 
