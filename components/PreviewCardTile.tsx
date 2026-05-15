@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { applyNextThumbnailFallback, applyThumbnailLoadGuard } from '@/lib/media/thumbnails'
 
 /**
@@ -32,9 +33,13 @@ export default function PreviewCardTile({
 }: PreviewCardTileProps) {
   const candidates = thumbnailCandidates.length > 0 ? thumbnailCandidates : thumbnailUrl ? [thumbnailUrl] : []
   const thumbSrc = candidates[0] || thumbnailUrl
+  // When every candidate 404s, the <img> would otherwise sit as a broken
+  // element on a transparent tile — reads as an empty rectangle. Flip to
+  // the no-thumbnail glass card so the tile still shows title + provider.
+  const [allCandidatesFailed, setAllCandidatesFailed] = useState(false)
 
   // ── With thumbnail: visual card ──
-  if (thumbSrc) {
+  if (thumbSrc && !allCandidatesFailed) {
     return (
       <a
         href={url}
@@ -57,7 +62,8 @@ export default function PreviewCardTile({
               applyThumbnailLoadGuard(e.currentTarget, candidates)
             }}
             onError={(e) => {
-              applyNextThumbnailFallback(e.currentTarget, candidates)
+              const advanced = applyNextThumbnailFallback(e.currentTarget, candidates)
+              if (!advanced) setAllCandidatesFailed(true)
             }}
           />
         </div>

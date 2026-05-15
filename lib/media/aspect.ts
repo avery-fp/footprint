@@ -29,7 +29,9 @@ export function resolveAspect(
   // Smart defaults (only when stored is null / undefined / 'auto' / unknown)
   if (type === 'tiktok') return 'tall'
   if (url?.includes('/shorts/')) return 'tall'
-  if (type === 'spotify') return 'portrait'
+  // Spotify's compact embed (152px native height, controls in a horizontal
+  // bar) gets cut off in square or tall containers — default to wide.
+  if (type === 'spotify') return 'wide'
   if (type === 'youtube' || type === 'vimeo') return 'wide'
   if (type === 'video') return 'square'
   if (type === 'image' && url?.match(/\.(mp4|mov|webm|m4v)($|\?)/i)) return 'square'
@@ -65,12 +67,21 @@ export function isVideoTile(type: string, url?: string): boolean {
  * a tall tower (col-span-1 row-span-2) when aspect is tall/portrait.
  * Without this, size=1 wide videos render as postage stamps.
  */
-export function getGridClass(size: number, aspect: string | null | undefined, isVideo = false): string {
+export function getGridClass(size: number, aspect: string | null | undefined, isVideo = false, type?: string): string {
   if (isVideo) {
     if (aspect === 'tall' || aspect === 'portrait') {
       return 'col-span-1 row-span-2 aspect-[9/16]'
     }
     return 'col-span-2 row-span-1 aspect-video'
+  }
+
+  // Spotify: compact horizontal bar matching the native 152px-height embed.
+  // 3:1 reads as a music tile, not a video block — smaller default footprint
+  // even at size=1 wide.
+  if (type === 'spotify' && (aspect === 'wide' || aspect === 'landscape')) {
+    if (size >= 3) return 'col-span-2 row-span-1 md:col-span-4 md:row-span-1 aspect-[3/1]'
+    if (size >= 2) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-1 aspect-[3/1]'
+    return 'col-span-2 row-span-1 aspect-[3/1]'
   }
 
   if (aspect === 'wide' || aspect === 'landscape') {
