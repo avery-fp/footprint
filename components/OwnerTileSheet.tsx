@@ -218,8 +218,20 @@ export default function OwnerTileSheet({
         setThumbError(data?.error || 'upload failed')
         return
       }
+      // Await the PATCH so a backend failure (missing column, auth, etc.)
+      // surfaces an error instead of optimistic-then-silent-revert: image
+      // appears locally, reload kills it, user has no idea why.
+      const patchRes = await fetch('/api/tiles', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: tile.id, source, slug, thumbnail_url_override: data.url }),
+      })
+      if (!patchRes.ok) {
+        const patchErr = await patchRes.json().catch(() => null)
+        setThumbError(patchErr?.error || `save failed (${patchRes.status})`)
+        return
+      }
       onTileChange(tile.id, { thumbnail_url_override: data.url })
-      patchTile({ thumbnail_url_override: data.url })
     } catch {
       setThumbError('upload failed')
     } finally {
