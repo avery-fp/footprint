@@ -181,6 +181,7 @@ function NativeMusicBar({ src, title, provider }: { src: string; title: string; 
         title={title}
         className="block h-full w-[calc(100%+16px)] fp-tile"
         style={{ border: 0, borderRadius: 'inherit' }}
+        scrolling="no"
         allow={provider === 'spotify'
           ? 'autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture'
           : 'autoplay *; encrypted-media *; fullscreen *'}
@@ -372,9 +373,6 @@ function MusicFacade({
               'linear-gradient(to top, rgba(0,0,0,0.74) 0%, rgba(0,0,0,0.24) 52%, rgba(0,0,0,0.08) 100%)',
           }}
         />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <PlayIcon />
-        </div>
         <div className="absolute inset-x-0 bottom-0 p-4">
           <MusicMeta title={title} align="center" />
         </div>
