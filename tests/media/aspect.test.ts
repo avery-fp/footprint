@@ -14,7 +14,7 @@ describe('music aspect rules', () => {
   })
 
   it('uses the short music bar geometry for wide music', () => {
-    expect(getGridClass(1, 'wide', false, 'spotify')).toContain('aspect-[9/2]')
-    expect(getGridClass(1, 'wide', false, 'apple_music')).toContain('aspect-[9/2]')
+    expect(getGridClass(1, 'wide', false, 'spotify')).toContain('aspect-[11/2]')
+    expect(getGridClass(1, 'wide', false, 'apple_music')).toContain('aspect-[11/2]')
   })
 })

@@ -84,9 +84,14 @@ export function getGridClass(size: number, aspect: string | null | undefined, is
 
   // Music: compact horizontal bar when the user explicitly picks wide.
   if ((type === 'spotify' || type === 'apple_music') && (aspect === 'wide' || aspect === 'landscape')) {
-    if (size >= 3) return 'col-span-2 row-span-1 md:col-span-4 md:row-span-1 aspect-[9/2]'
-    if (size >= 2) return 'col-span-2 row-span-1 md:col-span-3 md:row-span-1 aspect-[9/2]'
-    return 'col-span-2 row-span-1 aspect-[9/2]'
+    // Music bars are intentionally one compact shape. Letting footprint
+    // size widen them also makes native embeds grow vertically, which turns
+    // a lean player into a large framed block.
+    return 'col-span-2 row-span-1 aspect-[11/2]'
+  }
+
+  if ((type === 'spotify' || type === 'apple_music') && aspect === 'square') {
+    return 'col-span-1 row-span-1 aspect-square'
   }
 
   if (aspect === 'wide' || aspect === 'landscape') {

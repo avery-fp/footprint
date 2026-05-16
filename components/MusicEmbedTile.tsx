@@ -91,6 +91,19 @@ function getAppleMusicTrackId(url: string): string | null {
   }
 }
 
+function supportsCompactAppleMusicBar(url: string): boolean {
+  try {
+    const parsed = new URL(url)
+    const match = parsed.pathname.match(/\/(album|playlist|song|station|music-video)\//i)
+    const contentType = match?.[1]?.toLowerCase()
+    if (!contentType) return false
+    if (contentType === 'song' || contentType === 'music-video') return true
+    return contentType === 'album' && parsed.searchParams.has('i')
+  } catch {
+    return false
+  }
+}
+
 export default function MusicEmbedTile({
   url,
   provider,
@@ -123,7 +136,28 @@ export default function MusicEmbedTile({
     if (provider === 'spotify') {
       return <NativeMusicBar src={embed.embedUrl} title={title} provider={provider} />
     }
-    return <NativeMusicBar src={embed.embedUrl} title={title} provider={provider} />
+    if (provider === 'apple_music' && supportsCompactAppleMusicBar(url)) {
+      return <NativeMusicBar src={embed.embedUrl} title={title} provider={provider} />
+    }
+    return (
+      <MusicSurface
+        url={url}
+        provider={provider}
+        isPlaying={isPlaying}
+        onPlayingChange={setIsPlaying}
+        tileId={tileIdRef.current}
+      >
+        <MusicFacade
+          provider={provider}
+          title={title}
+          artist={artist}
+          image={showArtwork ? image : null}
+          displayMode="player"
+          isPlaying={isPlaying}
+          onImageError={() => setImgFailed(true)}
+        />
+      </MusicSurface>
+    )
   }
 
   return (
@@ -181,6 +215,7 @@ function MusicSurface({
   const spotifyHostRef = useRef<HTMLDivElement>(null)
   const spotifyControllerRef = useRef<SpotifyController | null>(null)
   const appleAudioRef = useRef<HTMLAudioElement | null>(null)
+  const pendingPlayRef = useRef(false)
   const setPlaybackState = useCallback((next: boolean) => {
     onPlayingChange(next)
     if (!next) audioManager.mute(tileId)
@@ -207,11 +242,16 @@ function MusicSurface({
           controller.addListener('playback_update', (event) => {
             if (typeof event?.data?.isPaused === 'boolean') setPlaybackState(!event.data.isPaused)
           })
+          if (pendingPlayRef.current) {
+            pendingPlayRef.current = false
+            controller.play()
+          }
         }
       )
     }).catch(() => {})
     return () => {
       active = false
+      pendingPlayRef.current = false
       spotifyControllerRef.current?.destroy()
       spotifyControllerRef.current = null
     }
@@ -232,10 +272,15 @@ function MusicSurface({
         audio.addEventListener('pause', () => setPlaybackState(false))
         audio.addEventListener('ended', () => setPlaybackState(false))
         appleAudioRef.current = audio
+        if (pendingPlayRef.current) {
+          pendingPlayRef.current = false
+          void audio.play().catch(() => setPlaybackState(false))
+        }
       })
       .catch(() => {})
     return () => {
       active = false
+      pendingPlayRef.current = false
       appleAudioRef.current?.pause()
       appleAudioRef.current = null
     }
@@ -253,11 +298,19 @@ function MusicSurface({
       onPlayingChange(true)
     }
     if (provider === 'spotify') {
-      spotifyControllerRef.current?.togglePlay()
+      const controller = spotifyControllerRef.current
+      if (!controller) {
+        pendingPlayRef.current = true
+        return
+      }
+      controller.togglePlay()
       return
     }
     const audio = appleAudioRef.current
-    if (!audio) return
+    if (!audio) {
+      pendingPlayRef.current = true
+      return
+    }
     if (audio.paused) {
       void audio.play().catch(() => setPlaybackState(false))
     } else {
