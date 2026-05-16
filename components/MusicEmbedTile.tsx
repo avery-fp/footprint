@@ -120,6 +120,9 @@ export default function MusicEmbedTile({
   }
 
   if (displayMode === 'player') {
+    if (provider === 'spotify') {
+      return <NativeSpotifyBar src={embed.embedUrl} title={title} />
+    }
     return (
       <MusicSurface
         url={url}
@@ -159,6 +162,21 @@ export default function MusicEmbedTile({
         onImageError={() => setImgFailed(true)}
       />
     </MusicSurface>
+  )
+}
+
+function NativeSpotifyBar({ src, title }: { src: string; title: string }) {
+  return (
+    <div className="h-full w-full overflow-hidden fp-tile" style={MUSIC_SHELL_STYLE}>
+      <iframe
+        src={src}
+        title={title}
+        className="h-full w-full"
+        style={{ border: 0, borderRadius: 'inherit' }}
+        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+        loading="lazy"
+      />
+    </div>
   )
 }
 
