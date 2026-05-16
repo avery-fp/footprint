@@ -121,27 +121,9 @@ export default function MusicEmbedTile({
 
   if (displayMode === 'player') {
     if (provider === 'spotify') {
-      return <NativeSpotifyBar src={embed.embedUrl} title={title} />
+      return <NativeMusicBar src={embed.embedUrl} title={title} provider={provider} />
     }
-    return (
-      <MusicSurface
-        url={url}
-        provider={provider}
-        isPlaying={isPlaying}
-        onPlayingChange={setIsPlaying}
-        tileId={tileIdRef.current}
-      >
-        <MusicFacade
-          provider={provider}
-          title={title}
-          artist={artist}
-          image={image}
-          displayMode="player"
-          isPlaying={isPlaying}
-          onImageError={() => setImgFailed(true)}
-        />
-      </MusicSurface>
-    )
+    return <NativeMusicBar src={embed.embedUrl} title={title} provider={provider} />
   }
 
   return (
@@ -165,18 +147,19 @@ export default function MusicEmbedTile({
   )
 }
 
-function NativeSpotifyBar({ src, title }: { src: string; title: string }) {
+function NativeMusicBar({ src, title, provider }: { src: string; title: string; provider: MusicProvider }) {
   return (
-    <div className="h-full w-full overflow-hidden fp-tile" style={MUSIC_SHELL_STYLE}>
-      <iframe
-        src={src}
-        title={title}
-        className="h-full w-full"
-        style={{ border: 0, borderRadius: 'inherit' }}
-        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-        loading="lazy"
-      />
-    </div>
+    <iframe
+      src={src}
+      title={title}
+      className="block h-full w-full fp-tile"
+      style={{ border: 0, borderRadius: 'inherit' }}
+      allow={provider === 'spotify'
+        ? 'autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture'
+        : 'autoplay *; encrypted-media *; fullscreen *'}
+      sandbox={provider === 'apple_music' ? 'allow-forms allow-scripts allow-same-origin allow-popups' : undefined}
+      loading="lazy"
+    />
   )
 }
 
@@ -266,6 +249,9 @@ function MusicSurface({
 
   const handleToggle = useCallback(() => {
     audioManager.play(tileId)
+    if (!isPlaying) {
+      onPlayingChange(true)
+    }
     if (provider === 'spotify') {
       spotifyControllerRef.current?.togglePlay()
       return
@@ -277,7 +263,7 @@ function MusicSurface({
     } else {
       audio.pause()
     }
-  }, [provider, setPlaybackState, tileId])
+  }, [isPlaying, onPlayingChange, provider, setPlaybackState, tileId])
 
   return (
     <div className="relative h-full w-full" onClick={handleToggle}>
