@@ -198,6 +198,8 @@ export default function OwnerTileSheet({
   const EMBED_TYPES = ['youtube', 'spotify', 'vimeo', 'soundcloud', 'tiktok', 'instagram', 'twitter', 'bandcamp']
   const showTitleRow = isLinkTile && !EMBED_TYPES.includes(tile.type)
   const [titleDraft, setTitleDraft] = useState(tile.title || '')
+  const [thoughtDraft, setThoughtDraft] = useState(tile.title || '')
+  const thoughtSavedRef = useRef(tile.title || '')
   const [thumbUploading, setThumbUploading] = useState(false)
   const [thumbError, setThumbError] = useState<string | null>(null)
   const thumbInputRef = useRef<HTMLInputElement>(null)
@@ -208,6 +210,19 @@ export default function OwnerTileSheet({
     if (trimmed === current) return
     onTileChange(tile.id, { title: trimmed || null })
     patchTile({ title: trimmed })
+  }
+
+  useEffect(() => {
+    setThoughtDraft(tile.title || '')
+    thoughtSavedRef.current = tile.title || ''
+  }, [tile.id, tile.title])
+
+  function handleThoughtBlur() {
+    const next = thoughtDraft.trim()
+    if (next === (thoughtSavedRef.current || '')) return
+    thoughtSavedRef.current = next
+    onTileChange(tile.id, { title: next || null })
+    patchTile({ title: next })
   }
 
   async function handleThumbnailPick(file: File) {
@@ -311,6 +326,7 @@ export default function OwnerTileSheet({
   // caption column — surfacing the controls there would be a dead
   // control that PATCH /api/tiles now rejects with a 400.
   const showNoteRow = source === 'library'
+  const showThoughtRow = tile.type === 'thought'
 
   // Whether to surface the "use as wallpaper" row. Hidden when the tile
   // has no usable visual media (text-only thoughts, links without a
@@ -539,10 +555,44 @@ export default function OwnerTileSheet({
           </div>
         )}
 
+        {showThoughtRow && (
+          <div
+            style={{
+              ...rowStyle,
+              borderTop: canSetWallpaper || showNoteRow ? '1px solid rgba(255,255,255,0.06)' : undefined,
+              flexDirection: 'column',
+              alignItems: 'stretch',
+              gap: 10,
+            }}
+          >
+            <span style={rowLabel}>text</span>
+            <textarea
+              autoFocus
+              value={thoughtDraft}
+              onChange={(e) => setThoughtDraft(e.target.value)}
+              onBlur={handleThoughtBlur}
+              placeholder="write something..."
+              rows={4}
+              style={{
+                width: '100%',
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.10)',
+                borderRadius: 12,
+                padding: '12px 14px',
+                color: 'rgba(255,255,255,0.92)',
+                fontSize: 15,
+                lineHeight: 1.5,
+                outline: 'none',
+                resize: 'none',
+              }}
+            />
+          </div>
+        )}
+
         {/* Row 1 — shape. For video tiles 'square' is hidden — it
             collapses to wide in the grid engine, so showing it as a
             distinct pill would be a dead control. */}
-        <div style={(canSetWallpaper || showNoteRow) ? { ...rowStyle, borderTop: '1px solid rgba(255,255,255,0.06)' } : rowStyle}>
+        <div style={(canSetWallpaper || showNoteRow || showThoughtRow) ? { ...rowStyle, borderTop: '1px solid rgba(255,255,255,0.06)' } : rowStyle}>
           <span style={rowLabel}>shape</span>
           <div className="flex gap-2">
             {VISIBLE_SHAPES.map((s) => (
