@@ -127,27 +127,23 @@ export default function MusicEmbedTile({
   }
 
   return (
-    isPlaying ? (
-      <NativeMusicBar src={embed.embedUrl} title={title} provider={provider} />
-    ) : (
-      <MusicSurface
-        url={url}
+    <MusicSurface
+      url={url}
+      provider={provider}
+      isPlaying={isPlaying}
+      onPlayingChange={setIsPlaying}
+      tileId={tileIdRef.current}
+    >
+      <MusicFacade
         provider={provider}
+        title={title}
+        artist={artist}
+        image={showArtwork ? image : null}
+        displayMode="cover"
         isPlaying={isPlaying}
-        onPlayingChange={setIsPlaying}
-        tileId={tileIdRef.current}
-      >
-        <MusicFacade
-          provider={provider}
-          title={title}
-          artist={artist}
-          image={showArtwork ? image : null}
-          displayMode="cover"
-          isPlaying={isPlaying}
-          onImageError={() => setImgFailed(true)}
-        />
-      </MusicSurface>
-    )
+        onImageError={() => setImgFailed(true)}
+      />
+    </MusicSurface>
   )
 }
 

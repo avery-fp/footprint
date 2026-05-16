@@ -239,8 +239,16 @@ export default function GhostTile({
       >
         {/* Facade — tweet text preview + play affordance */}
         <div
-          className="absolute inset-0 flex flex-col items-stretch justify-center p-5 cursor-pointer bg-black"
-          style={{ opacity: isPlaying ? 0 : 1, pointerEvents: isPlaying ? 'none' : 'auto', transition: 'opacity 0.4s ease', zIndex: 2 }}
+          className="absolute inset-0 flex flex-col items-stretch justify-center p-5 cursor-pointer"
+          style={{
+            opacity: isPlaying ? 0 : 1,
+            pointerEvents: isPlaying ? 'none' : 'auto',
+            transition: 'opacity 0.4s ease',
+            zIndex: 2,
+            background: 'rgba(255,255,255,0.06)',
+            backdropFilter: 'blur(22px) saturate(140%)',
+            WebkitBackdropFilter: 'blur(22px) saturate(140%)',
+          }}
           onClick={handlePlay}
         >
           {title ? (
@@ -352,7 +360,8 @@ export default function GhostTile({
           transition: 'opacity 0.4s ease',
           zIndex: 2,
         }}
-        onClick={handlePlay}
+        onPointerDown={platform === 'youtube' ? handlePlay : undefined}
+        onClick={platform === 'youtube' ? undefined : handlePlay}
       />
 
       {/* Fallback: if iframe fails or times out, show a graceful link-out */}
