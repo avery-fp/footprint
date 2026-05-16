@@ -123,7 +123,25 @@ export default function MusicEmbedTile({
     if (provider === 'spotify') {
       return <NativeMusicBar src={embed.embedUrl} title={title} provider={provider} />
     }
-    return <NativeMusicBar src={embed.embedUrl} title={title} provider={provider} />
+    return (
+      <MusicSurface
+        url={url}
+        provider={provider}
+        isPlaying={isPlaying}
+        onPlayingChange={setIsPlaying}
+        tileId={tileIdRef.current}
+      >
+        <MusicFacade
+          provider={provider}
+          title={title}
+          artist={artist}
+          image={showArtwork ? image : null}
+          displayMode="player"
+          isPlaying={isPlaying}
+          onImageError={() => setImgFailed(true)}
+        />
+      </MusicSurface>
+    )
   }
 
   return (
