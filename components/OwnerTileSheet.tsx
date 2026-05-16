@@ -162,15 +162,20 @@ export default function OwnerTileSheet({
   //    doctrine. The grid engine is unchanged; this is render-time gating
   //    of the editor surface only.
   const isVideo = isVideoTile(tile.type, tile.url || undefined)
-  const VISIBLE_SHAPES = isVideo
+  const isMusic = tile.type === 'spotify' || tile.type === 'apple_music'
+  const VISIBLE_SHAPES = isMusic
+    ? SHAPES.filter((s) => s.key !== 'tall')
+    : isVideo
     ? SHAPES.filter((s) => s.key !== 'square')
     : SHAPES
   // Legacy rows may carry aspect='square' on video tiles (predates the
   // hide). For those, light the 'wide' pill so the highlighted state
   // matches what the user actually sees in the grid.
-  const highlightedShape = isVideo && resolvedShape === 'square'
+  const highlightedShape = isMusic && resolvedShape === 'tall'
     ? 'wide'
-    : resolvedShape
+    : isVideo && resolvedShape === 'square'
+      ? 'wide'
+      : resolvedShape
 
   function patchTile(body: Record<string, unknown>) {
     fetch('/api/tiles', {

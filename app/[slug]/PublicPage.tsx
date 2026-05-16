@@ -1073,6 +1073,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // tileAspectRatio. SAspectShell still refines image tiles at runtime
   // when their natural dimensions arrive — see renderImageWrapped below.
   const tileAspectCss = (item: any): string => {
+    const isMusic = item.type === 'spotify' || item.type === 'apple_music'
+    if (isMusic) {
+      return item.aspect === 'square' ? '1 / 1' : '9 / 2'
+    }
+
     // Explicit user shape always wins. The previous provider-first
     // ordering made old embed/video tiles ignore shape changes in the
     // editor because YouTube/Vimeo/SoundCloud forced 16:9 forever.
@@ -1082,9 +1087,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     const isEmbedVid = item.type === 'youtube' || item.type === 'vimeo' ||
       item.url?.includes('youtube') || item.url?.includes('youtu.be')
     if (isEmbedVid) return '16 / 9'
-    // Music defaults to cover-first in the grid. Explicit wide picks become
-    // compact inline players; square picks remain album-art objects.
-    if (item.type === 'spotify' || item.type === 'apple_music') return '1 / 1'
     if (item.type === 'soundcloud') return '16 / 9'
     const resolved = resolveAspect(item.aspect, item.type, item.url)
     return tileAspectRatio(resolved)
