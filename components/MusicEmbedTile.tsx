@@ -127,23 +127,27 @@ export default function MusicEmbedTile({
   }
 
   return (
-    <MusicSurface
-      url={url}
-      provider={provider}
-      isPlaying={isPlaying}
-      onPlayingChange={setIsPlaying}
-      tileId={tileIdRef.current}
-    >
-      <MusicFacade
+    isPlaying ? (
+      <NativeMusicBar src={embed.embedUrl} title={title} provider={provider} />
+    ) : (
+      <MusicSurface
+        url={url}
         provider={provider}
-        title={title}
-        artist={artist}
-        image={showArtwork ? image : null}
-        displayMode="cover"
         isPlaying={isPlaying}
-        onImageError={() => setImgFailed(true)}
-      />
-    </MusicSurface>
+        onPlayingChange={setIsPlaying}
+        tileId={tileIdRef.current}
+      >
+        <MusicFacade
+          provider={provider}
+          title={title}
+          artist={artist}
+          image={showArtwork ? image : null}
+          displayMode="cover"
+          isPlaying={isPlaying}
+          onImageError={() => setImgFailed(true)}
+        />
+      </MusicSurface>
+    )
   )
 }
 
@@ -249,6 +253,9 @@ function MusicSurface({
 
   const handleToggle = useCallback(() => {
     audioManager.play(tileId)
+    if (!isPlaying) {
+      onPlayingChange(true)
+    }
     if (provider === 'spotify') {
       spotifyControllerRef.current?.togglePlay()
       return
@@ -260,7 +267,7 @@ function MusicSurface({
     } else {
       audio.pause()
     }
-  }, [provider, setPlaybackState, tileId])
+  }, [isPlaying, onPlayingChange, provider, setPlaybackState, tileId])
 
   return (
     <div className="relative h-full w-full" onClick={handleToggle}>
