@@ -1449,26 +1449,34 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           aria-label={editorMode ? 'done editing' : 'edit page'}
           aria-pressed={editorMode}
           onClick={() => setEditorMode((v) => !v)}
-          className="fixed z-30 touch-manipulation font-mono"
+          className="fixed z-30 flex items-center justify-center touch-manipulation"
           style={{
             top: 'calc(env(safe-area-inset-top, 0px) + 16px)',
             right: '16px',
-            background: 'rgba(0,0,0,0.62)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255,255,255,0.10)',
+            width: 36,
+            height: 36,
+            background: 'rgba(0,0,0,0.34)',
+            backdropFilter: 'blur(16px) saturate(140%)',
+            WebkitBackdropFilter: 'blur(16px) saturate(140%)',
+            border: '1px solid rgba(255,255,255,0.14)',
             color: 'rgba(255,255,255,0.92)',
             borderRadius: 999,
-            padding: '8px 16px',
-            fontSize: 12,
-            letterSpacing: '0.06em',
-            textTransform: 'lowercase',
             cursor: 'pointer',
             userSelect: 'none',
             WebkitUserSelect: 'none',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10)',
           }}
         >
-          {editorMode ? 'done' : 'edit'}
+          {editorMode ? (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M20 6 9 17l-5-5" />
+            </svg>
+          ) : (
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+            </svg>
+          )}
         </button>
       )}
 
