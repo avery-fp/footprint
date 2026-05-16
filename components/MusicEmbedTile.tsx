@@ -91,6 +91,19 @@ function getAppleMusicTrackId(url: string): string | null {
   }
 }
 
+function supportsCompactAppleMusicBar(url: string): boolean {
+  try {
+    const parsed = new URL(url)
+    const match = parsed.pathname.match(/\/(album|playlist|song|station|music-video)\//i)
+    const contentType = match?.[1]?.toLowerCase()
+    if (!contentType) return false
+    if (contentType === 'song' || contentType === 'music-video') return true
+    return contentType === 'album' && parsed.searchParams.has('i')
+  } catch {
+    return false
+  }
+}
+
 export default function MusicEmbedTile({
   url,
   provider,
@@ -121,6 +134,9 @@ export default function MusicEmbedTile({
 
   if (displayMode === 'player') {
     if (provider === 'spotify') {
+      return <NativeMusicBar src={embed.embedUrl} title={title} provider={provider} />
+    }
+    if (provider === 'apple_music' && supportsCompactAppleMusicBar(url)) {
       return <NativeMusicBar src={embed.embedUrl} title={title} provider={provider} />
     }
     return (
