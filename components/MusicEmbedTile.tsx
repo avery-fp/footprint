@@ -161,39 +161,33 @@ export default function MusicEmbedTile({
   }
 
   return (
-    <MusicSurface
-      url={url}
+    <MusicFacade
       provider={provider}
-      isPlaying={isPlaying}
-      onPlayingChange={setIsPlaying}
-      tileId={tileIdRef.current}
-    >
-      <MusicFacade
-        provider={provider}
-        title={title}
-        artist={artist}
-        image={showArtwork ? image : null}
-        displayMode="cover"
-        isPlaying={isPlaying}
-        onImageError={() => setImgFailed(true)}
-      />
-    </MusicSurface>
+      title={title}
+      artist={artist}
+      image={showArtwork ? image : null}
+      displayMode="cover"
+      href={url}
+      onImageError={() => setImgFailed(true)}
+    />
   )
 }
 
 function NativeMusicBar({ src, title, provider }: { src: string; title: string; provider: MusicProvider }) {
   return (
-    <iframe
-      src={src}
-      title={title}
-      className="block h-full w-full fp-tile"
-      style={{ border: 0, borderRadius: 'inherit' }}
-      allow={provider === 'spotify'
-        ? 'autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture'
-        : 'autoplay *; encrypted-media *; fullscreen *'}
-      sandbox={provider === 'apple_music' ? 'allow-forms allow-scripts allow-same-origin allow-popups' : undefined}
-      loading="lazy"
-    />
+    <div className="h-full w-full overflow-hidden fp-tile" style={{ borderRadius: 'inherit' }}>
+      <iframe
+        src={src}
+        title={title}
+        className="block h-full w-[calc(100%+16px)] fp-tile"
+        style={{ border: 0, borderRadius: 'inherit' }}
+        allow={provider === 'spotify'
+          ? 'autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture'
+          : 'autoplay *; encrypted-media *; fullscreen *'}
+        sandbox={provider === 'apple_music' ? 'allow-forms allow-scripts allow-same-origin allow-popups' : undefined}
+        loading="lazy"
+      />
+    </div>
   )
 }
 
@@ -340,6 +334,7 @@ function MusicFacade({
   image,
   displayMode,
   isPlaying,
+  href,
   onImageError,
 }: {
   provider: MusicProvider
@@ -348,6 +343,7 @@ function MusicFacade({
   image?: string | null
   displayMode: MusicDisplayMode
   isPlaying?: boolean
+  href?: string
   onImageError?: () => void
 }) {
   const providerLabel = provider === 'spotify' ? 'Spotify' : 'Apple Music'
@@ -355,11 +351,13 @@ function MusicFacade({
 
   if (displayMode === 'cover') {
     return (
-      <button
-        type="button"
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
         className="group relative block h-full w-full overflow-hidden fp-tile text-left"
         style={{ borderRadius: 'inherit', background: 'rgba(255,255,255,0.06)' }}
-        aria-label={`${isPlaying ? 'Pause' : 'Play'} ${title}`}
+        aria-label={`Open ${title}`}
       >
         {showArtwork ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -374,13 +372,13 @@ function MusicFacade({
               'linear-gradient(to top, rgba(0,0,0,0.74) 0%, rgba(0,0,0,0.24) 52%, rgba(0,0,0,0.08) 100%)',
           }}
         />
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
-        <PlayIcon playing={isPlaying} />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <PlayIcon />
         </div>
         <div className="absolute inset-x-0 bottom-0 p-4">
-          <MusicMeta title={title} artist={artist} align="center" />
+          <MusicMeta title={title} align="center" />
         </div>
-      </button>
+      </a>
     )
   }
 
