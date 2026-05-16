@@ -181,6 +181,7 @@ function MusicSurface({
   const spotifyHostRef = useRef<HTMLDivElement>(null)
   const spotifyControllerRef = useRef<SpotifyController | null>(null)
   const appleAudioRef = useRef<HTMLAudioElement | null>(null)
+  const pendingPlayRef = useRef(false)
   const setPlaybackState = useCallback((next: boolean) => {
     onPlayingChange(next)
     if (!next) audioManager.mute(tileId)
@@ -207,11 +208,16 @@ function MusicSurface({
           controller.addListener('playback_update', (event) => {
             if (typeof event?.data?.isPaused === 'boolean') setPlaybackState(!event.data.isPaused)
           })
+          if (pendingPlayRef.current) {
+            pendingPlayRef.current = false
+            controller.play()
+          }
         }
       )
     }).catch(() => {})
     return () => {
       active = false
+      pendingPlayRef.current = false
       spotifyControllerRef.current?.destroy()
       spotifyControllerRef.current = null
     }
@@ -232,10 +238,15 @@ function MusicSurface({
         audio.addEventListener('pause', () => setPlaybackState(false))
         audio.addEventListener('ended', () => setPlaybackState(false))
         appleAudioRef.current = audio
+        if (pendingPlayRef.current) {
+          pendingPlayRef.current = false
+          void audio.play().catch(() => setPlaybackState(false))
+        }
       })
       .catch(() => {})
     return () => {
       active = false
+      pendingPlayRef.current = false
       appleAudioRef.current?.pause()
       appleAudioRef.current = null
     }
@@ -253,11 +264,19 @@ function MusicSurface({
       onPlayingChange(true)
     }
     if (provider === 'spotify') {
-      spotifyControllerRef.current?.togglePlay()
+      const controller = spotifyControllerRef.current
+      if (!controller) {
+        pendingPlayRef.current = true
+        return
+      }
+      controller.togglePlay()
       return
     }
     const audio = appleAudioRef.current
-    if (!audio) return
+    if (!audio) {
+      pendingPlayRef.current = true
+      return
+    }
     if (audio.paused) {
       void audio.play().catch(() => setPlaybackState(false))
     } else {
