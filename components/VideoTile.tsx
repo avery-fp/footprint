@@ -200,7 +200,7 @@ export default function VideoTile({ src, playbackUrl, posterUrl, status, onWides
 
   const { theatre } = MOTION
 
-  // ── Processing state — poster frame + shimmer ──
+  // ── Processing state — still poster + quiet glass veil ──
   if (status === 'processing' || status === 'uploading') {
     return (
       <div
@@ -212,16 +212,16 @@ export default function VideoTile({ src, playbackUrl, posterUrl, status, onWides
         ) : (
           <div className="w-full h-full" style={{ background: 'rgba(0,0,0,0.3)' }} />
         )}
-        {/* Shimmer overlay */}
+        {/* Keep uploads calm while the final video pipeline settles. */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
-            background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%)',
-            backgroundSize: '200% 100%',
-            animation: 'shimmer 2s ease-in-out infinite',
+            background: 'rgba(255,255,255,0.08)',
+            backdropFilter: 'blur(18px) saturate(135%)',
+            WebkitBackdropFilter: 'blur(18px) saturate(135%)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.14)',
           }}
         />
-        <style>{`@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }`}</style>
       </div>
     )
   }
