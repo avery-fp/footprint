@@ -2137,6 +2137,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           onTileAdded={handleTileAdded}
           onTileReplaced={handleTileReplaced}
           onTileProgress={handleTileProgress}
+          onTileRemoved={handleTileDelete}
         />
       )}
 

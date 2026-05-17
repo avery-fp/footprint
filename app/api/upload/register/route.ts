@@ -9,6 +9,7 @@ import { headWithRetry } from '@/lib/upload-verify'
 // aborted uploads). Real video files are megabytes; tiny ones produce ghost
 // tiles — DB rows pointing at unplayable bytes.
 const MIN_VIDEO_BYTES = 10_000
+const MAX_VIDEO_BYTES = 50 * 1024 * 1024
 const SUPABASE_STORAGE_MARKER = 'supabase.co/storage/v1/'
 // Embedded newlines/control chars in stored URLs are a known data-corruption
 // pattern that produces broken <img>/<video> srcs downstream.
@@ -73,6 +74,12 @@ export async function POST(request: NextRequest) {
         if (headLength > 0 && headLength < MIN_VIDEO_BYTES) {
           return NextResponse.json(
             { error: `Video too small (${headLength} bytes) — likely corrupt` },
+            { status: 400 }
+          )
+        }
+        if (headLength > MAX_VIDEO_BYTES) {
+          return NextResponse.json(
+            { error: 'Videos must be under 50 MB.' },
             { status: 400 }
           )
         }
