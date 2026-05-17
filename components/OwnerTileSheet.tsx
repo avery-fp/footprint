@@ -28,6 +28,7 @@ type Tile = {
   thumbnail_url_override?: string | null
   caption?: string | null
   caption_hidden?: boolean | null
+  text_style?: 'clean' | 'editorial' | 'mono' | null
 }
 
 type TileSource = 'library' | 'links'
@@ -199,6 +200,7 @@ export default function OwnerTileSheet({
   const showTitleRow = isLinkTile && !EMBED_TYPES.includes(tile.type)
   const [titleDraft, setTitleDraft] = useState(tile.title || '')
   const [thoughtDraft, setThoughtDraft] = useState(tile.title || '')
+  const [thoughtStyle, setThoughtStyle] = useState<'clean' | 'editorial' | 'mono'>(tile.text_style || 'clean')
   const thoughtSavedRef = useRef(tile.title || '')
   const [thumbUploading, setThumbUploading] = useState(false)
   const [thumbError, setThumbError] = useState<string | null>(null)
@@ -214,8 +216,9 @@ export default function OwnerTileSheet({
 
   useEffect(() => {
     setThoughtDraft(tile.title || '')
+    setThoughtStyle(tile.text_style || 'clean')
     thoughtSavedRef.current = tile.title || ''
-  }, [tile.id, tile.title])
+  }, [tile.id, tile.title, tile.text_style])
 
   function handleThoughtBlur() {
     const next = thoughtDraft.trim()
@@ -223,6 +226,12 @@ export default function OwnerTileSheet({
     thoughtSavedRef.current = next
     onTileChange(tile.id, { title: next || null })
     patchTile({ title: next })
+  }
+
+  function setThoughtTypography(next: 'clean' | 'editorial' | 'mono') {
+    setThoughtStyle(next)
+    onTileChange(tile.id, { text_style: next })
+    patchTile({ text_style: next })
   }
 
   async function handleThumbnailPick(file: File) {
@@ -545,13 +554,45 @@ export default function OwnerTileSheet({
                 borderRadius: 12,
                 padding: '10px 12px',
                 color: 'rgba(255,255,255,0.85)',
-                fontFamily: "'DM Mono', 'Courier New', monospace",
-                fontSize: 13,
-                lineHeight: 1.5,
+                fontFamily:
+                  thoughtStyle === 'editorial'
+                    ? "Iowan Old Style, 'Times New Roman', serif"
+                    : thoughtStyle === 'mono'
+                      ? "'DM Mono', ui-monospace, monospace"
+                      : "'DM Sans', system-ui, sans-serif",
+                fontSize: thoughtStyle === 'editorial' ? 16 : thoughtStyle === 'mono' ? 13 : 14,
+                lineHeight: thoughtStyle === 'editorial' ? 1.5 : thoughtStyle === 'mono' ? 1.7 : 1.6,
                 outline: 'none',
                 resize: 'none',
               }}
             />
+            <div style={{ display: 'flex', gap: 6 }}>
+              {(['clean', 'editorial', 'mono'] as const).map((styleKey) => (
+                <button
+                  key={styleKey}
+                  type="button"
+                  onClick={() => setThoughtTypography(styleKey)}
+                  style={{
+                    height: 28,
+                    padding: '0 11px',
+                    borderRadius: 999,
+                    border: '1px solid rgba(255,255,255,0.10)',
+                    background: thoughtStyle === styleKey ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.04)',
+                    color: thoughtStyle === styleKey ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.52)',
+                    fontSize: 11,
+                    fontFamily:
+                      styleKey === 'editorial'
+                        ? "Iowan Old Style, 'Times New Roman', serif"
+                        : styleKey === 'mono'
+                          ? "'DM Mono', ui-monospace, monospace"
+                          : "'DM Sans', system-ui, sans-serif",
+                    cursor: 'pointer',
+                  }}
+                >
+                  {styleKey}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 

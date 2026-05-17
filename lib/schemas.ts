@@ -142,6 +142,7 @@ export const tilesPostSchema = z.object({
   slug: z.string().min(1, 'slug and (url or thought) required'),
   url: z.string().optional(),
   thought: z.string().optional(),
+  text_style: z.enum(['clean', 'editorial', 'mono']).optional(),
   room_id: z.string().nullable().optional(),
 }).refine(d => d.url || d.thought, { message: 'slug and (url or thought) required' })
 
@@ -169,6 +170,7 @@ export const tilesPatchSchema = z.object({
   caption: z.string().optional(),
   caption_hidden: z.boolean().optional(),
   title: z.string().optional(),
+  text_style: z.enum(['clean', 'editorial', 'mono']).optional(),
   // User-supplied thumbnail override for link/payment tiles. Empty string
   // clears the override; null also clears. Persisted only on `links`.
   thumbnail_url_override: z.string().nullable().optional(),

@@ -15,9 +15,31 @@ import { useLayoutEffect, useRef, useState } from 'react'
 interface TextExpandTileProps {
   text: string
   isPublicView?: boolean
+  textStyle?: 'clean' | 'editorial' | 'mono' | null
 }
 
-export default function TextExpandTile({ text, isPublicView = false }: TextExpandTileProps) {
+const TEXT_STYLES = {
+  clean: {
+    fontFamily: "'DM Sans', system-ui, sans-serif",
+    fontWeight: 300,
+    fontSize: 16,
+    lineHeight: 1.6,
+  },
+  editorial: {
+    fontFamily: "Iowan Old Style, 'Times New Roman', serif",
+    fontWeight: 400,
+    fontSize: 18,
+    lineHeight: 1.48,
+  },
+  mono: {
+    fontFamily: "'DM Mono', ui-monospace, monospace",
+    fontWeight: 300,
+    fontSize: 14,
+    lineHeight: 1.7,
+  },
+} as const
+
+export default function TextExpandTile({ text, isPublicView = false, textStyle = 'clean' }: TextExpandTileProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [overflows, setOverflows] = useState(false)
@@ -55,6 +77,7 @@ export default function TextExpandTile({ text, isPublicView = false }: TextExpan
         top: 0,
         zIndex: 30,
         height: 'auto',
+        minHeight: '100%',
         background: 'transparent',
       } as const)
     : ({ position: 'relative', width: '100%', height: '100%' } as const)
@@ -65,6 +88,10 @@ export default function TextExpandTile({ text, isPublicView = false }: TextExpan
         ref={scrollRef}
         className="w-full"
         style={{
+          minHeight: overflows ? undefined : '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           maxHeight: 'min(480px, 70vh)',
           overflowY: 'auto',
           scrollbarWidth: 'none',
@@ -82,10 +109,8 @@ export default function TextExpandTile({ text, isPublicView = false }: TextExpan
         <p
           className={`whitespace-pre-wrap text-center ${isPublicView ? 'text-white' : 'opacity-90'}`}
           style={{
-            fontSize: 16,
-            fontWeight: 300,
-            lineHeight: 1.6,
-            letterSpacing: '-0.01em',
+            ...TEXT_STYLES[textStyle || 'clean'],
+            letterSpacing: '0',
             paddingBottom: overflows ? 16 : 0,
           }}
         >
