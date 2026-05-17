@@ -25,6 +25,7 @@ interface OwnerActionBarProps {
   onTileAdded: (tile: any) => void
   onTileReplaced: (tempId: string, real: any) => void
   onTileProgress: (tempId: string, pct: number) => void
+  onTileRemoved: (id: string) => void
 }
 
 const glassBar: React.CSSProperties = {
@@ -47,6 +48,8 @@ const inputPanel: React.CSSProperties = {
   boxShadow: '0 8px 32px rgba(0,0,0,0.30)',
 }
 
+const MAX_VIDEO_SIZE = 50 * 1024 * 1024
+
 export default function OwnerActionBar({
   open,
   slug,
@@ -55,6 +58,7 @@ export default function OwnerActionBar({
   onTileAdded,
   onTileReplaced,
   onTileProgress,
+  onTileRemoved,
 }: OwnerActionBarProps) {
   const [verb, setVerb] = useState<Verb>('idle')
   const [linkUrl, setLinkUrl] = useState('')
@@ -205,6 +209,10 @@ export default function OwnerActionBar({
   ) {
     if (!serialNumber) return
     const isVideo = isVideoFile(file)
+    if (isVideo && file.size > MAX_VIDEO_SIZE) {
+      window.alert('Videos must be under 50 MB.')
+      return
+    }
     let aspect = 'square'
     try {
       aspect = isVideo ? await detectVideoAspect(file) : await detectImageAspect(file)
@@ -228,6 +236,7 @@ export default function OwnerActionBar({
       aspect,
       _temp: true,
       _progress: 0,
+      ...(isVideo ? { status: 'uploading' } : {}),
     })
     try {
       const publicUrl = await uploadWithProgress(
@@ -253,12 +262,16 @@ export default function OwnerActionBar({
           ...(opts?.caption ? { caption: opts.caption, caption_hidden: false } : {}),
         }),
       })
-      if (res.ok) {
-        const data = await res.json()
-        if (data.tile) onTileReplaced(tempId, data.tile)
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data.tile) {
+        onTileReplaced(tempId, data.tile)
+      } else {
+        throw new Error(data.error || `Upload registration failed (${res.status})`)
       }
     } catch (e) {
       console.error('upload failed', e)
+      onTileRemoved(tempId)
+      window.alert(e instanceof Error ? e.message : 'Upload failed. Please try again.')
     } finally {
       URL.revokeObjectURL(previewUrl)
     }

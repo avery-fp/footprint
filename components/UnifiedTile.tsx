@@ -76,6 +76,7 @@ interface UnifiedTileProps {
     caption?: string | null
     caption_hidden?: boolean | null
     thumbnail_url_override?: string | null
+    _temp?: boolean
   }
   index: number
   size: number
@@ -510,6 +511,21 @@ export default function UnifiedTile({
 
   // ── Video (library-sourced .mp4/.mov files) ──
   if (canonicalType === 'video' && item.url) {
+    if (item._temp) {
+      return (
+        <div
+          className="h-full w-full fp-tile"
+          data-tile-id={item.id}
+          data-tile-type="video-uploading"
+          style={{
+            background: 'rgba(255,255,255,0.08)',
+            backdropFilter: 'blur(18px) saturate(135%)',
+            WebkitBackdropFilter: 'blur(18px) saturate(135%)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.14)',
+          }}
+        />
+      )
+    }
     return <VideoTile url={item.url} id={item.id} />
   }
 
