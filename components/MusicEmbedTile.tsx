@@ -179,11 +179,10 @@ function NativeMusicBar({ src, title, provider }: { src: string; title: string; 
       <iframe
         src={src}
         title={title}
-        className="block h-full fp-tile"
+        className="block h-full w-full fp-tile"
         style={{
           border: 0,
           borderRadius: 'inherit',
-          width: provider === 'spotify' ? 'calc(100% + 20px)' : '100%',
         }}
         scrolling="no"
         allow={provider === 'spotify'
@@ -195,7 +194,7 @@ function NativeMusicBar({ src, title, provider }: { src: string; title: string; 
       {provider === 'spotify' && (
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute inset-y-0 right-0 w-5"
+          className="pointer-events-none absolute inset-y-0 right-0 w-px"
           style={{ background: '#202020' }}
         />
       )}
