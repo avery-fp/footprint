@@ -77,6 +77,7 @@ interface UnifiedTileProps {
     caption_hidden?: boolean | null
     thumbnail_url_override?: string | null
     _temp?: boolean
+    text_style?: 'clean' | 'editorial' | 'mono' | null
   }
   index: number
   size: number
@@ -318,7 +319,7 @@ export default function UnifiedTile({
         data-tile-id={item.id}
         data-tile-type="thought"
       >
-        <TextExpandTile text={item.title || ''} isPublicView={mode === 'public'} />
+        <TextExpandTile text={item.title || ''} isPublicView={mode === 'public'} textStyle={item.text_style} />
       </div>
     )
   }

@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const v = validateBody(tilesPostSchema, body)
     if (!v.success) return v.response
-    const { slug, url, thought, room_id } = v.data
+    const { slug, url, thought, room_id, text_style } = v.data
 
     const supabase = createServerSupabaseClient()
 
@@ -327,6 +327,7 @@ export async function POST(request: NextRequest) {
             embed_html: parsed.embed_html,
             kind: identityKind,
             provider: identityProvider,
+            ...(thought ? { text_style: text_style || 'clean' } : {}),
             ...((parsed as any)._clipMeta || {}),
           },
           thumbnail: parsed.thumbnail_url,
@@ -410,6 +411,7 @@ export async function POST(request: NextRequest) {
       artist: tile.artist || null,
       thumbnail_url_hq: tile.thumbnail_url_hq || null,
       media_id: tile.media_id || null,
+      text_style: tile.metadata?.text_style || null,
     }
 
     try { revalidatePath(`/${slug}`) } catch (e) { log.warn({ err: e, slug }, 'revalidatePath failed (non-fatal)') }
@@ -553,7 +555,7 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json()
     const v = validateBody(tilesPatchSchema, body)
     if (!v.success) return v.response
-    const { id, source, slug, size, caption, caption_hidden, title, thumbnail_url_override, room_id, aspect, parent_tile_id } = v.data
+    const { id, source, slug, size, caption, caption_hidden, title, text_style, thumbnail_url_override, room_id, aspect, parent_tile_id } = v.data
 
     // Caption fields are library-only (the `links` table has no caption or
     // caption_hidden column). Silently dropping would be a dead-control bug —
@@ -578,6 +580,18 @@ export async function PATCH(request: NextRequest) {
     if (caption !== undefined) updates.caption = caption || null
     if (caption_hidden !== undefined) updates.caption_hidden = caption_hidden
     if (title !== undefined) updates.title = title
+    if (text_style !== undefined) {
+      if (source !== 'links') {
+        return NextResponse.json({ error: 'text style is only supported for link/thought tiles' }, { status: 400 })
+      }
+      const { data: current } = await supabase
+        .from('links')
+        .select('metadata')
+        .eq('id', id)
+        .eq('serial_number', serialNumber)
+        .single()
+      updates.metadata = { ...(current?.metadata || {}), text_style }
+    }
     if (room_id !== undefined) updates.room_id = room_id || null
     if (parent_tile_id !== undefined) updates.parent_tile_id = parent_tile_id || null
     // thumbnail_url_override lives only on `links`; library tiles ignore it.

@@ -63,6 +63,7 @@ export default function OwnerActionBar({
   const [verb, setVerb] = useState<Verb>('idle')
   const [linkUrl, setLinkUrl] = useState('')
   const [thoughtText, setThoughtText] = useState('')
+  const [thoughtStyle, setThoughtStyle] = useState<'clean' | 'editorial' | 'mono'>('clean')
   const [containerLabel, setContainerLabel] = useState('')
   const [busy, setBusy] = useState(false)
   // Optional image attached to a thought. When present, submitThought
@@ -160,11 +161,12 @@ export default function OwnerActionBar({
       const res = await fetch('/api/tiles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug, thought: text, room_id: activeRoomId }),
+        body: JSON.stringify({ slug, thought: text, text_style: thoughtStyle, room_id: activeRoomId }),
       })
       const data = await res.json()
       if (data.tile) onTileAdded(data.tile)
       setThoughtText('')
+      setThoughtStyle('clean')
       setVerb('idle')
     } catch (e) {
       console.error('add thought failed', e)
@@ -407,9 +409,42 @@ export default function OwnerActionBar({
                   }
                 }}
                 rows={6}
-                style={{ minHeight: 160, resize: 'none' }}
-                className="w-full bg-transparent text-white/[0.78] placeholder:text-white/[0.35] outline-none text-sm font-mono"
+                style={{
+                  minHeight: 160,
+                  resize: 'none',
+                  fontFamily:
+                    thoughtStyle === 'editorial'
+                      ? "Iowan Old Style, 'Times New Roman', serif"
+                      : thoughtStyle === 'mono'
+                        ? "'DM Mono', ui-monospace, monospace"
+                        : "'DM Sans', system-ui, sans-serif",
+                  fontSize: thoughtStyle === 'editorial' ? 17 : thoughtStyle === 'mono' ? 14 : 15,
+                  lineHeight: thoughtStyle === 'editorial' ? 1.5 : thoughtStyle === 'mono' ? 1.7 : 1.6,
+                }}
+                className="w-full bg-transparent text-white/[0.82] placeholder:text-white/[0.35] outline-none"
               />
+              <div className="flex items-center gap-1">
+                {(['clean', 'editorial', 'mono'] as const).map((styleKey) => (
+                  <button
+                    key={styleKey}
+                    type="button"
+                    onClick={() => setThoughtStyle(styleKey)}
+                    className="h-7 px-2.5 rounded-full text-[11px] transition-colors"
+                    style={{
+                      color: thoughtStyle === styleKey ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.48)',
+                      background: thoughtStyle === styleKey ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)',
+                      fontFamily:
+                        styleKey === 'editorial'
+                          ? "Iowan Old Style, 'Times New Roman', serif"
+                          : styleKey === 'mono'
+                            ? "'DM Mono', ui-monospace, monospace"
+                            : "'DM Sans', system-ui, sans-serif",
+                    }}
+                  >
+                    {styleKey}
+                  </button>
+                ))}
+              </div>
               <div className="flex items-center gap-2">
                 {/* Attach image — optional. Image + text becomes one
                     image tile with the text as a visible caption. */}

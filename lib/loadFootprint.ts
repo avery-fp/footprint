@@ -49,6 +49,7 @@ export interface Tile {
   container_cover_url?: string | null
   clip_start_ms?: number | null
   clip_end_ms?: number | null
+  text_style?: 'clean' | 'editorial' | 'mono' | null
   playback_url?: string | null
   poster_url?: string | null
   status?: string | null
@@ -142,6 +143,7 @@ function mapLinkRow(row: any): Tile {
     container_cover_url: row.container_cover_url || null,
     clip_start_ms: row.metadata?.clip_start_ms ?? null,
     clip_end_ms: row.metadata?.clip_end_ms ?? null,
+    text_style: row.metadata?.text_style ?? null,
     parent_tile_id: row.parent_tile_id || null,
     source: 'links',
   }
