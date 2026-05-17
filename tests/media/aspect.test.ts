@@ -13,8 +13,14 @@ describe('music aspect rules', () => {
     expect(resolveAspect('tall', 'spotify')).toBe('wide')
   })
 
-  it('uses the short music bar geometry for wide music', () => {
+  it('uses provider-specific wide music geometry', () => {
     expect(getGridClass(1, 'wide', false, 'spotify')).toContain('aspect-[11/2]')
-    expect(getGridClass(1, 'wide', false, 'apple_music')).toContain('aspect-[11/2]')
+    expect(getGridClass(1, 'wide', false, 'apple_music')).toContain('aspect-[5/2]')
+  })
+
+  it('lets square music tiles grow with size', () => {
+    expect(getGridClass(1, 'square', false, 'spotify')).toContain('col-span-1')
+    expect(getGridClass(2, 'square', false, 'spotify')).toContain('col-span-2')
+    expect(getGridClass(3, 'square', false, 'apple_music')).toContain('md:col-span-3')
   })
 })
