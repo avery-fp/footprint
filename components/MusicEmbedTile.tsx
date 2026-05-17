@@ -175,18 +175,30 @@ export default function MusicEmbedTile({
 
 function NativeMusicBar({ src, title, provider }: { src: string; title: string; provider: MusicProvider }) {
   return (
-    <div className="h-full w-full overflow-hidden fp-tile" style={{ borderRadius: 'inherit' }}>
+    <div className="relative h-full w-full overflow-hidden fp-tile" style={{ borderRadius: 'inherit' }}>
       <iframe
         src={src}
         title={title}
-        className="block h-full w-[calc(100%+16px)] fp-tile"
-        style={{ border: 0, borderRadius: 'inherit' }}
+        className="block h-full fp-tile"
+        style={{
+          border: 0,
+          borderRadius: 'inherit',
+          width: provider === 'spotify' ? 'calc(100% + 20px)' : '100%',
+        }}
+        scrolling="no"
         allow={provider === 'spotify'
           ? 'autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture'
           : 'autoplay *; encrypted-media *; fullscreen *'}
         sandbox={provider === 'apple_music' ? 'allow-forms allow-scripts allow-same-origin allow-popups' : undefined}
         loading="lazy"
       />
+      {provider === 'spotify' && (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 right-0 w-5"
+          style={{ background: '#202020' }}
+        />
+      )}
     </div>
   )
 }
@@ -372,9 +384,6 @@ function MusicFacade({
               'linear-gradient(to top, rgba(0,0,0,0.74) 0%, rgba(0,0,0,0.24) 52%, rgba(0,0,0,0.08) 100%)',
           }}
         />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <PlayIcon />
-        </div>
         <div className="absolute inset-x-0 bottom-0 p-4">
           <MusicMeta title={title} align="center" />
         </div>
