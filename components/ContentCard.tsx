@@ -98,7 +98,6 @@ interface ContentCardProps {
   isPublicView?: boolean
   /** When true, show full embed immediately (no facade). Used in lightbox. */
   isExpanded?: boolean
-  layout?: string
 }
 
 /**
@@ -109,20 +108,10 @@ interface ContentCardProps {
  * null → link card (OG metadata via /api/og-preview)
  * Everything fails gracefully. No broken states.
  */
-export default function ContentCard({ content, onWidescreen, isMobile = false, tileSize = 1, aspect = 'square', isPublicView = false, isExpanded = false, layout }: ContentCardProps) {
-  const isViewerMode = isExpanded || layout === 'collection-viewer'
-  // Grid topology: M (size 2) forces 4:3 landscape in the room grid only.
-  // Viewer surfaces must honor media shape rather than stored grid footprint.
-  const effectiveAspect = !isViewerMode && tileSize === 2 ? 'wide' : aspect
+export default function ContentCard({ content, onWidescreen, isMobile = false, tileSize = 1, aspect = 'square', isPublicView = false, isExpanded = false }: ContentCardProps) {
+  // 3-state topology: M (size 2) forces 4:3 landscape regardless of stored aspect
+  const effectiveAspect = tileSize === 2 ? 'wide' : aspect
   const aspectClass = effectiveAspect === 'wide' ? 'aspect-video' : effectiveAspect === 'tall' ? 'aspect-[9/16]' : effectiveAspect === 'portrait' ? 'aspect-[3/4]' : 'aspect-square'
-  const isPortraitViewer = isViewerMode && (effectiveAspect === 'tall' || effectiveAspect === 'portrait')
-  const isYouTubeShortViewer = isPortraitViewer && /\/shorts\//.test(content.url || '')
-  const viewerFrameClass = isPortraitViewer
-    ? 'h-full max-w-full mx-auto'
-    : `w-full max-w-full ${aspectClass || 'aspect-video'}`
-  const viewerFrameStyle = isPortraitViewer
-    ? { aspectRatio: effectiveAspect === 'portrait' ? '3 / 4' : '9 / 16' }
-    : undefined
   const fitClass = 'object-cover'
   const [isActivated, setIsActivated] = useState(false)
   const [youtubeHasStarted, setYoutubeHasStarted] = useState(false)
@@ -251,62 +240,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       })
     : []
   if (youtubeId && !iframeFailed) {
-    if (isYouTubeShortViewer) {
-      return (
-        <div
-          ref={containerRef}
-          className={`${viewerFrameClass} fp-tile overflow-hidden relative group bg-black`}
-          style={viewerFrameStyle}
-        >
-          <FieldBackground imageUrl={youtubeThumbCandidates[0]} intensity="embed" />
-          <a
-            href={content.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="absolute inset-0 block"
-            aria-label="Watch on YouTube"
-            style={{ zIndex: 3 }}
-          >
-            <div className="fp-resting-video-frame">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={youtubeThumbCandidates[0]}
-                alt=""
-                className="fp-resting-video-media"
-                loading="eager"
-                decoding="async"
-                referrerPolicy="no-referrer"
-                onLoad={(e) => applyThumbnailLoadGuard(e.currentTarget, youtubeThumbCandidates)}
-                onError={(e) => applyNextThumbnailFallback(e.currentTarget, youtubeThumbCandidates)}
-              />
-            </div>
-            <div
-              className="absolute inset-x-0 bottom-5 mx-auto flex items-center justify-center gap-2 rounded-full"
-              style={{
-                width: 'fit-content',
-                maxWidth: 'calc(100% - 32px)',
-                padding: '10px 16px',
-                background: 'rgba(0,0,0,0.42)',
-                backdropFilter: 'blur(12px) saturate(140%)',
-                WebkitBackdropFilter: 'blur(12px) saturate(140%)',
-                boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08)',
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={{ color: '#fff' }}>
-                <path d="M23.5 6.2a2.95 2.95 0 00-2.08-2.09C19.58 3.6 12 3.6 12 3.6s-7.58 0-9.42.51A2.95 2.95 0 00.5 6.2 30.62 30.62 0 000 12a30.62 30.62 0 00.5 5.8 2.95 2.95 0 002.08 2.09c1.84.51 9.42.51 9.42.51s7.58 0 9.42-.51a2.95 2.95 0 002.08-2.09A30.62 30.62 0 0024 12a30.62 30.62 0 00-.5-5.8zM9.6 15.6V8.4l6.24 3.6-6.24 3.6z" />
-              </svg>
-              <span
-                className="font-mono uppercase"
-                style={{ color: 'rgba(255,255,255,0.92)', fontSize: '11px', letterSpacing: '0.12em' }}
-              >
-                watch on youtube
-              </span>
-            </div>
-          </a>
-        </div>
-      )
-    }
-
     // The autoplay= URL param can be dropped when the iframe loads
     // asynchronously after the user's tap (gesture context expires before
     // the YouTube player initializes). Force playback via the JS API so
@@ -335,8 +268,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       return (
         <div
           ref={containerRef}
-          className={`${isPortraitViewer ? viewerFrameClass : 'w-full h-full'} fp-tile overflow-hidden cursor-pointer relative group bg-black`}
-          style={viewerFrameStyle}
+          className="w-full h-full fp-tile overflow-hidden cursor-pointer relative group bg-black"
           onClick={handleActivate}
         >
           <div className="fp-resting-video-frame">
@@ -367,8 +299,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     return (
       <div
         ref={containerRef}
-        className={`${isPortraitViewer ? viewerFrameClass : 'w-full max-w-full h-full'} fp-tile overflow-hidden relative group`}
-        style={{ background: '#000', ...viewerFrameStyle }}
+        className="w-full max-w-full h-full fp-tile overflow-hidden relative group"
+        style={{ background: '#000' }}
       >
         <FieldBackground imageUrl={youtubeThumbCandidates[0]} intensity="embed" />
         <div
@@ -387,7 +319,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             className="block"
             style={{
               border: 'none',
-              aspectRatio: isYouTubeShortViewer ? '9 / 16' : '16 / 9',
+              aspectRatio: '16 / 9',
               maxWidth: '100%',
               maxHeight: '100%',
             }}
@@ -575,7 +507,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     if (embed) {
       const vimeoSrc = enforceEmbedDarkMode(embed.embedUrl, 'vimeo')
       return (
-        <div ref={containerRef} className={`${viewerFrameClass} fp-tile overflow-hidden relative`} style={viewerFrameStyle}>
+        <div ref={containerRef} className={`w-full max-w-full ${aspectClass || 'aspect-video'} fp-tile overflow-hidden relative`}>
           {isInView ? (
             <GlassEmbedFrame
               src={vimeoSrc}
@@ -595,7 +527,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     // Fallback: stored embed_html
     if (content.embed_html) {
       return (
-        <div ref={containerRef} className={`${viewerFrameClass} fp-tile overflow-hidden relative bg-black`} style={viewerFrameStyle}>
+        <div ref={containerRef} className={`w-full max-w-full ${aspectClass || 'aspect-video'} fp-tile overflow-hidden relative bg-black`}>
           {isInView ? (
             <div
               className="absolute inset-0 [&_iframe]:!w-full [&_iframe]:!max-w-full [&_iframe]:!h-full"
@@ -619,7 +551,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     // Skips if URL already has a fragment.
     const videoSrc = content.url && !content.url.includes('#') ? `${content.url}#t=0.1` : content.url
     return (
-      <div ref={containerRef} className={`${isPortraitViewer ? viewerFrameClass : ''} fp-tile overflow-hidden relative group`} style={viewerFrameStyle}>
+      <div ref={containerRef} className="fp-tile overflow-hidden relative group">
         {isVideoError ? (
           <GlassPlaceholder aspectClass={aspectClass || 'aspect-video'} />
         ) : isInView ? (
@@ -633,7 +565,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               playsInline
               preload="metadata"
               poster={content.thumbnail_url || undefined}
-              className={`block ${isPortraitViewer ? 'w-full h-full' : `w-full ${aspectClass || 'aspect-video'}`} ${fitClass} cursor-pointer`}
+              className={`block w-full ${aspectClass || 'aspect-video'} ${fitClass} cursor-pointer`}
               onLoadedData={() => setIsLoaded(true)}
               onPlay={() => setIsVideoPlaying(true)}
               onPause={() => setIsVideoPlaying(false)}

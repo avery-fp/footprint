@@ -1268,52 +1268,161 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     )
   }
 
+  const renderHorizontalTiles = (
+    items: any[],
+    renderBody: (item: any, idx: number) => React.ReactNode,
+    renderOverlay?: (item: any, idx: number) => React.ReactNode,
+    includeFade = true,
+    sortable = false,
+  ) => (
+    <div
+      className={getGridLayout('horizontal').containerClass}
+      style={{
+        scrollSnapType: 'x mandatory',
+        scrollPaddingLeft: 'max(24px, calc((100vw - min(88vw, 620px)) / 2))',
+        WebkitOverflowScrolling: 'touch' as any,
+        paddingLeft: 'max(24px, calc((100vw - min(88vw, 620px)) / 2))',
+        paddingRight: 'max(24px, calc((100vw - min(88vw, 620px)) / 2))',
+        ...(includeFade ? fadeStyle : {}),
+      }}
+    >
+      {items.map((item: any, idx: number) => {
+        const aspectCss = tileAspectCss(item)
+        const size = Number(item.size || 1)
+        const railHeight = size >= 3
+          ? (isMobile ? 'min(78vh, 600px)' : 'min(76vh, 700px)')
+          : size <= 1
+            ? (isMobile ? 'min(58vh, 420px)' : 'min(54vh, 500px)')
+            : (isMobile ? 'min(72vh, 540px)' : 'min(70vh, 640px)')
+        const wrapperStyle: React.CSSProperties = {
+          height: railHeight,
+          aspectRatio: aspectCss,
+        }
+        const wrapperClass = getGridLayout('horizontal').tileClass
+        const body = (
+          <>
+            {renderBody(item, idx)}
+            {renderOverlay?.(item, idx)}
+          </>
+        )
+        if (sortable && isOwner) {
+          return (
+            <SortableTileWrapper key={item.id} item={item} idx={idx} className={wrapperClass} style={wrapperStyle} disabled={!!expanded}>
+              {body}
+            </SortableTileWrapper>
+          )
+        }
+        return (
+          <div key={item.id} className={wrapperClass} style={wrapperStyle}>
+            {body}
+          </div>
+        )
+      })}
+    </div>
+  )
+
+  const renderCollectionTileBody = (child: any, idx: number) => (
+    <div className="w-full h-full relative">
+      <div
+        className={`relative w-full max-w-full h-full overflow-hidden fp-tile-hover rounded-2xl${isSoundRoom ? ' fp-sound-tile' : ''}`}
+        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)' }}
+      >
+        <UnifiedTile
+          item={{
+            id: child.id,
+            url: child.url,
+            type: child.type,
+            title: child.title || null,
+            description: child.description || null,
+            thumbnail_url: child.thumbnail_url || null,
+            embed_html: child.embed_html || null,
+            render_mode: child.render_mode,
+            artist: child.artist,
+            thumbnail_url_hq: child.thumbnail_url_hq,
+            media_id: child.media_id,
+          }}
+          index={idx}
+          size={child.size || 1}
+          aspect={resolveAspect(child.aspect, child.type, child.url)}
+          mode="public"
+          layout="horizontal"
+          isMobile={isMobile}
+          isSoundRoom={isSoundRoom}
+        />
+      </div>
+    </div>
+  )
+
+  const renderCollectionOwnerControls = (child: any, idx: number) => isOwner ? (
+    <div className="absolute inset-0 z-10 pointer-events-none sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150">
+      <button
+        type="button"
+        className="absolute top-2 left-2 pointer-events-auto w-7 h-7 flex items-center justify-center rounded-full touch-manipulation transition-colors hover:bg-white/[0.12]"
+        style={{ background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.12)' }}
+        onClick={(e) => { e.stopPropagation(); handleChildMoveOut(child) }}
+        aria-label="Move out of collection"
+        title="Move out of collection"
+      >
+        <svg className="w-3 h-3 text-white/60" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L20 4M20 4h-7M20 4v7M5 8v11a1 1 0 001 1h11" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        className="absolute top-2 right-2 pointer-events-auto w-7 h-7 flex items-center justify-center rounded-full touch-manipulation transition-colors hover:bg-red-500/30"
+        style={{ background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.12)' }}
+        onClick={(e) => { e.stopPropagation(); handleChildDelete(child) }}
+        aria-label="Remove item"
+      >
+        <svg className="w-3 h-3 text-white/60" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-2 pointer-events-auto">
+        <button
+          type="button"
+          className="w-7 h-7 flex items-center justify-center rounded-full touch-manipulation transition-opacity"
+          style={{
+            background: 'rgba(0,0,0,0.55)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            opacity: idx === 0 ? 0.3 : 1,
+            cursor: idx === 0 ? 'default' : 'pointer',
+          }}
+          onClick={(e) => { e.stopPropagation(); handleChildMove(idx, -1) }}
+          disabled={idx === 0}
+          aria-label="Move left"
+        >
+          <svg className="w-3 h-3 text-white/60" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          className="w-7 h-7 flex items-center justify-center rounded-full touch-manipulation transition-opacity"
+          style={{
+            background: 'rgba(0,0,0,0.55)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            opacity: idx === localChildren.length - 1 ? 0.3 : 1,
+            cursor: idx === localChildren.length - 1 ? 'default' : 'pointer',
+          }}
+          onClick={(e) => { e.stopPropagation(); handleChildMove(idx, 1) }}
+          disabled={idx === localChildren.length - 1}
+          aria-label="Move right"
+        >
+          <svg className="w-3 h-3 text-white/60" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  ) : null
+
   let gridInner: React.ReactNode
   if (isHorizontal) {
     // ── HORIZONTAL: cinematic rail. Each tile is its native aspect at a
     // fixed rail height, so widescreen reads as wide, vertical reads as
     // tall, square reads as square. Width derives. ──
-    gridInner = (
-      <div
-        className={layoutConfig.containerClass}
-        style={{
-          scrollSnapType: 'x mandatory',
-          scrollPaddingLeft: 'max(24px, calc((100vw - min(88vw, 620px)) / 2))',
-          WebkitOverflowScrolling: 'touch' as any,
-          paddingLeft: 'max(24px, calc((100vw - min(88vw, 620px)) / 2))',
-          paddingRight: 'max(24px, calc((100vw - min(88vw, 620px)) / 2))',
-          ...fadeStyle,
-        }}
-      >
-        {displayContent.map((item: any, idx: number) => {
-          const aspectCss = tileAspectCss(item)
-          const size = Number(item.size || 1)
-          const railHeight = size >= 3
-            ? (isMobile ? 'min(78vh, 600px)' : 'min(76vh, 700px)')
-            : size <= 1
-              ? (isMobile ? 'min(58vh, 420px)' : 'min(54vh, 500px)')
-              : (isMobile ? 'min(72vh, 540px)' : 'min(70vh, 640px)')
-          const wrapperStyle: React.CSSProperties = {
-            height: railHeight,
-            aspectRatio: aspectCss,
-          }
-          const wrapperClass = layoutConfig.tileClass
-          const body = renderTileBody(item, idx)
-          if (isOwner) {
-            return (
-              <SortableTileWrapper key={item.id} item={item} idx={idx} className={wrapperClass} style={wrapperStyle} disabled={!!expanded}>
-                {body}
-              </SortableTileWrapper>
-            )
-          }
-          return (
-            <div key={item.id} className={wrapperClass} style={wrapperStyle}>
-              {body}
-            </div>
-          )
-        })}
-      </div>
-    )
+    gridInner = renderHorizontalTiles(displayContent, renderTileBody, undefined, true, true)
   } else {
     // ── GRID: uniform masonry. Every column is the same width; tiles
     //   flow at their native aspect ratios. No size-based span math. ──
@@ -1865,114 +1974,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 {/* Child tiles — horizontal rail fills viewport below header */}
                 <div className="flex-1 flex items-center pointer-events-auto" style={{ padding: '12px 0' }}>
                   {localChildren.length > 0 ? (
-                    <div
-                      className="flex flex-row overflow-x-auto hide-scrollbar w-full h-full items-center"
-                      style={{
-                        scrollSnapType: 'x mandatory',
-                        WebkitOverflowScrolling: 'touch' as any,
-                        scrollPaddingLeft: 0,
-                      }}
-                    >
-                      {localChildren.map((child: any, idx: number) => (
-                        <div
-                          key={child.id}
-                          className="group flex-shrink-0 snap-center relative overflow-hidden"
-                          style={{
-                            width: '100vw',
-                            height: '100%',
-                            minHeight: 0,
-                          }}
-                        >
-                          <UnifiedTile
-                            item={{
-                              id: child.id,
-                              url: child.url,
-                              type: child.type,
-                              title: child.title || null,
-                              description: child.description || null,
-                              thumbnail_url: child.thumbnail_url || null,
-                              embed_html: child.embed_html || null,
-                              render_mode: child.render_mode,
-                              artist: child.artist,
-                              thumbnail_url_hq: child.thumbnail_url_hq,
-                              media_id: child.media_id,
-                            }}
-                            index={idx}
-                            size={1}
-                            aspect={resolveAspect(child.aspect, child.type, child.url)}
-                            mode="public"
-                            layout="collection-viewer"
-                            isExpanded
-                            isMobile={isMobile}
-                          />
-                          {/* Owner-only controls — move-out + delete + reorder */}
-                          {isOwner && (
-                            <div className="absolute inset-0 z-10 pointer-events-none sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150">
-                              <button
-                                type="button"
-                                className="absolute top-2 left-2 pointer-events-auto w-7 h-7 flex items-center justify-center rounded-full touch-manipulation transition-colors hover:bg-white/[0.12]"
-                                style={{ background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.12)' }}
-                                onClick={(e) => { e.stopPropagation(); handleChildMoveOut(child) }}
-                                aria-label="Move out of collection"
-                                title="Move out of collection"
-                              >
-                                {/* Up-and-out arrow — promotes child back to the room grid */}
-                                <svg className="w-3 h-3 text-white/60" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L20 4M20 4h-7M20 4v7M5 8v11a1 1 0 001 1h11" />
-                                </svg>
-                              </button>
-                              <button
-                                type="button"
-                                className="absolute top-2 right-2 pointer-events-auto w-7 h-7 flex items-center justify-center rounded-full touch-manipulation transition-colors hover:bg-red-500/30"
-                                style={{ background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.12)' }}
-                                onClick={(e) => { e.stopPropagation(); handleChildDelete(child) }}
-                                aria-label="Remove item"
-                              >
-                                <svg className="w-3 h-3 text-white/60" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                              </button>
-                              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-2 pointer-events-auto">
-                                <button
-                                  type="button"
-                                  className="w-7 h-7 flex items-center justify-center rounded-full touch-manipulation transition-opacity"
-                                  style={{
-                                    background: 'rgba(0,0,0,0.55)',
-                                    border: '1px solid rgba(255,255,255,0.12)',
-                                    opacity: idx === 0 ? 0.3 : 1,
-                                    cursor: idx === 0 ? 'default' : 'pointer',
-                                  }}
-                                  onClick={(e) => { e.stopPropagation(); handleChildMove(idx, -1) }}
-                                  disabled={idx === 0}
-                                  aria-label="Move left"
-                                >
-                                  <svg className="w-3 h-3 text-white/60" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                                  </svg>
-                                </button>
-                                <button
-                                  type="button"
-                                  className="w-7 h-7 flex items-center justify-center rounded-full touch-manipulation transition-opacity"
-                                  style={{
-                                    background: 'rgba(0,0,0,0.55)',
-                                    border: '1px solid rgba(255,255,255,0.12)',
-                                    opacity: idx === localChildren.length - 1 ? 0.3 : 1,
-                                    cursor: idx === localChildren.length - 1 ? 'default' : 'pointer',
-                                  }}
-                                  onClick={(e) => { e.stopPropagation(); handleChildMove(idx, 1) }}
-                                  disabled={idx === localChildren.length - 1}
-                                  aria-label="Move right"
-                                >
-                                  <svg className="w-3 h-3 text-white/60" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                                  </svg>
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+                    renderHorizontalTiles(localChildren, renderCollectionTileBody, renderCollectionOwnerControls, false)
                   ) : !loadingChildren ? (
                     <div className="flex items-center justify-center w-full py-12">
                       <span className="text-white/20 font-mono text-xs tracking-widest uppercase">empty</span>
