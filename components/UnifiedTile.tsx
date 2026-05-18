@@ -453,12 +453,12 @@ export default function UnifiedTile({
   // mediaTypeFromUrl defaults to 'image' for any non-video URL, which would
   // intercept Twitter/TikTok/Instagram tiles before the ghost check ran.
   //
-  // Video platforms (youtube/vimeo + uploaded video) are NEVER ghosted —
-  // even in the sound room. A music video is still a video; the compact
-  // ghost UI hides the thumbnail and reads as "empty" to viewers. They
-  // fall through to the preview-card / embed branches below.
+  // Video platforms normally bypass GhostTile, but collection viewer is a
+  // different surface: it should reuse the same centered provider renderer
+  // as the horizontal grid instead of falling into ContentCard's iframe path.
   const VIDEO_PLATFORMS = new Set(['youtube', 'vimeo', 'video'])
   const isVideoPlatform = VIDEO_PLATFORMS.has(item.type)
+  const isCollectionViewer = layout === 'collection-viewer'
   const AUDIO_PLATFORMS = ['spotify', 'soundcloud']
   const forceGhost = isSoundRoom && AUDIO_PLATFORMS.includes(item.type)
   const derivedGhostMediaId =
@@ -473,7 +473,17 @@ export default function UnifiedTile({
   // Error" page. Skip GhostTile and fall through to the preview-card path.
   const ghostMediaIdValidForPlatform =
     item.type !== 'tiktok' || (!!ghostMediaId && /^\d+$/.test(ghostMediaId))
-  if (!isVideoPlatform && (item.render_mode === 'ghost' || forceGhost) && ghostMediaId && ghostMediaIdValidForPlatform) {
+  const useGhostRenderer =
+    ((item.render_mode === 'ghost' || forceGhost) &&
+      ghostMediaId &&
+      ghostMediaIdValidForPlatform &&
+      !isVideoPlatform) ||
+    (isCollectionViewer &&
+      (item.type === 'youtube' || item.type === 'vimeo') &&
+      ghostMediaId &&
+      ghostMediaIdValidForPlatform)
+
+  if (useGhostRenderer) {
     return (
       <div className="w-full h-full" data-tile-id={item.id} data-tile-type={`ghost-${item.type}`}>
         <GhostTile
@@ -485,7 +495,13 @@ export default function UnifiedTile({
           thumbnail_url={item.thumbnail_url_hq || item.thumbnail_url || undefined}
           clip_start_ms={(item as any).clip_start_ms ?? undefined}
           clip_end_ms={(item as any).clip_end_ms ?? undefined}
-          displayMode={aspect === 'wide' || aspect === 'landscape' ? 'player' : 'cover'}
+          displayMode={
+            isCollectionViewer
+              ? 'cover'
+              : aspect === 'wide' || aspect === 'landscape'
+                ? 'player'
+                : 'cover'
+          }
         />
       </div>
     )

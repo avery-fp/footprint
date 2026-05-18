@@ -310,6 +310,7 @@ export default function GhostTile({
   // ════════════════════════════════════════
   // Instagram URL shape determines embed path (post vs reel).
   const isInstagramReel = platform === 'instagram' && /\/reel\//.test(url)
+  const isYouTubeShort = platform === 'youtube' && /\/shorts\//.test(url)
   // YouTube clip support: convert ms → integer seconds for start/end params.
   const ytClipStart = clip_start_ms ? Math.floor(clip_start_ms / 1000) : 0
   const ytClipEnd = clip_end_ms ? Math.ceil(clip_end_ms / 1000) : 0
@@ -433,11 +434,14 @@ export default function GhostTile({
             ref={platform === 'youtube' ? youtubeIframeRef : undefined}
             src={iframeSrc}
             className="block"
-            width={platform === 'youtube' ? 1920 : undefined}
-            height={platform === 'youtube' ? 1080 : undefined}
+            width={platform === 'youtube' ? (isYouTubeShort ? 1080 : 1920) : undefined}
+            height={platform === 'youtube' ? (isYouTubeShort ? 1920 : 1080) : undefined}
             style={{
               border: 'none',
-              aspectRatio: platform === 'tiktok' || isInstagramReel ? '9 / 16' : '16 / 9',
+              aspectRatio:
+                platform === 'tiktok' || isInstagramReel || isYouTubeShort
+                  ? '9 / 16'
+                  : '16 / 9',
               maxWidth: '100%',
               maxHeight: '100%',
             }}
