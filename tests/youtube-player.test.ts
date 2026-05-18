@@ -5,6 +5,7 @@ import {
   shouldPrewarmYouTubePlayer,
   shouldRevealYouTubePlayer,
   startYouTubePlayback,
+  youtubePrewarmOptions,
 } from '@/lib/youtube-player'
 
 describe('isYouTubePlayingMessage', () => {
@@ -45,6 +46,16 @@ describe('mobile youtube prewarm contract', () => {
     startYouTubePlayback(iframe)
 
     expect(messages.some((message) => message.includes('"func":"playVideo"'))).toBe(true)
+  })
+
+  it('keeps the prewarmed iframe URL stable across activation', () => {
+    expect(youtubePrewarmOptions(12, 34)).toEqual({
+      autoplay: false,
+      mute: true,
+      start: 12,
+      end: 34,
+      hd: true,
+    })
   })
 
   it('does not prewarm non-youtube tiles', () => {

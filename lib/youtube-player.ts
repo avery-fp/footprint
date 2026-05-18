@@ -38,6 +38,16 @@ export function shouldRevealYouTubePlayer(isActivated: boolean, hasStarted: bool
   return isActivated && hasStarted
 }
 
+export function youtubePrewarmOptions(start: number, end: number) {
+  return {
+    autoplay: false,
+    mute: true,
+    start,
+    end,
+    hd: true,
+  } as const
+}
+
 export function isYouTubePlayingMessage(data: unknown) {
   if (!data || typeof data !== 'object') return false
   const payload = data as {

@@ -11,6 +11,7 @@ import {
   shouldMountYouTubePlayer,
   shouldRevealYouTubePlayer,
   startYouTubePlayback,
+  youtubePrewarmOptions,
 } from '@/lib/youtube-player'
 import TheaterOverlay from '@/components/TheaterOverlay'
 import MusicEmbedTile from '@/components/MusicEmbedTile'
@@ -309,9 +310,9 @@ export default function GhostTile({
   const shouldMountPlayer =
     platform !== 'youtube' || shouldMountYouTubePlayer(platform, effectiveActivated, isCoarsePointer)
   const iframeSrc = platform === 'youtube'
-    // Auto-activated path: autoplay off so YouTube renders its own
-    // thumbnail/play UI. User-click path keeps autoplay+mute (mobile-Safari).
-    ? buildYouTubeEmbedUrl(media_id, { autoplay: isPlaying, mute: isPlaying, start: ytClipStart, end: ytClipEnd, hd: true })
+    // Keep the URL stable across activation. Changing `src` on tap remounts
+    // the iframe and destroys the whole point of prewarming it.
+    ? buildYouTubeEmbedUrl(media_id, youtubePrewarmOptions(ytClipStart, ytClipEnd))
     : platform === 'vimeo'
     // Vimeo respects `quality` param: "1080p" | "720p" | ... | "auto"
     ? `https://player.vimeo.com/video/${media_id}?title=0&byline=0&portrait=0&badge=0&dnt=1&autoplay=1&quality=1080p`
