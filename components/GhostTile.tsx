@@ -5,7 +5,7 @@ import { audioManager } from '@/lib/audio-manager'
 import { buildYouTubeEmbedUrl } from '@/lib/parseEmbed'
 import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getThumbnailCandidates, isBadOrMissingThumbnail } from '@/lib/media/thumbnails'
 import { tryNativeFullscreen } from '@/lib/fullscreen'
-import { nudgeYouTubeQuality } from '@/lib/youtube-player'
+import { nudgeYouTubeQuality, shouldOpenYouTubeFocusOnActivate } from '@/lib/youtube-player'
 import TheaterOverlay from '@/components/TheaterOverlay'
 import MusicEmbedTile from '@/components/MusicEmbedTile'
 
@@ -152,11 +152,14 @@ export default function GhostTile({
     audioManager.play(tileId.current)
     setIsPlaying(true)
     setIframeFailed(false)
+    if (shouldOpenYouTubeFocusOnActivate(platform, window.matchMedia.bind(window))) {
+      setTheaterOpen(true)
+    }
     // Timeout: if the iframe doesn't fire onLoad within 8s, show fallback.
     // Cleared in the onLoad handler if load succeeds.
     iframeTimerRef.current = setTimeout(() => { setIframeFailed(true) }, 8000)
     onPlay?.()
-  }, [onPlay])
+  }, [onPlay, platform])
 
   const handleToggle = useCallback(() => {
     if (isPlaying) {
@@ -312,6 +315,8 @@ export default function GhostTile({
     // button step.
     post({ event: 'command', func: 'playVideo', args: '' })
     setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 250)
+    setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 700)
+    setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 1200)
     // Subscribe + unmute — settled timing (~800ms after load event).
     setTimeout(() => {
       post({ event: 'listening', id: media_id })
@@ -324,6 +329,8 @@ export default function GhostTile({
     // Fired several times because the YT player sometimes ignores early calls
     // before the first video frame is ready.
     const nudgeQuality = () => nudgeYouTubeQuality(iframe)
+    nudgeQuality()
+    setTimeout(nudgeQuality, 300)
     setTimeout(nudgeQuality, 1000)
     setTimeout(nudgeQuality, 2500)
     setTimeout(nudgeQuality, 5000)

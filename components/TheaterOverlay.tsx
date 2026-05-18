@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { nudgeYouTubeQuality } from '@/lib/youtube-player'
 
 /**
@@ -41,6 +41,8 @@ export default function TheaterOverlay({
   allow = DEFAULT_ALLOW,
 }: TheaterOverlayProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [cursorVisible, setCursorVisible] = useState(true)
 
   useEffect(() => {
     const prevOverflow = document.body.style.overflow
@@ -66,8 +68,15 @@ export default function TheaterOverlay({
     return () => {
       document.body.style.overflow = prevOverflow
       window.removeEventListener('keydown', onKey)
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current)
     }
   }, [onClose, src])
+
+  const revealCursor = () => {
+    setCursorVisible(true)
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current)
+    idleTimerRef.current = setTimeout(() => setCursorVisible(false), 1400)
+  }
 
   const handleLoad = () => {
     if (!isYouTube(src)) return
@@ -78,11 +87,15 @@ export default function TheaterOverlay({
     }
     post({ event: 'command', func: 'playVideo', args: '' })
     setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 250)
+    setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 700)
+    setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 1200)
     setTimeout(() => {
       post({ event: 'command', func: 'unMute', args: '' })
       post({ event: 'command', func: 'setVolume', args: [100] })
     }, 800)
     const nudgeQuality = () => nudgeYouTubeQuality(iframe)
+    nudgeQuality()
+    setTimeout(nudgeQuality, 300)
     setTimeout(nudgeQuality, 1000)
     setTimeout(nudgeQuality, 2500)
     setTimeout(nudgeQuality, 5000)
@@ -98,6 +111,8 @@ export default function TheaterOverlay({
       role="dialog"
       aria-modal="true"
       onClick={onClose}
+      onMouseMove={revealCursor}
+      onMouseEnter={revealCursor}
       style={{
         position: 'fixed',
         inset: 0,
@@ -108,6 +123,7 @@ export default function TheaterOverlay({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        cursor: cursorVisible ? 'default' : 'none',
       }}
     >
       <div
@@ -122,6 +138,8 @@ export default function TheaterOverlay({
         <iframe
           ref={iframeRef}
           src={src}
+          width={aspect === '16 / 9' ? 1920 : undefined}
+          height={aspect === '16 / 9' ? 1080 : undefined}
           style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
           allow={allow}
           allowFullScreen
@@ -151,6 +169,8 @@ export default function TheaterOverlay({
           zIndex: 2147483647,
           border: 'none',
           cursor: 'pointer',
+          opacity: cursorVisible ? 1 : 0,
+          transition: 'opacity 180ms ease',
         }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
