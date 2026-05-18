@@ -24,8 +24,8 @@ describe('isYouTubePlayingMessage', () => {
 
 describe('mobile youtube prewarm contract', () => {
   it('prewarms and mounts youtube before first activation on coarse pointers', () => {
-    expect(shouldPrewarmYouTubePlayer('youtube', true)).toBe(true)
-    expect(shouldMountYouTubePlayer('youtube', false, true)).toBe(true)
+    expect(shouldPrewarmYouTubePlayer('youtube', true, true)).toBe(true)
+    expect(shouldMountYouTubePlayer('youtube', false, true, true)).toBe(true)
   })
 
   it('keeps the poster visible until playback is confirmed', () => {
@@ -59,7 +59,12 @@ describe('mobile youtube prewarm contract', () => {
   })
 
   it('does not prewarm non-youtube tiles', () => {
-    expect(shouldPrewarmYouTubePlayer('vimeo', true)).toBe(false)
-    expect(shouldMountYouTubePlayer('vimeo', false, true)).toBe(false)
+    expect(shouldPrewarmYouTubePlayer('vimeo', true, true)).toBe(false)
+    expect(shouldMountYouTubePlayer('vimeo', false, true, true)).toBe(false)
+  })
+
+  it('does not prewarm offscreen youtube tiles', () => {
+    expect(shouldPrewarmYouTubePlayer('youtube', true, false)).toBe(false)
+    expect(shouldMountYouTubePlayer('youtube', false, true, false)).toBe(false)
   })
 })

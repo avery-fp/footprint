@@ -22,16 +22,18 @@ export function startYouTubePlayback(iframe: HTMLIFrameElement | null) {
 export function shouldPrewarmYouTubePlayer(
   platform: string,
   isCoarsePointer: boolean,
+  isNearViewport: boolean,
 ) {
-  return platform === 'youtube' && isCoarsePointer
+  return platform === 'youtube' && isCoarsePointer && isNearViewport
 }
 
 export function shouldMountYouTubePlayer(
   platform: string,
   isActivated: boolean,
   isCoarsePointer: boolean,
+  isNearViewport: boolean,
 ) {
-  return platform === 'youtube' && (isActivated || shouldPrewarmYouTubePlayer(platform, isCoarsePointer))
+  return platform === 'youtube' && (isActivated || shouldPrewarmYouTubePlayer(platform, isCoarsePointer, isNearViewport))
 }
 
 export function shouldRevealYouTubePlayer(isActivated: boolean, hasStarted: boolean) {
