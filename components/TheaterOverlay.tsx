@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { nudgeYouTubeQuality } from '@/lib/youtube-player'
 
 /**
  * THEATER OVERLAY — fixed viewport-sized cinema fallback.
@@ -81,6 +82,10 @@ export default function TheaterOverlay({
       post({ event: 'command', func: 'unMute', args: '' })
       post({ event: 'command', func: 'setVolume', args: [100] })
     }, 800)
+    const nudgeQuality = () => nudgeYouTubeQuality(iframe)
+    setTimeout(nudgeQuality, 1000)
+    setTimeout(nudgeQuality, 2500)
+    setTimeout(nudgeQuality, 5000)
   }
 
   const frame =

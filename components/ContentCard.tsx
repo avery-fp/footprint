@@ -22,6 +22,7 @@ import ReaderTile from '@/components/ReaderTile'
 import { sanitizeLinkMeta, normalizeLinkObject } from '@/lib/link-object'
 import { tryNativeFullscreen } from '@/lib/fullscreen'
 import TheaterOverlay from '@/components/TheaterOverlay'
+import { nudgeYouTubeQuality } from '@/lib/youtube-player'
 
 // ════════════════════════════════════════
 // Glass Embed Frame — imported from extracted component
@@ -257,7 +258,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       )
     }
     // YouTube activated state — mute=1 for reliable autoplay, postMessage unmutes after load
-    const ytActivatedSrc = buildYouTubeEmbedUrl(youtubeId, { start: extractYouTubeStart(content.url) })
+    const ytActivatedSrc = buildYouTubeEmbedUrl(youtubeId, {
+      start: extractYouTubeStart(content.url),
+      hd: true,
+    })
     return (
       <div
         ref={containerRef}
@@ -298,7 +302,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             e.stopPropagation()
             const btn = e.currentTarget as HTMLElement
             const container = (btn.closest('[data-tile]') as HTMLElement) || containerRef.current
-            const iframe = container?.querySelector('iframe') as HTMLElement | null
+            const iframe = container?.querySelector('iframe') as HTMLIFrameElement | null
+            nudgeYouTubeQuality(iframe)
             tryNativeFullscreen(iframe).then((ok) => {
               if (ok) return
               tryNativeFullscreen(container).then((ok2) => {
