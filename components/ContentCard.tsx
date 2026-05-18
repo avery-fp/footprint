@@ -22,7 +22,7 @@ import ReaderTile from '@/components/ReaderTile'
 import { sanitizeLinkMeta, normalizeLinkObject } from '@/lib/link-object'
 import { tryNativeFullscreen } from '@/lib/fullscreen'
 import TheaterOverlay from '@/components/TheaterOverlay'
-import { nudgeYouTubeQuality } from '@/lib/youtube-player'
+import { nudgeYouTubeQuality, shouldOpenYouTubeFocusOnActivate } from '@/lib/youtube-player'
 
 // ════════════════════════════════════════
 // Glass Embed Frame — imported from extracted component
@@ -191,6 +191,9 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       audioManager.play(audioIdRef.current)
     }
     setIsActivated(true)
+    if (shouldOpenYouTubeFocusOnActivate(content.type, window.matchMedia.bind(window))) {
+      setTheaterOpen(true)
+    }
   }
 
   // ════════════════════════════════════════
@@ -221,6 +224,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       }
       post({ event: 'command', func: 'playVideo', args: '' })
       setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 250)
+      setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 700)
+      setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 1200)
       setTimeout(() => {
         post({ event: 'command', func: 'unMute', args: '' })
         post({ event: 'command', func: 'setVolume', args: [100] })
@@ -271,6 +276,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         <FieldBackground imageUrl={youtubeThumbCandidates[0]} intensity="embed" />
         <iframe
           src={ytActivatedSrc}
+          width={1920}
+          height={1080}
           className="w-full max-w-full h-full relative"
           style={{ border: 'none', zIndex: 1 }}
           allow="autoplay; encrypted-media; fullscreen"

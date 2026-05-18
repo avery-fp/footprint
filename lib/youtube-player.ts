@@ -8,3 +8,10 @@ export function nudgeYouTubeQuality(iframe: HTMLIFrameElement | null) {
     post({ event: 'command', func: 'setPlaybackQualityRange', args: [q, q] })
   }
 }
+
+export function shouldOpenYouTubeFocusOnActivate(
+  platform: string,
+  matchMedia: (query: string) => Pick<MediaQueryList, 'matches'>,
+) {
+  return platform === 'youtube' && matchMedia('(pointer: coarse)').matches
+}
