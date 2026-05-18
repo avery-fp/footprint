@@ -262,7 +262,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       }, 800)
     }
 
-    const shouldMountPlayer = shouldMountYouTubePlayer('youtube', isActivated, isCoarsePointer)
+    const shouldMountPlayer = shouldMountYouTubePlayer('youtube', isActivated, isCoarsePointer, isInView)
 
     if (!shouldMountPlayer) {
       return (

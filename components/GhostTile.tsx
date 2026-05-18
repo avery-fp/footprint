@@ -72,6 +72,7 @@ export default function GhostTile({
   const [iframeLoaded, setIframeLoaded] = useState(false)
   const [youtubeHasStarted, setYoutubeHasStarted] = useState(false)
   const [isCoarsePointer, setIsCoarsePointer] = useState(false)
+  const [isNearViewport, setIsNearViewport] = useState(false)
   const [iframeFailed, setIframeFailed] = useState(false)
   const [thumbnailExhausted, setThumbnailExhausted] = useState(false)
   const [theaterOpen, setTheaterOpen] = useState(false)
@@ -95,6 +96,17 @@ export default function GhostTile({
 
   useEffect(() => {
     setIsCoarsePointer(window.matchMedia('(pointer: coarse)').matches)
+  }, [])
+
+  useEffect(() => {
+    const el = tileRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsNearViewport(entry.isIntersecting),
+      { rootMargin: '200px' },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
   }, [])
 
 
@@ -308,7 +320,8 @@ export default function GhostTile({
     platform === 'youtube' && (isBadOrMissingThumbnail(thumbUrl) || thumbnailExhausted)
   const effectiveActivated = isPlaying || shouldAutoActivateEmbed
   const shouldMountPlayer =
-    platform !== 'youtube' || shouldMountYouTubePlayer(platform, effectiveActivated, isCoarsePointer)
+    platform !== 'youtube' ||
+    shouldMountYouTubePlayer(platform, effectiveActivated, isCoarsePointer, isNearViewport)
   const iframeSrc = platform === 'youtube'
     // Keep the URL stable across activation. Changing `src` on tap remounts
     // the iframe and destroys the whole point of prewarming it.
