@@ -316,10 +316,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             src={ytActivatedSrc}
             width={1920}
             height={1080}
-            className="block"
+            className="block w-full h-full"
             style={{
               border: 'none',
-              aspectRatio: '16 / 9',
+              aspectRatio: effectiveAspect === 'tall' ? '9 / 16' : effectiveAspect === 'portrait' ? '3 / 4' : '16 / 9',
               maxWidth: '100%',
               maxHeight: '100%',
             }}

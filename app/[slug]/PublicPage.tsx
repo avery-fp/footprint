@@ -1078,17 +1078,20 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       return item.aspect === 'square' ? '1 / 1' : '9 / 2'
     }
 
-    // Explicit user shape always wins. The previous provider-first
-    // ordering made old embed/video tiles ignore shape changes in the
-    // editor because YouTube/Vimeo/SoundCloud forced 16:9 forever.
+    // Explicit user shape wins, and URL-derived vertical video signals
+    // like YouTube Shorts must be resolved before generic provider
+    // defaults force embeds to 16:9.
     if (item.aspect === 'square' || item.aspect === 'wide' || item.aspect === 'tall') {
       return tileAspectRatio(item.aspect)
+    }
+    const resolved = resolveAspect(item.aspect, item.type, item.url)
+    if (resolved === 'square' || resolved === 'wide' || resolved === 'tall' || resolved === 'portrait') {
+      return tileAspectRatio(resolved)
     }
     const isEmbedVid = item.type === 'youtube' || item.type === 'vimeo' ||
       item.url?.includes('youtube') || item.url?.includes('youtu.be')
     if (isEmbedVid) return '16 / 9'
     if (item.type === 'soundcloud') return '16 / 9'
-    const resolved = resolveAspect(item.aspect, item.type, item.url)
     return tileAspectRatio(resolved)
   }
 
