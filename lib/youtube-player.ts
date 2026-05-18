@@ -9,6 +9,35 @@ export function nudgeYouTubeQuality(iframe: HTMLIFrameElement | null) {
   }
 }
 
+export function startYouTubePlayback(iframe: HTMLIFrameElement | null) {
+  if (!iframe) return
+  const post = (msg: Record<string, unknown>) => {
+    try { iframe.contentWindow?.postMessage(JSON.stringify(msg), '*') } catch {}
+  }
+  post({ event: 'command', func: 'playVideo', args: '' })
+  post({ event: 'command', func: 'unMute', args: '' })
+  post({ event: 'command', func: 'setVolume', args: [100] })
+}
+
+export function shouldPrewarmYouTubePlayer(
+  platform: string,
+  isCoarsePointer: boolean,
+) {
+  return platform === 'youtube' && isCoarsePointer
+}
+
+export function shouldMountYouTubePlayer(
+  platform: string,
+  isActivated: boolean,
+  isCoarsePointer: boolean,
+) {
+  return platform === 'youtube' && (isActivated || shouldPrewarmYouTubePlayer(platform, isCoarsePointer))
+}
+
+export function shouldRevealYouTubePlayer(isActivated: boolean, hasStarted: boolean) {
+  return isActivated && hasStarted
+}
+
 export function isYouTubePlayingMessage(data: unknown) {
   if (!data || typeof data !== 'object') return false
   const payload = data as {
