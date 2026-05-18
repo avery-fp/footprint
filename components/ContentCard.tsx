@@ -98,6 +98,7 @@ interface ContentCardProps {
   isPublicView?: boolean
   /** When true, show full embed immediately (no facade). Used in lightbox. */
   isExpanded?: boolean
+  layout?: string
 }
 
 /**
@@ -108,10 +109,19 @@ interface ContentCardProps {
  * null → link card (OG metadata via /api/og-preview)
  * Everything fails gracefully. No broken states.
  */
-export default function ContentCard({ content, onWidescreen, isMobile = false, tileSize = 1, aspect = 'square', isPublicView = false, isExpanded = false }: ContentCardProps) {
-  // 3-state topology: M (size 2) forces 4:3 landscape regardless of stored aspect
-  const effectiveAspect = tileSize === 2 ? 'wide' : aspect
+export default function ContentCard({ content, onWidescreen, isMobile = false, tileSize = 1, aspect = 'square', isPublicView = false, isExpanded = false, layout }: ContentCardProps) {
+  const isViewerMode = isExpanded || layout === 'collection-viewer'
+  // Grid topology: M (size 2) forces 4:3 landscape in the room grid only.
+  // Viewer surfaces must honor media shape rather than stored grid footprint.
+  const effectiveAspect = !isViewerMode && tileSize === 2 ? 'wide' : aspect
   const aspectClass = effectiveAspect === 'wide' ? 'aspect-video' : effectiveAspect === 'tall' ? 'aspect-[9/16]' : effectiveAspect === 'portrait' ? 'aspect-[3/4]' : 'aspect-square'
+  const isPortraitViewer = isViewerMode && (effectiveAspect === 'tall' || effectiveAspect === 'portrait')
+  const viewerFrameClass = isPortraitViewer
+    ? 'h-full max-w-full mx-auto'
+    : `w-full max-w-full ${aspectClass || 'aspect-video'}`
+  const viewerFrameStyle = isPortraitViewer
+    ? { aspectRatio: effectiveAspect === 'portrait' ? '3 / 4' : '9 / 16' }
+    : undefined
   const fitClass = 'object-cover'
   const [isActivated, setIsActivated] = useState(false)
   const [youtubeHasStarted, setYoutubeHasStarted] = useState(false)
@@ -268,7 +278,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       return (
         <div
           ref={containerRef}
-          className="w-full h-full fp-tile overflow-hidden cursor-pointer relative group bg-black"
+          className={`${isPortraitViewer ? viewerFrameClass : 'w-full h-full'} fp-tile overflow-hidden cursor-pointer relative group bg-black`}
+          style={viewerFrameStyle}
           onClick={handleActivate}
         >
           <div className="fp-resting-video-frame">
@@ -299,8 +310,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     return (
       <div
         ref={containerRef}
-        className="w-full max-w-full h-full fp-tile overflow-hidden relative group"
-        style={{ background: '#000' }}
+        className={`${isPortraitViewer ? viewerFrameClass : 'w-full max-w-full h-full'} fp-tile overflow-hidden relative group`}
+        style={{ background: '#000', ...viewerFrameStyle }}
       >
         <FieldBackground imageUrl={youtubeThumbCandidates[0]} intensity="embed" />
         <iframe
@@ -498,7 +509,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     if (embed) {
       const vimeoSrc = enforceEmbedDarkMode(embed.embedUrl, 'vimeo')
       return (
-        <div ref={containerRef} className={`w-full max-w-full ${aspectClass || 'aspect-video'} fp-tile overflow-hidden relative`}>
+        <div ref={containerRef} className={`${viewerFrameClass} fp-tile overflow-hidden relative`} style={viewerFrameStyle}>
           {isInView ? (
             <GlassEmbedFrame
               src={vimeoSrc}
@@ -518,7 +529,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     // Fallback: stored embed_html
     if (content.embed_html) {
       return (
-        <div ref={containerRef} className={`w-full max-w-full ${aspectClass || 'aspect-video'} fp-tile overflow-hidden relative bg-black`}>
+        <div ref={containerRef} className={`${viewerFrameClass} fp-tile overflow-hidden relative bg-black`} style={viewerFrameStyle}>
           {isInView ? (
             <div
               className="absolute inset-0 [&_iframe]:!w-full [&_iframe]:!max-w-full [&_iframe]:!h-full"
@@ -542,7 +553,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     // Skips if URL already has a fragment.
     const videoSrc = content.url && !content.url.includes('#') ? `${content.url}#t=0.1` : content.url
     return (
-      <div ref={containerRef} className="fp-tile overflow-hidden relative group">
+      <div ref={containerRef} className={`${isPortraitViewer ? viewerFrameClass : ''} fp-tile overflow-hidden relative group`} style={viewerFrameStyle}>
         {isVideoError ? (
           <GlassPlaceholder aspectClass={aspectClass || 'aspect-video'} />
         ) : isInView ? (
@@ -556,7 +567,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               playsInline
               preload="metadata"
               poster={content.thumbnail_url || undefined}
-              className={`block w-full ${aspectClass || 'aspect-video'} ${fitClass} cursor-pointer`}
+              className={`block ${isPortraitViewer ? 'w-full h-full' : `w-full ${aspectClass || 'aspect-video'}`} ${fitClass} cursor-pointer`}
               onLoadedData={() => setIsLoaded(true)}
               onPlay={() => setIsVideoPlaying(true)}
               onPause={() => setIsVideoPlaying(false)}

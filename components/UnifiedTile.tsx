@@ -368,6 +368,7 @@ export default function UnifiedTile({
               isPublicView={mode === 'public'}
               isExpanded={isExpanded}
               isMobile={isMobile}
+              layout={layout}
             />
           </div>
         )
@@ -397,6 +398,7 @@ export default function UnifiedTile({
                 isPublicView={mode === 'public'}
                 isExpanded={isExpanded}
                 isMobile={isMobile}
+                layout={layout}
               />
             </div>
           )
@@ -647,6 +649,7 @@ export default function UnifiedTile({
           aspect={aspect}
           isPublicView={mode === 'public'}
           isExpanded={isExpanded}
+          layout={layout}
         />
       </div>
     )
