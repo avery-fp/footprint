@@ -5,7 +5,13 @@ import { audioManager } from '@/lib/audio-manager'
 import { buildYouTubeEmbedUrl } from '@/lib/parseEmbed'
 import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getThumbnailCandidates, isBadOrMissingThumbnail } from '@/lib/media/thumbnails'
 import { tryNativeFullscreen } from '@/lib/fullscreen'
-import { isYouTubePlayingMessage, nudgeYouTubeQuality } from '@/lib/youtube-player'
+import {
+  isYouTubePlayingMessage,
+  nudgeYouTubeQuality,
+  shouldMountYouTubePlayer,
+  shouldRevealYouTubePlayer,
+  startYouTubePlayback,
+} from '@/lib/youtube-player'
 import TheaterOverlay from '@/components/TheaterOverlay'
 import MusicEmbedTile from '@/components/MusicEmbedTile'
 
@@ -64,11 +70,13 @@ export default function GhostTile({
   const [isPlaying, setIsPlaying] = useState(false)
   const [iframeLoaded, setIframeLoaded] = useState(false)
   const [youtubeHasStarted, setYoutubeHasStarted] = useState(false)
+  const [isCoarsePointer, setIsCoarsePointer] = useState(false)
   const [iframeFailed, setIframeFailed] = useState(false)
   const [thumbnailExhausted, setThumbnailExhausted] = useState(false)
   const [theaterOpen, setTheaterOpen] = useState(false)
   const iframeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const tileRef = useRef<HTMLDivElement | null>(null)
+  const youtubeIframeRef = useRef<HTMLIFrameElement | null>(null)
 
   // Pause the underlying tile YouTube player while the theater overlay is
   // open so audio doesn't double-up.
@@ -83,6 +91,10 @@ export default function GhostTile({
     } catch {}
   }, [theaterOpen])
   const tileId = useRef(`ghost-${media_id}-${Math.random().toString(36).slice(2, 6)}`)
+
+  useEffect(() => {
+    setIsCoarsePointer(window.matchMedia('(pointer: coarse)').matches)
+  }, [])
 
 
   const archetype = getArchetype(platform, url)
@@ -157,7 +169,10 @@ export default function GhostTile({
     audioManager.play(tileId.current)
     setIsPlaying(true)
     setIframeFailed(false)
-    if (platform === 'youtube') setYoutubeHasStarted(false)
+    if (platform === 'youtube') {
+      setYoutubeHasStarted(false)
+      startYouTubePlayback(youtubeIframeRef.current)
+    }
     // Timeout: if the iframe doesn't fire onLoad within 8s, show fallback.
     // Cleared in the onLoad handler if load succeeds.
     iframeTimerRef.current = setTimeout(() => { setIframeFailed(true) }, 8000)
@@ -291,6 +306,8 @@ export default function GhostTile({
   const shouldAutoActivateEmbed =
     platform === 'youtube' && (isBadOrMissingThumbnail(thumbUrl) || thumbnailExhausted)
   const effectiveActivated = isPlaying || shouldAutoActivateEmbed
+  const shouldMountPlayer =
+    platform !== 'youtube' || shouldMountYouTubePlayer(platform, effectiveActivated, isCoarsePointer)
   const iframeSrc = platform === 'youtube'
     // Auto-activated path: autoplay off so YouTube renders its own
     // thumbnail/play UI. User-click path keeps autoplay+mute (mobile-Safari).
@@ -316,10 +333,12 @@ export default function GhostTile({
     // asynchronously after the user's tap — force playback via the JS API so
     // the user's first tap is the only one needed, no native YouTube play
     // button step.
-    post({ event: 'command', func: 'playVideo', args: '' })
-    setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 250)
-    setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 700)
-    setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 1200)
+    if (isPlaying) {
+      post({ event: 'command', func: 'playVideo', args: '' })
+      setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 250)
+      setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 700)
+      setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 1200)
+    }
     // Subscribe + unmute — settled timing (~800ms after load event).
     setTimeout(() => {
       post({ event: 'listening', id: media_id })
@@ -337,7 +356,7 @@ export default function GhostTile({
     setTimeout(nudgeQuality, 1000)
     setTimeout(nudgeQuality, 2500)
     setTimeout(nudgeQuality, 5000)
-  }, [platform, media_id])
+  }, [isPlaying, platform, media_id])
 
   return (
     <div
@@ -380,11 +399,14 @@ export default function GhostTile({
         </div>
       )}
 
-      {effectiveActivated && iframeSrc && !iframeFailed && (
+      {shouldMountPlayer && iframeSrc && !iframeFailed && (
         <div
           className="absolute inset-0 flex items-center justify-center"
           style={{
-            opacity: iframeLoaded && (platform !== 'youtube' || youtubeHasStarted) ? 1 : 0,
+            opacity:
+              platform === 'youtube'
+                ? Number(iframeLoaded && shouldRevealYouTubePlayer(effectiveActivated, youtubeHasStarted))
+                : Number(effectiveActivated && iframeLoaded),
             transition: 'opacity 0.25s ease',
             zIndex: 1,
           }}
@@ -394,6 +416,7 @@ export default function GhostTile({
               vertical TikTok in a wide cell reads as sharp-center +
               blurred poster aura, not raw black side bars. */}
           <iframe
+            ref={platform === 'youtube' ? youtubeIframeRef : undefined}
             src={iframeSrc}
             className="block"
             width={platform === 'youtube' ? 1920 : undefined}
@@ -407,7 +430,7 @@ export default function GhostTile({
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
-            loading="lazy"
+            loading={platform === 'youtube' ? 'eager' : 'lazy'}
             onLoad={(e) => {
               if (iframeTimerRef.current) clearTimeout(iframeTimerRef.current)
               setIframeLoaded(true)

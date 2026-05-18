@@ -22,7 +22,13 @@ import ReaderTile from '@/components/ReaderTile'
 import { sanitizeLinkMeta, normalizeLinkObject } from '@/lib/link-object'
 import { tryNativeFullscreen } from '@/lib/fullscreen'
 import TheaterOverlay from '@/components/TheaterOverlay'
-import { isYouTubePlayingMessage, nudgeYouTubeQuality } from '@/lib/youtube-player'
+import {
+  isYouTubePlayingMessage,
+  nudgeYouTubeQuality,
+  shouldMountYouTubePlayer,
+  shouldRevealYouTubePlayer,
+  startYouTubePlayback,
+} from '@/lib/youtube-player'
 
 // ════════════════════════════════════════
 // Glass Embed Frame — imported from extracted component
@@ -109,6 +115,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const fitClass = 'object-cover'
   const [isActivated, setIsActivated] = useState(false)
   const [youtubeHasStarted, setYoutubeHasStarted] = useState(false)
+  const [isCoarsePointer, setIsCoarsePointer] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
   const [isInView, setIsInView] = useState(false)
   const [iframeFailed, setIframeFailed] = useState(false)
@@ -122,6 +129,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const [isVideoPlayable, setIsVideoPlayable] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
+  const youtubeIframeRef = useRef<HTMLIFrameElement>(null)
   const audioIdRef = useRef(`card-${content.id}`)
   // Fullscreen affordance for the YouTube embed branch: mirrors GhostTile
   // so cross-origin-iframe-fullscreen failures (iOS Safari) drop into the
@@ -192,8 +200,15 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       audioManager.play(audioIdRef.current)
     }
     setIsActivated(true)
-    if (content.type === 'youtube') setYoutubeHasStarted(false)
+    if (content.type === 'youtube') {
+      setYoutubeHasStarted(false)
+      startYouTubePlayback(youtubeIframeRef.current)
+    }
   }
+
+  useEffect(() => {
+    setIsCoarsePointer(window.matchMedia('(pointer: coarse)').matches)
+  }, [])
 
   useEffect(() => {
     if (!isActivated || content.type !== 'youtube') return
@@ -235,20 +250,21 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       const post = (msg: Record<string, any>) => {
         try { iframe.contentWindow?.postMessage(JSON.stringify(msg), '*') } catch {}
       }
-      post({ event: 'command', func: 'playVideo', args: '' })
-      setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 250)
-      setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 700)
-      setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 1200)
+      if (isActivated) {
+        post({ event: 'command', func: 'playVideo', args: '' })
+        setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 250)
+        setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 700)
+        setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 1200)
+      }
       setTimeout(() => {
         post({ event: 'command', func: 'unMute', args: '' })
         post({ event: 'command', func: 'setVolume', args: [100] })
       }, 800)
     }
 
-    // Facade — always shown first. isExpanded has no effect on YouTube:
-    // the wall is Footprint-owned and the iframe only mounts on explicit tap.
-    if (!isActivated) {
-      const thumbSrc = youtubeThumbCandidates[0]
+    const shouldMountPlayer = shouldMountYouTubePlayer('youtube', isActivated, isCoarsePointer)
+
+    if (!shouldMountPlayer) {
       return (
         <div
           ref={containerRef}
@@ -258,25 +274,25 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           <div className="fp-resting-video-frame">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={thumbSrc}
+              src={youtubeThumbCandidates[0]}
               alt=""
               className="fp-resting-video-media"
               loading="eager"
               decoding="async"
               referrerPolicy="no-referrer"
-              onLoad={(e) => {
-                applyThumbnailLoadGuard(e.currentTarget, youtubeThumbCandidates)
-              }}
-              onError={(e) => {
-                applyNextThumbnailFallback(e.currentTarget, youtubeThumbCandidates)
-              }}
+              onLoad={(e) => applyThumbnailLoadGuard(e.currentTarget, youtubeThumbCandidates)}
+              onError={(e) => applyNextThumbnailFallback(e.currentTarget, youtubeThumbCandidates)}
             />
           </div>
         </div>
       )
     }
-    // YouTube activated state — mute=1 for reliable autoplay, postMessage unmutes after load
+
+    // Mobile prewarms this iframe behind the poster so the first tap can
+    // address an already-ready player while the gesture is still live.
     const ytActivatedSrc = buildYouTubeEmbedUrl(youtubeId, {
+      autoplay: false,
+      mute: true,
       start: extractYouTubeStart(content.url),
       hd: true,
     })
@@ -288,22 +304,50 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       >
         <FieldBackground imageUrl={youtubeThumbCandidates[0]} intensity="embed" />
         <iframe
+          ref={youtubeIframeRef}
           src={ytActivatedSrc}
           width={1920}
           height={1080}
           className="w-full max-w-full h-full relative"
-          style={{ border: 'none', zIndex: 1 }}
+          style={{
+            border: 'none',
+            zIndex: 1,
+            opacity: shouldRevealYouTubePlayer(isActivated, youtubeHasStarted) ? 1 : 0,
+            transition: 'opacity 0.2s ease',
+          }}
           allow="autoplay; encrypted-media; fullscreen"
           allowFullScreen
           referrerPolicy="strict-origin-when-cross-origin"
           onLoad={handleYTLoad}
         />
-        {!youtubeHasStarted && (
-          <div
-            aria-hidden="true"
-            className="absolute inset-0"
-            style={{ zIndex: 2, background: '#000' }}
-          />
+        {!shouldRevealYouTubePlayer(isActivated, youtubeHasStarted) && (
+          <button
+            type="button"
+            aria-label="Play video"
+            onPointerDown={!isActivated ? handleActivate : undefined}
+            className="absolute inset-0 cursor-pointer"
+            style={{
+              zIndex: 3,
+              border: 'none',
+              padding: 0,
+              background: 'transparent',
+              pointerEvents: isActivated ? 'none' : 'auto',
+            }}
+          >
+            <div className="fp-resting-video-frame">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={youtubeThumbCandidates[0]}
+                alt=""
+                className="fp-resting-video-media"
+                loading="eager"
+                decoding="async"
+                referrerPolicy="no-referrer"
+                onLoad={(e) => applyThumbnailLoadGuard(e.currentTarget, youtubeThumbCandidates)}
+                onError={(e) => applyNextThumbnailFallback(e.currentTarget, youtubeThumbCandidates)}
+              />
+            </div>
+          </button>
         )}
         {/* Mobile (coarse pointer): tap anywhere on the tile opens focus
             mode. Provider iframes can't be trusted to native-fullscreen on
