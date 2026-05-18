@@ -1898,10 +1898,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                               media_id: child.media_id,
                             }}
                             index={idx}
-                            size={child.size || 1}
-                            aspect={child.aspect || 'square'}
+                            size={1}
+                            aspect={resolveAspect(child.aspect, child.type, child.url)}
                             mode="public"
-                            layout="rail"
+                            layout="collection-viewer"
+                            isExpanded
                             isMobile={isMobile}
                           />
                           {/* Owner-only controls — move-out + delete + reorder */}

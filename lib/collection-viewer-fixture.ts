@@ -1,0 +1,41 @@
+export const COLLECTION_VIEWER_FIXTURE_CONTAINER_ID = 'collection-viewer-fixture-do-not-enter'
+
+export const collectionViewerFixtureChildren = [
+  {
+    id: 'bfa7e5fb-519a-49f6-9c95-efb0a007d8d8',
+    type: 'video',
+    url: 'https://sgoxqxsftuiqvbqszdrn.supabase.co/storage/v1/object/public/content/1001/1778898344604-332qpa.mov',
+    position: 0,
+    size: 2,
+    aspect: 'tall',
+    caption: null,
+    source: 'library' as const,
+  },
+  {
+    id: 'db5c64cb-5da4-439e-a286-b144d264c911',
+    type: 'youtube',
+    url: 'https://youtube.com/shorts/pArUB9rpehs?si=sQhm2PCu8lNnbunp',
+    title: 'YouTube Video',
+    thumbnail_url: 'https://i.ytimg.com/vi/pArUB9rpehs/maxresdefault.jpg',
+    embed_html: '<iframe src="https://www.youtube-nocookie.com/embed/pArUB9rpehs?autoplay=1&mute=1&enablejsapi=1&controls=0&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&loop=1&playlist=pArUB9rpehs&controls=0&fs=0&disablekb=1" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy" class="w-full aspect-video "></iframe>',
+    description: null,
+    position: 1,
+    size: 1,
+    aspect: null,
+    render_mode: 'ghost',
+    artist: 'Sophie Marks',
+    thumbnail_url_hq: 'https://i.ytimg.com/vi/pArUB9rpehs/maxresdefault.jpg',
+    media_id: 'pArUB9rpehs',
+    source: 'links' as const,
+  },
+  {
+    id: 'acd0058e-3195-4a19-b119-ec32caa80b14',
+    type: 'video',
+    url: 'https://sgoxqxsftuiqvbqszdrn.supabase.co/storage/v1/object/public/content/1001/1779098159885-n290bv.mov',
+    position: 2,
+    size: 2,
+    aspect: 'tall',
+    caption: null,
+    source: 'library' as const,
+  },
+]

@@ -5,6 +5,10 @@ import { getEditAuth } from '@/lib/edit-auth'
 import { containerPostSchema } from '@/lib/schemas'
 import { validateBody } from '@/lib/validate'
 import { transformImageUrl } from '@/lib/image'
+import {
+  COLLECTION_VIEWER_FIXTURE_CONTAINER_ID,
+  collectionViewerFixtureChildren,
+} from '@/lib/collection-viewer-fixture'
 
 const VIDEO_EXT = /\.(mp4|mov|webm|m4v|3gp|3gpp|mkv)($|\?)/i
 
@@ -33,6 +37,10 @@ export async function GET(request: NextRequest) {
   const containerId = request.nextUrl.searchParams.get('id')
   if (!containerId) {
     return NextResponse.json({ error: 'Container id required' }, { status: 400 })
+  }
+
+  if (containerId === COLLECTION_VIEWER_FIXTURE_CONTAINER_ID) {
+    return NextResponse.json({ children: collectionViewerFixtureChildren })
   }
 
   const supabase = createServerSupabaseClient()
