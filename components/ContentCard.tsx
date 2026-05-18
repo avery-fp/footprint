@@ -116,6 +116,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const effectiveAspect = !isViewerMode && tileSize === 2 ? 'wide' : aspect
   const aspectClass = effectiveAspect === 'wide' ? 'aspect-video' : effectiveAspect === 'tall' ? 'aspect-[9/16]' : effectiveAspect === 'portrait' ? 'aspect-[3/4]' : 'aspect-square'
   const isPortraitViewer = isViewerMode && (effectiveAspect === 'tall' || effectiveAspect === 'portrait')
+  const isYouTubeShortViewer = isPortraitViewer && /\/shorts\//.test(content.url || '')
   const viewerFrameClass = isPortraitViewer
     ? 'h-full max-w-full mx-auto'
     : `w-full max-w-full ${aspectClass || 'aspect-video'}`
@@ -250,6 +251,62 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       })
     : []
   if (youtubeId && !iframeFailed) {
+    if (isYouTubeShortViewer) {
+      return (
+        <div
+          ref={containerRef}
+          className={`${viewerFrameClass} fp-tile overflow-hidden relative group bg-black`}
+          style={viewerFrameStyle}
+        >
+          <FieldBackground imageUrl={youtubeThumbCandidates[0]} intensity="embed" />
+          <a
+            href={content.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="absolute inset-0 block"
+            aria-label="Watch on YouTube"
+            style={{ zIndex: 3 }}
+          >
+            <div className="fp-resting-video-frame">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={youtubeThumbCandidates[0]}
+                alt=""
+                className="fp-resting-video-media"
+                loading="eager"
+                decoding="async"
+                referrerPolicy="no-referrer"
+                onLoad={(e) => applyThumbnailLoadGuard(e.currentTarget, youtubeThumbCandidates)}
+                onError={(e) => applyNextThumbnailFallback(e.currentTarget, youtubeThumbCandidates)}
+              />
+            </div>
+            <div
+              className="absolute inset-x-0 bottom-5 mx-auto flex items-center justify-center gap-2 rounded-full"
+              style={{
+                width: 'fit-content',
+                maxWidth: 'calc(100% - 32px)',
+                padding: '10px 16px',
+                background: 'rgba(0,0,0,0.42)',
+                backdropFilter: 'blur(12px) saturate(140%)',
+                WebkitBackdropFilter: 'blur(12px) saturate(140%)',
+                boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08)',
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={{ color: '#fff' }}>
+                <path d="M23.5 6.2a2.95 2.95 0 00-2.08-2.09C19.58 3.6 12 3.6 12 3.6s-7.58 0-9.42.51A2.95 2.95 0 00.5 6.2 30.62 30.62 0 000 12a30.62 30.62 0 00.5 5.8 2.95 2.95 0 002.08 2.09c1.84.51 9.42.51 9.42.51s7.58 0 9.42-.51a2.95 2.95 0 002.08-2.09A30.62 30.62 0 0024 12a30.62 30.62 0 00-.5-5.8zM9.6 15.6V8.4l6.24 3.6-6.24 3.6z" />
+              </svg>
+              <span
+                className="font-mono uppercase"
+                style={{ color: 'rgba(255,255,255,0.92)', fontSize: '11px', letterSpacing: '0.12em' }}
+              >
+                watch on youtube
+              </span>
+            </div>
+          </a>
+        </div>
+      )
+    }
+
     // The autoplay= URL param can be dropped when the iframe loads
     // asynchronously after the user's tap (gesture context expires before
     // the YouTube player initializes). Force playback via the JS API so
@@ -314,23 +371,32 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         style={{ background: '#000', ...viewerFrameStyle }}
       >
         <FieldBackground imageUrl={youtubeThumbCandidates[0]} intensity="embed" />
-        <iframe
-          ref={youtubeIframeRef}
-          src={ytActivatedSrc}
-          width={1920}
-          height={1080}
-          className="w-full max-w-full h-full relative"
+        <div
+          className="absolute inset-0 flex items-center justify-center"
           style={{
-            border: 'none',
-            zIndex: 1,
             opacity: shouldRevealYouTubePlayer(isActivated, youtubeHasStarted) ? 1 : 0,
             transition: 'opacity 0.2s ease',
+            zIndex: 1,
           }}
-          allow="autoplay; encrypted-media; fullscreen"
-          allowFullScreen
-          referrerPolicy="strict-origin-when-cross-origin"
-          onLoad={handleYTLoad}
-        />
+        >
+          <iframe
+            ref={youtubeIframeRef}
+            src={ytActivatedSrc}
+            width={1920}
+            height={1080}
+            className="block"
+            style={{
+              border: 'none',
+              aspectRatio: isYouTubeShortViewer ? '9 / 16' : '16 / 9',
+              maxWidth: '100%',
+              maxHeight: '100%',
+            }}
+            allow="autoplay; encrypted-media; fullscreen"
+            allowFullScreen
+            referrerPolicy="strict-origin-when-cross-origin"
+            onLoad={handleYTLoad}
+          />
+        </div>
         {!shouldRevealYouTubePlayer(isActivated, youtubeHasStarted) && (
           <button
             type="button"
