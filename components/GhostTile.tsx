@@ -5,6 +5,7 @@ import { audioManager } from '@/lib/audio-manager'
 import { buildYouTubeEmbedUrl } from '@/lib/parseEmbed'
 import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getThumbnailCandidates, isBadOrMissingThumbnail } from '@/lib/media/thumbnails'
 import { tryNativeFullscreen } from '@/lib/fullscreen'
+import { nudgeYouTubeQuality } from '@/lib/youtube-player'
 import TheaterOverlay from '@/components/TheaterOverlay'
 import MusicEmbedTile from '@/components/MusicEmbedTile'
 
@@ -322,12 +323,7 @@ export default function GhostTile({
     // so the player lands on the highest it can actually serve for the video.
     // Fired several times because the YT player sometimes ignores early calls
     // before the first video frame is ready.
-    const nudgeQuality = () => {
-      for (const q of ['hd2160', 'hd1440', 'hd1080', 'highres']) {
-        post({ event: 'command', func: 'setPlaybackQuality', args: [q] })
-        post({ event: 'command', func: 'setPlaybackQualityRange', args: [q, q] })
-      }
-    }
+    const nudgeQuality = () => nudgeYouTubeQuality(iframe)
     setTimeout(nudgeQuality, 1000)
     setTimeout(nudgeQuality, 2500)
     setTimeout(nudgeQuality, 5000)
@@ -435,7 +431,8 @@ export default function GhostTile({
                   e.stopPropagation()
                   const btn = e.currentTarget as HTMLElement
                   const container = (btn.closest('[data-tile]') as HTMLElement) || tileRef.current
-                  const iframe = container?.querySelector('iframe') as HTMLElement | null
+                  const iframe = container?.querySelector('iframe') as HTMLIFrameElement | null
+                  nudgeYouTubeQuality(iframe)
                   tryNativeFullscreen(iframe).then((ok) => {
                     if (ok) return
                     tryNativeFullscreen(container).then((ok2) => {
