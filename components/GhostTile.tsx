@@ -5,7 +5,7 @@ import { audioManager } from '@/lib/audio-manager'
 import { buildYouTubeEmbedUrl } from '@/lib/parseEmbed'
 import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getThumbnailCandidates, isBadOrMissingThumbnail } from '@/lib/media/thumbnails'
 import { tryNativeFullscreen } from '@/lib/fullscreen'
-import { nudgeYouTubeQuality, shouldOpenYouTubeFocusOnActivate } from '@/lib/youtube-player'
+import { isYouTubePlayingMessage, nudgeYouTubeQuality } from '@/lib/youtube-player'
 import TheaterOverlay from '@/components/TheaterOverlay'
 import MusicEmbedTile from '@/components/MusicEmbedTile'
 
@@ -63,6 +63,7 @@ export default function GhostTile({
 }: GhostTileProps) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [iframeLoaded, setIframeLoaded] = useState(false)
+  const [youtubeHasStarted, setYoutubeHasStarted] = useState(false)
   const [iframeFailed, setIframeFailed] = useState(false)
   const [thumbnailExhausted, setThumbnailExhausted] = useState(false)
   const [theaterOpen, setTheaterOpen] = useState(false)
@@ -139,6 +140,10 @@ export default function GhostTile({
       if (youtubeEnded || tiktokEnded || vimeoEnded) {
         setIsPlaying(false)
         setIframeLoaded(false)
+        setYoutubeHasStarted(false)
+      }
+      if (platform === 'youtube' && isYouTubePlayingMessage(data)) {
+        setYoutubeHasStarted(true)
       }
     }
     window.addEventListener('message', onMessage)
@@ -152,9 +157,7 @@ export default function GhostTile({
     audioManager.play(tileId.current)
     setIsPlaying(true)
     setIframeFailed(false)
-    if (shouldOpenYouTubeFocusOnActivate(platform, window.matchMedia.bind(window))) {
-      setTheaterOpen(true)
-    }
+    if (platform === 'youtube') setYoutubeHasStarted(false)
     // Timeout: if the iframe doesn't fire onLoad within 8s, show fallback.
     // Cleared in the onLoad handler if load succeeds.
     iframeTimerRef.current = setTimeout(() => { setIframeFailed(true) }, 8000)
@@ -381,7 +384,7 @@ export default function GhostTile({
         <div
           className="absolute inset-0 flex items-center justify-center"
           style={{
-            opacity: iframeLoaded ? 1 : 0,
+            opacity: iframeLoaded && (platform !== 'youtube' || youtubeHasStarted) ? 1 : 0,
             transition: 'opacity 0.25s ease',
             zIndex: 1,
           }}

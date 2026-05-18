@@ -1,19 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { shouldOpenYouTubeFocusOnActivate } from '@/lib/youtube-player'
+import { isYouTubePlayingMessage } from '@/lib/youtube-player'
 
-describe('shouldOpenYouTubeFocusOnActivate', () => {
-  const coarse = () => ({ matches: true })
-  const fine = () => ({ matches: false })
-
-  it('opens focus immediately for youtube on coarse pointers', () => {
-    expect(shouldOpenYouTubeFocusOnActivate('youtube', coarse)).toBe(true)
+describe('isYouTubePlayingMessage', () => {
+  it('accepts onStateChange playing events', () => {
+    expect(isYouTubePlayingMessage({ event: 'onStateChange', info: 1 })).toBe(true)
   })
 
-  it('does not open focus immediately for youtube on fine pointers', () => {
-    expect(shouldOpenYouTubeFocusOnActivate('youtube', fine)).toBe(false)
+  it('accepts infoDelivery playing events', () => {
+    expect(isYouTubePlayingMessage({ event: 'infoDelivery', info: { playerState: 1 } })).toBe(true)
   })
 
-  it('does not affect non-youtube tiles on coarse pointers', () => {
-    expect(shouldOpenYouTubeFocusOnActivate('vimeo', coarse)).toBe(false)
+  it('rejects non-playing states', () => {
+    expect(isYouTubePlayingMessage({ event: 'onStateChange', info: 0 })).toBe(false)
   })
 })

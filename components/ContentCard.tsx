@@ -22,7 +22,7 @@ import ReaderTile from '@/components/ReaderTile'
 import { sanitizeLinkMeta, normalizeLinkObject } from '@/lib/link-object'
 import { tryNativeFullscreen } from '@/lib/fullscreen'
 import TheaterOverlay from '@/components/TheaterOverlay'
-import { nudgeYouTubeQuality, shouldOpenYouTubeFocusOnActivate } from '@/lib/youtube-player'
+import { isYouTubePlayingMessage, nudgeYouTubeQuality } from '@/lib/youtube-player'
 
 // ════════════════════════════════════════
 // Glass Embed Frame — imported from extracted component
@@ -108,6 +108,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const aspectClass = effectiveAspect === 'wide' ? 'aspect-video' : effectiveAspect === 'tall' ? 'aspect-[9/16]' : effectiveAspect === 'portrait' ? 'aspect-[3/4]' : 'aspect-square'
   const fitClass = 'object-cover'
   const [isActivated, setIsActivated] = useState(false)
+  const [youtubeHasStarted, setYoutubeHasStarted] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
   const [isInView, setIsInView] = useState(false)
   const [iframeFailed, setIframeFailed] = useState(false)
@@ -191,10 +192,22 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       audioManager.play(audioIdRef.current)
     }
     setIsActivated(true)
-    if (shouldOpenYouTubeFocusOnActivate(content.type, window.matchMedia.bind(window))) {
-      setTheaterOpen(true)
-    }
+    if (content.type === 'youtube') setYoutubeHasStarted(false)
   }
+
+  useEffect(() => {
+    if (!isActivated || content.type !== 'youtube') return
+    const onMessage = (e: MessageEvent) => {
+      if (!['https://www.youtube-nocookie.com', 'https://www.youtube.com'].includes(e.origin)) return
+      let data: unknown = e.data
+      if (typeof data === 'string') {
+        try { data = JSON.parse(data) } catch { return }
+      }
+      if (isYouTubePlayingMessage(data)) setYoutubeHasStarted(true)
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [content.type, isActivated])
 
   // ════════════════════════════════════════
   // YOUTUBE — FACADE: thumbnail first, iframe on tap
@@ -285,6 +298,13 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           referrerPolicy="strict-origin-when-cross-origin"
           onLoad={handleYTLoad}
         />
+        {!youtubeHasStarted && (
+          <div
+            aria-hidden="true"
+            className="absolute inset-0"
+            style={{ zIndex: 2, background: '#000' }}
+          />
+        )}
         {/* Mobile (coarse pointer): tap anywhere on the tile opens focus
             mode. Provider iframes can't be trusted to native-fullscreen on
             iOS, so we don't try — focus mode is the affordance. */}

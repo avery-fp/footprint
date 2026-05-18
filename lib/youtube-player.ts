@@ -9,9 +9,16 @@ export function nudgeYouTubeQuality(iframe: HTMLIFrameElement | null) {
   }
 }
 
-export function shouldOpenYouTubeFocusOnActivate(
-  platform: string,
-  matchMedia: (query: string) => Pick<MediaQueryList, 'matches'>,
-) {
-  return platform === 'youtube' && matchMedia('(pointer: coarse)').matches
+export function isYouTubePlayingMessage(data: unknown) {
+  if (!data || typeof data !== 'object') return false
+  const payload = data as {
+    event?: string
+    info?: number | { playerState?: number }
+  }
+  return (
+    (payload.event === 'onStateChange' && payload.info === 1) ||
+    (payload.event === 'infoDelivery' &&
+      typeof payload.info === 'object' &&
+      payload.info?.playerState === 1)
+  )
 }
