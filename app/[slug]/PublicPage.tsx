@@ -1875,18 +1875,26 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                         scrollPaddingLeft: 'max(16px, calc((100vw - min(88vw, 620px)) / 2))',
                       }}
                     >
-                      {localChildren.map((child: any, idx: number) => (
-                        <div
-                          key={child.id}
-                          className="group flex-shrink-0 snap-center relative overflow-hidden rounded-2xl"
-                          style={{
-                            width: 'min(85vw, 580px)',
-                            height: '75%',
-                            minHeight: '300px',
-                            ...glassStyle,
-                            borderRadius: '16px',
-                          }}
-                        >
+                      {localChildren.map((child: any, idx: number) => {
+                        const childAspect = child.aspect || 'square'
+                        const isPortraitVideo =
+                          child.type === 'video' &&
+                          (childAspect === 'tall' || childAspect === 'portrait')
+
+                        return (
+                          <div
+                            key={child.id}
+                            className="group flex-shrink-0 snap-center relative overflow-hidden rounded-2xl"
+                            style={{
+                              width: isPortraitVideo
+                                ? 'min(calc((100dvh - 100px) * 9 / 16), calc(100vw - 32px))'
+                                : 'min(calc(100vw - 32px), 720px)',
+                              height: '100%',
+                              minHeight: 0,
+                              ...glassStyle,
+                              borderRadius: '16px',
+                            }}
+                          >
                           <UnifiedTile
                             item={{
                               id: child.id,
@@ -1973,8 +1981,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                               </div>
                             </div>
                           )}
-                        </div>
-                      ))}
+                          </div>
+                        )
+                      })}
                     </div>
                   ) : !loadingChildren ? (
                     <div className="flex items-center justify-center w-full py-12">
