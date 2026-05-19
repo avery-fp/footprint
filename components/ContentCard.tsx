@@ -98,6 +98,7 @@ interface ContentCardProps {
   isPublicView?: boolean
   /** When true, show full embed immediately (no facade). Used in lightbox. */
   isExpanded?: boolean
+  isSoundRoom?: boolean
 }
 
 /**
@@ -108,7 +109,7 @@ interface ContentCardProps {
  * null → link card (OG metadata via /api/og-preview)
  * Everything fails gracefully. No broken states.
  */
-export default function ContentCard({ content, onWidescreen, isMobile = false, tileSize = 1, aspect = 'square', isPublicView = false, isExpanded = false }: ContentCardProps) {
+export default function ContentCard({ content, onWidescreen, isMobile = false, tileSize = 1, aspect = 'square', isPublicView = false, isExpanded = false, isSoundRoom = false }: ContentCardProps) {
   // Size changes tile presence; explicit vertical media shape must survive.
   const isVertical = aspect === 'tall' || aspect === 'portrait'
   const effectiveAspect =
@@ -267,6 +268,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     }
 
     const shouldMountPlayer = shouldMountYouTubePlayer('youtube', isActivated, isCoarsePointer, isInView)
+    const shouldUsePosterSurface = isSoundRoom
+    const shouldRevealPlayer = shouldUsePosterSurface
+      ? shouldRevealYouTubePlayer(isActivated, youtubeHasStarted)
+      : isActivated
 
     if (!shouldMountPlayer) {
       return (
@@ -310,7 +315,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         <div
           className="absolute inset-0 flex items-center justify-center"
           style={{
-            opacity: shouldRevealYouTubePlayer(isActivated, youtubeHasStarted) ? 1 : 0,
+            opacity: shouldRevealPlayer ? 1 : 0,
             transition: 'opacity 0.2s ease',
             zIndex: 1,
           }}
@@ -333,7 +338,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             onLoad={handleYTLoad}
           />
         </div>
-        {!shouldRevealYouTubePlayer(isActivated, youtubeHasStarted) && (
+        {!shouldRevealPlayer && (
           <button
             type="button"
             aria-label="Play video"
