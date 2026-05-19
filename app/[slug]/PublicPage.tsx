@@ -1081,7 +1081,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     // Explicit user shape wins, and URL-derived vertical video signals
     // like YouTube Shorts must be resolved before generic provider
     // defaults force embeds to 16:9.
-    if (item.aspect === 'square' || item.aspect === 'wide' || item.aspect === 'tall') {
+    if (item.aspect === 'square' || item.aspect === 'wide' || item.aspect === 'tall' || item.aspect === 'portrait') {
       return tileAspectRatio(item.aspect)
     }
     const resolved = resolveAspect(item.aspect, item.type, item.url)
