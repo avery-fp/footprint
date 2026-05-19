@@ -383,6 +383,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             border: 'none',
             padding: 0,
             cursor: 'pointer',
+            pointerEvents: !shouldUsePosterSurface && !shouldRevealPlayer ? 'none' : 'auto',
           }}
         />
         {/* Desktop (fine pointer): hover chip → native fullscreen. */}
