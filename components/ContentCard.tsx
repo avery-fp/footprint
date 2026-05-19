@@ -265,19 +265,20 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       const post = (msg: Record<string, any>) => {
         try { iframe.contentWindow?.postMessage(JSON.stringify(msg), '*') } catch {}
       }
-      post({ event: 'listening', id: youtubeId })
       if (activatedRef.current) {
         post({ event: 'command', func: 'playVideo', args: '' })
         setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 250)
         setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 700)
         setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 1200)
       }
-      if (activatedRef.current) {
-        setTimeout(() => {
+      setTimeout(() => {
+        post({ event: 'listening', id: youtubeId })
+        if (activatedRef.current) {
+          post({ event: 'command', func: 'playVideo', args: '' })
           post({ event: 'command', func: 'unMute', args: '' })
           post({ event: 'command', func: 'setVolume', args: [100] })
-        }, 800)
-      }
+        }
+      }, 800)
     }
 
     const isYouTubeShort = /\/shorts\//i.test(content.url || '')
