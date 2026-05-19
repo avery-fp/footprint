@@ -265,6 +265,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       const post = (msg: Record<string, any>) => {
         try { iframe.contentWindow?.postMessage(JSON.stringify(msg), '*') } catch {}
       }
+      post({ event: 'listening', id: youtubeId })
       if (activatedRef.current) {
         post({ event: 'command', func: 'playVideo', args: '' })
         setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 250)
