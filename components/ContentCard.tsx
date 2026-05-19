@@ -289,7 +289,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       ? isActivated || shouldPrewarmPosterSurface
       : shouldMountYouTubePlayer('youtube', isActivated, isCoarsePointer, isInView)
     const shouldRevealPlayer = shouldUsePosterSurface
-      ? shouldRevealYouTubePlayer(isActivated, youtubeHasStarted)
+      ? false
       : isActivated
 
     if (!shouldMountPlayer) {
