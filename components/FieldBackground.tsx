@@ -60,7 +60,7 @@ export default function FieldBackground({
           objectFit: 'cover',
           filter,
         }}
-        loading="eager"
+        loading="lazy"
         decoding="async"
       />
       {/* Dark scrim — ensures sharp video always reads as source of truth */}

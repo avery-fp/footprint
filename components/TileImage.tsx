@@ -102,8 +102,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
         fill
         sizes={sizes}
         className={`object-cover transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
-        loading="eager"
-        priority={index < 2}
+        loading="lazy"
         quality={90}
         onLoad={(e) => {
           setLoaded(true)

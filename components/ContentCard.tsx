@@ -261,16 +261,20 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 700)
         setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 1200)
       }
-      setTimeout(() => {
-        post({ event: 'command', func: 'unMute', args: '' })
-        post({ event: 'command', func: 'setVolume', args: [100] })
-      }, 800)
+      if (isActivated) {
+        setTimeout(() => {
+          post({ event: 'command', func: 'unMute', args: '' })
+          post({ event: 'command', func: 'setVolume', args: [100] })
+        }, 800)
+      }
     }
 
-    const shouldMountPlayer = shouldMountYouTubePlayer('youtube', isActivated, isCoarsePointer, isInView)
     const isYouTubeShort = /\/shorts\//i.test(content.url || '')
     const isYouTubeVideoLike = isYouTubeShort
     const shouldUsePosterSurface = isSoundRoom && !isYouTubeVideoLike
+    const shouldMountPlayer = shouldUsePosterSurface
+      ? isActivated
+      : shouldMountYouTubePlayer('youtube', isActivated, isCoarsePointer, isInView)
     const shouldRevealPlayer = shouldUsePosterSurface
       ? shouldRevealYouTubePlayer(isActivated, youtubeHasStarted)
       : isActivated
@@ -288,7 +292,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               src={youtubeThumbCandidates[0]}
               alt=""
               className="fp-resting-video-media"
-              loading="eager"
+              loading="lazy"
               decoding="async"
               referrerPolicy="no-referrer"
               onLoad={(e) => applyThumbnailLoadGuard(e.currentTarget, youtubeThumbCandidates)}
@@ -360,7 +364,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 src={youtubeThumbCandidates[0]}
                 alt=""
                 className="fp-resting-video-media"
-                loading="eager"
+                loading="lazy"
                 decoding="async"
                 referrerPolicy="no-referrer"
                 onLoad={(e) => applyThumbnailLoadGuard(e.currentTarget, youtubeThumbCandidates)}
@@ -624,7 +628,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             height={800}
             sizes="(max-width: 768px) 50vw, 25vw"
             className="w-full h-full object-cover"
-            loading="eager"
+            loading="lazy"
             quality={90}
             onLoad={(e) => {
               setIsLoaded(true)
@@ -753,7 +757,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 src={thumbSrc}
                 alt=""
                 className="fp-resting-video-media"
-                loading="eager"
+                loading="lazy"
                 decoding="async"
                 onError={() => setSocialThumbFailed(true)}
               />
@@ -827,7 +831,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 src={thumbSrc}
                 alt=""
                 className="fp-resting-video-media"
-                loading="eager"
+                loading="lazy"
                 decoding="async"
                 onError={() => setSocialThumbFailed(true)}
               />
