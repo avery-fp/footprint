@@ -136,6 +136,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const videoRef = useRef<HTMLVideoElement>(null)
   const youtubeIframeRef = useRef<HTMLIFrameElement>(null)
   const audioIdRef = useRef(`card-${content.id}`)
+  const activatedRef = useRef(false)
   // Fullscreen affordance for the YouTube embed branch: mirrors GhostTile
   // so cross-origin-iframe-fullscreen failures (iOS Safari) drop into the
   // Footprint Theater overlay instead of producing a dead tap.
@@ -204,6 +205,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     if (['youtube', 'soundcloud', 'spotify'].includes(content.type)) {
       audioManager.play(audioIdRef.current)
     }
+    activatedRef.current = true
     setIsActivated(true)
     if (content.type === 'youtube') {
       setYoutubeHasStarted(false)
@@ -214,6 +216,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       setTimeout(start, 1200)
     }
   }
+
+  useEffect(() => {
+    activatedRef.current = isActivated
+  }, [isActivated])
 
   useEffect(() => {
     setIsCoarsePointer(window.matchMedia('(pointer: coarse)').matches)
@@ -259,13 +265,13 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       const post = (msg: Record<string, any>) => {
         try { iframe.contentWindow?.postMessage(JSON.stringify(msg), '*') } catch {}
       }
-      if (isActivated) {
+      if (activatedRef.current) {
         post({ event: 'command', func: 'playVideo', args: '' })
         setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 250)
         setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 700)
         setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 1200)
       }
-      if (isActivated) {
+      if (activatedRef.current) {
         setTimeout(() => {
           post({ event: 'command', func: 'unMute', args: '' })
           post({ event: 'command', func: 'setVolume', args: [100] })
