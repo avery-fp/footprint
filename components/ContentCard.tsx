@@ -207,7 +207,11 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     setIsActivated(true)
     if (content.type === 'youtube') {
       setYoutubeHasStarted(false)
-      startYouTubePlayback(youtubeIframeRef.current)
+      const start = () => startYouTubePlayback(youtubeIframeRef.current)
+      start()
+      setTimeout(start, 250)
+      setTimeout(start, 700)
+      setTimeout(start, 1200)
     }
   }
 
