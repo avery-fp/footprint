@@ -24,7 +24,6 @@ import { tryNativeFullscreen } from '@/lib/fullscreen'
 import TheaterOverlay from '@/components/TheaterOverlay'
 import {
   consumePendingYouTubeActivation,
-  isYouTubeCoveredStateMessage,
   isYouTubePlayingMessage,
   nudgeYouTubeQuality,
   primeYouTubePlayer,
@@ -260,13 +259,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             setYoutubeRevealSettled(true)
           }, isCoarsePointer ? YOUTUBE_MOBILE_REVEAL_SETTLE_MS : 0)
         }
-      } else if (isYouTubeCoveredStateMessage(data)) {
-        setYoutubeHasStarted(false)
-        setYoutubeRevealSettled(false)
-        if (youtubeRevealTimerRef.current) {
-          clearTimeout(youtubeRevealTimerRef.current)
-          youtubeRevealTimerRef.current = null
-        }
       }
     }
     window.addEventListener('message', onMessage)
@@ -395,14 +387,14 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           <button
             type="button"
             aria-label="Play video"
-            onPointerDown={!shouldUsePosterSurface || !isActivated ? handleActivate : undefined}
+            onPointerDown={!isActivated ? handleActivate : undefined}
             className="absolute inset-0 cursor-pointer"
             style={{
               zIndex: 3,
               border: 'none',
               padding: 0,
               background: 'transparent',
-              pointerEvents: !shouldUsePosterSurface || !isActivated ? 'auto' : 'none',
+              pointerEvents: isActivated ? 'none' : 'auto',
             }}
           >
             <div className="fp-resting-video-frame">
