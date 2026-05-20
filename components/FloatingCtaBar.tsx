@@ -85,7 +85,7 @@ export default function FloatingCtaBar({ isOwner = false }: { isOwner?: boolean 
         bottom: 0,
         left: 0,
         right: 0,
-        zIndex: 40,
+        zIndex: 55,
         padding: '48px 20px calc(18px + env(safe-area-inset-bottom, 0px))',
         background: 'linear-gradient(to top, rgba(5, 5, 5, 0.58) 0%, rgba(5, 5, 5, 0.28) 48%, rgba(5, 5, 5, 0) 100%)',
         opacity: visible ? 1 : 0,
