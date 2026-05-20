@@ -1,6 +1,6 @@
 const YOUTUBE_PLAY_RETRY_MS = [250, 700, 1200] as const
 export const YOUTUBE_READY_SETTLE_MS = 800
-export const YOUTUBE_MOBILE_REVEAL_SETTLE_MS = 900
+export const YOUTUBE_MOBILE_REVEAL_SETTLE_MS = 6000
 
 function postYouTubeMessage(
   iframe: HTMLIFrameElement | null,
@@ -67,12 +67,12 @@ export function shouldMountYouTubePlayer(
 
 export function shouldRevealYouTubePlayer(
   isActivated: boolean,
-  hasStarted: boolean,
+  _hasStarted: boolean,
   isPosterLocked = false,
   readyAfterActivation = false,
   hasSettled = false,
 ) {
-  return !isPosterLocked && isActivated && (hasSettled || hasStarted || readyAfterActivation)
+  return !isPosterLocked && isActivated && (hasSettled || readyAfterActivation)
 }
 
 export function youtubePrewarmOptions(start: number, end: number) {
@@ -85,16 +85,26 @@ export function youtubePrewarmOptions(start: number, end: number) {
   } as const
 }
 
-export function isYouTubePlayingMessage(data: unknown) {
-  if (!data || typeof data !== 'object') return false
+function getYouTubePlayerState(data: unknown) {
+  if (!data || typeof data !== 'object') return null
   const payload = data as {
     event?: string
     info?: number | { playerState?: number }
   }
-  return (
-    (payload.event === 'onStateChange' && payload.info === 1) ||
-    (payload.event === 'infoDelivery' &&
-      typeof payload.info === 'object' &&
-      payload.info?.playerState === 1)
-  )
+  if (payload.event === 'onStateChange' && typeof payload.info === 'number') {
+    return payload.info
+  }
+  if (payload.event === 'infoDelivery' && typeof payload.info === 'object') {
+    return payload.info?.playerState ?? null
+  }
+  return null
+}
+
+export function isYouTubePlayingMessage(data: unknown) {
+  return getYouTubePlayerState(data) === 1
+}
+
+export function isYouTubeCoveredStateMessage(data: unknown) {
+  const state = getYouTubePlayerState(data)
+  return state === 0 || state === 2 || state === 3 || state === 5
 }

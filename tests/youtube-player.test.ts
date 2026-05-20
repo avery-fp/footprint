@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   consumePendingYouTubeActivation,
+  isYouTubeCoveredStateMessage,
   isYouTubePlayingMessage,
   primeYouTubePlayer,
   requestYouTubeActivation,
@@ -27,6 +28,19 @@ describe('isYouTubePlayingMessage', () => {
   })
 })
 
+describe('isYouTubeCoveredStateMessage', () => {
+  it('accepts states that should put the Footprint surface back over YouTube chrome', () => {
+    expect(isYouTubeCoveredStateMessage({ event: 'onStateChange', info: 0 })).toBe(true)
+    expect(isYouTubeCoveredStateMessage({ event: 'onStateChange', info: 2 })).toBe(true)
+    expect(isYouTubeCoveredStateMessage({ event: 'onStateChange', info: 3 })).toBe(true)
+    expect(isYouTubeCoveredStateMessage({ event: 'infoDelivery', info: { playerState: 5 } })).toBe(true)
+  })
+
+  it('rejects playing state', () => {
+    expect(isYouTubeCoveredStateMessage({ event: 'onStateChange', info: 1 })).toBe(false)
+  })
+})
+
 describe('mobile youtube prewarm contract', () => {
   it('prewarms and mounts youtube before first activation on coarse pointers', () => {
     expect(shouldPrewarmYouTubePlayer('youtube', true, true)).toBe(true)
@@ -35,7 +49,7 @@ describe('mobile youtube prewarm contract', () => {
 
   it('keeps the poster visible until playback is confirmed', () => {
     expect(shouldRevealYouTubePlayer(true, false)).toBe(false)
-    expect(shouldRevealYouTubePlayer(true, true)).toBe(true)
+    expect(shouldRevealYouTubePlayer(true, true)).toBe(false)
     expect(shouldRevealYouTubePlayer(true, true, true)).toBe(false)
     expect(shouldRevealYouTubePlayer(true, false, false, true)).toBe(true)
     expect(shouldRevealYouTubePlayer(true, false, true, true)).toBe(false)
@@ -135,11 +149,11 @@ describe('mobile youtube prewarm contract', () => {
   })
 
   it('reveals normal youtube only after the play settle condition when ready-state reveal is disabled', () => {
-    expect(shouldRevealYouTubePlayer(true, true, false, false, false)).toBe(true)
+    expect(shouldRevealYouTubePlayer(true, true, false, false, false)).toBe(false)
     expect(shouldRevealYouTubePlayer(true, false, false, false, true)).toBe(true)
   })
 
   it('uses a dedicated mobile settle delay for clean youtube reveal', () => {
-    expect(YOUTUBE_MOBILE_REVEAL_SETTLE_MS).toBe(900)
+    expect(YOUTUBE_MOBILE_REVEAL_SETTLE_MS).toBe(6000)
   })
 })

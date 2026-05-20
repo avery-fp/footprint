@@ -7,6 +7,7 @@ import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getThumbnailCandid
 import { tryNativeFullscreen } from '@/lib/fullscreen'
 import {
   consumePendingYouTubeActivation,
+  isYouTubeCoveredStateMessage,
   isYouTubePlayingMessage,
   nudgeYouTubeQuality,
   primeYouTubePlayer,
@@ -190,12 +191,22 @@ export default function GhostTile({
           youtubeRevealTimerRef.current = null
         }
       }
-      if (platform === 'youtube' && isYouTubePlayingMessage(data)) {
-        setYoutubeHasStarted(true)
-        if (youtubeRevealTimerRef.current) clearTimeout(youtubeRevealTimerRef.current)
-        youtubeRevealTimerRef.current = setTimeout(() => {
-          setYoutubeRevealSettled(true)
-        }, isCoarsePointer ? YOUTUBE_MOBILE_REVEAL_SETTLE_MS : 0)
+      if (platform === 'youtube') {
+        if (isYouTubePlayingMessage(data)) {
+          setYoutubeHasStarted(true)
+          if (youtubeRevealTimerRef.current) clearTimeout(youtubeRevealTimerRef.current)
+          youtubeRevealTimerRef.current = setTimeout(() => {
+            setYoutubeRevealSettled(true)
+          }, isCoarsePointer ? YOUTUBE_MOBILE_REVEAL_SETTLE_MS : 0)
+        } else if (isYouTubeCoveredStateMessage(data)) {
+          setIsPlaying(false)
+          setYoutubeHasStarted(false)
+          setYoutubeRevealSettled(false)
+          if (youtubeRevealTimerRef.current) {
+            clearTimeout(youtubeRevealTimerRef.current)
+            youtubeRevealTimerRef.current = null
+          }
+        }
       }
     }
     window.addEventListener('message', onMessage)
@@ -358,6 +369,16 @@ export default function GhostTile({
     shouldMountYouTubePlayer(platform, effectiveActivated, isCoarsePointer, isNearViewport)
   const shouldRevealFromReadyState =
     !isCoarsePointer && youtubePlayerReadyRef.current && !youtubePendingActivationRef.current
+  const shouldRevealPlayer = platform === 'youtube'
+    ? iframeLoaded && shouldRevealYouTubePlayer(
+        effectiveActivated,
+        youtubeHasStarted,
+        false,
+        shouldRevealFromReadyState,
+        youtubeRevealSettled,
+      )
+    : effectiveActivated && iframeLoaded
+  const shouldShowPlaySurface = platform === 'youtube' ? !shouldRevealPlayer : !effectiveActivated
   const iframeSrc = platform === 'youtube'
     // Keep the URL stable across activation. Changing `src` on tap remounts
     // the iframe and destroys the whole point of prewarming it.
@@ -418,8 +439,8 @@ export default function GhostTile({
       <div
         className="absolute inset-0 cursor-pointer"
         style={{
-          opacity: effectiveActivated ? 0 : 1,
-          pointerEvents: effectiveActivated ? 'none' : 'auto',
+          opacity: shouldShowPlaySurface ? 1 : 0,
+          pointerEvents: shouldShowPlaySurface ? 'auto' : 'none',
           transition: 'opacity 0.4s ease',
           zIndex: 2,
         }}
@@ -441,16 +462,7 @@ export default function GhostTile({
         <div
           className="absolute inset-0 flex items-center justify-center"
           style={{
-              opacity:
-              platform === 'youtube'
-                ? Number(iframeLoaded && shouldRevealYouTubePlayer(
-                    effectiveActivated,
-                    youtubeHasStarted,
-                    false,
-                    shouldRevealFromReadyState,
-                    youtubeRevealSettled,
-                  ))
-                : Number(effectiveActivated && iframeLoaded),
+            opacity: Number(shouldRevealPlayer),
             transition: 'opacity 0.25s ease',
             zIndex: 1,
           }}
