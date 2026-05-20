@@ -158,7 +158,7 @@ async function deploy() {
     }
 
     // ============ STEP 2: CREATE STORAGE BUCKET ============
-    addLog('Creating storage bucket...', 'info');
+    addLog('Creating storage buckets...', 'info');
     
     const bucketRes = await fetch(`${sbUrl}/storage/v1/bucket`, {
       method: 'POST',
@@ -175,9 +175,30 @@ async function deploy() {
     });
     
     if (bucketRes.ok || bucketRes.status === 409) {
-      addLog('Storage bucket ready', 'success');
+      addLog('Storage bucket "avatars" ready', 'success');
     } else {
       addLog('Bucket creation failed - create "avatars" bucket manually', 'error');
+    }
+
+    const contentBucketRes = await fetch(`${sbUrl}/storage/v1/bucket`, {
+      method: 'POST',
+      headers: {
+        'apikey': sbService,
+        'Authorization': `Bearer ${sbService}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        id: 'content',
+        name: 'content',
+        public: true,
+        file_size_limit: 104857600
+      })
+    });
+
+    if (contentBucketRes.ok || contentBucketRes.status === 409) {
+      addLog('Storage bucket "content" ready (100MB limit)', 'success');
+    } else {
+      addLog('Bucket creation failed - create "content" bucket manually with 100MB limit', 'error');
     }
 
     // ============ STEP 3: CREATE STRIPE PRODUCT ============

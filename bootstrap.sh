@@ -81,15 +81,21 @@ else
   echo "! Stripe product may already exist (that's fine)"
 fi
 
-# Create storage bucket
-echo "Creating storage bucket..."
+# Create storage buckets
+echo "Creating storage buckets..."
 BUCKET_RESPONSE=$(curl -s -X POST "$SB_URL/storage/v1/bucket" \
   -H "apikey: $SB_SERVICE" \
   -H "Authorization: Bearer $SB_SERVICE" \
   -H "Content-Type: application/json" \
   -d '{"id":"avatars","name":"avatars","public":true}')
 
-echo "✓ Storage bucket ready"
+CONTENT_BUCKET_RESPONSE=$(curl -s -X POST "$SB_URL/storage/v1/bucket" \
+  -H "apikey: $SB_SERVICE" \
+  -H "Authorization: Bearer $SB_SERVICE" \
+  -H "Content-Type: application/json" \
+  -d '{"id":"content","name":"content","public":true,"file_size_limit":104857600}')
+
+echo "✓ Storage buckets ready"
 
 # Install dependencies
 echo "Installing dependencies..."

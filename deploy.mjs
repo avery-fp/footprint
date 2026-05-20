@@ -105,7 +105,7 @@ async function main() {
   // ═══════════════════════════════════════════════════════════════
   // STEP 2: STORAGE BUCKET
   // ═══════════════════════════════════════════════════════════════
-  log('\n[2/5] Creating storage bucket...', 'info');
+  log('\n[2/5] Creating storage buckets...', 'info');
   
   try {
     const bucketRes = await fetch(`${sbUrl}/storage/v1/bucket`, {
@@ -128,6 +128,29 @@ async function main() {
     }
   } catch (e) {
     log(`Storage setup error: ${e.message}`, 'error');
+  }
+
+  try {
+    const bucketRes = await fetch(`${sbUrl}/storage/v1/bucket`, {
+      method: 'POST',
+      headers: {
+        'apikey': sbService,
+        'Authorization': `Bearer ${sbService}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ id: 'content', name: 'content', public: true, file_size_limit: 104857600 })
+    });
+
+    if (bucketRes.ok) {
+      log('Storage bucket "content" created with 100MB limit ✓', 'success');
+    } else if (bucketRes.status === 409) {
+      log('Storage bucket "content" already exists ✓', 'success');
+    } else {
+      const err = await bucketRes.text();
+      log(`Content bucket response: ${err}`, 'dim');
+    }
+  } catch (e) {
+    log(`Content bucket setup error: ${e.message}`, 'error');
   }
 
   // ═══════════════════════════════════════════════════════════════

@@ -21,3 +21,16 @@ export function getVideoUploadTooLargeCopy() {
 export function getVideoUploadTooLongCopy() {
   return 'Videos must be 100 seconds or shorter.'
 }
+
+export function getUploadFailureCopy(status: number, responseText: string) {
+  const body = responseText.toLowerCase()
+  if (
+    status === 413 ||
+    body.includes('payload too large') ||
+    body.includes('maximum allowed size') ||
+    body.includes('exceeded the maximum allowed size')
+  ) {
+    return getVideoUploadLimitCopy()
+  }
+  return `Upload failed (${status}): ${responseText}`
+}

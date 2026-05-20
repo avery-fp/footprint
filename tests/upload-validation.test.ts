@@ -3,6 +3,7 @@ import {
   MAX_IMAGE_BYTES,
   MAX_VIDEO_BYTES,
   MAX_VIDEO_DURATION_SECONDS,
+  getUploadFailureCopy,
   getVideoUploadLimitCopy,
   isAcceptedVideoDurationSeconds,
   isAcceptedVideoSize,
@@ -31,5 +32,14 @@ describe('video upload validation', () => {
 
   it('uses the updated user-facing copy', () => {
     expect(getVideoUploadLimitCopy()).toBe('Videos can be up to 100 seconds and 100MB.')
+  })
+
+  it('maps storage 413 errors to clean upload copy', () => {
+    expect(
+      getUploadFailureCopy(
+        413,
+        '{"statusCode":"413","error":"Payload too large","message":"The object exceeded the maximum allowed size"}'
+      )
+    ).toBe('Videos can be up to 100 seconds and 100MB.')
   })
 })

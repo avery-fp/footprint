@@ -6,6 +6,7 @@
  */
 
 import { bucketToShape } from '@/lib/aspect-ratios'
+import { getUploadFailureCopy } from '@/lib/upload-validation'
 
 // ── Constants ───────────────────────────────────────────────
 
@@ -111,7 +112,7 @@ export async function uploadWithProgress(
         resolve(url)
       } else {
         console.error('UPLOAD_XHR_FAIL', { status: xhr.status, response: xhr.responseText, path, presigned: !!presigned })
-        reject(new Error(`Upload failed (${xhr.status}): ${xhr.responseText}`))
+        reject(new Error(getUploadFailureCopy(xhr.status, xhr.responseText)))
       }
     }
 
