@@ -91,7 +91,7 @@ export default function FloatingCtaBar({ isOwner = false }: { isOwner?: boolean 
         opacity: visible ? 1 : 0,
         transform: prefersReducedMotion || visible ? 'translateY(0)' : 'translateY(8px)',
         transition: motionTransition,
-        pointerEvents: 'none',
+        pointerEvents: visible ? 'auto' : 'none',
       }}
     >
       <div style={{ maxWidth: '220px', margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', pointerEvents: visible ? 'auto' : 'none' }}>
