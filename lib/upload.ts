@@ -347,6 +347,28 @@ export function detectVideoAspect(file: File): Promise<string> {
   })
 }
 
+export function detectVideoDurationSeconds(file: File): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video')
+    video.preload = 'metadata'
+    video.muted = true
+    video.playsInline = true
+
+    let settled = false
+    const finish = (value: number, isError = false) => {
+      if (settled) return
+      settled = true
+      try { URL.revokeObjectURL(video.src) } catch {}
+      if (isError) reject(new Error('Could not read video duration'))
+      else resolve(value)
+    }
+
+    video.onloadedmetadata = () => finish(Number.isFinite(video.duration) ? video.duration : 0)
+    video.onerror = () => finish(0, true)
+    video.src = URL.createObjectURL(file)
+  })
+}
+
 // ── Provider Upload ────────────────────────────────────
 
 /**
@@ -387,4 +409,3 @@ export async function uploadToProvider(
     xhr.send(file)
   })
 }
-

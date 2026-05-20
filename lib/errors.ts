@@ -86,7 +86,7 @@ export function humanError(error: any): string {
   // File size errors (dynamic messages)
   if (typeof message === 'string') {
     if (message.includes('File too large') || message.includes('too large')) {
-      return 'That file is too large. Keep images under 10MB and videos under 50MB.'
+      return 'That file is too large. Keep images under 10MB. Videos can be up to 100 seconds and 100MB.'
     }
     if (message.includes('Unsupported') || message.includes('file type')) {
       return 'We support JPG, PNG, GIF, MP4, and WebM.'

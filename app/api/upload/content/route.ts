@@ -3,11 +3,15 @@ import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getEditAuth } from '@/lib/edit-auth'
 import { routeLogger } from '@/lib/logger'
+import {
+  MAX_IMAGE_BYTES,
+  getVideoUploadTooLargeCopy,
+  getVideoUploadTooLongCopy,
+  isAcceptedVideoDurationSeconds,
+  isAcceptedVideoSize,
+} from '@/lib/upload-validation'
 
 const log = routeLogger('POST', '/api/upload/content')
-
-const MAX_IMAGE_SIZE = 10 * 1024 * 1024  // 10MB
-const MAX_VIDEO_SIZE = 50 * 1024 * 1024  // 50MB
 
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic']
 const VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v', 'video/mov', 'video/3gpp', 'video/3gpp2', 'video/x-matroska']
@@ -19,6 +23,8 @@ export async function POST(request: NextRequest) {
     const file = formData.get('file') as File | null
     const slug = formData.get('slug') as string | null
     const room_id = formData.get('room_id') as string | null
+    const durationSecondsRaw = formData.get('duration_seconds')
+    const durationSeconds = typeof durationSecondsRaw === 'string' ? Number(durationSecondsRaw) : null
 
     if (!file || !slug) {
       return NextResponse.json({ error: 'file and slug required' }, { status: 400 })
@@ -34,9 +40,15 @@ export async function POST(request: NextRequest) {
     }
 
     const isVideo = VIDEO_TYPES.includes(file.type)
-    const maxSize = isVideo ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE
-    if (file.size > maxSize) {
-      return NextResponse.json({ error: isVideo ? 'Videos under 50MB.' : 'Images under 10MB.' }, { status: 400 })
+    const maxSize = isVideo ? Infinity : MAX_IMAGE_BYTES
+    if (isVideo && !isAcceptedVideoSize(file.size)) {
+      return NextResponse.json({ error: getVideoUploadTooLargeCopy() }, { status: 400 })
+    }
+    if (!isVideo && file.size > maxSize) {
+      return NextResponse.json({ error: 'Images under 10MB.' }, { status: 400 })
+    }
+    if (isVideo && typeof durationSeconds === 'number' && Number.isFinite(durationSeconds) && !isAcceptedVideoDurationSeconds(durationSeconds)) {
+      return NextResponse.json({ error: getVideoUploadTooLongCopy() }, { status: 400 })
     }
 
     const supabase = createServerSupabaseClient()

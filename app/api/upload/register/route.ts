@@ -4,12 +4,17 @@ import { createServerSupabaseClient } from '@/lib/supabase'
 import { getEditAuth } from '@/lib/edit-auth'
 import { mediaTypeFromUrl } from '@/lib/media'
 import { headWithRetry } from '@/lib/upload-verify'
+import {
+  getVideoUploadTooLargeCopy,
+  getVideoUploadTooLongCopy,
+  isAcceptedVideoDurationSeconds,
+  isAcceptedVideoSize,
+} from '@/lib/upload-validation'
 
 // Files this small are virtually always corrupt video stubs (failed transcodes,
 // aborted uploads). Real video files are megabytes; tiny ones produce ghost
 // tiles — DB rows pointing at unplayable bytes.
 const MIN_VIDEO_BYTES = 10_000
-const MAX_VIDEO_BYTES = 50 * 1024 * 1024
 const SUPABASE_STORAGE_MARKER = 'supabase.co/storage/v1/'
 // Embedded newlines/control chars in stored URLs are a known data-corruption
 // pattern that produces broken <img>/<video> srcs downstream.
@@ -19,7 +24,7 @@ const CONTROL_CHARS = /[\x00-\x1F\x7F]/
 // Used by client-side video uploads that bypass Vercel's body limit.
 export async function POST(request: NextRequest) {
   try {
-    const { slug, url, room_id, aspect, content_type, caption, caption_hidden, size } = await request.json()
+    const { slug, url, room_id, aspect, content_type, caption, caption_hidden, size, duration_seconds } = await request.json()
 
     if (!slug || !url) {
       return NextResponse.json({ error: 'slug and url required' }, { status: 400 })
@@ -77,9 +82,15 @@ export async function POST(request: NextRequest) {
             { status: 400 }
           )
         }
-        if (headLength > MAX_VIDEO_BYTES) {
+        if (!isAcceptedVideoSize(headLength)) {
           return NextResponse.json(
-            { error: 'Videos must be under 50 MB.' },
+            { error: getVideoUploadTooLargeCopy() },
+            { status: 400 }
+          )
+        }
+        if (typeof duration_seconds === 'number' && !isAcceptedVideoDurationSeconds(duration_seconds)) {
+          return NextResponse.json(
+            { error: getVideoUploadTooLongCopy() },
             { status: 400 }
           )
         }

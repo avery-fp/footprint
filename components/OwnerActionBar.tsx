@@ -1,7 +1,14 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { uploadWithProgress, resizeImage, detectImageAspect, detectVideoAspect, isVideoFile } from '@/lib/upload'
+import { uploadWithProgress, resizeImage, detectImageAspect, detectVideoAspect, detectVideoDurationSeconds, isVideoFile } from '@/lib/upload'
+import {
+  getVideoUploadLimitCopy,
+  getVideoUploadTooLargeCopy,
+  getVideoUploadTooLongCopy,
+  isAcceptedVideoDurationSeconds,
+  isAcceptedVideoSize,
+} from '@/lib/upload-validation'
 
 /**
  * OwnerActionBar — bottom toolbar with the four creation verbs only.
@@ -47,8 +54,6 @@ const inputPanel: React.CSSProperties = {
   border: '1px solid rgba(255,255,255,0.12)',
   boxShadow: '0 8px 32px rgba(0,0,0,0.30)',
 }
-
-const MAX_VIDEO_SIZE = 50 * 1024 * 1024
 
 export default function OwnerActionBar({
   open,
@@ -211,9 +216,22 @@ export default function OwnerActionBar({
   ) {
     if (!serialNumber) return
     const isVideo = isVideoFile(file)
-    if (isVideo && file.size > MAX_VIDEO_SIZE) {
-      window.alert('Videos must be under 50 MB.')
-      return
+    let videoDurationSeconds: number | null = null
+    if (isVideo) {
+      if (!isAcceptedVideoSize(file.size)) {
+        window.alert(getVideoUploadTooLargeCopy())
+        return
+      }
+      try {
+        videoDurationSeconds = await detectVideoDurationSeconds(file)
+      } catch {
+        window.alert(getVideoUploadLimitCopy())
+        return
+      }
+      if (!isAcceptedVideoDurationSeconds(videoDurationSeconds)) {
+        window.alert(getVideoUploadTooLongCopy())
+        return
+      }
     }
     let aspect = 'square'
     try {
@@ -256,6 +274,7 @@ export default function OwnerActionBar({
           room_id: activeRoomId,
           aspect,
           content_type: contentType,
+          ...(videoDurationSeconds !== null ? { duration_seconds: videoDurationSeconds } : {}),
           size: 2,
           // Image + thought becomes one image tile with a visible
           // note. Owner can flip to tap-to-reveal later via the tile
