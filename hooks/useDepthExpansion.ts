@@ -44,6 +44,18 @@ export function useDepthExpansion() {
   const [loadingChildren, setLoadingChildren] = useState(false)
   const tileRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const animatingRef = useRef(false)
+  const scrollYRef = useRef(0)
+  const originalBodyStyleRef = useRef<{
+    overflow: string
+    position: string
+    top: string
+    width: string
+    overscrollBehavior: string
+  } | null>(null)
+  const originalHtmlStyleRef = useRef<{
+    overflow: string
+    overscrollBehavior: string
+  } | null>(null)
 
   const registerRef = useCallback((id: string, el: HTMLDivElement | null) => {
     if (el) tileRefs.current.set(id, el)
@@ -74,7 +86,25 @@ export function useDepthExpansion() {
       transform: `translate(${tx.toFixed(1)}px, ${ty.toFixed(1)}px) scale(${scale.toFixed(3)})`,
     })
     setShowOverlay(true)
+    scrollYRef.current = window.scrollY
+    originalBodyStyleRef.current = {
+      overflow: document.body.style.overflow,
+      position: document.body.style.position,
+      top: document.body.style.top,
+      width: document.body.style.width,
+      overscrollBehavior: document.body.style.overscrollBehavior,
+    }
+    originalHtmlStyleRef.current = {
+      overflow: document.documentElement.style.overflow,
+      overscrollBehavior: document.documentElement.style.overscrollBehavior,
+    }
+    document.documentElement.style.overflow = 'hidden'
+    document.documentElement.style.overscrollBehavior = 'none'
     document.body.style.overflow = 'hidden'
+    document.body.style.overscrollBehavior = 'none'
+    document.body.style.position = 'fixed'
+    document.body.style.top = `-${scrollYRef.current}px`
+    document.body.style.width = '100%'
 
     // Fetch children
     setLoadingChildren(true)
@@ -91,7 +121,22 @@ export function useDepthExpansion() {
     if (!expanded) return
     animatingRef.current = true
     setExpanded(null)
-    document.body.style.overflow = ''
+    const bodyStyle = originalBodyStyleRef.current
+    const htmlStyle = originalHtmlStyleRef.current
+    if (bodyStyle) {
+      document.body.style.overflow = bodyStyle.overflow
+      document.body.style.position = bodyStyle.position
+      document.body.style.top = bodyStyle.top
+      document.body.style.width = bodyStyle.width
+      document.body.style.overscrollBehavior = bodyStyle.overscrollBehavior
+    }
+    if (htmlStyle) {
+      document.documentElement.style.overflow = htmlStyle.overflow
+      document.documentElement.style.overscrollBehavior = htmlStyle.overscrollBehavior
+    }
+    window.scrollTo({ top: scrollYRef.current, behavior: 'auto' })
+    originalBodyStyleRef.current = null
+    originalHtmlStyleRef.current = null
     setTimeout(() => {
       setShowOverlay(false)
       setChildren([])

@@ -1925,12 +1925,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         {showOverlay && (
           <>
             <div
-              className="fixed inset-0 z-40"
+              className="fixed inset-0 z-[80]"
               style={{
-                backgroundColor: 'rgba(0, 0, 0, 0.65)',
+                backgroundColor: 'rgba(3, 3, 3, 0.96)',
                 opacity: expanded ? 1 : 0,
                 transition: 'opacity 0.4s ease',
                 willChange: 'opacity',
+                touchAction: 'none',
               }}
               onClick={collapse}
               onTouchStart={(e) => { depthTouchStart.current = e.touches[0].clientY }}
@@ -1939,8 +1940,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             {/* Expanded container viewport: header bar + horizontal child rail */}
             {expanded && (
               <div
-                className="fixed inset-0 z-[55] flex flex-col pointer-events-none"
-                style={{ opacity: loadingChildren ? 0 : 1, transition: 'opacity 0.3s ease 0.3s' }}
+                className="fixed inset-0 z-[90] flex flex-col pointer-events-none"
+                style={{
+                  opacity: loadingChildren ? 0 : 1,
+                  transition: 'opacity 0.3s ease 0.3s',
+                  background: 'rgba(3,3,3,0.98)',
+                  touchAction: 'none',
+                  overscrollBehavior: 'contain',
+                }}
               >
                 {/* Header bar — container label left, close X right */}
                 <div
@@ -1975,7 +1982,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 </div>
 
                 {/* Child tiles — horizontal rail fills viewport below header */}
-                <div className="flex-1 flex items-center pointer-events-auto" style={{ padding: '12px 0' }}>
+                <div
+                  className="flex-1 flex items-center pointer-events-auto overflow-hidden"
+                  style={{ padding: '12px 0', overscrollBehavior: 'contain' }}
+                >
                   {localChildren.length > 0 ? (
                     renderHorizontalTiles(localChildren, renderCollectionTileBody, renderCollectionOwnerControls, false)
                   ) : !loadingChildren ? (
