@@ -23,11 +23,15 @@ import { sanitizeLinkMeta, normalizeLinkObject } from '@/lib/link-object'
 import { tryNativeFullscreen } from '@/lib/fullscreen'
 import TheaterOverlay from '@/components/TheaterOverlay'
 import {
+  consumePendingYouTubeActivation,
   isYouTubePlayingMessage,
   nudgeYouTubeQuality,
+  primeYouTubePlayer,
+  requestYouTubeActivation,
   shouldMountYouTubePlayer,
   shouldRevealYouTubePlayer,
   startYouTubePlayback,
+  YOUTUBE_READY_SETTLE_MS,
 } from '@/lib/youtube-player'
 
 // ════════════════════════════════════════
@@ -137,6 +141,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const youtubeIframeRef = useRef<HTMLIFrameElement>(null)
   const audioIdRef = useRef(`card-${content.id}`)
   const activatedRef = useRef(false)
+  const youtubePlayerReadyRef = useRef(false)
+  const youtubePendingActivationRef = useRef(false)
   // Fullscreen affordance for the YouTube embed branch: mirrors GhostTile
   // so cross-origin-iframe-fullscreen failures (iOS Safari) drop into the
   // Footprint Theater overlay instead of producing a dead tap.
@@ -209,11 +215,9 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     setIsActivated(true)
     if (content.type === 'youtube') {
       setYoutubeHasStarted(false)
-      const start = () => startYouTubePlayback(youtubeIframeRef.current)
-      start()
-      setTimeout(start, 250)
-      setTimeout(start, 700)
-      setTimeout(start, 1200)
+      const activation = requestYouTubeActivation(youtubePlayerReadyRef.current)
+      youtubePendingActivationRef.current = activation.pendingActivation
+      if (activation.shouldPlayNow) startYouTubePlayback(youtubeIframeRef.current)
     }
   }
 
@@ -262,23 +266,15 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     // play button intermediate step. Unmute settles ~800ms later.
     const handleYTLoad = (e: React.SyntheticEvent<HTMLIFrameElement>) => {
       const iframe = e.currentTarget
-      const post = (msg: Record<string, any>) => {
-        try { iframe.contentWindow?.postMessage(JSON.stringify(msg), '*') } catch {}
-      }
-      if (activatedRef.current) {
-        post({ event: 'command', func: 'playVideo', args: '' })
-        setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 250)
-        setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 700)
-        setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 1200)
-      }
       setTimeout(() => {
-        post({ event: 'listening', id: youtubeId })
-        if (activatedRef.current) {
-          post({ event: 'command', func: 'playVideo', args: '' })
-          post({ event: 'command', func: 'unMute', args: '' })
-          post({ event: 'command', func: 'setVolume', args: [100] })
+        primeYouTubePlayer(iframe, youtubeId)
+        youtubePlayerReadyRef.current = true
+        const activation = consumePendingYouTubeActivation(youtubePendingActivationRef.current)
+        youtubePendingActivationRef.current = activation.pendingActivation
+        if (activation.shouldPlayNow) {
+          startYouTubePlayback(iframe)
         }
-      }, 800)
+      }, YOUTUBE_READY_SETTLE_MS)
     }
 
     const isYouTubeShort = /\/shorts\//i.test(content.url || '')
@@ -289,8 +285,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       ? isActivated || shouldPrewarmPosterSurface
       : shouldMountYouTubePlayer('youtube', isActivated, isCoarsePointer, isInView)
     const shouldRevealPlayer = shouldUsePosterSurface
-      ? false
-      : isActivated
+      ? shouldRevealYouTubePlayer(isActivated, youtubeHasStarted, true)
+      : shouldRevealYouTubePlayer(isActivated, youtubeHasStarted)
 
     if (!shouldMountPlayer) {
       return (

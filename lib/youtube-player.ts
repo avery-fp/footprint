@@ -1,22 +1,50 @@
+const YOUTUBE_PLAY_RETRY_MS = [250, 700, 1200] as const
+export const YOUTUBE_READY_SETTLE_MS = 800
+
+function postYouTubeMessage(
+  iframe: HTMLIFrameElement | null,
+  message: Record<string, unknown>,
+) {
+  if (!iframe) return
+  try { iframe.contentWindow?.postMessage(JSON.stringify(message), '*') } catch {}
+}
+
 export function nudgeYouTubeQuality(iframe: HTMLIFrameElement | null) {
   if (!iframe) return
-  const post = (msg: Record<string, unknown>) => {
-    try { iframe.contentWindow?.postMessage(JSON.stringify(msg), '*') } catch {}
-  }
   for (const q of ['hd2160', 'hd1440', 'hd1080', 'highres']) {
-    post({ event: 'command', func: 'setPlaybackQuality', args: [q] })
-    post({ event: 'command', func: 'setPlaybackQualityRange', args: [q, q] })
+    postYouTubeMessage(iframe, { event: 'command', func: 'setPlaybackQuality', args: [q] })
+    postYouTubeMessage(iframe, { event: 'command', func: 'setPlaybackQualityRange', args: [q, q] })
   }
 }
 
 export function startYouTubePlayback(iframe: HTMLIFrameElement | null) {
   if (!iframe) return
-  const post = (msg: Record<string, unknown>) => {
-    try { iframe.contentWindow?.postMessage(JSON.stringify(msg), '*') } catch {}
+  postYouTubeMessage(iframe, { event: 'command', func: 'playVideo', args: '' })
+  postYouTubeMessage(iframe, { event: 'command', func: 'unMute', args: '' })
+  postYouTubeMessage(iframe, { event: 'command', func: 'setVolume', args: [100] })
+  for (const delay of YOUTUBE_PLAY_RETRY_MS) {
+    setTimeout(() => {
+      postYouTubeMessage(iframe, { event: 'command', func: 'playVideo', args: '' })
+    }, delay)
   }
-  post({ event: 'command', func: 'playVideo', args: '' })
-  post({ event: 'command', func: 'unMute', args: '' })
-  post({ event: 'command', func: 'setVolume', args: [100] })
+}
+
+export function primeYouTubePlayer(iframe: HTMLIFrameElement | null, id: string) {
+  postYouTubeMessage(iframe, { event: 'listening', id })
+}
+
+export function requestYouTubeActivation(isPlayerReady: boolean) {
+  return {
+    shouldPlayNow: isPlayerReady,
+    pendingActivation: !isPlayerReady,
+  } as const
+}
+
+export function consumePendingYouTubeActivation(pendingActivation: boolean) {
+  return {
+    shouldPlayNow: pendingActivation,
+    pendingActivation: false,
+  } as const
 }
 
 export function shouldPrewarmYouTubePlayer(
@@ -36,8 +64,12 @@ export function shouldMountYouTubePlayer(
   return platform === 'youtube' && (isActivated || shouldPrewarmYouTubePlayer(platform, isCoarsePointer, isNearViewport))
 }
 
-export function shouldRevealYouTubePlayer(isActivated: boolean, hasStarted: boolean) {
-  return isActivated && hasStarted
+export function shouldRevealYouTubePlayer(
+  isActivated: boolean,
+  hasStarted: boolean,
+  isPosterLocked = false,
+) {
+  return !isPosterLocked && isActivated && hasStarted
 }
 
 export function youtubePrewarmOptions(start: number, end: number) {

@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
+  consumePendingYouTubeActivation,
   isYouTubePlayingMessage,
+  primeYouTubePlayer,
+  requestYouTubeActivation,
   shouldMountYouTubePlayer,
   shouldPrewarmYouTubePlayer,
   shouldRevealYouTubePlayer,
   startYouTubePlayback,
+  YOUTUBE_READY_SETTLE_MS,
   youtubePrewarmOptions,
 } from '@/lib/youtube-player'
 
@@ -31,6 +35,7 @@ describe('mobile youtube prewarm contract', () => {
   it('keeps the poster visible until playback is confirmed', () => {
     expect(shouldRevealYouTubePlayer(true, false)).toBe(false)
     expect(shouldRevealYouTubePlayer(true, true)).toBe(true)
+    expect(shouldRevealYouTubePlayer(true, true, true)).toBe(false)
   })
 
   it('starts playback on the already-mounted player on first activation', () => {
@@ -45,7 +50,48 @@ describe('mobile youtube prewarm contract', () => {
 
     startYouTubePlayback(iframe)
 
-    expect(messages.some((message) => message.includes('"func":"playVideo"'))).toBe(true)
+    expect(messages.filter((message) => message.includes('"func":"playVideo"')).length).toBeGreaterThan(0)
+    expect(messages.some((message) => message.includes('"func":"unMute"'))).toBe(true)
+    expect(messages.some((message) => message.includes('"func":"setVolume"'))).toBe(true)
+  })
+
+  it('queues exactly one pending activation when the player is not ready', () => {
+    expect(requestYouTubeActivation(false)).toEqual({
+      shouldPlayNow: false,
+      pendingActivation: true,
+    })
+    expect(requestYouTubeActivation(true)).toEqual({
+      shouldPlayNow: true,
+      pendingActivation: false,
+    })
+  })
+
+  it('fires pending activation exactly once when the player becomes ready', () => {
+    expect(consumePendingYouTubeActivation(true)).toEqual({
+      shouldPlayNow: true,
+      pendingActivation: false,
+    })
+    expect(consumePendingYouTubeActivation(false)).toEqual({
+      shouldPlayNow: false,
+      pendingActivation: false,
+    })
+  })
+
+  it('primes the hidden player without revealing it', () => {
+    const messages: string[] = []
+    const iframe = {
+      contentWindow: {
+        postMessage(message: string) {
+          messages.push(message)
+        },
+      },
+    } as unknown as HTMLIFrameElement
+
+    primeYouTubePlayer(iframe, 'abc123')
+
+    expect(messages).toEqual([
+      '{"event":"listening","id":"abc123"}',
+    ])
   })
 
   it('keeps the prewarmed iframe URL stable across activation', () => {
@@ -66,5 +112,9 @@ describe('mobile youtube prewarm contract', () => {
   it('does not prewarm offscreen youtube tiles', () => {
     expect(shouldPrewarmYouTubePlayer('youtube', true, false)).toBe(false)
     expect(shouldMountYouTubePlayer('youtube', false, true, false)).toBe(false)
+  })
+
+  it('uses a single settled-ready delay for hidden priming', () => {
+    expect(YOUTUBE_READY_SETTLE_MS).toBe(800)
   })
 })

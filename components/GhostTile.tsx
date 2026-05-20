@@ -6,11 +6,15 @@ import { buildYouTubeEmbedUrl } from '@/lib/parseEmbed'
 import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getThumbnailCandidates, isBadOrMissingThumbnail } from '@/lib/media/thumbnails'
 import { tryNativeFullscreen } from '@/lib/fullscreen'
 import {
+  consumePendingYouTubeActivation,
   isYouTubePlayingMessage,
   nudgeYouTubeQuality,
+  primeYouTubePlayer,
+  requestYouTubeActivation,
   shouldMountYouTubePlayer,
   shouldRevealYouTubePlayer,
   startYouTubePlayback,
+  YOUTUBE_READY_SETTLE_MS,
   youtubePrewarmOptions,
 } from '@/lib/youtube-player'
 import TheaterOverlay from '@/components/TheaterOverlay'
@@ -79,6 +83,8 @@ export default function GhostTile({
   const iframeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const tileRef = useRef<HTMLDivElement | null>(null)
   const youtubeIframeRef = useRef<HTMLIFrameElement | null>(null)
+  const youtubePlayerReadyRef = useRef(false)
+  const youtubePendingActivationRef = useRef(false)
 
   // Pause the underlying tile YouTube player while the theater overlay is
   // open so audio doesn't double-up.
@@ -118,6 +124,7 @@ export default function GhostTile({
     audioManager.register(id, () => {
       setIsPlaying(false)
       setIframeLoaded(false)
+      youtubePendingActivationRef.current = false
     })
     return () => audioManager.unregister(id)
   }, [])
@@ -166,6 +173,7 @@ export default function GhostTile({
         setIsPlaying(false)
         setIframeLoaded(false)
         setYoutubeHasStarted(false)
+        youtubePendingActivationRef.current = false
       }
       if (platform === 'youtube' && isYouTubePlayingMessage(data)) {
         setYoutubeHasStarted(true)
@@ -184,7 +192,9 @@ export default function GhostTile({
     setIframeFailed(false)
     if (platform === 'youtube') {
       setYoutubeHasStarted(false)
-      startYouTubePlayback(youtubeIframeRef.current)
+      const activation = requestYouTubeActivation(youtubePlayerReadyRef.current)
+      youtubePendingActivationRef.current = activation.pendingActivation
+      if (activation.shouldPlayNow) startYouTubePlayback(youtubeIframeRef.current)
     }
     // Timeout: if the iframe doesn't fire onLoad within 8s, show fallback.
     // Cleared in the onLoad handler if load succeeds.
@@ -340,25 +350,13 @@ export default function GhostTile({
   const handleYTLoad = useCallback((e: React.SyntheticEvent<HTMLIFrameElement>) => {
     if (platform !== 'youtube') return
     const iframe = e.currentTarget
-    const post = (msg: Record<string, any>) => {
-      try { iframe.contentWindow?.postMessage(JSON.stringify(msg), '*') } catch {}
-    }
-    // The autoplay= URL param can be dropped when the iframe loads
-    // asynchronously after the user's tap — force playback via the JS API so
-    // the user's first tap is the only one needed, no native YouTube play
-    // button step.
-    if (isPlaying) {
-      post({ event: 'command', func: 'playVideo', args: '' })
-      setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 250)
-      setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 700)
-      setTimeout(() => post({ event: 'command', func: 'playVideo', args: '' }), 1200)
-    }
-    // Subscribe + unmute — settled timing (~800ms after load event).
     setTimeout(() => {
-      post({ event: 'listening', id: media_id })
-      post({ event: 'command', func: 'unMute', args: '' })
-      post({ event: 'command', func: 'setVolume', args: [100] })
-    }, 800)
+      primeYouTubePlayer(iframe, media_id)
+      youtubePlayerReadyRef.current = true
+      const activation = consumePendingYouTubeActivation(youtubePendingActivationRef.current)
+      youtubePendingActivationRef.current = activation.pendingActivation
+      if (activation.shouldPlayNow) startYouTubePlayback(iframe)
+    }, YOUTUBE_READY_SETTLE_MS)
     // Quality nudges — YouTube auto-selects based on viewport + bandwidth, but
     // setPlaybackQuality is still honored as a soft preference. Send descending
     // so the player lands on the highest it can actually serve for the video.
