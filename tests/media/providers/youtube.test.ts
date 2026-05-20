@@ -56,4 +56,14 @@ describe('youtube adapter', () => {
     expect(result.embedUrl).not.toContain('start=')
     expect(result.rawMetadata).toEqual({ videoId: 'dQw4w9WgXcQ' })
   })
+
+  it('suppresses native youtube player affordances in embed URLs', async () => {
+    const result = await resolve('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+    expect(result.embedUrl).toBeTruthy()
+    const url = new URL(result.embedUrl!)
+    expect(url.searchParams.get('controls')).toBe('0')
+    expect(url.searchParams.get('fs')).toBe('0')
+    expect(url.searchParams.get('disablekb')).toBe('1')
+    expect(url.searchParams.get('iv_load_policy')).toBe('3')
+  })
 })

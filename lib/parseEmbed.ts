@@ -194,6 +194,8 @@ export function buildYouTubeEmbedUrl(
     modestbranding: '1',
     iv_load_policy: '3',
     playsinline: '1',
+    fs: '0',
+    disablekb: '1',
   })
   if (start > 0) params.set('start', String(start))
   if (end > 0) params.set('end', String(end))
