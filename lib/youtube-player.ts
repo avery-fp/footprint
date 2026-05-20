@@ -1,5 +1,6 @@
 const YOUTUBE_PLAY_RETRY_MS = [250, 700, 1200] as const
 export const YOUTUBE_READY_SETTLE_MS = 800
+export const YOUTUBE_MOBILE_REVEAL_SETTLE_MS = 900
 
 function postYouTubeMessage(
   iframe: HTMLIFrameElement | null,
@@ -68,8 +69,10 @@ export function shouldRevealYouTubePlayer(
   isActivated: boolean,
   hasStarted: boolean,
   isPosterLocked = false,
+  readyAfterActivation = false,
+  hasSettled = false,
 ) {
-  return !isPosterLocked && isActivated && hasStarted
+  return !isPosterLocked && isActivated && (hasSettled || hasStarted || readyAfterActivation)
 }
 
 export function youtubePrewarmOptions(start: number, end: number) {
