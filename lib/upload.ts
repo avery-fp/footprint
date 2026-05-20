@@ -214,6 +214,30 @@ export function getVideoThumbnail(file: File): Promise<string> {
   })
 }
 
+function dataUrlToFile(dataUrl: string, filename: string): File {
+  const [header, body = ''] = dataUrl.split(',')
+  const mime = header.match(/data:([^;]+);base64/)?.[1] || 'image/jpeg'
+  const binary = atob(body)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  return new File([bytes], filename, { type: mime })
+}
+
+export async function uploadVideoPoster(
+  file: File,
+  pathPrefix: string,
+  slug?: string
+): Promise<string | null> {
+  try {
+    const dataUrl = await getVideoThumbnail(file)
+    const posterPath = `${pathPrefix.replace(/\.[^.]+$/, '')}-poster.jpg`
+    const posterFile = dataUrlToFile(dataUrl, posterPath.split('/').pop() || 'poster.jpg')
+    return await uploadWithProgress(posterFile, posterPath, () => {}, slug)
+  } catch {
+    return null
+  }
+}
+
 // ── Image Resize ────────────────────────────────────────────
 
 /**

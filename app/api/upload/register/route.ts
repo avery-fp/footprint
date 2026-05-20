@@ -24,7 +24,7 @@ const CONTROL_CHARS = /[\x00-\x1F\x7F]/
 // Used by client-side video uploads that bypass Vercel's body limit.
 export async function POST(request: NextRequest) {
   try {
-    const { slug, url, room_id, aspect, content_type, caption, caption_hidden, size, duration_seconds } = await request.json()
+    const { slug, url, room_id, aspect, content_type, caption, caption_hidden, size, duration_seconds, poster_url } = await request.json()
 
     if (!slug || !url) {
       return NextResponse.json({ error: 'slug and url required' }, { status: 400 })
@@ -33,6 +33,12 @@ export async function POST(request: NextRequest) {
     if (typeof url !== 'string' || CONTROL_CHARS.test(url)) {
       return NextResponse.json(
         { error: 'Invalid URL: contains control characters' },
+        { status: 400 }
+      )
+    }
+    if (poster_url !== undefined && poster_url !== null && (typeof poster_url !== 'string' || CONTROL_CHARS.test(poster_url))) {
+      return NextResponse.json(
+        { error: 'Invalid poster URL: contains control characters' },
         { status: 400 }
       )
     }
@@ -134,6 +140,7 @@ export async function POST(request: NextRequest) {
         position: nextPosition,
         room_id: room_id || null,
         size: resolvedSize,
+        ...(poster_url ? { poster_url } : {}),
         ...(aspect ? { aspect } : {}),
         ...(caption ? { caption } : {}),
         ...(caption_hidden !== undefined ? { caption_hidden: !!caption_hidden } : {}),
@@ -163,6 +170,7 @@ export async function POST(request: NextRequest) {
         room_id: tile.room_id || null,
         size: tile.size ?? resolvedSize ?? 1,
         aspect: tile.aspect || aspect || null,
+        poster_url: tile.poster_url || poster_url || null,
         caption: tile.caption || null,
         caption_hidden: tile.caption_hidden ?? false,
       }

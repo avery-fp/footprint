@@ -17,8 +17,6 @@ import { isNewStyleRenderMode } from '@/lib/media/types'
 import type { RenderMode } from '@/lib/media/types'
 import DepthTile from '@/components/DepthTile'
 import { matchDepthProvider } from '@/lib/depth-providers'
-import { tryNativeFullscreen, tryVideoEnterFullscreen } from '@/lib/fullscreen'
-
 const ContainerTile = memo(ContainerTileBase)
 
 const ContentCard = memo(ContentCardBase)
@@ -91,29 +89,13 @@ interface UnifiedTileProps {
   firstChildThumb?: string | null
 }
 
-function VideoTile({ url, id }: { url: string; id: string }) {
+function VideoTile({ url, id, posterUrl }: { url: string; id: string; posterUrl?: string | null }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isInView, setIsInView] = useState(false)
-  // Decoder cap: only autoplay when the tile is at least half visible.
-  // In a typical grid, this naturally caps simultaneous plays to ~2 — you
-  // can't fit 4+ tiles each ≥50% visible. Off-cap tiles freeze on the last
-  // frame (or poster), which still reads as "alive" without burning N decoders.
-  const [isPlayable, setIsPlayable] = useState(false)
-  // Mobile tap-reveal-fade for the fullscreen chip. Uploaded video does
-  // get real native fullscreen on iOS via webkitEnterFullscreen, so this
-  // chip is never dead — but the spec asks for the same reveal pattern
-  // across all video surfaces so mobile doesn't accumulate permanent chrome.
-  const [chipRevealed, setChipRevealed] = useState(false)
-  const chipFadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const revealChip = useCallback(() => {
-    setChipRevealed(true)
-    if (chipFadeTimerRef.current) clearTimeout(chipFadeTimerRef.current)
-    chipFadeTimerRef.current = setTimeout(() => setChipRevealed(false), 1500)
-  }, [])
-  useEffect(() => () => {
-    if (chipFadeTimerRef.current) clearTimeout(chipFadeTimerRef.current)
-  }, [])
+  const [isActivated, setIsActivated] = useState(false)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const pendingPlayRef = useRef(false)
 
   useEffect(() => {
     const el = containerRef.current
@@ -131,98 +113,82 @@ function VideoTile({ url, id }: { url: string; id: string }) {
     return () => obs.disconnect()
   }, [])
 
-  useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
-    const obs = new IntersectionObserver(
-      ([entry]) => setIsPlayable(entry.isIntersecting),
-      { threshold: 0.5 }
-    )
-    obs.observe(el)
-    return () => obs.disconnect()
-  }, [])
-
-  useEffect(() => {
+  const playVideo = useCallback(() => {
     const v = videoRef.current
     if (!v) return
-    if (isPlayable) v.play().catch(() => {})
-    else v.pause()
-  }, [isPlayable])
+    pendingPlayRef.current = false
+    setIsActivated(true)
+    v.play().catch(() => {
+      pendingPlayRef.current = true
+    })
+  }, [])
 
-  // #t=0.1 forces desktop Chrome to paint the first frame as poster.
-  // Without it the tile renders black until autoplay kicks in (and
-  // Chrome increasingly blocks even muted autoplay). Mobile Safari is fine.
-  const videoSrc = isInView
-    ? (url.includes('#') ? url : `${url}#t=0.1`)
-    : undefined
+  const shouldLoadVideo = isInView || isActivated
+  const videoSrc = shouldLoadVideo ? url : undefined
+  const showPosterSurface = !!posterUrl && !isPlaying
 
   return (
     <div
       ref={containerRef}
-      className="w-full h-full relative group"
+      className="w-full h-full relative"
       data-tile-id={id}
       data-tile-type="video"
-      onPointerDown={revealChip}
     >
-      <div className="absolute inset-0 cursor-pointer" onClick={(e) => {
-        const v = e.currentTarget.querySelector('video')
-        if (!v) return
-        v.muted = !v.muted
-        const dot = e.currentTarget.querySelector('[data-mute-dot]') as HTMLElement
-        if (dot) dot.style.opacity = v.muted ? '0.35' : '0.9'
-      }}>
-        <video
-          ref={videoRef}
-          src={videoSrc}
-          className="block w-full h-full object-cover"
-          muted
-          loop
-          playsInline
-          autoPlay={isPlayable}
-          preload={isInView ? 'metadata' : 'none'}
-        />
-        <div data-mute-dot className="absolute bottom-2.5 left-2.5 pointer-events-none transition-opacity duration-300" style={{ opacity: 0.35 }}>
-          <div className="w-2 h-2 rounded-full" style={{ background: '#fff' }} />
-        </div>
-      </div>
       <button
         type="button"
-        aria-label="Fullscreen"
-        onClick={(e) => {
-          e.stopPropagation()
-          // Uploaded video has the real fullscreen API on every supported
-          // platform: webkitEnterFullscreen for iOS Safari (the only path
-          // that surfaces the native player chrome), requestFullscreen for
-          // everything else. Container fallback is the safety net for
-          // browsers that reject the video element specifically.
+        className="absolute inset-0 cursor-pointer bg-transparent border-0 p-0"
+        onClick={() => {
           const v = videoRef.current
-          if (tryVideoEnterFullscreen(v)) return
-          tryNativeFullscreen(v).then((ok) => {
-            if (ok) return
-            tryNativeFullscreen(containerRef.current)
-          })
+          if (!v) return
+          if (v.paused) playVideo()
+          else v.pause()
         }}
-        className="absolute flex items-center justify-center text-white/85 hover:text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-300"
-        style={{
-          bottom: 12,
-          right: 12,
-          width: 28,
-          height: 28,
-          borderRadius: 999,
-          zIndex: 3,
-          background: 'rgba(0,0,0,0.45)',
-          backdropFilter: 'blur(10px) saturate(140%)',
-          WebkitBackdropFilter: 'blur(10px) saturate(140%)',
-          boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08)',
-          // Inline override drives the mobile reveal-fade; undefined falls
-          // through to the Tailwind opacity-0 / group-hover pair on desktop.
-          opacity: chipRevealed ? 1 : undefined,
-          pointerEvents: 'auto',
-        }}
+        aria-label={isPlaying ? 'Pause video' : 'Play video'}
       >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6" />
-        </svg>
+        {showPosterSurface ? (
+          <img
+            src={posterUrl || undefined}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover"
+            draggable={false}
+          />
+        ) : null}
+        <video
+          ref={videoRef}
+          poster={posterUrl || undefined}
+          src={videoSrc}
+          className={`block w-full h-full object-cover transition-opacity duration-200 ${showPosterSurface ? 'opacity-0' : 'opacity-100'}`}
+          playsInline
+          preload={isActivated ? 'auto' : isInView ? 'metadata' : 'none'}
+          onCanPlay={() => {
+            if (pendingPlayRef.current) playVideo()
+          }}
+          onLoadedData={() => {
+            if (pendingPlayRef.current) playVideo()
+          }}
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
+          onEnded={() => setIsPlaying(false)}
+        />
+        {showPosterSurface ? (
+          <span className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
+            <span
+              className="flex items-center justify-center rounded-full"
+              style={{
+                width: 52,
+                height: 52,
+                background: 'rgba(0,0,0,0.42)',
+                backdropFilter: 'blur(12px) saturate(135%)',
+                WebkitBackdropFilter: 'blur(12px) saturate(135%)',
+                boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.1)',
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" className="text-white ml-0.5" aria-hidden="true">
+                <path d="M8 5.14v13.72a1 1 0 0 0 1.53.85l10.3-6.86a1 1 0 0 0 0-1.66L9.53 4.29A1 1 0 0 0 8 5.14Z" />
+              </svg>
+            </span>
+          </span>
+        ) : null}
       </button>
     </div>
   )
@@ -345,7 +311,7 @@ export default function UnifiedTile({
       case 'native_video':
         return (
           <div className="w-full h-full" data-tile-id={item.id} data-tile-type="native-video">
-            {item.url ? <VideoTile url={item.url} id={item.id} /> : null}
+            {item.url ? <VideoTile url={item.url} id={item.id} posterUrl={item.poster_url || null} /> : null}
           </div>
         )
       case 'embed':
@@ -515,21 +481,9 @@ export default function UnifiedTile({
   // ── Video (library-sourced .mp4/.mov files) ──
   if (canonicalType === 'video' && item.url) {
     if (item._temp) {
-      return (
-        <div
-          className="h-full w-full fp-tile"
-          data-tile-id={item.id}
-          data-tile-type="video-uploading"
-          style={{
-            background: 'rgba(255,255,255,0.08)',
-            backdropFilter: 'blur(18px) saturate(135%)',
-            WebkitBackdropFilter: 'blur(18px) saturate(135%)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.14)',
-          }}
-        />
-      )
-    }
-    return <VideoTile url={item.url} id={item.id} />
+        return <VideoTile url={item.url} id={item.id} posterUrl={item.poster_url || null} />
+      }
+    return <VideoTile url={item.url} id={item.id} posterUrl={item.poster_url || null} />
   }
 
   // ── Image ──

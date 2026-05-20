@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { uploadWithProgress, resizeImage, detectImageAspect, detectVideoAspect, detectVideoDurationSeconds, isVideoFile } from '@/lib/upload'
+import { uploadWithProgress, uploadVideoPoster, resizeImage, detectImageAspect, detectVideoAspect, detectVideoDurationSeconds, isVideoFile } from '@/lib/upload'
 import {
   getVideoUploadLimitCopy,
   getVideoUploadTooLargeCopy,
@@ -246,6 +246,7 @@ export default function OwnerActionBar({
     const contentType = payload.type || (isVideo ? 'video/mp4' : 'image/jpeg')
     const tempId = `temp-${Date.now()}-${batchIndex}-${Math.random().toString(36).slice(2, 6)}`
     const previewUrl = URL.createObjectURL(file)
+    const posterUrl = isVideo ? await uploadVideoPoster(file, filename, slug) : null
     onTileAdded({
       id: tempId,
       url: previewUrl,
@@ -254,6 +255,7 @@ export default function OwnerActionBar({
       room_id: activeRoomId,
       size: 2,
       aspect,
+      ...(posterUrl ? { poster_url: posterUrl } : {}),
       _temp: true,
       _progress: 0,
       ...(isVideo ? { status: 'uploading' } : {}),
@@ -274,6 +276,7 @@ export default function OwnerActionBar({
           room_id: activeRoomId,
           aspect,
           content_type: contentType,
+          ...(posterUrl ? { poster_url: posterUrl } : {}),
           ...(videoDurationSeconds !== null ? { duration_seconds: videoDurationSeconds } : {}),
           size: 2,
           // Image + thought becomes one image tile with a visible
