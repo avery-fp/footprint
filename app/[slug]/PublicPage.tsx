@@ -1277,6 +1277,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     renderOverlay?: (item: any, idx: number) => React.ReactNode,
     includeFade = true,
     sortable = false,
+    fitMobileViewport = false,
   ) => (
     <div
       className={getGridLayout('horizontal').containerClass}
@@ -1297,9 +1298,18 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           : size <= 1
             ? (isMobile ? 'min(58vh, 420px)' : 'min(54vh, 500px)')
             : (isMobile ? 'min(72vh, 540px)' : 'min(70vh, 640px)')
+        const [aspectWidth, aspectHeight] = aspectCss.split('/').map(part => Number(part.trim()))
+        const aspectRatioValue = Number.isFinite(aspectWidth) && Number.isFinite(aspectHeight) && aspectHeight > 0
+          ? aspectWidth / aspectHeight
+          : 1
+        const viewportFitHeight = `calc(${100 / aspectRatioValue}vw - ${32 / aspectRatioValue}px)`
         const wrapperStyle: React.CSSProperties = {
           height: railHeight,
           aspectRatio: aspectCss,
+          ...(fitMobileViewport && isMobile ? {
+            maxWidth: 'calc(100vw - 32px)',
+            maxHeight: `min(${railHeight}, ${viewportFitHeight})`,
+          } : {}),
         }
         const wrapperClass = getGridLayout('horizontal').tileClass
         const body = (
@@ -1987,7 +1997,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                   style={{ padding: '12px 0', overscrollBehavior: 'contain' }}
                 >
                   {localChildren.length > 0 ? (
-                    renderHorizontalTiles(localChildren, renderCollectionTileBody, renderCollectionOwnerControls, false)
+                    renderHorizontalTiles(localChildren, renderCollectionTileBody, renderCollectionOwnerControls, false, false, true)
                   ) : !loadingChildren ? (
                     <div className="flex items-center justify-center w-full py-12">
                       <span className="text-white/20 font-mono text-xs tracking-widest uppercase">empty</span>
