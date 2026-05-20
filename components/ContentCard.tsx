@@ -28,6 +28,7 @@ import {
   nudgeYouTubeQuality,
   primeYouTubePlayer,
   requestYouTubeActivation,
+  YOUTUBE_MOBILE_REVEAL_SETTLE_MS,
   shouldMountYouTubePlayer,
   shouldRevealYouTubePlayer,
   startYouTubePlayback,
@@ -143,6 +144,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const activatedRef = useRef(false)
   const youtubePlayerReadyRef = useRef(false)
   const youtubePendingActivationRef = useRef(false)
+  const youtubeRevealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [youtubeRevealSettled, setYoutubeRevealSettled] = useState(false)
   // Fullscreen affordance for the YouTube embed branch: mirrors GhostTile
   // so cross-origin-iframe-fullscreen failures (iOS Safari) drop into the
   // Footprint Theater overlay instead of producing a dead tap.
@@ -215,6 +218,11 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     setIsActivated(true)
     if (content.type === 'youtube') {
       setYoutubeHasStarted(false)
+      setYoutubeRevealSettled(false)
+      if (youtubeRevealTimerRef.current) {
+        clearTimeout(youtubeRevealTimerRef.current)
+        youtubeRevealTimerRef.current = null
+      }
       const activation = requestYouTubeActivation(youtubePlayerReadyRef.current)
       youtubePendingActivationRef.current = activation.pendingActivation
       if (activation.shouldPlayNow) startYouTubePlayback(youtubeIframeRef.current)
@@ -224,6 +232,12 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   useEffect(() => {
     activatedRef.current = isActivated
   }, [isActivated])
+
+  useEffect(() => {
+    return () => {
+      if (youtubeRevealTimerRef.current) clearTimeout(youtubeRevealTimerRef.current)
+    }
+  }, [])
 
   useEffect(() => {
     setIsCoarsePointer(window.matchMedia('(pointer: coarse)').matches)
@@ -237,11 +251,19 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       if (typeof data === 'string') {
         try { data = JSON.parse(data) } catch { return }
       }
-      if (isYouTubePlayingMessage(data)) setYoutubeHasStarted(true)
+      if (isYouTubePlayingMessage(data)) {
+        setYoutubeHasStarted(true)
+        if (!isSoundRoom) {
+          if (youtubeRevealTimerRef.current) clearTimeout(youtubeRevealTimerRef.current)
+          youtubeRevealTimerRef.current = setTimeout(() => {
+            setYoutubeRevealSettled(true)
+          }, isCoarsePointer ? YOUTUBE_MOBILE_REVEAL_SETTLE_MS : 0)
+        }
+      }
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
-  }, [content.type, isActivated])
+  }, [content.type, isActivated, isCoarsePointer, isSoundRoom])
 
   // ════════════════════════════════════════
   // YOUTUBE — FACADE: thumbnail first, iframe on tap
@@ -284,9 +306,17 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     const shouldMountPlayer = shouldUsePosterSurface
       ? isActivated || shouldPrewarmPosterSurface
       : shouldMountYouTubePlayer('youtube', isActivated, isCoarsePointer, isInView)
+    const shouldRevealFromReadyState =
+      !isCoarsePointer && youtubePlayerReadyRef.current && !youtubePendingActivationRef.current
     const shouldRevealPlayer = shouldUsePosterSurface
-      ? shouldRevealYouTubePlayer(isActivated, youtubeHasStarted, true)
-      : shouldRevealYouTubePlayer(isActivated, youtubeHasStarted)
+      ? shouldRevealYouTubePlayer(isActivated, youtubeHasStarted, true, false, false)
+      : shouldRevealYouTubePlayer(
+          isActivated,
+          youtubeHasStarted,
+          false,
+          shouldRevealFromReadyState,
+          youtubeRevealSettled,
+        )
 
     if (!shouldMountPlayer) {
       return (

@@ -14,6 +14,7 @@ import {
   shouldMountYouTubePlayer,
   shouldRevealYouTubePlayer,
   startYouTubePlayback,
+  YOUTUBE_MOBILE_REVEAL_SETTLE_MS,
   YOUTUBE_READY_SETTLE_MS,
   youtubePrewarmOptions,
 } from '@/lib/youtube-player'
@@ -85,6 +86,8 @@ export default function GhostTile({
   const youtubeIframeRef = useRef<HTMLIFrameElement | null>(null)
   const youtubePlayerReadyRef = useRef(false)
   const youtubePendingActivationRef = useRef(false)
+  const youtubeRevealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [youtubeRevealSettled, setYoutubeRevealSettled] = useState(false)
 
   // Pause the underlying tile YouTube player while the theater overlay is
   // open so audio doesn't double-up.
@@ -102,6 +105,12 @@ export default function GhostTile({
 
   useEffect(() => {
     setIsCoarsePointer(window.matchMedia('(pointer: coarse)').matches)
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (youtubeRevealTimerRef.current) clearTimeout(youtubeRevealTimerRef.current)
+    }
   }, [])
 
   useEffect(() => {
@@ -124,6 +133,7 @@ export default function GhostTile({
     audioManager.register(id, () => {
       setIsPlaying(false)
       setIframeLoaded(false)
+      setYoutubeRevealSettled(false)
       youtubePendingActivationRef.current = false
     })
     return () => audioManager.unregister(id)
@@ -173,15 +183,24 @@ export default function GhostTile({
         setIsPlaying(false)
         setIframeLoaded(false)
         setYoutubeHasStarted(false)
+        setYoutubeRevealSettled(false)
         youtubePendingActivationRef.current = false
+        if (youtubeRevealTimerRef.current) {
+          clearTimeout(youtubeRevealTimerRef.current)
+          youtubeRevealTimerRef.current = null
+        }
       }
       if (platform === 'youtube' && isYouTubePlayingMessage(data)) {
         setYoutubeHasStarted(true)
+        if (youtubeRevealTimerRef.current) clearTimeout(youtubeRevealTimerRef.current)
+        youtubeRevealTimerRef.current = setTimeout(() => {
+          setYoutubeRevealSettled(true)
+        }, isCoarsePointer ? YOUTUBE_MOBILE_REVEAL_SETTLE_MS : 0)
       }
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
-  }, [isPlaying])
+  }, [isCoarsePointer, isPlaying, platform])
 
   const handlePlay = useCallback(() => {
     // Pause other ghost tiles
@@ -192,6 +211,11 @@ export default function GhostTile({
     setIframeFailed(false)
     if (platform === 'youtube') {
       setYoutubeHasStarted(false)
+      setYoutubeRevealSettled(false)
+      if (youtubeRevealTimerRef.current) {
+        clearTimeout(youtubeRevealTimerRef.current)
+        youtubeRevealTimerRef.current = null
+      }
       const activation = requestYouTubeActivation(youtubePlayerReadyRef.current)
       youtubePendingActivationRef.current = activation.pendingActivation
       if (activation.shouldPlayNow) startYouTubePlayback(youtubeIframeRef.current)
@@ -332,6 +356,8 @@ export default function GhostTile({
   const shouldMountPlayer =
     platform !== 'youtube' ||
     shouldMountYouTubePlayer(platform, effectiveActivated, isCoarsePointer, isNearViewport)
+  const shouldRevealFromReadyState =
+    !isCoarsePointer && youtubePlayerReadyRef.current && !youtubePendingActivationRef.current
   const iframeSrc = platform === 'youtube'
     // Keep the URL stable across activation. Changing `src` on tap remounts
     // the iframe and destroys the whole point of prewarming it.
@@ -415,9 +441,15 @@ export default function GhostTile({
         <div
           className="absolute inset-0 flex items-center justify-center"
           style={{
-            opacity:
+              opacity:
               platform === 'youtube'
-                ? Number(iframeLoaded && shouldRevealYouTubePlayer(effectiveActivated, youtubeHasStarted))
+                ? Number(iframeLoaded && shouldRevealYouTubePlayer(
+                    effectiveActivated,
+                    youtubeHasStarted,
+                    false,
+                    shouldRevealFromReadyState,
+                    youtubeRevealSettled,
+                  ))
                 : Number(effectiveActivated && iframeLoaded),
             transition: 'opacity 0.25s ease',
             zIndex: 1,
