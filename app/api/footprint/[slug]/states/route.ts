@@ -123,7 +123,10 @@ async function restoreFootprintSnapshot(params: {
       render_mode: tile.render_mode || 'embed',
       artist: tile.artist ?? null,
       thumbnail_url_hq: tile.thumbnail_url_hq ?? null,
+      thumbnail_url_override: tile.thumbnail_url_override ?? null,
       media_id: tile.media_id ?? null,
+      container_label: tile.container_label ?? null,
+      container_cover_url: tile.container_cover_url ?? null,
     }))
 
   const { error: libraryDeleteError } = await supabase

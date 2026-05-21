@@ -32,7 +32,10 @@ export interface FootprintStateTileSnapshot {
   render_mode?: string | null
   artist?: string | null
   thumbnail_url_hq?: string | null
+  thumbnail_url_override?: string | null
   media_id?: string | null
+  container_label?: string | null
+  container_cover_url?: string | null
 }
 
 export interface FootprintStateSnapshot {
@@ -154,7 +157,10 @@ export function normalizeFootprintStateSnapshot(input: unknown): FootprintStateS
           render_mode: stringOrNull(value.render_mode),
           artist: stringOrNull(value.artist),
           thumbnail_url_hq: stringOrNull(value.thumbnail_url_hq),
+          thumbnail_url_override: stringOrNull(value.thumbnail_url_override),
           media_id: stringOrNull(value.media_id),
+          container_label: stringOrNull(value.container_label),
+          container_cover_url: stringOrNull(value.container_cover_url),
         } satisfies FootprintStateTileSnapshot
       })
       .filter(tile => tile.url)

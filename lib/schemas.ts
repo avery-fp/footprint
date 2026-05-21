@@ -174,6 +174,7 @@ export const tilesPatchSchema = z.object({
   // User-supplied thumbnail override for link/payment tiles. Empty string
   // clears the override; null also clears. Persisted only on `links`.
   thumbnail_url_override: z.string().nullable().optional(),
+  container_cover_url: z.string().nullable().optional(),
   room_id: z.string().nullable().optional(),
   parent_tile_id: z.string().nullable().optional(),
 })
