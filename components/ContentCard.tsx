@@ -95,6 +95,7 @@ interface ContentCardProps {
     external_id?: string | null
     artist?: string | null
     thumbnail_url_hq?: string | null
+    thumbnail_url_override?: string | null
   }
   onWidescreen?: () => void
   isMobile?: boolean
@@ -929,6 +930,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       title={content.title}
       description={content.description}
       thumbnail={getBestThumbnailUrl(content)}
+      thumbnailOverride={content.thumbnail_url_override || null}
       artist={content.artist}
       isInView={isInView}
       aspectClass={aspectClass}
@@ -1007,6 +1009,7 @@ function SmartLinkFallback({
   title,
   description,
   thumbnail,
+  thumbnailOverride,
   artist,
   isInView,
   aspectClass,
@@ -1015,6 +1018,7 @@ function SmartLinkFallback({
   title: string | null
   description: string | null
   thumbnail: string | null
+  thumbnailOverride: string | null
   artist: string | null | undefined
   isInView: boolean
   aspectClass: string
@@ -1040,7 +1044,7 @@ function SmartLinkFallback({
   const linkObj = normalizeLinkObject(url, {
     title: title || ogMeta?.title,
     description: description || ogMeta?.description,
-    image: thumbnail || ogMeta?.image,
+    image: thumbnailOverride || thumbnail || ogMeta?.image,
     creator: artist || null,
   })
 

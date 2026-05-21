@@ -362,6 +362,7 @@ export default function UnifiedTile({
                 embed_html: item.embed_html,
                 artist: item.artist,
                 thumbnail_url_hq: item.thumbnail_url_hq,
+                thumbnail_url_override: item.thumbnail_url_override,
               }}
               tileSize={size}
               aspect={aspect}
@@ -392,6 +393,7 @@ export default function UnifiedTile({
                   external_id: item.media_id,
                   artist: item.artist,
                   thumbnail_url_hq: item.thumbnail_url_hq,
+                  thumbnail_url_override: item.thumbnail_url_override,
                 }}
                 tileSize={size}
                 aspect={aspect}
