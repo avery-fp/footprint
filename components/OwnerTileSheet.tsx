@@ -237,6 +237,9 @@ export default function OwnerTileSheet({
   async function handleThumbnailPick(file: File) {
     setThumbError(null)
     setThumbUploading(true)
+    const previousThumb = tile.thumbnail_url_override || null
+    const previewUrl = URL.createObjectURL(file)
+    onTileChange(tile.id, { thumbnail_url_override: previewUrl })
     try {
       const formData = new FormData()
       formData.append('file', file)
@@ -245,6 +248,7 @@ export default function OwnerTileSheet({
       const data = await res.json()
       if (!res.ok || !data?.url) {
         setThumbError(data?.error || 'upload failed')
+        onTileChange(tile.id, { thumbnail_url_override: previousThumb })
         return
       }
       // Await the PATCH so a backend failure (missing column, auth, etc.)
@@ -258,12 +262,15 @@ export default function OwnerTileSheet({
       if (!patchRes.ok) {
         const patchErr = await patchRes.json().catch(() => null)
         setThumbError(patchErr?.error || `save failed (${patchRes.status})`)
+        onTileChange(tile.id, { thumbnail_url_override: previousThumb })
         return
       }
       onTileChange(tile.id, { thumbnail_url_override: data.url })
     } catch {
       setThumbError('upload failed')
+      onTileChange(tile.id, { thumbnail_url_override: previousThumb })
     } finally {
+      URL.revokeObjectURL(previewUrl)
       setThumbUploading(false)
     }
   }
