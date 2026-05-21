@@ -26,6 +26,7 @@ type Tile = {
   room_id?: string | null
   title?: string | null
   thumbnail_url_override?: string | null
+  container_cover_url?: string | null
   caption?: string | null
   caption_hidden?: boolean | null
   text_style?: 'clean' | 'editorial' | 'mono' | null
@@ -193,6 +194,20 @@ export default function OwnerTileSheet({
   const [thumbUploading, setThumbUploading] = useState(false)
   const [thumbError, setThumbError] = useState<string | null>(null)
   const thumbInputRef = useRef<HTMLInputElement>(null)
+  const isContainerCoverTile = source === 'links' && tile.type === 'container'
+  const showCoverRow = isLinkTile || isContainerCoverTile
+
+  function getCoverPatch(url: string | null) {
+    return isContainerCoverTile
+      ? { container_cover_url: url }
+      : { thumbnail_url_override: url }
+  }
+
+  function getCurrentCover() {
+    return isContainerCoverTile
+      ? tile.container_cover_url || null
+      : tile.thumbnail_url_override || null
+  }
 
   function commitTitle(next: string) {
     const trimmed = next.trim()
@@ -225,9 +240,9 @@ export default function OwnerTileSheet({
   async function handleThumbnailPick(file: File) {
     setThumbError(null)
     setThumbUploading(true)
-    const previousThumb = tile.thumbnail_url_override || null
+    const previousThumb = getCurrentCover()
     const previewUrl = URL.createObjectURL(file)
-    onTileChange(tile.id, { thumbnail_url_override: previewUrl })
+    onTileChange(tile.id, getCoverPatch(previewUrl))
     try {
       const formData = new FormData()
       formData.append('file', file)
@@ -236,7 +251,7 @@ export default function OwnerTileSheet({
       const data = await res.json()
       if (!res.ok || !data?.url) {
         setThumbError(data?.error || 'upload failed')
-        onTileChange(tile.id, { thumbnail_url_override: previousThumb })
+        onTileChange(tile.id, getCoverPatch(previousThumb))
         return
       }
       // Await the PATCH so a backend failure (missing column, auth, etc.)
@@ -245,18 +260,18 @@ export default function OwnerTileSheet({
       const patchRes = await fetch('/api/tiles', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: tile.id, source, slug, thumbnail_url_override: data.url }),
+        body: JSON.stringify({ id: tile.id, source, slug, ...getCoverPatch(data.url) }),
       })
       if (!patchRes.ok) {
         const patchErr = await patchRes.json().catch(() => null)
         setThumbError(patchErr?.error || `save failed (${patchRes.status})`)
-        onTileChange(tile.id, { thumbnail_url_override: previousThumb })
+        onTileChange(tile.id, getCoverPatch(previousThumb))
         return
       }
-      onTileChange(tile.id, { thumbnail_url_override: data.url })
+      onTileChange(tile.id, getCoverPatch(data.url))
     } catch {
       setThumbError('upload failed')
-      onTileChange(tile.id, { thumbnail_url_override: previousThumb })
+      onTileChange(tile.id, getCoverPatch(previousThumb))
     } finally {
       URL.revokeObjectURL(previewUrl)
       setThumbUploading(false)
@@ -264,8 +279,8 @@ export default function OwnerTileSheet({
   }
 
   function handleClearThumbnail() {
-    onTileChange(tile.id, { thumbnail_url_override: null })
-    patchTile({ thumbnail_url_override: null })
+    onTileChange(tile.id, getCoverPatch(null))
+    patchTile(getCoverPatch(null))
   }
 
   function handleShape(next: 'square' | 'wide' | 'tall') {
@@ -437,17 +452,17 @@ export default function OwnerTileSheet({
           </>
         )}
 
-        {isLinkTile && (
+        {showCoverRow && (
           <>
             <div style={showTitleRow ? { ...rowStyle, borderTop: '1px solid rgba(255,255,255,0.06)' } : rowStyle}>
-              <span style={rowLabel}>image</span>
+              <span style={rowLabel}>{isContainerCoverTile ? 'cover' : 'image'}</span>
               <div className="flex items-center gap-2">
-                {tile.thumbnail_url_override && (
+                {getCurrentCover() && (
                   <button
                     type="button"
                     onClick={handleClearThumbnail}
                     style={pillBase}
-                    aria-label="remove image"
+                    aria-label={isContainerCoverTile ? 'remove cover' : 'remove image'}
                   >
                     remove
                   </button>
@@ -457,11 +472,17 @@ export default function OwnerTileSheet({
                   onClick={() => thumbInputRef.current?.click()}
                   disabled={thumbUploading}
                   style={pillBase}
-                  aria-label={tile.thumbnail_url_override ? 'replace image' : 'add image'}
+                  aria-label={
+                    isContainerCoverTile
+                      ? (getCurrentCover() ? 'change cover' : 'add cover')
+                      : (getCurrentCover() ? 'replace image' : 'add image')
+                  }
                 >
                   {thumbUploading
                     ? 'uploading…'
-                    : tile.thumbnail_url_override
+                    : isContainerCoverTile
+                    ? (getCurrentCover() ? 'change cover' : 'add cover')
+                    : getCurrentCover()
                     ? 'replace'
                     : 'add image'}
                 </button>

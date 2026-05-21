@@ -555,7 +555,7 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json()
     const v = validateBody(tilesPatchSchema, body)
     if (!v.success) return v.response
-    const { id, source, slug, size, caption, caption_hidden, title, text_style, thumbnail_url_override, room_id, aspect, parent_tile_id } = v.data
+    const { id, source, slug, size, caption, caption_hidden, title, text_style, thumbnail_url_override, container_cover_url, room_id, aspect, parent_tile_id } = v.data
 
     // Caption fields are library-only (the `links` table has no caption or
     // caption_hidden column). Silently dropping would be a dead-control bug —
@@ -597,6 +597,9 @@ export async function PATCH(request: NextRequest) {
     // thumbnail_url_override lives only on `links`; library tiles ignore it.
     if (thumbnail_url_override !== undefined && source === 'links') {
       updates.thumbnail_url_override = thumbnail_url_override || null
+    }
+    if (container_cover_url !== undefined && source === 'links') {
+      updates.container_cover_url = container_cover_url || null
     }
 
     if (Object.keys(updates).length === 0) {
