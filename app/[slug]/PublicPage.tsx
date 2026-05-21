@@ -548,6 +548,19 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
   const [localChildren, setLocalChildren] = useState<any[]>([])
   useEffect(() => { setLocalChildren(containerChildren) }, [containerChildren])
+  const collectionRailRef = useRef<HTMLDivElement | null>(null)
+  const pendingCollectionFocusId = useRef<string | null>(null)
+  useEffect(() => {
+    const id = pendingCollectionFocusId.current
+    if (!id) return
+    pendingCollectionFocusId.current = null
+    requestAnimationFrame(() => {
+      const rail = collectionRailRef.current
+      const tile = Array.from(rail?.querySelectorAll<HTMLElement>('[data-collection-child-id]') || [])
+        .find((el) => el.dataset.collectionChildId === id)
+      tile?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+    })
+  }, [localChildren])
 
   const displayTitle = useMemo(() => {
     if (displayTitleLocal && displayTitleLocal.trim()) return displayTitleLocal
@@ -968,6 +981,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   function handleChildMove(idx: number, dir: -1 | 1) {
     const next = moveChild(localChildren, idx, dir)
     if (next === localChildren) return
+    pendingCollectionFocusId.current = localChildren[idx]?.id || null
     setLocalChildren(next)
     fetch('/api/tiles', {
       method: 'PUT',
@@ -1314,6 +1328,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     }
     return (
     <div
+      ref={fitMobileViewport ? collectionRailRef : undefined}
       className={getGridLayout('horizontal').containerClass}
       style={{
         scrollSnapType: 'x mandatory',
@@ -1365,7 +1380,12 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           )
         }
         return (
-          <div key={item.id} className={wrapperClass} style={wrapperStyle}>
+          <div
+            key={item.id}
+            className={wrapperClass}
+            style={wrapperStyle}
+            data-collection-child-id={fitMobileViewport ? item.id : undefined}
+          >
             {body}
           </div>
         )
