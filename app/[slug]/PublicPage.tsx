@@ -24,6 +24,7 @@ import LayoutToggle from '@/components/LayoutToggle'
 import { glassStyle } from '@/lib/glass'
 import { useDepthExpansion } from '@/hooks/useDepthExpansion'
 import { moveChild, removeChild } from '@/lib/container-child-ops'
+import { getCollectionRenderRadius, shouldRenderCollectionTile } from '@/lib/collection-window'
 import { getGridClass, resolveAspect, isVideoTile } from '@/lib/media/aspect'
 import { getFootprintDisplayTitle } from '@/lib/footprint'
 import { getRoomAtmosphere } from '@/lib/roomAtmosphere'
@@ -349,6 +350,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
   // ── Depth expansion — containers only ──
   const { expanded, showOverlay, children: containerChildren, loadingChildren, expand, collapse, registerRef } = useDepthExpansion()
+  const collectionOverlayOpen = showOverlay && !!expanded
   const depthTouchStart = useRef(0)
 
   // Resolve expanded container label for header bar
@@ -549,11 +551,17 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [localChildren, setLocalChildren] = useState<any[]>([])
   useEffect(() => { setLocalChildren(containerChildren) }, [containerChildren])
   const collectionRailRef = useRef<HTMLDivElement | null>(null)
+  const [collectionActiveIndex, setCollectionActiveIndex] = useState(0)
   const pendingCollectionFocusId = useRef<string | null>(null)
+  useEffect(() => {
+    setCollectionActiveIndex(0)
+  }, [expanded?.id, localChildren.length])
   useEffect(() => {
     const id = pendingCollectionFocusId.current
     if (!id) return
     pendingCollectionFocusId.current = null
+    const nextIndex = localChildren.findIndex((child) => child.id === id)
+    if (nextIndex >= 0) setCollectionActiveIndex(nextIndex)
     requestAnimationFrame(() => {
       const rail = collectionRailRef.current
       const tile = Array.from(rail?.querySelectorAll<HTMLElement>('[data-collection-child-id]') || [])
@@ -561,6 +569,46 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       tile?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
     })
   }, [localChildren])
+
+  const syncCollectionActiveIndex = useCallback(() => {
+    const rail = collectionRailRef.current
+    if (!rail) return
+    const tiles = Array.from(rail.querySelectorAll<HTMLElement>('[data-collection-child-id]'))
+    if (tiles.length === 0) return
+    const railRect = rail.getBoundingClientRect()
+    const railCenter = railRect.left + railRect.width / 2
+    let bestIndex = 0
+    let bestDistance = Number.POSITIVE_INFINITY
+    for (let index = 0; index < tiles.length; index += 1) {
+      const rect = tiles[index].getBoundingClientRect()
+      const center = rect.left + rect.width / 2
+      const distance = Math.abs(center - railCenter)
+      if (distance < bestDistance) {
+        bestDistance = distance
+        bestIndex = index
+      }
+    }
+    setCollectionActiveIndex((prev) => (prev === bestIndex ? prev : bestIndex))
+  }, [])
+
+  useEffect(() => {
+    if (!expanded) return
+    const rail = collectionRailRef.current
+    if (!rail) return
+    let rafId = 0
+    const sync = () => {
+      if (rafId) cancelAnimationFrame(rafId)
+      rafId = requestAnimationFrame(syncCollectionActiveIndex)
+    }
+    sync()
+    rail.addEventListener('scroll', sync, { passive: true })
+    window.addEventListener('resize', sync)
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId)
+      rail.removeEventListener('scroll', sync)
+      window.removeEventListener('resize', sync)
+    }
+  }, [expanded, localChildren, syncCollectionActiveIndex])
 
   const displayTitle = useMemo(() => {
     if (displayTitleLocal && displayTitleLocal.trim()) return displayTitleLocal
@@ -1392,6 +1440,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       if (!fitMobileViewport) return
       window.dispatchEvent(new Event('fp:collection-scroll-start'))
     }
+    const collectionRenderRadius = getCollectionRenderRadius(isMobile)
     return (
     <div
       ref={fitMobileViewport ? collectionRailRef : undefined}
@@ -1432,9 +1481,12 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           } : {}),
         }
         const wrapperClass = getGridLayout('horizontal').tileClass
+        const shouldMountTile = fitMobileViewport
+          ? shouldRenderCollectionTile(idx, items.length, collectionActiveIndex, collectionRenderRadius)
+          : true
         const body = (
           <>
-            {renderBody(item, idx)}
+            {shouldMountTile ? renderBody(item, idx) : renderCollectionTilePlaceholder(item)}
             {renderOverlay?.(item, idx)}
           </>
         )
@@ -1491,6 +1543,38 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       </div>
     </div>
   )
+
+  const renderCollectionTilePlaceholder = (child: any) => {
+    const previewUrl =
+      child.thumbnail_url_hq ||
+      child.thumbnail_url ||
+      child.poster_url ||
+      null
+
+    return (
+      <div className="w-full h-full relative">
+        <div
+          className={`relative w-full max-w-full h-full overflow-hidden rounded-2xl${isSoundRoom ? ' fp-sound-tile' : ''}`}
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
+        >
+          {previewUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={previewUrl}
+              alt=""
+              loading="lazy"
+              className="absolute inset-0 w-full h-full object-cover"
+              style={{ filter: 'blur(14px)', opacity: 0.32, transform: 'scale(1.04)' }}
+            />
+          ) : null}
+          <div
+            className="absolute inset-0"
+            style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.04) 0%, rgba(0,0,0,0.22) 100%)' }}
+          />
+        </div>
+      </div>
+    )
+  }
 
   const renderCollectionOwnerControls = (child: any, idx: number) => isOwner ? (
     <div className="absolute inset-0 z-10 pointer-events-none sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150">
@@ -2060,10 +2144,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         {/* ── Depth overlay: backdrop + close + child tiles ── */}
         {showOverlay && (
           <>
-            <div
-              className="fixed inset-0 z-[80]"
-              style={{
-                backgroundColor: 'rgba(3, 3, 3, 0.96)',
+              <div
+                className="fixed inset-0 z-[80]"
+                style={{
+                  backgroundColor: 'rgba(3, 3, 3, 0.96)',
                 opacity: expanded ? 1 : 0,
                 transition: 'opacity 0.4s ease',
                 willChange: 'opacity',
@@ -2087,7 +2171,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               >
                 {/* Header bar — container label left, close X right */}
                 <div
-                  className="pointer-events-auto flex items-center justify-between px-5 flex-shrink-0"
+                  className="pointer-events-auto flex items-center justify-between px-5 flex-shrink-0 relative z-[2]"
                   style={{
                     height: '52px',
                     ...glassStyle,
@@ -2119,7 +2203,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
                 {/* Child tiles — horizontal rail fills viewport below header */}
                 <div
-                  className="flex-1 flex items-center pointer-events-auto overflow-hidden"
+                  className="flex-1 flex items-center pointer-events-auto overflow-hidden relative z-[1]"
                   style={{ padding: '12px 0', overscrollBehavior: 'contain' }}
                 >
                   {localChildren.length > 0 ? (
@@ -2134,7 +2218,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 {/* Owner-only add URL footer */}
                 {isOwner && (
                   <div
-                    className="pointer-events-auto flex-shrink-0 flex items-center gap-2 px-4 py-3"
+                    className="pointer-events-auto flex-shrink-0 flex items-center gap-2 px-4 py-3 relative z-[2]"
                     style={{
                       ...glassStyle,
                       border: 'none',
@@ -2211,7 +2295,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       {/* Save-to-Rolodex — fixed top-left for visitors. Hidden for owners
           and on drafts. Gated on authChecked to avoid a flash for owners
           before auth resolves. */}
-      {!isDraft && authChecked && !isOwner && !claimActive && (
+      {!isDraft && authChecked && !isOwner && !claimActive && !collectionOverlayOpen && (
         <div
           className="fixed top-4 left-4"
           style={{ zIndex: expanded ? 60 : 20 }}
@@ -2221,7 +2305,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       )}
 
       {/* Serial number — fixed bottom-left, tappable for visitors */}
-      {!isDraft && serial && !claimActive && (
+      {!isDraft && serial && !claimActive && !collectionOverlayOpen && (
         <div
           className="fixed bottom-4 left-4 font-mono"
           style={{
@@ -2282,7 +2366,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           Hidden once the viewer is authenticated as owner (and therefore
           when edit mode is active, which is owner-gated). Server-side
           hint suppresses for owners on first paint (no flash). */}
-      {!isOwnerHinted && !isDraft && !isOwner && (
+      {!isOwnerHinted && !isDraft && !isOwner && !collectionOverlayOpen && (
         <a
           href={`/${footprint.username}?edit=1`}
           className="fixed bottom-4 right-4 z-20 font-mono text-[11px] text-white/[0.15] hover:text-white/40 transition-colors duration-300 px-2 py-1 select-none touch-manipulation"
@@ -2295,7 +2379,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           inventory. The acquisition CTA only fires on unclaimed pages
           (drafts) and on the /ae showroom. Never on a stranger's view of
           a paid claimed footprint. */}
-      {(isDraft || footprint.username === 'ae') && !claimActive && authChecked && !isOwner && (
+      {(isDraft || footprint.username === 'ae') && !claimActive && authChecked && !isOwner && !collectionOverlayOpen && (
         <FloatingCtaBar isOwner={isOwner} />
       )}
 
