@@ -1384,7 +1384,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             See tileEditScrollAnchor above: we snapshot the scroll Y at
             pointerdown so the page can be restored if the browser scrolls
             the focusable Sortable wrapper into view on focus. */}
-        {isOwner && editorMode && !expanded && !isContainer && (
+        {isOwner && editorMode && !expanded && (
           <div
             className="absolute inset-0 z-20 cursor-pointer"
             onPointerDown={() => { tileEditScrollAnchor.current = window.scrollY }}
@@ -1392,7 +1392,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           />
         )}
         {/* Container click interceptor — only containers are doors. */}
-        {isContainer && !expanded && (
+        {isContainer && !expanded && !(isOwner && editorMode) && (
           <div className="absolute inset-0 z-10 cursor-pointer" onClick={() => expand(item.id)} />
         )}
       </div>
