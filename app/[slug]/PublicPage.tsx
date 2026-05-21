@@ -995,6 +995,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
   const [addUrl, setAddUrl] = useState('')
   const [addPending, setAddPending] = useState(false)
+  const [childImagePending, setChildImagePending] = useState(false)
+  const childImageInputRef = useRef<HTMLInputElement>(null)
 
   // Clear add-URL input whenever a different (or no) container is open
   useEffect(() => {
@@ -1022,6 +1024,70 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       console.error('Failed to add child tile:', e)
     } finally {
       setAddPending(false)
+    }
+  }
+
+  async function handleChildImagePick(file: File) {
+    if (!expanded || childImagePending || !footprint.serial_number) return
+    setChildImagePending(true)
+    let previewUrl: string | null = null
+    const tempId = `temp-child-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+    try {
+      const aspect = await detectAspectShared(file).catch(() => 'square')
+      previewUrl = URL.createObjectURL(file)
+      const tempChild = {
+        id: tempId,
+        url: previewUrl,
+        type: 'image',
+        title: null,
+        description: null,
+        thumbnail_url: null,
+        embed_html: null,
+        position: localChildren.length,
+        size: 1,
+        aspect,
+        source: 'library' as const,
+        parent_tile_id: expanded.id,
+        _temp: true,
+      }
+      pendingCollectionFocusId.current = tempId
+      setLocalChildren((prev) => [...prev, tempChild])
+
+      let payload: File = file
+      try { payload = await resizeShared(file) } catch { payload = file }
+      const filename = `${footprint.serial_number}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`
+      const contentType = payload.type || 'image/jpeg'
+      const publicUrl = await uploadShared(
+        new File([payload], payload.name || filename, { type: contentType }),
+        filename,
+        () => {},
+        footprint.username,
+      )
+      const res = await fetch('/api/upload/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          slug: footprint.username,
+          url: publicUrl,
+          parent_tile_id: expanded.id,
+          aspect,
+          content_type: contentType,
+          size: 1,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.tile) {
+        throw new Error(data.error || `Upload registration failed (${res.status})`)
+      }
+      pendingCollectionFocusId.current = data.tile.id
+      setLocalChildren((prev) => prev.map((child) => child.id === tempId ? data.tile : child))
+    } catch (e) {
+      console.error('Failed to add child image:', e)
+      setLocalChildren((prev) => removeChild(prev, tempId))
+      window.alert(e instanceof Error ? e.message : 'Upload failed. Please try again.')
+    } finally {
+      if (previewUrl) URL.revokeObjectURL(previewUrl)
+      setChildImagePending(false)
     }
   }
 
@@ -2099,6 +2165,33 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                     >
                       {addPending ? '…' : 'add'}
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => childImageInputRef.current?.click()}
+                      disabled={childImagePending}
+                      className="px-3 py-1 rounded-md font-mono text-xs touch-manipulation"
+                      style={{
+                        background: 'rgba(255,255,255,0.06)',
+                        border: '1px solid rgba(255,255,255,0.10)',
+                        color: 'rgba(255,255,255,0.45)',
+                        opacity: childImagePending ? 0.4 : 1,
+                        cursor: childImagePending ? 'progress' : 'pointer',
+                      }}
+                    >
+                      {childImagePending ? '…' : 'image'}
+                    </button>
+                    <input
+                      ref={childImageInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={childImagePending}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) handleChildImagePick(file)
+                        e.target.value = ''
+                      }}
+                    />
                   </div>
                 )}
               </div>

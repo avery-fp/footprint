@@ -24,7 +24,7 @@ const CONTROL_CHARS = /[\x00-\x1F\x7F]/
 // Used by client-side video uploads that bypass Vercel's body limit.
 export async function POST(request: NextRequest) {
   try {
-    const { slug, url, room_id, aspect, content_type, caption, caption_hidden, size, duration_seconds } = await request.json()
+    const { slug, url, room_id, parent_tile_id, aspect, content_type, caption, caption_hidden, size, duration_seconds } = await request.json()
 
     if (!slug || !url) {
       return NextResponse.json({ error: 'slug and url required' }, { status: 400 })
@@ -111,15 +111,50 @@ export async function POST(request: NextRequest) {
 
     const serialNumber = footprint.serial_number
 
-    const { data: maxPos } = await supabase
-      .from('library')
-      .select('position')
-      .eq('serial_number', serialNumber)
-      .order('position', { ascending: false })
-      .limit(1)
-      .single()
+    if (parent_tile_id) {
+      const { data: container } = await supabase
+        .from('links')
+        .select('id')
+        .eq('id', parent_tile_id)
+        .eq('serial_number', serialNumber)
+        .eq('platform', 'container')
+        .single()
+      if (!container) {
+        return NextResponse.json({ error: 'Container not found' }, { status: 404 })
+      }
+    }
 
-    const nextPosition = (maxPos?.position ?? -1) + 1
+    const [{ data: libMax }, { data: linkMax }] = parent_tile_id
+      ? await Promise.all([
+          supabase
+            .from('library')
+            .select('position')
+            .eq('serial_number', serialNumber)
+            .eq('parent_tile_id', parent_tile_id)
+            .order('position', { ascending: false })
+            .limit(1)
+            .single(),
+          supabase
+            .from('links')
+            .select('position')
+            .eq('serial_number', serialNumber)
+            .eq('parent_tile_id', parent_tile_id)
+            .order('position', { ascending: false })
+            .limit(1)
+            .single(),
+        ])
+      : await Promise.all([
+          supabase
+            .from('library')
+            .select('position')
+            .eq('serial_number', serialNumber)
+            .order('position', { ascending: false })
+            .limit(1)
+            .single(),
+          Promise.resolve({ data: null }),
+        ])
+
+    const nextPosition = Math.max(libMax?.position ?? -1, linkMax?.position ?? -1) + 1
 
     // Resting state is S. Aspect carries differentiation; size inflation is
     // an editorial pick, not ambient default. Users explicitly promote to
@@ -132,7 +167,8 @@ export async function POST(request: NextRequest) {
         serial_number: serialNumber,
         image_url: url,
         position: nextPosition,
-        room_id: room_id || null,
+        room_id: parent_tile_id ? null : (room_id || null),
+        parent_tile_id: parent_tile_id || null,
         size: resolvedSize,
         ...(aspect ? { aspect } : {}),
         ...(caption ? { caption } : {}),
@@ -161,6 +197,7 @@ export async function POST(request: NextRequest) {
         position: tile.position,
         source: 'library',
         room_id: tile.room_id || null,
+        parent_tile_id: tile.parent_tile_id || null,
         size: tile.size ?? resolvedSize ?? 1,
         aspect: tile.aspect || aspect || null,
         caption: tile.caption || null,
