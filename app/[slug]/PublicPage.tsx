@@ -1307,17 +1307,27 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     includeFade = true,
     sortable = false,
     fitMobileViewport = false,
-  ) => (
+  ) => {
+    const notifyCollectionScroll = () => {
+      if (!fitMobileViewport) return
+      window.dispatchEvent(new Event('fp:collection-scroll-start'))
+    }
+    return (
     <div
       className={getGridLayout('horizontal').containerClass}
       style={{
         scrollSnapType: 'x mandatory',
         scrollPaddingLeft: 'max(24px, calc((100vw - min(88vw, 620px)) / 2))',
         WebkitOverflowScrolling: 'touch' as any,
+        touchAction: fitMobileViewport ? 'pan-x' : undefined,
+        overscrollBehaviorX: fitMobileViewport ? 'contain' : undefined,
+        overscrollBehaviorY: fitMobileViewport ? 'none' : undefined,
         paddingLeft: 'max(24px, calc((100vw - min(88vw, 620px)) / 2))',
         paddingRight: 'max(24px, calc((100vw - min(88vw, 620px)) / 2))',
         ...(includeFade ? fadeStyle : {}),
       }}
+      onTouchMove={notifyCollectionScroll}
+      onScroll={notifyCollectionScroll}
     >
       {items.map((item: any, idx: number) => {
         const aspectCss = tileAspectCss(item)
@@ -1361,7 +1371,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         )
       })}
     </div>
-  )
+    )
+  }
 
   const renderCollectionTileBody = (child: any, idx: number) => (
     <div className="w-full h-full relative">
@@ -1984,7 +1995,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                   opacity: loadingChildren ? 0 : 1,
                   transition: 'opacity 0.3s ease 0.3s',
                   background: 'rgba(3,3,3,0.98)',
-                  touchAction: 'none',
+                  touchAction: 'pan-x',
                   overscrollBehavior: 'contain',
                 }}
               >

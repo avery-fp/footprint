@@ -30,6 +30,10 @@ export function startYouTubePlayback(iframe: HTMLIFrameElement | null) {
   }
 }
 
+export function pauseYouTubePlayback(iframe: HTMLIFrameElement | null) {
+  postYouTubeMessage(iframe, { event: 'command', func: 'pauseVideo', args: '' })
+}
+
 export function primeYouTubePlayer(iframe: HTMLIFrameElement | null, id: string) {
   postYouTubeMessage(iframe, { event: 'listening', id })
 }

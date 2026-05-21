@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   consumePendingYouTubeActivation,
   isYouTubePlayingMessage,
+  pauseYouTubePlayback,
   primeYouTubePlayer,
   requestYouTubeActivation,
   YOUTUBE_MOBILE_REVEAL_SETTLE_MS,
@@ -57,6 +58,23 @@ describe('mobile youtube prewarm contract', () => {
     expect(messages.filter((message) => message.includes('"func":"playVideo"')).length).toBeGreaterThan(0)
     expect(messages.some((message) => message.includes('"func":"unMute"'))).toBe(true)
     expect(messages.some((message) => message.includes('"func":"setVolume"'))).toBe(true)
+  })
+
+  it('can pause playback when collection scrolling takes over', () => {
+    const messages: string[] = []
+    const iframe = {
+      contentWindow: {
+        postMessage(message: string) {
+          messages.push(message)
+        },
+      },
+    } as unknown as HTMLIFrameElement
+
+    pauseYouTubePlayback(iframe)
+
+    expect(messages).toEqual([
+      '{"event":"command","func":"pauseVideo","args":""}',
+    ])
   })
 
   it('queues exactly one pending activation when the player is not ready', () => {

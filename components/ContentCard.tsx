@@ -26,6 +26,7 @@ import {
   consumePendingYouTubeActivation,
   isYouTubePlayingMessage,
   nudgeYouTubeQuality,
+  pauseYouTubePlayback,
   primeYouTubePlayer,
   requestYouTubeActivation,
   YOUTUBE_MOBILE_REVEAL_SETTLE_MS,
@@ -156,12 +157,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   useEffect(() => {
     if (!theaterOpen) return
     const tileIframe = containerRef.current?.querySelector('iframe') as HTMLIFrameElement | null
-    try {
-      tileIframe?.contentWindow?.postMessage(
-        JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }),
-        '*'
-      )
-    } catch {}
+    pauseYouTubePlayback(tileIframe)
   }, [theaterOpen])
 
   // FIDELIO: Detect post vs profile for social embeds
@@ -265,6 +261,24 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
   }, [content.type, isActivated, isCoarsePointer, isSoundRoom])
+
+  useEffect(() => {
+    if (content.type !== 'youtube') return
+    const onCollectionScroll = () => {
+      pauseYouTubePlayback(youtubeIframeRef.current)
+      if (youtubeRevealTimerRef.current) {
+        clearTimeout(youtubeRevealTimerRef.current)
+        youtubeRevealTimerRef.current = null
+      }
+      youtubePendingActivationRef.current = false
+      activatedRef.current = false
+      setIsActivated(false)
+      setYoutubeHasStarted(false)
+      setYoutubeRevealSettled(false)
+    }
+    window.addEventListener('fp:collection-scroll-start', onCollectionScroll)
+    return () => window.removeEventListener('fp:collection-scroll-start', onCollectionScroll)
+  }, [content.type])
 
   // ════════════════════════════════════════
   // YOUTUBE — FACADE: thumbnail first, iframe on tap
