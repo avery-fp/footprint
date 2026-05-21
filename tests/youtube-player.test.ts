@@ -9,6 +9,7 @@ import {
   shouldMountYouTubePlayer,
   shouldPrewarmYouTubePlayer,
   shouldRevealYouTubePlayer,
+  shouldUseYouTubePosterSurface,
   startYouTubePlayback,
   YOUTUBE_READY_SETTLE_MS,
   youtubePrewarmOptions,
@@ -146,6 +147,14 @@ describe('mobile youtube prewarm contract', () => {
 
   it('keeps poster-locked music hidden even after activation is consumed', () => {
     expect(shouldRevealYouTubePlayer(true, true, true, true)).toBe(false)
+  })
+
+  it('poster-locks only music-shaped youtube in sound rooms', () => {
+    expect(shouldUseYouTubePosterSurface(true, false, 'square')).toBe(true)
+    expect(shouldUseYouTubePosterSurface(true, false, 'wide')).toBe(false)
+    expect(shouldUseYouTubePosterSurface(true, false, 'tall')).toBe(false)
+    expect(shouldUseYouTubePosterSurface(true, true, 'tall')).toBe(false)
+    expect(shouldUseYouTubePosterSurface(false, false, 'square')).toBe(false)
   })
 
   it('does not reveal normal youtube immediately on activation before play settles', () => {

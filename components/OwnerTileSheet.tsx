@@ -155,28 +155,16 @@ export default function OwnerTileSheet({
   const currentSize = (tile.size || 1) as 1 | 2 | 3
   const isContainer = tile.type === 'container'
 
-  // ── Honest controls: video tiles bypass `size` entirely in the public
-  //    grid engine (lib/media/aspect.ts getGridClass, isVideo branch),
-  //    and their only meaningful aspect distinction is tall vs not-tall
-  //    — 'square' and 'wide' both render at aspect-video. Hide controls
-  //    that would produce no visible change to honor the no-dead-control
-  //    doctrine. The grid engine is unchanged; this is render-time gating
-  //    of the editor surface only.
+  // ── Honest controls: video tiles still bypass `size`, but shape is real:
+  //    square/wide/tall each map to distinct video geometry.
   const isVideo = isVideoTile(tile.type, tile.url || undefined)
   const isMusic = tile.type === 'spotify' || tile.type === 'apple_music'
   const VISIBLE_SHAPES = isMusic
     ? SHAPES.filter((s) => s.key !== 'tall')
-    : isVideo
-    ? SHAPES.filter((s) => s.key !== 'square')
     : SHAPES
-  // Legacy rows may carry aspect='square' on video tiles (predates the
-  // hide). For those, light the 'wide' pill so the highlighted state
-  // matches what the user actually sees in the grid.
   const highlightedShape = isMusic && resolvedShape === 'tall'
     ? 'wide'
-    : isVideo && resolvedShape === 'square'
-      ? 'wide'
-      : resolvedShape
+    : resolvedShape
 
   function patchTile(body: Record<string, unknown>) {
     fetch('/api/tiles', {
@@ -637,9 +625,7 @@ export default function OwnerTileSheet({
           </div>
         )}
 
-        {/* Row 1 — shape. For video tiles 'square' is hidden — it
-            collapses to wide in the grid engine, so showing it as a
-            distinct pill would be a dead control. */}
+        {/* Row 1 — shape. */}
         <div style={(canSetWallpaper || showNoteRow || showThoughtRow) ? { ...rowStyle, borderTop: '1px solid rgba(255,255,255,0.06)' } : rowStyle}>
           <span style={rowLabel}>shape</span>
           <div className="flex gap-2">

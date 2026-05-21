@@ -79,6 +79,15 @@ export function shouldRevealYouTubePlayer(
   return !isPosterLocked && isActivated && (hasSettled || hasStarted || readyAfterActivation)
 }
 
+export function shouldUseYouTubePosterSurface(
+  isSoundRoom: boolean,
+  isYouTubeShort: boolean,
+  aspect?: string | null,
+) {
+  const videoLikeAspect = aspect === 'wide' || aspect === 'landscape' || aspect === 'tall' || aspect === 'portrait'
+  return isSoundRoom && !isYouTubeShort && !videoLikeAspect
+}
+
 export function youtubePrewarmOptions(start: number, end: number) {
   return {
     autoplay: false,

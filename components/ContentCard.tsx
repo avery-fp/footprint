@@ -32,6 +32,7 @@ import {
   YOUTUBE_MOBILE_REVEAL_SETTLE_MS,
   shouldMountYouTubePlayer,
   shouldRevealYouTubePlayer,
+  shouldUseYouTubePosterSurface,
   startYouTubePlayback,
   YOUTUBE_READY_SETTLE_MS,
 } from '@/lib/youtube-player'
@@ -118,9 +119,9 @@ interface ContentCardProps {
  */
 export default function ContentCard({ content, onWidescreen, isMobile = false, tileSize = 1, aspect = 'square', isPublicView = false, isExpanded = false, isSoundRoom = false }: ContentCardProps) {
   // Size changes tile presence; explicit vertical media shape must survive.
-  const isVertical = aspect === 'tall' || aspect === 'portrait'
+  const isExplicitShape = aspect === 'square' || aspect === 'tall' || aspect === 'portrait'
   const effectiveAspect =
-    tileSize === 2 && !isVertical
+    tileSize === 2 && !isExplicitShape
       ? 'wide'
       : aspect
   const aspectClass = effectiveAspect === 'wide' ? 'aspect-video' : effectiveAspect === 'tall' ? 'aspect-[9/16]' : effectiveAspect === 'portrait' ? 'aspect-[3/4]' : 'aspect-square'
@@ -315,8 +316,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     }
 
     const isYouTubeShort = /\/shorts\//i.test(content.url || '')
-    const isYouTubeVideoLike = isYouTubeShort
-    const shouldUsePosterSurface = isSoundRoom && !isYouTubeVideoLike
+    const shouldUsePosterSurface = shouldUseYouTubePosterSurface(isSoundRoom, isYouTubeShort, effectiveAspect)
     const shouldPrewarmPosterSurface = shouldUsePosterSurface && isInView
     const shouldMountPlayer = shouldUsePosterSurface
       ? isActivated || shouldPrewarmPosterSurface

@@ -69,15 +69,18 @@ export function isVideoTile(type: string, url?: string): boolean {
  * gravity (wide tiles span rows of width, tall tiles tower, videos
  * anchor) so the room composes a masonry rhythm instead of uniform cells.
  *
- * Video dominance: any video tile (uploaded, youtube, vimeo) gets a
- * minimum half-row footprint (col-span-2 row-span-1) at every size, or
- * a tall tower (col-span-1 row-span-2) when aspect is tall/portrait.
- * Without this, size=1 wide videos render as postage stamps.
+ * Video dominance: wide video gets a minimum half-row footprint
+ * (col-span-2 row-span-1) at every size, tall video towers, and square
+ * video remains honest square. Without this, size=1 wide videos render as
+ * postage stamps.
  */
 export function getGridClass(size: number, aspect: string | null | undefined, isVideo = false, type?: string): string {
   if (isVideo) {
     if (aspect === 'tall' || aspect === 'portrait') {
       return 'col-span-1 row-span-2 aspect-[9/16]'
+    }
+    if (aspect === 'square') {
+      return 'col-span-1 aspect-square'
     }
     return 'col-span-2 row-span-1 aspect-video'
   }

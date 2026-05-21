@@ -24,3 +24,12 @@ describe('music aspect rules', () => {
     expect(getGridClass(3, 'square', false, 'apple_music')).toContain('md:col-span-3')
   })
 })
+
+describe('video aspect rules', () => {
+  it('preserves square as real video geometry', () => {
+    expect(resolveAspect('square', 'youtube')).toBe('square')
+    expect(getGridClass(1, 'square', true, 'youtube')).toContain('aspect-square')
+    expect(getGridClass(1, 'wide', true, 'youtube')).toContain('aspect-video')
+    expect(getGridClass(1, 'tall', true, 'youtube')).toContain('aspect-[9/16]')
+  })
+})
