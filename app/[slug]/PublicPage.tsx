@@ -187,6 +187,35 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // re-render).
   const [roomsLocal, setRoomsLocal] = useState<Room[]>(rooms)
   useEffect(() => { setRoomsLocal(rooms) }, [rooms])
+  const draftRoomCreateRef = useRef(false)
+  useEffect(() => {
+    if (!isDraft || !footprint.serial_number || roomsLocal.length > 0 || draftRoomCreateRef.current) return
+    draftRoomCreateRef.current = true
+    const tempId = `temp-room-${Date.now()}`
+    const fallbackRoom = { id: tempId, name: 'room', layout: 'grid', position: 0, content: [], is_locked: false, has_passcode: false } as any
+    setRoomsLocal([fallbackRoom])
+    setActiveRoomId(tempId)
+    fetch('/api/rooms', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ serial_number: footprint.serial_number, name: 'room', position: 0, slug: footprint.username }),
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`create failed ${res.status}`)
+        const data = await res.json()
+        if (data.room?.id) {
+          setRoomsLocal((prev) => prev.map((r) => (r.id === tempId ? { ...r, id: data.room.id } : r)))
+          setActiveRoomId(data.room.id)
+        }
+      })
+      .catch((e) => {
+        console.error('draft room create failed', e)
+        setRoomsLocal([])
+        setActiveRoomId(null)
+        draftRoomCreateRef.current = false
+      })
+  }, [isDraft, footprint.serial_number, footprint.username, roomsLocal.length])
   const [renameValue, setRenameValue] = useState<string>('')
   // pillMenuOpenForId — which room pill currently has its inline editor
   // panel open. The same id also drives the rename-input rendering on
@@ -844,7 +873,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     try {
       const { uploadWithProgress, resizeImage } = await import('@/lib/upload')
       let resized: File
-      try { resized = await resizeImage(file, 2400) } catch { resized = file }
+      try { resized = await resizeImage(file, 3840, 0.96) } catch { resized = file }
       const filename = `${footprint.serial_number}/bg-${Date.now()}.jpg`
       const publicUrl = await uploadWithProgress(
         new File([resized], filename, { type: 'image/jpeg' }),

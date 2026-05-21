@@ -66,6 +66,23 @@ export async function POST(_request: NextRequest) {
       )
     }
 
+    const { error: roomError } = await supabase
+      .from('rooms')
+      .insert({
+        serial_number: serialNumber,
+        name: 'room',
+        position: 0,
+        layout: 'grid',
+      })
+
+    if (roomError) {
+      log.error({ err: roomError, serialNumber, tempSlug }, 'Draft room insert failed')
+      return NextResponse.json(
+        { error: 'Failed to create draft room', detail: roomError.message || null },
+        { status: 500 }
+      )
+    }
+
     return NextResponse.json({ tempSlug })
   } catch (error: any) {
     log.error({ err: error, message: error?.message }, 'Draft creation threw')
