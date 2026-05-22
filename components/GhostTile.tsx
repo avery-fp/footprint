@@ -9,10 +9,12 @@ import {
   consumePendingYouTubeActivation,
   isYouTubePlayingMessage,
   nudgeYouTubeQuality,
+  pauseYouTubePlayback,
   primeYouTubePlayer,
   requestYouTubeActivation,
   shouldMountYouTubePlayer,
   shouldRevealYouTubePlayer,
+  shouldShowYouTubePosterVeil,
   startYouTubePlayback,
   YOUTUBE_MOBILE_REVEAL_SETTLE_MS,
   YOUTUBE_READY_SETTLE_MS,
@@ -113,6 +115,18 @@ export default function GhostTile({
     }
   }, [])
 
+  const veilYouTubeSurface = useCallback(() => {
+    pauseYouTubePlayback(youtubeIframeRef.current)
+    setIsPlaying(false)
+    setYoutubeHasStarted(false)
+    setYoutubeRevealSettled(false)
+    youtubePendingActivationRef.current = false
+    if (youtubeRevealTimerRef.current) {
+      clearTimeout(youtubeRevealTimerRef.current)
+      youtubeRevealTimerRef.current = null
+    }
+  }, [])
+
   useEffect(() => {
     const el = tileRef.current
     if (!el) return
@@ -131,26 +145,29 @@ export default function GhostTile({
   useEffect(() => {
     const id = tileId.current
     audioManager.register(id, () => {
-      setIsPlaying(false)
-      setIframeLoaded(false)
-      setYoutubeRevealSettled(false)
-      youtubePendingActivationRef.current = false
+      veilYouTubeSurface()
     })
     return () => audioManager.unregister(id)
-  }, [])
+  }, [veilYouTubeSurface])
 
   // Listen for pause events from other ghost tiles
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail
       if (detail?.except !== tileId.current) {
-        setIsPlaying(false)
-        setIframeLoaded(false)
+        veilYouTubeSurface()
       }
     }
     window.addEventListener(GHOST_PAUSE_EVENT, handler)
     return () => window.removeEventListener(GHOST_PAUSE_EVENT, handler)
-  }, [])
+  }, [veilYouTubeSurface])
+
+  useEffect(() => {
+    if (platform !== 'youtube') return
+    const onCollectionScroll = () => veilYouTubeSurface()
+    window.addEventListener('fp:collection-scroll-start', onCollectionScroll)
+    return () => window.removeEventListener('fp:collection-scroll-start', onCollectionScroll)
+  }, [platform, veilYouTubeSurface])
 
   // Auto-revert to thumbnail when video ends.
   // YouTube (via enablejsapi=1): { event: 'onStateChange' | 'infoDelivery', info: 0 } — 0 = ended.
@@ -228,11 +245,12 @@ export default function GhostTile({
 
   const handleToggle = useCallback(() => {
     if (isPlaying) {
-      setIsPlaying(false)
+      if (platform === 'youtube') veilYouTubeSurface()
+      else setIsPlaying(false)
     } else {
       handlePlay()
     }
-  }, [isPlaying, handlePlay])
+  }, [isPlaying, handlePlay, platform, veilYouTubeSurface])
 
   // Thumbnail URL
   const thumbCandidates = getThumbnailCandidates({
@@ -358,9 +376,21 @@ export default function GhostTile({
     shouldMountYouTubePlayer(platform, effectiveActivated, isCoarsePointer, isNearViewport)
   const shouldRevealFromReadyState =
     !isCoarsePointer && youtubePlayerReadyRef.current && !youtubePendingActivationRef.current
+  const shouldRevealPlayer = platform === 'youtube'
+    ? iframeLoaded && shouldRevealYouTubePlayer(
+        effectiveActivated,
+        youtubeHasStarted,
+        false,
+        shouldRevealFromReadyState,
+        youtubeRevealSettled,
+      )
+    : effectiveActivated && iframeLoaded
+  const shouldShowPosterVeil = platform === 'youtube'
+    ? shouldShowYouTubePosterVeil(effectiveActivated, shouldRevealPlayer)
+    : !effectiveActivated
   const iframeSrc = platform === 'youtube'
-    // Keep the URL stable across activation. Changing `src` on tap remounts
-    // the iframe and destroys the whole point of prewarming it.
+    // Keep the URL stable while active so play/pause commands do not remount
+    // the iframe mid-session.
     ? buildYouTubeEmbedUrl(media_id, youtubePrewarmOptions(ytClipStart, ytClipEnd))
     : platform === 'vimeo'
     // Vimeo respects `quality` param: "1080p" | "720p" | ... | "auto"
@@ -418,8 +448,8 @@ export default function GhostTile({
       <div
         className="absolute inset-0 cursor-pointer"
         style={{
-          opacity: effectiveActivated ? 0 : 1,
-          pointerEvents: effectiveActivated ? 'none' : 'auto',
+          opacity: shouldShowPosterVeil ? 1 : 0,
+          pointerEvents: shouldShowPosterVeil ? 'auto' : 'none',
           transition: 'opacity 0.4s ease',
           zIndex: 2,
         }}
@@ -428,7 +458,7 @@ export default function GhostTile({
       />
 
       {/* Fallback: if iframe fails or times out, show a graceful link-out */}
-      {effectiveActivated && iframeFailed && (
+      {isPlaying && iframeFailed && (
         <div className="fp-open-source-fallback absolute inset-0 flex flex-col items-center justify-center gap-2" style={{ zIndex: 3 }}>
           <a href={url} target="_blank" rel="noopener noreferrer"
             className="fp-open-source-link transition-colors">
@@ -441,18 +471,10 @@ export default function GhostTile({
         <div
           className="absolute inset-0 flex items-center justify-center"
           style={{
-              opacity:
-              platform === 'youtube'
-                ? Number(iframeLoaded && shouldRevealYouTubePlayer(
-                    effectiveActivated,
-                    youtubeHasStarted,
-                    false,
-                    shouldRevealFromReadyState,
-                    youtubeRevealSettled,
-                  ))
-                : Number(effectiveActivated && iframeLoaded),
+            opacity: Number(shouldRevealPlayer),
             transition: 'opacity 0.25s ease',
             zIndex: 1,
+            pointerEvents: effectiveActivated ? 'auto' : 'none',
           }}
         >
           {/* Iframe sized to its platform's native aspect, centered in the

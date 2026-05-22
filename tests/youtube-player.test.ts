@@ -9,6 +9,7 @@ import {
   shouldMountYouTubePlayer,
   shouldPrewarmYouTubePlayer,
   shouldRevealYouTubePlayer,
+  shouldShowYouTubePosterVeil,
   shouldUseYouTubePosterSurface,
   startYouTubePlayback,
   YOUTUBE_READY_SETTLE_MS,
@@ -30,9 +31,13 @@ describe('isYouTubePlayingMessage', () => {
 })
 
 describe('mobile youtube prewarm contract', () => {
-  it('prewarms and mounts youtube before first activation on coarse pointers', () => {
+  it('prewarms nearby youtube before activation on coarse pointers', () => {
     expect(shouldPrewarmYouTubePlayer('youtube', true, true)).toBe(true)
     expect(shouldMountYouTubePlayer('youtube', false, true, true)).toBe(true)
+  })
+
+  it('mounts youtube after explicit activation', () => {
+    expect(shouldMountYouTubePlayer('youtube', true, true, false)).toBe(true)
   })
 
   it('keeps the poster visible until playback is confirmed', () => {
@@ -42,6 +47,13 @@ describe('mobile youtube prewarm contract', () => {
     expect(shouldRevealYouTubePlayer(true, false, false, true)).toBe(true)
     expect(shouldRevealYouTubePlayer(true, false, true, true)).toBe(false)
     expect(shouldRevealYouTubePlayer(true, false, false, false, true)).toBe(true)
+  })
+
+  it('keeps the Footprint poster veil over inactive or unrevealed youtube', () => {
+    expect(shouldShowYouTubePosterVeil(false, false)).toBe(true)
+    expect(shouldShowYouTubePosterVeil(false, true)).toBe(true)
+    expect(shouldShowYouTubePosterVeil(true, false)).toBe(true)
+    expect(shouldShowYouTubePosterVeil(true, true)).toBe(false)
   })
 
   it('starts playback on the already-mounted player on first activation', () => {
@@ -117,7 +129,7 @@ describe('mobile youtube prewarm contract', () => {
     ])
   })
 
-  it('keeps the prewarmed iframe URL stable across activation', () => {
+  it('keeps the active iframe URL stable across activation', () => {
     expect(youtubePrewarmOptions(12, 34)).toEqual({
       autoplay: false,
       mute: true,

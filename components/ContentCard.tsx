@@ -32,6 +32,7 @@ import {
   YOUTUBE_MOBILE_REVEAL_SETTLE_MS,
   shouldMountYouTubePlayer,
   shouldRevealYouTubePlayer,
+  shouldShowYouTubePosterVeil,
   shouldUseYouTubePosterSurface,
   startYouTubePlayback,
   YOUTUBE_READY_SETTLE_MS,
@@ -336,6 +337,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           shouldRevealFromReadyState,
           youtubeRevealSettled,
         )
+    const shouldShowPosterVeil = shouldShowYouTubePosterVeil(isActivated, shouldRevealPlayer)
 
     if (!shouldMountPlayer) {
       return (
@@ -361,8 +363,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       )
     }
 
-    // Mobile prewarms this iframe behind the poster so the first tap can
-    // address an already-ready player while the gesture is still live.
+    // The iframe may mount hidden as plumbing. The Footprint poster owns
+    // loading/resting/paused; YouTube only becomes visible for motion.
     const ytActivatedSrc = buildYouTubeEmbedUrl(youtubeId, {
       autoplay: false,
       mute: true,
@@ -402,7 +404,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             onLoad={handleYTLoad}
           />
         </div>
-        {!shouldRevealPlayer && (
+        {shouldShowPosterVeil && (
           <button
             type="button"
             aria-label="Play video"
