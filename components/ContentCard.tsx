@@ -131,6 +131,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const [isCoarsePointer, setIsCoarsePointer] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
   const [isInView, setIsInView] = useState(false)
+  const [isNearViewport, setIsNearViewport] = useState(false)
   const [iframeFailed, setIframeFailed] = useState(false)
   const [shellOpen, setShellOpen] = useState(false)
   // Spec: AE Presentation Layer — Task 3. Thumb 404 → FallbackCard, not gray box.
@@ -170,7 +171,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     const el = containerRef.current
     if (!el) return
     const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setIsInView(true) },
+      ([entry]) => {
+        setIsNearViewport(entry.isIntersecting)
+        if (entry.isIntersecting) setIsInView(true)
+      },
       { rootMargin: '200px' }
     )
     observer.observe(el)
@@ -317,10 +321,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
 
     const isYouTubeShort = /\/shorts\//i.test(content.url || '')
     const shouldUsePosterSurface = shouldUseYouTubePosterSurface(isSoundRoom, isYouTubeShort, effectiveAspect)
-    const shouldPrewarmPosterSurface = shouldUsePosterSurface && isInView
+    const shouldPrewarmPosterSurface = shouldUsePosterSurface && isNearViewport
     const shouldMountPlayer = shouldUsePosterSurface
       ? isActivated || shouldPrewarmPosterSurface
-      : shouldMountYouTubePlayer('youtube', isActivated, isCoarsePointer, isInView)
+      : shouldMountYouTubePlayer('youtube', isActivated, isCoarsePointer, isNearViewport)
     const shouldRevealFromReadyState =
       !isCoarsePointer && youtubePlayerReadyRef.current && !youtubePendingActivationRef.current
     const shouldRevealPlayer = shouldUsePosterSurface
