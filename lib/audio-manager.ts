@@ -1,5 +1,5 @@
-// Global audio manager for one-sound-at-a-time
-// When a video/YouTube is unmuted, all others mute automatically
+// Global audio spine for one-sound-at-a-time.
+// Explicit playback invocation stops every other registered audio surface.
 
 type AudioCallback = () => void
 
@@ -16,13 +16,11 @@ class AudioManager {
   }
 
   play(id: string) {
-    // If another video is playing, mute it first
-    if (this.currentPlayingId && this.currentPlayingId !== id) {
-      const muteCallback = this.muteCallbacks.get(this.currentPlayingId)
-      if (muteCallback) {
-        muteCallback()
+    this.muteCallbacks.forEach((stopAudio, registeredId) => {
+      if (registeredId !== id) {
+        stopAudio()
       }
-    }
+    })
     this.currentPlayingId = id
   }
 

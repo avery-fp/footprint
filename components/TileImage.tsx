@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import { getObjectFit } from '@/lib/media/aspect'
 import { useAspectDetection } from '@/lib/aspectDetection'
+import { audioManager } from '@/lib/audio-manager'
 
 interface TileImageProps {
   src: string
@@ -24,17 +25,31 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
   const [failed, setFailed] = useState(false)
   const [videoFailed, setVideoFailed] = useState(false)
   const [loaded, setLoaded] = useState(false)
+  const [videoMuted, setVideoMuted] = useState(true)
   const onAspectDetected = useAspectDetection()
+  const fallbackVideoRef = useRef<HTMLVideoElement>(null)
+  const audioIdRef = useRef(`tile-image-video-${src}`)
 
   useEffect(() => {
     setFailed(false)
     setVideoFailed(false)
     setLoaded(false)
+    setVideoMuted(true)
   }, [src])
 
   // Ref for the grid-mode wrapper div. Used in the mount-time fallback to detect
   // images that were already complete (cached/priority) before onLoad could fire.
   const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const audioId = audioIdRef.current
+    audioManager.register(audioId, () => {
+      const video = fallbackVideoRef.current
+      if (video) video.muted = true
+      setVideoMuted(true)
+    })
+    return () => audioManager.unregister(audioId)
+  }, [])
 
   // Fallback detection for cached/priority images.
   // React's synthetic onLoad won't fire for img elements that finished loading before
@@ -55,14 +70,9 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
   if (failed) {
     const rawSrc = src.replace('/render/image/public/', '/object/public/').replace(/\?width=\d+&quality=\d+$/, '')
     return (
-      <div className="absolute inset-0 cursor-pointer" onClick={(e) => {
-        const v = e.currentTarget.querySelector('video')
-        if (!v) return
-        v.muted = !v.muted
-        const dot = e.currentTarget.querySelector('[data-mute-dot]') as HTMLElement
-        if (dot) dot.style.opacity = v.muted ? '0.35' : '0.9'
-      }}>
+      <div className="absolute inset-0">
         <video
+          ref={fallbackVideoRef}
           src={rawSrc}
           className="w-full h-full object-cover"
           muted
@@ -82,7 +92,40 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
             setVideoFailed(true)
           }}
         />
-        <div data-mute-dot className="absolute bottom-2.5 right-2.5 pointer-events-none transition-opacity duration-300" style={{ opacity: 0.35 }}>
+        <button
+          type="button"
+          aria-label={videoMuted ? 'Play audio' : 'Mute audio'}
+          onClick={(e) => {
+            e.stopPropagation()
+            const video = fallbackVideoRef.current
+            if (!video) return
+            if (video.muted) {
+              audioManager.play(audioIdRef.current)
+              video.muted = false
+              setVideoMuted(false)
+              video.play().catch(() => {})
+            } else {
+              audioManager.mute(audioIdRef.current)
+              video.muted = true
+              setVideoMuted(true)
+            }
+          }}
+          className="absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full"
+          style={{
+            zIndex: 3,
+            border: '1px solid rgba(255,255,255,0.16)',
+            background: 'rgba(0,0,0,0.28)',
+            backdropFilter: 'blur(10px) saturate(130%)',
+            WebkitBackdropFilter: 'blur(10px) saturate(130%)',
+            opacity: videoMuted ? 1 : 0,
+            transition: 'opacity 180ms ease',
+          }}
+        >
+          <svg className="h-5 w-5 text-white/80" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        </button>
+        <div data-mute-dot className="absolute bottom-2.5 right-2.5 pointer-events-none transition-opacity duration-300" style={{ opacity: videoMuted ? 0.35 : 0.9 }}>
           <div className="w-2 h-2 rounded-full" style={{ background: '#fff' }} />
         </div>
       </div>

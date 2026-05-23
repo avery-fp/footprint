@@ -88,39 +88,18 @@ export default function VideoTile({ src, playbackUrl, posterUrl, status, onWides
 
   // Play when visible, expanded, or user-explicitly-activated; pause dormant off-screen only.
   // AudioManager is NOT called here — auto-play into viewport must not deactivate
-  // other user-activated tiles (GhostTile, ContentCard YouTube). Only handleClick
-  // takes AudioManager focus, because only explicit user action warrants it.
+  // other user-activated tiles (GhostTile, ContentCard YouTube). Only the center
+  // play nucleus takes AudioManager focus, because only explicit user action warrants it.
   useEffect(() => {
     const v = videoRef.current
     if (!v) return
-    let cancelled = false
-    const unlock = () => {
-      if (cancelled || !videoRef.current) return
-      videoRef.current.muted = false
-      setIsMuted(false)
-      // No audioManager.play() here — unlock fires on any page gesture, not
-      // necessarily a direct tap on this tile.
-      cleanup()
-    }
-    const cleanup = () => {
-      document.removeEventListener('click', unlock)
-      document.removeEventListener('touchstart', unlock)
-    }
     // User-activated tiles stay playing regardless of viewport position.
     const shouldPlay = isExpanded || isVisible || isUserActivated
     if (shouldPlay) {
-      v.play().catch(() => {
-        if (cancelled) return
-        document.addEventListener('click', unlock, { once: true })
-        document.addEventListener('touchstart', unlock, { once: true })
-      })
+      v.play().catch(() => {})
     } else {
       // Only pause if user hasn't explicitly activated — dormant auto-play only.
       if (!isUserActivated) v.pause()
-    }
-    return () => {
-      cancelled = true
-      cleanup()
     }
   }, [isVisible, isReady, isExpanded, videoId, isUserActivated])
 
@@ -312,7 +291,6 @@ export default function VideoTile({ src, playbackUrl, posterUrl, status, onWides
                 playsInline
                 preload="metadata"
                 poster={posterUrl || undefined}
-                onClick={handleClick}
                 onError={() => setHasFailed(true)}
                 onLoadedData={() => setIsReady(true)}
                 onLoadedMetadata={(e) => {
@@ -322,6 +300,30 @@ export default function VideoTile({ src, playbackUrl, posterUrl, status, onWides
                   }
                 }}
               />
+              {!isExpanded && (
+                <button
+                  type="button"
+                  aria-label={isMuted ? 'Play audio' : 'Mute audio'}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleClick()
+                  }}
+                  className="absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full"
+                  style={{
+                    zIndex: 3,
+                    border: '1px solid rgba(255,255,255,0.16)',
+                    background: 'rgba(0,0,0,0.28)',
+                    backdropFilter: 'blur(10px) saturate(130%)',
+                    WebkitBackdropFilter: 'blur(10px) saturate(130%)',
+                    opacity: isMuted ? 1 : 0,
+                    transition: 'opacity 180ms ease',
+                  }}
+                >
+                  <svg className="h-5 w-5 text-white/80" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                </button>
+              )}
 
               {/* Brief play/pause tap feedback */}
               {showTapFeedback && (

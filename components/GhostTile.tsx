@@ -301,7 +301,7 @@ export default function GhostTile({
       <div className="w-full h-full relative overflow-hidden fp-tile" style={{ borderRadius: 'inherit' }}>
         <ThumbnailBg src={thumbUrl} candidates={thumbCandidates} />
         <div
-          className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer"
+          className="absolute left-1/2 top-1/2 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center cursor-pointer rounded-full"
           style={{ zIndex: 2 }}
           onClick={handleToggle}
         >
@@ -446,7 +446,7 @@ export default function GhostTile({
 
       {/* Whole-tile play affordance — invisible click target. */}
       <div
-        className="absolute inset-0 cursor-pointer"
+        className="absolute inset-0 cursor-pointer [@media(pointer:coarse)]:inset-auto [@media(pointer:coarse)]:left-1/2 [@media(pointer:coarse)]:top-1/2 [@media(pointer:coarse)]:h-20 [@media(pointer:coarse)]:w-20 [@media(pointer:coarse)]:-translate-x-1/2 [@media(pointer:coarse)]:-translate-y-1/2 [@media(pointer:coarse)]:rounded-full"
         style={{
           opacity: shouldShowPosterVeil ? 1 : 0,
           pointerEvents: shouldShowPosterVeil ? 'auto' : 'none',

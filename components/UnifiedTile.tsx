@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useState, useRef, useEffect, useCallback } from 'react'
+import { memo, useState, useRef, useEffect, useCallback, type MouseEvent } from 'react'
 import ContentCardBase from '@/components/ContentCard'
 import GhostTileBase from '@/components/GhostTile'
 import TileImage from '@/components/TileImage'
@@ -18,6 +18,7 @@ import type { RenderMode } from '@/lib/media/types'
 import DepthTile from '@/components/DepthTile'
 import { matchDepthProvider } from '@/lib/depth-providers'
 import { tryNativeFullscreen, tryVideoEnterFullscreen } from '@/lib/fullscreen'
+import { audioManager } from '@/lib/audio-manager'
 
 const ContainerTile = memo(ContainerTileBase)
 
@@ -105,7 +106,9 @@ function VideoTile({ url, id }: { url: string; id: string }) {
   // chip is never dead — but the spec asks for the same reveal pattern
   // across all video surfaces so mobile doesn't accumulate permanent chrome.
   const [chipRevealed, setChipRevealed] = useState(false)
+  const [isMuted, setIsMuted] = useState(true)
   const chipFadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const audioIdRef = useRef(`unified-video-${id}`)
   const revealChip = useCallback(() => {
     setChipRevealed(true)
     if (chipFadeTimerRef.current) clearTimeout(chipFadeTimerRef.current)
@@ -149,6 +152,32 @@ function VideoTile({ url, id }: { url: string; id: string }) {
     else v.pause()
   }, [isPlayable])
 
+  useEffect(() => {
+    const audioId = audioIdRef.current
+    audioManager.register(audioId, () => {
+      const v = videoRef.current
+      if (v) v.muted = true
+      setIsMuted(true)
+    })
+    return () => audioManager.unregister(audioId)
+  }, [])
+
+  const toggleAudio = useCallback((e: MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation()
+    const v = videoRef.current
+    if (!v) return
+    if (v.muted) {
+      audioManager.play(audioIdRef.current)
+      v.muted = false
+      setIsMuted(false)
+      v.play().catch(() => {})
+    } else {
+      audioManager.mute(audioIdRef.current)
+      v.muted = true
+      setIsMuted(true)
+    }
+  }, [])
+
   // #t=0.1 forces desktop Chrome to paint the first frame as poster.
   // Without it the tile renders black until autoplay kicks in (and
   // Chrome increasingly blocks even muted autoplay). Mobile Safari is fine.
@@ -164,13 +193,7 @@ function VideoTile({ url, id }: { url: string; id: string }) {
       data-tile-type="video"
       onPointerDown={revealChip}
     >
-      <div className="absolute inset-0 cursor-pointer" onClick={(e) => {
-        const v = e.currentTarget.querySelector('video')
-        if (!v) return
-        v.muted = !v.muted
-        const dot = e.currentTarget.querySelector('[data-mute-dot]') as HTMLElement
-        if (dot) dot.style.opacity = v.muted ? '0.35' : '0.9'
-      }}>
+      <div className="absolute inset-0">
         <video
           ref={videoRef}
           src={videoSrc}
@@ -181,7 +204,26 @@ function VideoTile({ url, id }: { url: string; id: string }) {
           autoPlay={isPlayable}
           preload={isInView ? 'metadata' : 'none'}
         />
-        <div data-mute-dot className="absolute bottom-2.5 left-2.5 pointer-events-none transition-opacity duration-300" style={{ opacity: 0.35 }}>
+        <button
+          type="button"
+          aria-label={isMuted ? 'Play audio' : 'Mute audio'}
+          onClick={toggleAudio}
+          className="absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full"
+          style={{
+            zIndex: 3,
+            border: '1px solid rgba(255,255,255,0.16)',
+            background: 'rgba(0,0,0,0.28)',
+            backdropFilter: 'blur(10px) saturate(130%)',
+            WebkitBackdropFilter: 'blur(10px) saturate(130%)',
+            opacity: isMuted ? 1 : 0,
+            transition: 'opacity 180ms ease',
+          }}
+        >
+          <svg className="h-5 w-5 text-white/80" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        </button>
+        <div data-mute-dot className="absolute bottom-2.5 left-2.5 pointer-events-none transition-opacity duration-300" style={{ opacity: isMuted ? 0.35 : 0.9 }}>
           <div className="w-2 h-2 rounded-full" style={{ background: '#fff' }} />
         </div>
       </div>

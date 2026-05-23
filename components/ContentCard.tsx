@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, type MouseEvent } from 'react'
 import Image from 'next/image'
 import type { ContentType } from '@/lib/parser'
 import { detectVariant } from '@/lib/parser'
@@ -203,15 +203,36 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     else v.pause()
   }, [isVideoPlayable])
 
+  const stopCardAudio = useCallback(() => {
+    if (content.type === 'youtube') {
+      pauseYouTubePlayback(youtubeIframeRef.current)
+      if (youtubeRevealTimerRef.current) {
+        clearTimeout(youtubeRevealTimerRef.current)
+        youtubeRevealTimerRef.current = null
+      }
+      youtubePendingActivationRef.current = false
+      activatedRef.current = false
+      setIsActivated(false)
+      setYoutubeHasStarted(false)
+      setYoutubeRevealSettled(false)
+    } else if (content.type === 'soundcloud' || content.type === 'spotify') {
+      activatedRef.current = false
+      setIsActivated(false)
+    }
+    const video = videoRef.current
+    if (video) {
+      video.muted = true
+      setIsVideoMuted(true)
+    }
+  }, [content.type])
+
   // Register audio-producing types with AudioManager
   useEffect(() => {
-    const isAudioType = ['youtube', 'soundcloud', 'spotify'].includes(content.type)
+    const isAudioType = ['youtube', 'soundcloud', 'spotify', 'video'].includes(content.type)
     if (!isAudioType) return
-    audioManager.register(audioIdRef.current, () => {
-      setIsActivated(false)
-    })
+    audioManager.register(audioIdRef.current, stopCardAudio)
     return () => audioManager.unregister(audioIdRef.current)
-  }, [content.type, content.id])
+  }, [content.type, content.id, stopCardAudio])
 
   const handleActivate = () => {
     if (['youtube', 'soundcloud', 'spotify'].includes(content.type)) {
@@ -229,6 +250,22 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       const activation = requestYouTubeActivation(youtubePlayerReadyRef.current)
       youtubePendingActivationRef.current = activation.pendingActivation
       if (activation.shouldPlayNow) startYouTubePlayback(youtubeIframeRef.current)
+    }
+  }
+
+  const handleNativeVideoAudioToggle = (e: MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation()
+    const video = videoRef.current
+    if (!video) return
+    if (video.muted) {
+      audioManager.play(audioIdRef.current)
+      video.muted = false
+      setIsVideoMuted(false)
+      video.play().catch(() => {})
+    } else {
+      audioManager.mute(audioIdRef.current)
+      video.muted = true
+      setIsVideoMuted(true)
     }
   }
 
@@ -343,8 +380,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       return (
         <div
           ref={containerRef}
-          className="w-full h-full fp-tile overflow-hidden cursor-pointer relative group bg-black"
-          onClick={handleActivate}
+          className="w-full h-full fp-tile overflow-hidden relative group bg-black"
         >
           <div className="fp-resting-video-frame">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -359,6 +395,13 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               onError={(e) => applyNextThumbnailFallback(e.currentTarget, youtubeThumbCandidates)}
             />
           </div>
+          <button
+            type="button"
+            aria-label="Play video"
+            onPointerDown={handleActivate}
+            className="absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full"
+            style={{ zIndex: 3, border: 'none', background: 'transparent', padding: 0, cursor: 'pointer' }}
+          />
         </div>
       )
     }
@@ -409,7 +452,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             type="button"
             aria-label="Play video"
             onPointerDown={!isActivated ? handleActivate : undefined}
-            className="absolute inset-0 cursor-pointer"
+            className="absolute inset-0 cursor-pointer [@media(pointer:coarse)]:inset-auto [@media(pointer:coarse)]:left-1/2 [@media(pointer:coarse)]:top-1/2 [@media(pointer:coarse)]:h-20 [@media(pointer:coarse)]:w-20 [@media(pointer:coarse)]:-translate-x-1/2 [@media(pointer:coarse)]:-translate-y-1/2 [@media(pointer:coarse)]:rounded-full"
             style={{
               zIndex: 3,
               border: 'none',
@@ -525,15 +568,19 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       return (
         <div
           ref={containerRef}
-          className={`w-full max-w-full ${aspectClass || 'aspect-square'} fp-tile overflow-hidden cursor-pointer relative group bg-black`}
-          onClick={handleActivate}
+          className={`w-full max-w-full ${aspectClass || 'aspect-square'} fp-tile overflow-hidden relative group bg-black`}
         >
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm border border-white/10 flex items-center justify-center group-hover:scale-105 transition-transform">
+            <button
+              type="button"
+              aria-label="Play audio"
+              onClick={handleActivate}
+              className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-sm border border-white/10 flex items-center justify-center group-hover:scale-105 transition-transform"
+            >
               <svg className="w-3 h-3 text-white/80 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M8 5v14l11-7z"/>
               </svg>
-            </div>
+            </button>
             <p className="text-white/50 text-[10px] font-medium line-clamp-2 max-w-[80%] text-center" style={{ lineHeight: 1.35 }}>{content.title || ''}</p>
           </div>
         </div>
@@ -646,16 +693,26 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               onPlay={() => setIsVideoPlaying(true)}
               onPause={() => setIsVideoPlaying(false)}
               onError={() => setIsVideoError(true)}
-              onClick={(e) => {
-                const v = e.currentTarget as HTMLVideoElement
-                setIsVideoMuted(!v.muted)
-                v.muted = !v.muted
-              }}
-              onMouseEnter={(e) => {
-                const v = e.currentTarget as HTMLVideoElement
-                if (v.paused) v.play().catch(() => {})
-              }}
             />
+            <button
+              type="button"
+              aria-label={isVideoMuted ? 'Play audio' : 'Mute audio'}
+              onClick={handleNativeVideoAudioToggle}
+              className="absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full"
+              style={{
+                zIndex: 3,
+                border: '1px solid rgba(255,255,255,0.16)',
+                background: 'rgba(0,0,0,0.28)',
+                backdropFilter: 'blur(10px) saturate(130%)',
+                WebkitBackdropFilter: 'blur(10px) saturate(130%)',
+                opacity: isVideoMuted ? 1 : 0,
+                transition: 'opacity 180ms ease',
+              }}
+            >
+              <svg className="h-5 w-5 text-white/80" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </button>
             {/* Mute state dot — lower right */}
             <div
               className="absolute bottom-2.5 right-2.5 pointer-events-none transition-opacity duration-300"
