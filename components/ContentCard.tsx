@@ -380,7 +380,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     const shouldPrewarmPosterSurface = shouldUsePosterSurface && isNearViewport
     const shouldMountPlayer = shouldUsePosterSurface
       ? isActivated || shouldPrewarmPosterSurface
-      : isCoarsePointer ? isActivated : shouldMountYouTubePlayer('youtube', isActivated, isCoarsePointer, isNearViewport)
+      : shouldMountYouTubePlayer('youtube', isActivated, isCoarsePointer, isNearViewport)
     const shouldRevealFromReadyState =
       !isCoarsePointer && youtubePlayerReadyRef.current && !youtubePendingActivationRef.current
     const shouldRevealPlayer = shouldUsePosterSurface
