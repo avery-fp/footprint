@@ -88,7 +88,7 @@ interface PublicPageProps {
 // every tile and unmounted/remounted the entire tile subtree (iframes,
 // videos, IntersectionObservers) on every parent state change. Hoisting
 // keeps each tile's instance stable across re-renders.
-function SortableTileWrapper({ item, idx, children, className, style: extraStyle, disabled }: { item: any; idx: number; children: React.ReactNode; className?: string; style?: React.CSSProperties; disabled?: boolean }) {
+function SortableTileWrapper({ item, idx, children, className, style: extraStyle, disabled, dataCollectionChildId }: { item: any; idx: number; children: React.ReactNode; className?: string; style?: React.CSSProperties; disabled?: boolean; dataCollectionChildId?: string }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id, disabled })
   // Desktop drag activation used to paint the wrapper on a new
   // compositor layer at the same instant it gained a translate3d, a
@@ -117,7 +117,7 @@ function SortableTileWrapper({ item, idx, children, className, style: extraStyle
     ...extraStyle,
   }
   return (
-    <div ref={setNodeRef} style={style} className={className} {...attributes} {...listeners}>
+    <div ref={setNodeRef} style={style} className={className} data-collection-child-id={dataCollectionChildId} {...attributes} {...listeners}>
       {children}
     </div>
   )
@@ -1515,7 +1515,15 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         )
         if (sortable && isOwner) {
           return (
-            <SortableTileWrapper key={item.id} item={item} idx={idx} className={wrapperClass} style={wrapperStyle} disabled={fitMobileViewport ? false : !!expanded}>
+            <SortableTileWrapper
+              key={item.id}
+              item={item}
+              idx={idx}
+              className={wrapperClass}
+              style={wrapperStyle}
+              disabled={fitMobileViewport ? false : !!expanded}
+              dataCollectionChildId={fitMobileViewport ? item.id : undefined}
+            >
               {body}
             </SortableTileWrapper>
           )
@@ -1600,7 +1608,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   }
 
   const renderCollectionOwnerControls = (child: any, idx: number) => isOwner ? (
-    <div className="absolute inset-0 z-10 pointer-events-none sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150">
+    <div className="absolute inset-0 z-10 pointer-events-none opacity-100 transition-opacity duration-150">
       <button
         type="button"
         className="absolute top-2 left-2 pointer-events-auto w-7 h-7 flex items-center justify-center rounded-full touch-manipulation transition-colors hover:bg-white/[0.12]"
