@@ -469,7 +469,7 @@ export default function GhostTile({
 
       {/* Whole-tile play affordance — invisible click target. */}
       <div
-        className="absolute inset-0 cursor-pointer [@media(pointer:coarse)]:inset-auto [@media(pointer:coarse)]:left-1/2 [@media(pointer:coarse)]:top-1/2 [@media(pointer:coarse)]:h-32 [@media(pointer:coarse)]:w-32 [@media(pointer:coarse)]:-translate-x-1/2 [@media(pointer:coarse)]:-translate-y-1/2 [@media(pointer:coarse)]:rounded-full"
+        className="absolute inset-0 cursor-pointer"
         style={{
           opacity: shouldShowPosterVeil ? 1 : 0,
           pointerEvents: shouldShowPosterVeil ? 'auto' : 'none',
