@@ -311,18 +311,12 @@ export default function VideoTile({ src, playbackUrl, posterUrl, status, onWides
                   className="absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full"
                   style={{
                     zIndex: 3,
-                    border: '1px solid rgba(255,255,255,0.16)',
-                    background: 'rgba(0,0,0,0.28)',
-                    backdropFilter: 'blur(10px) saturate(130%)',
-                    WebkitBackdropFilter: 'blur(10px) saturate(130%)',
-                    opacity: isMuted ? 1 : 0,
+                    border: 'none',
+                    background: 'transparent',
+                    opacity: 0,
                     transition: 'opacity 180ms ease',
                   }}
-                >
-                  <svg className="h-5 w-5 text-white/80" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                </button>
+                />
               )}
 
               {/* Brief play/pause tap feedback */}
