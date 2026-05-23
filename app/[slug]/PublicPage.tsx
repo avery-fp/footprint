@@ -45,6 +45,7 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   rectSortingStrategy,
+  horizontalListSortingStrategy,
   useSortable,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -1041,6 +1042,28 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     }).catch(e => console.error('Failed to reorder child tiles:', e))
   }
 
+  function handleChildDragEnd(event: DragEndEvent) {
+    setDraggingTileId(null)
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    const oldIndex = localChildren.findIndex((item: any) => item.id === active.id)
+    const newIndex = localChildren.findIndex((item: any) => item.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+
+    const reordered = arrayMove(localChildren, oldIndex, newIndex).map((item: any, index: number) => ({ ...item, position: index }))
+    pendingCollectionFocusId.current = String(active.id)
+    setLocalChildren(reordered)
+    fetch('/api/tiles', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        slug: footprint.username,
+        positions: reordered.map((c: any) => ({ id: c.id, source: c.source, position: c.position })),
+      }),
+    }).catch(e => console.error('Failed to reorder child tiles:', e))
+  }
+
   const [addUrl, setAddUrl] = useState('')
   const [addPending, setAddPending] = useState(false)
   const [childImagePending, setChildImagePending] = useState(false)
@@ -1492,7 +1515,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         )
         if (sortable && isOwner) {
           return (
-            <SortableTileWrapper key={item.id} item={item} idx={idx} className={wrapperClass} style={wrapperStyle} disabled={!!expanded}>
+            <SortableTileWrapper key={item.id} item={item} idx={idx} className={wrapperClass} style={wrapperStyle} disabled={fitMobileViewport ? false : !!expanded}>
               {body}
             </SortableTileWrapper>
           )
@@ -1582,6 +1605,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         type="button"
         className="absolute top-2 left-2 pointer-events-auto w-7 h-7 flex items-center justify-center rounded-full touch-manipulation transition-colors hover:bg-white/[0.12]"
         style={{ background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.12)' }}
+        onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => { e.stopPropagation(); handleChildMoveOut(child) }}
         aria-label="Move out of collection"
         title="Move out of collection"
@@ -1594,6 +1618,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         type="button"
         className="absolute top-2 right-2 pointer-events-auto w-7 h-7 flex items-center justify-center rounded-full touch-manipulation transition-colors hover:bg-red-500/30"
         style={{ background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.12)' }}
+        onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => { e.stopPropagation(); handleChildDelete(child) }}
         aria-label="Remove item"
       >
@@ -1611,6 +1636,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             opacity: idx === 0 ? 0.3 : 1,
             cursor: idx === 0 ? 'default' : 'pointer',
           }}
+          onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); handleChildMove(idx, -1) }}
           disabled={idx === 0}
           aria-label="Move left"
@@ -1628,6 +1654,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             opacity: idx === localChildren.length - 1 ? 0.3 : 1,
             cursor: idx === localChildren.length - 1 ? 'default' : 'pointer',
           }}
+          onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); handleChildMove(idx, 1) }}
           disabled={idx === localChildren.length - 1}
           aria-label="Move right"
@@ -2207,7 +2234,20 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                   style={{ padding: '12px 0', overscrollBehavior: 'contain' }}
                 >
                   {localChildren.length > 0 ? (
-                    renderHorizontalTiles(localChildren, renderCollectionTileBody, renderCollectionOwnerControls, false, false, true)
+                    isOwner ? (
+                      <DndContext
+                        sensors={ownerSensors}
+                        collisionDetection={closestCenter}
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleChildDragEnd}
+                      >
+                        <SortableContext items={localChildren.map((item: any) => item.id)} strategy={horizontalListSortingStrategy}>
+                          {renderHorizontalTiles(localChildren, renderCollectionTileBody, renderCollectionOwnerControls, false, true, true)}
+                        </SortableContext>
+                      </DndContext>
+                    ) : (
+                      renderHorizontalTiles(localChildren, renderCollectionTileBody, renderCollectionOwnerControls, false, false, true)
+                    )
                   ) : !loadingChildren ? (
                     <div className="flex items-center justify-center w-full py-12">
                       <span className="text-white/20 font-mono text-xs tracking-widest uppercase">empty</span>
