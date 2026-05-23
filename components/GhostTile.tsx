@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, type PointerEvent } from 'react'
 import { audioManager } from '@/lib/audio-manager'
 import { buildYouTubeEmbedUrl } from '@/lib/parseEmbed'
 import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getThumbnailCandidates, isBadOrMissingThumbnail } from '@/lib/media/thumbnails'
@@ -20,6 +20,7 @@ import {
   YOUTUBE_READY_SETTLE_MS,
   youtubePrewarmOptions,
 } from '@/lib/youtube-player'
+import { beginInvocation, isIntentionalInvocation, type InvocationPoint } from '@/lib/media-invocation'
 import TheaterOverlay from '@/components/TheaterOverlay'
 import MusicEmbedTile from '@/components/MusicEmbedTile'
 
@@ -89,6 +90,7 @@ export default function GhostTile({
   const youtubePlayerReadyRef = useRef(false)
   const youtubePendingActivationRef = useRef(false)
   const youtubeRevealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const invocationPointRef = useRef<InvocationPoint | null>(null)
   const [youtubeRevealSettled, setYoutubeRevealSettled] = useState(false)
 
   // Pause the underlying tile YouTube player while the theater overlay is
@@ -252,6 +254,23 @@ export default function GhostTile({
     }
   }, [isPlaying, handlePlay, platform, veilYouTubeSurface])
 
+  const handleInvocationPointerDown = useCallback((e: PointerEvent<HTMLElement>, invoke: () => void) => {
+    e.stopPropagation()
+    if (e.pointerType === 'mouse') {
+      invoke()
+      return
+    }
+    invocationPointRef.current = beginInvocation(e.pointerId, e.clientX, e.clientY)
+  }, [])
+
+  const handleInvocationPointerUp = useCallback((e: PointerEvent<HTMLElement>, invoke: () => void) => {
+    e.stopPropagation()
+    if (e.pointerType === 'mouse') return
+    const shouldInvoke = isIntentionalInvocation(invocationPointRef.current, e.pointerId, e.clientX, e.clientY)
+    invocationPointRef.current = null
+    if (shouldInvoke) invoke()
+  }, [])
+
   // Thumbnail URL
   const thumbCandidates = getThumbnailCandidates({
     type: platform,
@@ -301,9 +320,11 @@ export default function GhostTile({
       <div className="w-full h-full relative overflow-hidden fp-tile" style={{ borderRadius: 'inherit' }}>
         <ThumbnailBg src={thumbUrl} candidates={thumbCandidates} />
         <div
-          className="absolute left-1/2 top-1/2 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center cursor-pointer rounded-full"
+          className="absolute inset-0 [@media(pointer:coarse)]:inset-auto [@media(pointer:coarse)]:left-1/2 [@media(pointer:coarse)]:top-1/2 [@media(pointer:coarse)]:flex [@media(pointer:coarse)]:h-32 [@media(pointer:coarse)]:w-32 [@media(pointer:coarse)]:-translate-x-1/2 [@media(pointer:coarse)]:-translate-y-1/2 [@media(pointer:coarse)]:flex-col [@media(pointer:coarse)]:items-center [@media(pointer:coarse)]:justify-center [@media(pointer:coarse)]:rounded-full cursor-pointer"
           style={{ zIndex: 2 }}
-          onClick={handleToggle}
+          onPointerDown={(e) => handleInvocationPointerDown(e, handleToggle)}
+          onPointerUp={(e) => handleInvocationPointerUp(e, handleToggle)}
+          onPointerCancel={() => { invocationPointRef.current = null }}
         >
           {isPlaying ? <WaveformBars /> : null}
         </div>
@@ -336,7 +357,9 @@ export default function GhostTile({
             backdropFilter: 'blur(22px) saturate(140%)',
             WebkitBackdropFilter: 'blur(22px) saturate(140%)',
           }}
-          onClick={handlePlay}
+          onPointerDown={(e) => handleInvocationPointerDown(e, handlePlay)}
+          onPointerUp={(e) => handleInvocationPointerUp(e, handlePlay)}
+          onPointerCancel={() => { invocationPointRef.current = null }}
         >
           {title ? (
             <p className="text-white/85 text-[15px] leading-snug line-clamp-6 whitespace-pre-wrap">{title}</p>
@@ -446,15 +469,16 @@ export default function GhostTile({
 
       {/* Whole-tile play affordance — invisible click target. */}
       <div
-        className="absolute inset-0 cursor-pointer [@media(pointer:coarse)]:inset-auto [@media(pointer:coarse)]:left-1/2 [@media(pointer:coarse)]:top-1/2 [@media(pointer:coarse)]:h-20 [@media(pointer:coarse)]:w-20 [@media(pointer:coarse)]:-translate-x-1/2 [@media(pointer:coarse)]:-translate-y-1/2 [@media(pointer:coarse)]:rounded-full"
+        className="absolute inset-0 cursor-pointer [@media(pointer:coarse)]:inset-auto [@media(pointer:coarse)]:left-1/2 [@media(pointer:coarse)]:top-1/2 [@media(pointer:coarse)]:h-32 [@media(pointer:coarse)]:w-32 [@media(pointer:coarse)]:-translate-x-1/2 [@media(pointer:coarse)]:-translate-y-1/2 [@media(pointer:coarse)]:rounded-full"
         style={{
           opacity: shouldShowPosterVeil ? 1 : 0,
           pointerEvents: shouldShowPosterVeil ? 'auto' : 'none',
           transition: 'opacity 0.4s ease',
           zIndex: 2,
         }}
-        onPointerDown={platform === 'youtube' ? handlePlay : undefined}
-        onClick={platform === 'youtube' ? undefined : handlePlay}
+        onPointerDown={(e) => handleInvocationPointerDown(e, platform === 'youtube' ? handlePlay : handlePlay)}
+        onPointerUp={(e) => handleInvocationPointerUp(e, platform === 'youtube' ? handlePlay : handlePlay)}
+        onPointerCancel={() => { invocationPointRef.current = null }}
       />
 
       {/* Fallback: if iframe fails or times out, show a graceful link-out */}

@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback, type PointerEvent } from 'react'
 import Image from 'next/image'
 import { getObjectFit } from '@/lib/media/aspect'
 import { useAspectDetection } from '@/lib/aspectDetection'
 import { audioManager } from '@/lib/audio-manager'
+import { beginInvocation, isIntentionalInvocation, type InvocationPoint } from '@/lib/media-invocation'
 
 interface TileImageProps {
   src: string
@@ -29,6 +30,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
   const onAspectDetected = useAspectDetection()
   const fallbackVideoRef = useRef<HTMLVideoElement>(null)
   const audioIdRef = useRef(`tile-image-video-${src}`)
+  const invocationPointRef = useRef<InvocationPoint | null>(null)
 
   useEffect(() => {
     setFailed(false)
@@ -50,6 +52,38 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
     })
     return () => audioManager.unregister(audioId)
   }, [])
+
+  const toggleFallbackVideoAudio = useCallback(() => {
+    const video = fallbackVideoRef.current
+    if (!video) return
+    if (video.muted) {
+      audioManager.play(audioIdRef.current)
+      video.muted = false
+      setVideoMuted(false)
+      video.play().catch(() => {})
+    } else {
+      audioManager.mute(audioIdRef.current)
+      video.muted = true
+      setVideoMuted(true)
+    }
+  }, [])
+
+  const handleInvocationPointerDown = useCallback((e: PointerEvent<HTMLElement>) => {
+    e.stopPropagation()
+    if (e.pointerType === 'mouse') {
+      toggleFallbackVideoAudio()
+      return
+    }
+    invocationPointRef.current = beginInvocation(e.pointerId, e.clientX, e.clientY)
+  }, [toggleFallbackVideoAudio])
+
+  const handleInvocationPointerUp = useCallback((e: PointerEvent<HTMLElement>) => {
+    e.stopPropagation()
+    if (e.pointerType === 'mouse') return
+    const shouldInvoke = isIntentionalInvocation(invocationPointRef.current, e.pointerId, e.clientX, e.clientY)
+    invocationPointRef.current = null
+    if (shouldInvoke) toggleFallbackVideoAudio()
+  }, [toggleFallbackVideoAudio])
 
   // Fallback detection for cached/priority images.
   // React's synthetic onLoad won't fire for img elements that finished loading before
@@ -95,22 +129,10 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
         <button
           type="button"
           aria-label={videoMuted ? 'Play audio' : 'Mute audio'}
-          onClick={(e) => {
-            e.stopPropagation()
-            const video = fallbackVideoRef.current
-            if (!video) return
-            if (video.muted) {
-              audioManager.play(audioIdRef.current)
-              video.muted = false
-              setVideoMuted(false)
-              video.play().catch(() => {})
-            } else {
-              audioManager.mute(audioIdRef.current)
-              video.muted = true
-              setVideoMuted(true)
-            }
-          }}
-          className="absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full"
+          onPointerDown={handleInvocationPointerDown}
+          onPointerUp={handleInvocationPointerUp}
+          onPointerCancel={() => { invocationPointRef.current = null }}
+          className="absolute inset-0 [@media(pointer:coarse)]:inset-auto [@media(pointer:coarse)]:left-1/2 [@media(pointer:coarse)]:top-1/2 [@media(pointer:coarse)]:flex [@media(pointer:coarse)]:h-24 [@media(pointer:coarse)]:w-24 [@media(pointer:coarse)]:-translate-x-1/2 [@media(pointer:coarse)]:-translate-y-1/2 [@media(pointer:coarse)]:items-center [@media(pointer:coarse)]:justify-center [@media(pointer:coarse)]:rounded-full"
           style={{
             zIndex: 3,
             border: 'none',

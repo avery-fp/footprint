@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useState, useRef, useEffect, useCallback, type MouseEvent } from 'react'
+import { memo, useState, useRef, useEffect, useCallback, type PointerEvent } from 'react'
 import ContentCardBase from '@/components/ContentCard'
 import GhostTileBase from '@/components/GhostTile'
 import TileImage from '@/components/TileImage'
@@ -19,6 +19,7 @@ import DepthTile from '@/components/DepthTile'
 import { matchDepthProvider } from '@/lib/depth-providers'
 import { tryNativeFullscreen, tryVideoEnterFullscreen } from '@/lib/fullscreen'
 import { audioManager } from '@/lib/audio-manager'
+import { beginInvocation, isIntentionalInvocation, type InvocationPoint } from '@/lib/media-invocation'
 
 const ContainerTile = memo(ContainerTileBase)
 
@@ -109,6 +110,7 @@ function VideoTile({ url, id }: { url: string; id: string }) {
   const [isMuted, setIsMuted] = useState(true)
   const chipFadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const audioIdRef = useRef(`unified-video-${id}`)
+  const invocationPointRef = useRef<InvocationPoint | null>(null)
   const revealChip = useCallback(() => {
     setChipRevealed(true)
     if (chipFadeTimerRef.current) clearTimeout(chipFadeTimerRef.current)
@@ -162,8 +164,7 @@ function VideoTile({ url, id }: { url: string; id: string }) {
     return () => audioManager.unregister(audioId)
   }, [])
 
-  const toggleAudio = useCallback((e: MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation()
+  const toggleAudio = useCallback(() => {
     const v = videoRef.current
     if (!v) return
     if (v.muted) {
@@ -177,6 +178,23 @@ function VideoTile({ url, id }: { url: string; id: string }) {
       setIsMuted(true)
     }
   }, [])
+
+  const handleInvocationPointerDown = useCallback((e: PointerEvent<HTMLElement>) => {
+    e.stopPropagation()
+    if (e.pointerType === 'mouse') {
+      toggleAudio()
+      return
+    }
+    invocationPointRef.current = beginInvocation(e.pointerId, e.clientX, e.clientY)
+  }, [toggleAudio])
+
+  const handleInvocationPointerUp = useCallback((e: PointerEvent<HTMLElement>) => {
+    e.stopPropagation()
+    if (e.pointerType === 'mouse') return
+    const shouldInvoke = isIntentionalInvocation(invocationPointRef.current, e.pointerId, e.clientX, e.clientY)
+    invocationPointRef.current = null
+    if (shouldInvoke) toggleAudio()
+  }, [toggleAudio])
 
   // #t=0.1 forces desktop Chrome to paint the first frame as poster.
   // Without it the tile renders black until autoplay kicks in (and
@@ -207,8 +225,10 @@ function VideoTile({ url, id }: { url: string; id: string }) {
         <button
           type="button"
           aria-label={isMuted ? 'Play audio' : 'Mute audio'}
-          onClick={toggleAudio}
-          className="absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full"
+          onPointerDown={handleInvocationPointerDown}
+          onPointerUp={handleInvocationPointerUp}
+          onPointerCancel={() => { invocationPointRef.current = null }}
+          className="absolute inset-0 [@media(pointer:coarse)]:inset-auto [@media(pointer:coarse)]:left-1/2 [@media(pointer:coarse)]:top-1/2 [@media(pointer:coarse)]:flex [@media(pointer:coarse)]:h-24 [@media(pointer:coarse)]:w-24 [@media(pointer:coarse)]:-translate-x-1/2 [@media(pointer:coarse)]:-translate-y-1/2 [@media(pointer:coarse)]:items-center [@media(pointer:coarse)]:justify-center [@media(pointer:coarse)]:rounded-full"
           style={{
             zIndex: 3,
             border: 'none',

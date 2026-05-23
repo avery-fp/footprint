@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, type PointerEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { audioManager } from '@/lib/audio-manager'
 import { MOTION } from '@/lib/motion'
@@ -9,6 +9,7 @@ import { useReducedMotion } from '@/hooks/useReducedMotion'
 import VideoScrubBar from '@/components/VideoScrubBar'
 import FieldBackground from '@/components/FieldBackground'
 import Hls from 'hls.js'
+import { beginInvocation, isIntentionalInvocation, type InvocationPoint } from '@/lib/media-invocation'
 
 interface VideoTileProps {
   src: string
@@ -33,6 +34,7 @@ export default function VideoTile({ src, playbackUrl, posterUrl, status, onWides
   const videoWrapperRef = useRef<HTMLDivElement>(null)
   const hlsRef = useRef<Hls | null>(null)
   const theatreContainerRef = useRef<HTMLDivElement>(null)
+  const invocationPointRef = useRef<InvocationPoint | null>(null)
   const videoId = useRef(`video-${src}-${Math.random()}`).current
   const reducedMotion = useReducedMotion()
 
@@ -162,6 +164,23 @@ export default function VideoTile({ src, playbackUrl, posterUrl, status, onWides
       }
     }
   }, [isMuted, videoId])
+
+  const handleInvocationPointerDown = useCallback((e: PointerEvent<HTMLElement>) => {
+    e.stopPropagation()
+    if (e.pointerType === 'mouse') {
+      handleClick()
+      return
+    }
+    invocationPointRef.current = beginInvocation(e.pointerId, e.clientX, e.clientY)
+  }, [handleClick])
+
+  const handleInvocationPointerUp = useCallback((e: PointerEvent<HTMLElement>) => {
+    e.stopPropagation()
+    if (e.pointerType === 'mouse') return
+    const shouldInvoke = isIntentionalInvocation(invocationPointRef.current, e.pointerId, e.clientX, e.clientY)
+    invocationPointRef.current = null
+    if (shouldInvoke) handleClick()
+  }, [handleClick])
 
   // Swipe-down detection for theatre dismiss
   const swipeRef = useRef<{ y: number; t: number } | null>(null)
@@ -304,11 +323,10 @@ export default function VideoTile({ src, playbackUrl, posterUrl, status, onWides
                 <button
                   type="button"
                   aria-label={isMuted ? 'Play audio' : 'Mute audio'}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleClick()
-                  }}
-                  className="absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full"
+                  onPointerDown={handleInvocationPointerDown}
+                  onPointerUp={handleInvocationPointerUp}
+                  onPointerCancel={() => { invocationPointRef.current = null }}
+                  className="absolute inset-0 [@media(pointer:coarse)]:inset-auto [@media(pointer:coarse)]:left-1/2 [@media(pointer:coarse)]:top-1/2 [@media(pointer:coarse)]:flex [@media(pointer:coarse)]:h-24 [@media(pointer:coarse)]:w-24 [@media(pointer:coarse)]:-translate-x-1/2 [@media(pointer:coarse)]:-translate-y-1/2 [@media(pointer:coarse)]:items-center [@media(pointer:coarse)]:justify-center [@media(pointer:coarse)]:rounded-full"
                   style={{
                     zIndex: 3,
                     border: 'none',

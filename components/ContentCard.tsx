@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback, type MouseEvent } from 'react'
+import { useState, useRef, useEffect, useCallback, type PointerEvent } from 'react'
 import Image from 'next/image'
 import type { ContentType } from '@/lib/parser'
 import { detectVariant } from '@/lib/parser'
@@ -37,6 +37,7 @@ import {
   startYouTubePlayback,
   YOUTUBE_READY_SETTLE_MS,
 } from '@/lib/youtube-player'
+import { beginInvocation, isIntentionalInvocation, type InvocationPoint } from '@/lib/media-invocation'
 
 // ════════════════════════════════════════
 // Glass Embed Frame — imported from extracted component
@@ -150,6 +151,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const youtubePlayerReadyRef = useRef(false)
   const youtubePendingActivationRef = useRef(false)
   const youtubeRevealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const invocationPointRef = useRef<InvocationPoint | null>(null)
   const [youtubeRevealSettled, setYoutubeRevealSettled] = useState(false)
   // Fullscreen affordance for the YouTube embed branch: mirrors GhostTile
   // so cross-origin-iframe-fullscreen failures (iOS Safari) drop into the
@@ -253,8 +255,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     }
   }
 
-  const handleNativeVideoAudioToggle = (e: MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation()
+  const handleNativeVideoAudioToggle = () => {
     const video = videoRef.current
     if (!video) return
     if (video.muted) {
@@ -267,6 +268,23 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       video.muted = true
       setIsVideoMuted(true)
     }
+  }
+
+  const handleInvocationPointerDown = (e: PointerEvent<HTMLElement>, invoke: () => void) => {
+    e.stopPropagation()
+    if (e.pointerType === 'mouse') {
+      invoke()
+      return
+    }
+    invocationPointRef.current = beginInvocation(e.pointerId, e.clientX, e.clientY)
+  }
+
+  const handleInvocationPointerUp = (e: PointerEvent<HTMLElement>, invoke: () => void) => {
+    e.stopPropagation()
+    if (e.pointerType === 'mouse') return
+    const shouldInvoke = isIntentionalInvocation(invocationPointRef.current, e.pointerId, e.clientX, e.clientY)
+    invocationPointRef.current = null
+    if (shouldInvoke) invoke()
   }
 
   useEffect(() => {
@@ -398,8 +416,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           <button
             type="button"
             aria-label="Play video"
-            onPointerDown={handleActivate}
-            className="absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full"
+            onPointerDown={(e) => handleInvocationPointerDown(e, handleActivate)}
+            onPointerUp={(e) => handleInvocationPointerUp(e, handleActivate)}
+            onPointerCancel={() => { invocationPointRef.current = null }}
+            className="absolute inset-0 [@media(pointer:coarse)]:inset-auto [@media(pointer:coarse)]:left-1/2 [@media(pointer:coarse)]:top-1/2 [@media(pointer:coarse)]:h-32 [@media(pointer:coarse)]:w-32 [@media(pointer:coarse)]:-translate-x-1/2 [@media(pointer:coarse)]:-translate-y-1/2 [@media(pointer:coarse)]:rounded-full"
             style={{ zIndex: 3, border: 'none', background: 'transparent', padding: 0, cursor: 'pointer' }}
           />
         </div>
@@ -451,8 +471,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           <button
             type="button"
             aria-label="Play video"
-            onPointerDown={!isActivated ? handleActivate : undefined}
-            className="absolute inset-0 cursor-pointer [@media(pointer:coarse)]:inset-auto [@media(pointer:coarse)]:left-1/2 [@media(pointer:coarse)]:top-1/2 [@media(pointer:coarse)]:h-20 [@media(pointer:coarse)]:w-20 [@media(pointer:coarse)]:-translate-x-1/2 [@media(pointer:coarse)]:-translate-y-1/2 [@media(pointer:coarse)]:rounded-full"
+            onPointerDown={!isActivated ? (e) => handleInvocationPointerDown(e, handleActivate) : undefined}
+            onPointerUp={!isActivated ? (e) => handleInvocationPointerUp(e, handleActivate) : undefined}
+            onPointerCancel={() => { invocationPointRef.current = null }}
+            className="absolute inset-0 cursor-pointer [@media(pointer:coarse)]:inset-auto [@media(pointer:coarse)]:left-1/2 [@media(pointer:coarse)]:top-1/2 [@media(pointer:coarse)]:h-32 [@media(pointer:coarse)]:w-32 [@media(pointer:coarse)]:-translate-x-1/2 [@media(pointer:coarse)]:-translate-y-1/2 [@media(pointer:coarse)]:rounded-full"
             style={{
               zIndex: 3,
               border: 'none',
@@ -697,8 +719,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             <button
               type="button"
               aria-label={isVideoMuted ? 'Play audio' : 'Mute audio'}
-              onClick={handleNativeVideoAudioToggle}
-              className="absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full"
+              onPointerDown={(e) => handleInvocationPointerDown(e, handleNativeVideoAudioToggle)}
+              onPointerUp={(e) => handleInvocationPointerUp(e, handleNativeVideoAudioToggle)}
+              onPointerCancel={() => { invocationPointRef.current = null }}
+              className="absolute inset-0 [@media(pointer:coarse)]:inset-auto [@media(pointer:coarse)]:left-1/2 [@media(pointer:coarse)]:top-1/2 [@media(pointer:coarse)]:flex [@media(pointer:coarse)]:h-24 [@media(pointer:coarse)]:w-24 [@media(pointer:coarse)]:-translate-x-1/2 [@media(pointer:coarse)]:-translate-y-1/2 [@media(pointer:coarse)]:items-center [@media(pointer:coarse)]:justify-center [@media(pointer:coarse)]:rounded-full"
               style={{
                 zIndex: 3,
                 border: 'none',
