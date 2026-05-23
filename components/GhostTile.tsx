@@ -493,7 +493,7 @@ export default function GhostTile({
 
       {shouldMountPlayer && iframeSrc && !iframeFailed && (
         <div
-          className="absolute inset-0 flex items-center justify-center"
+          className="absolute inset-0 w-full h-full [&_iframe]:!absolute [&_iframe]:!inset-0 [&_iframe]:!w-full [&_iframe]:!max-w-none [&_iframe]:!h-full"
           style={{
             opacity: Number(shouldRevealPlayer),
             transition: 'opacity 0.25s ease',
