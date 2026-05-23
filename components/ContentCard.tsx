@@ -442,7 +442,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       >
         <FieldBackground imageUrl={youtubeThumbCandidates[0]} intensity="embed" />
         <div
-          className="absolute inset-0 flex items-center justify-center"
+          className="absolute inset-0 w-full h-full [&_iframe]:!w-full [&_iframe]:!max-w-full [&_iframe]:!h-full"
           style={{
             opacity: shouldRevealPlayer ? 1 : 0,
             transition: 'opacity 0.2s ease',
