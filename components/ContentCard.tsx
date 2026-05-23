@@ -419,7 +419,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             onPointerDown={(e) => handleInvocationPointerDown(e, handleActivate)}
             onPointerUp={(e) => handleInvocationPointerUp(e, handleActivate)}
             onPointerCancel={() => { invocationPointRef.current = null }}
-            className="absolute inset-0 [@media(pointer:coarse)]:inset-auto [@media(pointer:coarse)]:left-1/2 [@media(pointer:coarse)]:top-1/2 [@media(pointer:coarse)]:h-32 [@media(pointer:coarse)]:w-32 [@media(pointer:coarse)]:-translate-x-1/2 [@media(pointer:coarse)]:-translate-y-1/2 [@media(pointer:coarse)]:rounded-full"
+            className="absolute inset-0"
             style={{ zIndex: 3, border: 'none', background: 'transparent', padding: 0, cursor: 'pointer' }}
           />
         </div>
@@ -474,7 +474,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             onPointerDown={!isActivated ? (e) => handleInvocationPointerDown(e, handleActivate) : undefined}
             onPointerUp={!isActivated ? (e) => handleInvocationPointerUp(e, handleActivate) : undefined}
             onPointerCancel={() => { invocationPointRef.current = null }}
-            className="absolute inset-0 cursor-pointer [@media(pointer:coarse)]:inset-auto [@media(pointer:coarse)]:left-1/2 [@media(pointer:coarse)]:top-1/2 [@media(pointer:coarse)]:h-32 [@media(pointer:coarse)]:w-32 [@media(pointer:coarse)]:-translate-x-1/2 [@media(pointer:coarse)]:-translate-y-1/2 [@media(pointer:coarse)]:rounded-full"
+            className="absolute inset-0 cursor-pointer"
             style={{
               zIndex: 3,
               border: 'none',
@@ -722,7 +722,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               onPointerDown={(e) => handleInvocationPointerDown(e, handleNativeVideoAudioToggle)}
               onPointerUp={(e) => handleInvocationPointerUp(e, handleNativeVideoAudioToggle)}
               onPointerCancel={() => { invocationPointRef.current = null }}
-              className="absolute inset-0 [@media(pointer:coarse)]:inset-auto [@media(pointer:coarse)]:left-1/2 [@media(pointer:coarse)]:top-1/2 [@media(pointer:coarse)]:flex [@media(pointer:coarse)]:h-24 [@media(pointer:coarse)]:w-24 [@media(pointer:coarse)]:-translate-x-1/2 [@media(pointer:coarse)]:-translate-y-1/2 [@media(pointer:coarse)]:items-center [@media(pointer:coarse)]:justify-center [@media(pointer:coarse)]:rounded-full"
+              className="absolute inset-0 flex items-center justify-center"
               style={{
                 zIndex: 3,
                 border: 'none',

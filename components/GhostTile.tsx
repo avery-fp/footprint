@@ -320,7 +320,7 @@ export default function GhostTile({
       <div className="w-full h-full relative overflow-hidden fp-tile" style={{ borderRadius: 'inherit' }}>
         <ThumbnailBg src={thumbUrl} candidates={thumbCandidates} />
         <div
-          className="absolute inset-0 [@media(pointer:coarse)]:inset-auto [@media(pointer:coarse)]:left-1/2 [@media(pointer:coarse)]:top-1/2 [@media(pointer:coarse)]:flex [@media(pointer:coarse)]:h-32 [@media(pointer:coarse)]:w-32 [@media(pointer:coarse)]:-translate-x-1/2 [@media(pointer:coarse)]:-translate-y-1/2 [@media(pointer:coarse)]:flex-col [@media(pointer:coarse)]:items-center [@media(pointer:coarse)]:justify-center [@media(pointer:coarse)]:rounded-full cursor-pointer"
+          className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer"
           style={{ zIndex: 2 }}
           onPointerDown={(e) => handleInvocationPointerDown(e, handleToggle)}
           onPointerUp={(e) => handleInvocationPointerUp(e, handleToggle)}
