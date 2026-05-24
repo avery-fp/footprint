@@ -8,7 +8,6 @@ import { audioManager } from '@/lib/audio-manager'
 import { parseEmbed, extractYouTubeId, extractYouTubeStart, buildYouTubeEmbedUrl } from '@/lib/parseEmbed'
 import type { EmbedResult } from '@/lib/parseEmbed'
 import GlassEmbedFrameExtracted, { GLASS_STYLE as GLASS_STYLE_IMPORTED, GlassPlaceholder as GlassPlaceholderExtracted } from '@/components/GlassEmbedFrame'
-import FieldBackground from '@/components/FieldBackground'
 import { transformImageUrl } from '@/lib/image'
 import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getBestThumbnailUrl, getYouTubeThumbnailCandidates } from '@/lib/media/thumbnails'
 import ArtifactShell from '@/components/ArtifactShell'
@@ -407,7 +406,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       return (
         <div
           ref={containerRef}
-          className="w-full h-full fp-tile overflow-hidden relative group bg-black"
+          className="w-full h-full fp-tile overflow-hidden relative group"
+          style={{ background: 'transparent' }}
         >
           <div className="fp-resting-video-frame">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -451,9 +451,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       <div
         ref={containerRef}
         className="w-full max-w-full h-full fp-tile overflow-hidden relative group"
-        style={{ background: '#000' }}
+        style={{ background: 'transparent' }}
       >
-        <FieldBackground imageUrl={youtubeThumbCandidates[0]} intensity="embed" />
         <div
           className="absolute inset-0 w-full h-full [&_iframe]:!w-full [&_iframe]:!max-w-full [&_iframe]:!h-full"
           style={{
