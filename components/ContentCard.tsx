@@ -178,7 +178,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         setIsNearViewport(entry.isIntersecting)
         if (entry.isIntersecting) setIsInView(true)
       },
-      { rootMargin: '200px' }
+      { rootMargin: '900px 0px 900px 0px' }
     )
     observer.observe(el)
     return () => observer.disconnect()
