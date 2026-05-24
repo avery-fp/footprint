@@ -1587,22 +1587,26 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     return (
       <div className="w-full h-full relative">
         <div
-          className={`relative w-full max-w-full h-full overflow-hidden rounded-2xl${isSoundRoom ? ' fp-sound-tile' : ''}`}
-          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
+          className={`relative w-full max-w-full h-full overflow-hidden fp-tile rounded-2xl${isSoundRoom ? ' fp-sound-tile' : ''}`}
+          style={{ background: 'rgba(10,10,12,0.92)', border: '1px solid rgba(255,255,255,0.06)' }}
         >
           {previewUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={previewUrl}
-              alt=""
-              loading="lazy"
-              className="absolute inset-0 w-full h-full object-cover"
-              style={{ filter: 'blur(14px)', opacity: 0.32, transform: 'scale(1.04)' }}
-            />
+            <div className="fp-resting-video-frame">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={previewUrl}
+                alt=""
+                loading="eager"
+                decoding="async"
+                fetchPriority="high"
+                className="fp-resting-video-media"
+                referrerPolicy="no-referrer"
+              />
+            </div>
           ) : null}
           <div
             className="absolute inset-0"
-            style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.04) 0%, rgba(0,0,0,0.22) 100%)' }}
+            style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0.16) 100%)' }}
           />
         </div>
       </div>
