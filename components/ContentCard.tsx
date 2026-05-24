@@ -414,12 +414,15 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             <img
               src={youtubeThumbCandidates[0]}
               alt=""
-              className="fp-resting-video-media"
+              className={`fp-resting-video-media transition-opacity duration-500 ease-in-out ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
               loading="eager"
               fetchPriority="high"
               decoding="async"
               referrerPolicy="no-referrer"
-              onLoad={(e) => applyThumbnailLoadGuard(e.currentTarget, youtubeThumbCandidates)}
+              onLoad={(e) => {
+                applyThumbnailLoadGuard(e.currentTarget, youtubeThumbCandidates)
+                setIsLoaded(true)
+              }}
               onError={(e) => applyNextThumbnailFallback(e.currentTarget, youtubeThumbCandidates)}
             />
           </div>
@@ -498,12 +501,15 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               <img
                 src={youtubeThumbCandidates[0]}
                 alt=""
-                className="fp-resting-video-media"
+                className={`fp-resting-video-media transition-opacity duration-500 ease-in-out ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
                 loading="eager"
                 fetchPriority="high"
                 decoding="async"
                 referrerPolicy="no-referrer"
-                onLoad={(e) => applyThumbnailLoadGuard(e.currentTarget, youtubeThumbCandidates)}
+                onLoad={(e) => {
+                  applyThumbnailLoadGuard(e.currentTarget, youtubeThumbCandidates)
+                  setIsLoaded(true)
+                }}
                 onError={(e) => applyNextThumbnailFallback(e.currentTarget, youtubeThumbCandidates)}
               />
             </div>
@@ -756,7 +762,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             </div>
           </>
         ) : (
-          <div className={`w-full ${aspectClass || 'aspect-video'}`} style={{ background: 'rgba(0,0,0,0.3)' }} />
+          <div className={`w-full ${aspectClass || 'aspect-video'}`} style={{ background: 'transparent' }} />
         )}
       </div>
     )
@@ -775,7 +781,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             width={600}
             height={800}
             sizes="(max-width: 768px) 50vw, 25vw"
-            className="w-full h-full object-cover"
+            className={`w-full h-full object-cover transition-opacity duration-500 ease-in-out ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
             loading="eager"
             quality={90}
             onLoad={(e) => {
@@ -904,9 +910,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               <img
                 src={thumbSrc}
                 alt=""
-                className="fp-resting-video-media"
+                className={`fp-resting-video-media transition-opacity duration-500 ease-in-out ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
                 loading="eager"
                 decoding="async"
+                onLoad={() => setIsLoaded(true)}
                 onError={() => setSocialThumbFailed(true)}
               />
             </div>
@@ -978,9 +985,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               <img
                 src={thumbSrc}
                 alt=""
-                className="fp-resting-video-media"
+                className={`fp-resting-video-media transition-opacity duration-500 ease-in-out ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
                 loading="lazy"
                 decoding="async"
+                onLoad={() => setIsLoaded(true)}
                 onError={() => setSocialThumbFailed(true)}
               />
             </div>

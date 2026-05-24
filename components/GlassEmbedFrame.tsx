@@ -118,7 +118,7 @@ export function GlassPlaceholder({
   return (
     <div
       className={`w-full h-full ${aspectClass || ''}`}
-      style={{ ...GLASS_STYLE, ...(height ? { height: `${height}px` } : {}) }}
+      style={{ background: 'transparent', ...(height ? { height: `${height}px` } : {}) }}
     />
   )
 }

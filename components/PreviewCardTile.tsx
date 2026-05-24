@@ -37,6 +37,7 @@ export default function PreviewCardTile({
   // element on a transparent tile — reads as an empty rectangle. Flip to
   // the no-thumbnail glass card so the tile still shows title + provider.
   const [allCandidatesFailed, setAllCandidatesFailed] = useState(false)
+  const [loaded, setLoaded] = useState(false)
 
   // ── With thumbnail: visual card ──
   if (thumbSrc && !allCandidatesFailed) {
@@ -54,13 +55,14 @@ export default function PreviewCardTile({
           <img
             src={thumbSrc}
             alt=""
-            className={cropThumbnail ? 'fp-resting-video-media' : 'absolute inset-0 w-full h-full object-cover'}
+            className={`${cropThumbnail ? 'fp-resting-video-media' : 'absolute inset-0 w-full h-full object-cover'} transition-opacity duration-500 ease-in-out ${loaded ? 'opacity-100' : 'opacity-0'}`}
             loading="eager"
             fetchPriority="high"
             decoding="async"
             referrerPolicy="no-referrer"
             onLoad={(e) => {
               applyThumbnailLoadGuard(e.currentTarget, candidates)
+              setLoaded(true)
             }}
             onError={(e) => {
               const advanced = applyNextThumbnailFallback(e.currentTarget, candidates)
