@@ -123,6 +123,55 @@ function SortableTileWrapper({ item, idx, children, className, style: extraStyle
   )
 }
 
+function CollectionPosterPlaceholder({
+  previewUrl,
+  isSoundRoom,
+  eager,
+}: {
+  previewUrl: string | null
+  isSoundRoom: boolean
+  eager: boolean
+}) {
+  const [loaded, setLoaded] = useState(false)
+
+  return (
+    <div className="w-full h-full relative">
+      <div
+        className={`relative w-full max-w-full h-full overflow-hidden fp-tile rounded-2xl${isSoundRoom ? ' fp-sound-tile' : ''}`}
+        style={{ background: 'rgba(10,10,12,0.92)', border: '1px solid rgba(255,255,255,0.06)' }}
+      >
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'radial-gradient(circle at 45% 38%, rgba(255,255,255,0.10), rgba(255,255,255,0.035) 34%, rgba(0,0,0,0.36) 100%)',
+          }}
+        />
+        {previewUrl ? (
+          <div className="fp-resting-video-frame">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={previewUrl}
+              alt=""
+              loading={eager ? 'eager' : 'lazy'}
+              decoding="async"
+              fetchPriority={eager ? 'high' : 'auto'}
+              className="fp-resting-video-media fp-poster-resolve"
+              data-loaded={loaded ? 'true' : 'false'}
+              referrerPolicy="no-referrer"
+              onLoad={() => setLoaded(true)}
+            />
+          </div>
+        ) : null}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0.16) 100%)' }}
+        />
+      </div>
+    </div>
+  )
+}
+
 export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl, isDraft, isOwnerHinted = false, containerMeta = {}, ownerEmail = null, wantsEditOverlay = false }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
 
@@ -1509,7 +1558,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           : true
         const body = (
           <>
-            {shouldMountTile ? renderBody(item, idx) : renderCollectionTilePlaceholder(item)}
+            {shouldMountTile ? renderBody(item, idx) : renderCollectionTilePlaceholder(item, idx)}
             {renderOverlay?.(item, idx)}
           </>
         )
@@ -1576,40 +1625,21 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     </div>
   )
 
-  const renderCollectionTilePlaceholder = (child: any) => {
+  const renderCollectionTilePlaceholder = (child: any, idx: number) => {
     const previewUrl =
       child.thumbnail_url_override ||
       child.thumbnail_url_hq ||
       child.thumbnail_url ||
       child.poster_url ||
       null
+    const eagerPoster = Math.abs(idx - collectionActiveIndex) <= getCollectionRenderRadius(isMobile) + 2
 
     return (
-      <div className="w-full h-full relative">
-        <div
-          className={`relative w-full max-w-full h-full overflow-hidden fp-tile rounded-2xl${isSoundRoom ? ' fp-sound-tile' : ''}`}
-          style={{ background: 'rgba(10,10,12,0.92)', border: '1px solid rgba(255,255,255,0.06)' }}
-        >
-          {previewUrl ? (
-            <div className="fp-resting-video-frame">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={previewUrl}
-                alt=""
-                loading="eager"
-                decoding="async"
-                fetchPriority="high"
-                className="fp-resting-video-media"
-                referrerPolicy="no-referrer"
-              />
-            </div>
-          ) : null}
-          <div
-            className="absolute inset-0"
-            style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0.16) 100%)' }}
-          />
-        </div>
-      </div>
+      <CollectionPosterPlaceholder
+        previewUrl={previewUrl}
+        isSoundRoom={isSoundRoom}
+        eager={eagerPoster}
+      />
     )
   }
 
