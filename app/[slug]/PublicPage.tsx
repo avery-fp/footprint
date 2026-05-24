@@ -123,82 +123,6 @@ function SortableTileWrapper({ item, idx, children, className, style: extraStyle
   )
 }
 
-function CollectionPosterPlaceholder({
-  previewUrl,
-  posterKey,
-  loadedPosterKeysRef,
-  alreadyLoaded,
-  isSoundRoom,
-  eager,
-  debugTiles,
-}: {
-  previewUrl: string | null
-  posterKey: string | null
-  loadedPosterKeysRef: React.MutableRefObject<Set<string>>
-  alreadyLoaded: boolean
-  isSoundRoom: boolean
-  eager: boolean
-  debugTiles: boolean
-}) {
-  const [loaded, setLoaded] = useState(alreadyLoaded)
-  const handleLoad = () => {
-    if (posterKey) loadedPosterKeysRef.current.add(posterKey)
-    if (debugTiles) {
-      console.debug('[fp:tile-poster-load]', {
-        renderPath: 'collection-placeholder',
-        posterKey,
-        alreadyLoaded,
-      })
-    }
-    setLoaded(true)
-  }
-
-  return (
-    <div className="w-full h-full relative">
-      <div
-        className={`relative w-full max-w-full h-full overflow-hidden fp-tile rounded-2xl${isSoundRoom ? ' fp-sound-tile' : ''}`}
-        style={{ background: 'rgba(10,10,12,0.92)', border: '1px solid rgba(255,255,255,0.06)' }}
-        {...(debugTiles ? {
-          'data-render-path': 'collection-placeholder',
-          'data-off-window': 'true',
-          'data-poster-loaded': loaded ? 'true' : 'false',
-          'data-already-loaded': alreadyLoaded ? 'true' : 'false',
-          'data-has-poster-url': previewUrl ? 'true' : 'false',
-          'data-poster-key': posterKey || '',
-        } : {})}
-      >
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              'radial-gradient(circle at 45% 38%, rgba(255,255,255,0.10), rgba(255,255,255,0.035) 34%, rgba(0,0,0,0.36) 100%)',
-          }}
-        />
-        {previewUrl ? (
-          <div className="fp-resting-video-frame">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={previewUrl}
-              alt=""
-              loading={eager ? 'eager' : 'lazy'}
-              decoding="async"
-              fetchPriority={eager ? 'high' : 'auto'}
-              className="fp-resting-video-media fp-poster-resolve"
-              data-loaded={loaded ? 'true' : 'false'}
-              referrerPolicy="no-referrer"
-              onLoad={handleLoad}
-            />
-          </div>
-        ) : null}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0.16) 100%)' }}
-        />
-      </div>
-    </div>
-  )
-}
-
 export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl, isDraft, isOwnerHinted = false, containerMeta = {}, ownerEmail = null, wantsEditOverlay = false }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
 
@@ -222,7 +146,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [debugTiles, setDebugTiles] = useState(process.env.NODE_ENV !== 'production')
   const [roomFade, setRoomFade] = useState<'visible' | 'out' | 'in'>('visible')
   const [roomNavDocked, setRoomNavDocked] = useState(false)
-  const loadedPosterKeysRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     if (process.env.NODE_ENV !== 'production') return
@@ -1603,32 +1526,30 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           } : {}),
         }
         const wrapperClass = getGridLayout('horizontal').tileClass
-        const shouldMountTile = fitMobileViewport
-          ? shouldRenderCollectionTile(idx, items.length, collectionActiveIndex, collectionRenderRadius)
-          : true
+        const wouldHaveBeenOffWindow = fitMobileViewport
+          ? !shouldRenderCollectionTile(idx, items.length, collectionActiveIndex, collectionRenderRadius)
+          : false
         if (debugTiles && fitMobileViewport) {
           const previewUrl = item.thumbnail_url_override || item.thumbnail_url_hq || item.thumbnail_url || item.poster_url || null
-          const posterKey = previewUrl ? `${item.id}:${previewUrl}` : null
           console.debug('[fp:tile-render]', {
             childId: item.id,
             idx,
             posterUrlExists: !!previewUrl,
             thumbnailUrlOverrideExists: !!item.thumbnail_url_override,
             storedThumbnailExists: !!(item.thumbnail_url_hq || item.thumbnail_url || item.poster_url),
-            isOffWindow: !shouldMountTile,
+            isOffWindow: false,
+            wouldHaveBeenOffWindow,
             isNearWindow: Math.abs(idx - collectionActiveIndex) <= collectionRenderRadius + 2,
             activeIndex: collectionActiveIndex,
-            renderPath: shouldMountTile ? 'collection-active' : 'collection-placeholder',
-            usesCollectionPosterPlaceholder: !shouldMountTile,
-            usesUnifiedTile: shouldMountTile,
-            posterKey,
-            alreadyLoaded: posterKey ? loadedPosterKeysRef.current.has(posterKey) : false,
-            playerMounted: shouldMountTile,
+            renderPath: 'collection-active',
+            usesCollectionPosterPlaceholder: false,
+            usesUnifiedTile: true,
+            playerMounted: true,
           })
         }
         const body = (
           <>
-            {shouldMountTile ? renderBody(item, idx) : renderCollectionTilePlaceholder(item, idx)}
+            {renderBody(item, idx)}
             {renderOverlay?.(item, idx)}
           </>
         )
@@ -1646,8 +1567,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               {debugTiles && fitMobileViewport ? (
                 <div
                   className="pointer-events-none absolute inset-0 z-[1]"
-                  data-render-path={shouldMountTile ? 'collection-active' : 'collection-placeholder'}
-                  data-off-window={shouldMountTile ? 'false' : 'true'}
+                  data-render-path="collection-active"
+                  data-off-window="false"
+                  data-would-have-been-off-window={wouldHaveBeenOffWindow ? 'true' : 'false'}
                   data-has-poster-url={item.thumbnail_url_override || item.thumbnail_url_hq || item.thumbnail_url || item.poster_url ? 'true' : 'false'}
                 />
               ) : null}
@@ -1662,8 +1584,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             style={wrapperStyle}
             data-collection-child-id={fitMobileViewport ? item.id : undefined}
             {...(debugTiles && fitMobileViewport ? {
-              'data-render-path': shouldMountTile ? 'collection-active' : 'collection-placeholder',
-              'data-off-window': shouldMountTile ? 'false' : 'true',
+              'data-render-path': 'collection-active',
+              'data-off-window': 'false',
+              'data-would-have-been-off-window': wouldHaveBeenOffWindow ? 'true' : 'false',
               'data-has-poster-url': item.thumbnail_url_override || item.thumbnail_url_hq || item.thumbnail_url || item.poster_url ? 'true' : 'false',
             } : {})}
           >
@@ -1715,30 +1638,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       </div>
     </div>
   )
-
-  const renderCollectionTilePlaceholder = (child: any, idx: number) => {
-    const previewUrl =
-      child.thumbnail_url_override ||
-      child.thumbnail_url_hq ||
-      child.thumbnail_url ||
-      child.poster_url ||
-      null
-    const posterKey = previewUrl ? `${child.id}:${previewUrl}` : null
-    const eagerPoster = Math.abs(idx - collectionActiveIndex) <= getCollectionRenderRadius(isMobile) + 2
-    const alreadyLoaded = posterKey ? loadedPosterKeysRef.current.has(posterKey) : false
-
-    return (
-      <CollectionPosterPlaceholder
-        previewUrl={previewUrl}
-        posterKey={posterKey}
-        loadedPosterKeysRef={loadedPosterKeysRef}
-        alreadyLoaded={alreadyLoaded}
-        isSoundRoom={isSoundRoom}
-        eager={eagerPoster}
-        debugTiles={debugTiles}
-      />
-    )
-  }
 
   const renderCollectionOwnerControls = (child: any, idx: number) => isOwner ? (
     <div className="absolute inset-0 z-10 pointer-events-none opacity-100 transition-opacity duration-150">
@@ -1861,7 +1760,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               transition: 'filter 0.8s ease',
             }}
             onLoad={() => setWallpaperLoaded(true)}
-            onLoadingComplete={() => setWallpaperLoaded(true)}
           />
           <div
             className="absolute inset-0 transition-all duration-800"

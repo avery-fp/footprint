@@ -148,19 +148,22 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
     )
   }
 
-  // Shimmer placeholder visible until image loads
-  const shimmer = !loaded ? <div className="absolute inset-0 fp-skeleton" /> : null
-
   // grid/horizontal → Next.js Image fill + object-cover.
   return (
-    <div ref={containerRef} className="absolute inset-0">
-      {shimmer}
+    <div ref={containerRef} className="absolute inset-0" style={{ background: 'rgba(10,10,12,0.92)' }}>
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(circle at 45% 38%, rgba(255,255,255,0.08), rgba(255,255,255,0.025) 36%, rgba(0,0,0,0.32) 100%)',
+        }}
+      />
       <Image
         src={src}
         alt={alt}
         fill
         sizes={sizes}
-        className={`object-cover transition-opacity duration-500 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+        className={`object-cover transition-all duration-200 ease-out ${loaded ? 'opacity-100 scale-100' : 'opacity-0 scale-[1.015]'}`}
         loading="lazy"
         quality={90}
         onLoad={(e) => {
