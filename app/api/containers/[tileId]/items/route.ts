@@ -131,6 +131,7 @@ export async function POST(
       aspect: row.aspect || null,
       render_mode: 'link_only',
       artist: null,
+      thumbnail_url_override: null,
       thumbnail_url_hq: null,
       media_id: null,
       source: 'links' as const,

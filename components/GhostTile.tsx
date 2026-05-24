@@ -55,6 +55,7 @@ interface GhostTileProps {
   title?: string
   artist?: string
   thumbnail_url?: string
+  thumbnail_url_override?: string
   /** YouTube clip start time (ms) — if set, iframe autoplays from this point */
   clip_start_ms?: number
   /** YouTube clip end time (ms) — if set, iframe stops here */
@@ -71,6 +72,7 @@ export default function GhostTile({
   title,
   artist,
   thumbnail_url,
+  thumbnail_url_override,
   clip_start_ms,
   clip_end_ms,
   displayMode = 'player',
@@ -276,6 +278,7 @@ export default function GhostTile({
     type: platform,
     url,
     media_id,
+    thumbnail_url_override,
     thumbnail_url,
   })
   const thumbUrl = thumbCandidates[0] || null

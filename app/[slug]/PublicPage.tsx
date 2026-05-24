@@ -1561,6 +1561,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             render_mode: child.render_mode,
             artist: child.artist,
             thumbnail_url_hq: child.thumbnail_url_hq,
+            thumbnail_url_override: child.thumbnail_url_override,
             media_id: child.media_id,
           }}
           index={idx}
@@ -1577,6 +1578,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
   const renderCollectionTilePlaceholder = (child: any) => {
     const previewUrl =
+      child.thumbnail_url_override ||
       child.thumbnail_url_hq ||
       child.thumbnail_url ||
       child.poster_url ||

@@ -352,6 +352,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     ? getYouTubeThumbnailCandidates({
         url: content.url,
         media_id: youtubeId,
+        thumbnail_url_override: content.thumbnail_url_override,
         thumbnail_url: content.thumbnail_url,
         thumbnail_url_hq: content.thumbnail_url_hq,
       })

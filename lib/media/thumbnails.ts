@@ -5,6 +5,7 @@ type ThumbnailLike = {
   url?: string | null
   media_id?: string | null
   thumbnail_url_hq?: string | null
+  thumbnail_url_override?: string | null
   thumbnail_url?: string | null
   thumbnail?: string | null
   image_url?: string | null
@@ -24,10 +25,14 @@ function dedupe(urls: Array<string | null | undefined>): string[] {
   return result
 }
 
-export function getYouTubeThumbnailCandidates(input: { url?: string | null; media_id?: string | null; thumbnail_url?: string | null; thumbnail_url_hq?: string | null }): string[] {
+function isRawYouTubeThumbnail(url?: string | null): boolean {
+  return Boolean(url && /(?:i\.ytimg\.com|img\.youtube\.com)\/(?:vi|vi_webp)\//.test(url))
+}
+
+export function getYouTubeThumbnailCandidates(input: { url?: string | null; media_id?: string | null; thumbnail_url?: string | null; thumbnail_url_hq?: string | null; thumbnail_url_override?: string | null }): string[] {
   const id = input.media_id || (input.url ? extractYouTubeId(input.url) : null)
   if (!id) {
-    return dedupe([input.thumbnail_url, input.thumbnail_url_hq])
+    return dedupe([input.thumbnail_url_override, input.thumbnail_url, input.thumbnail_url_hq])
   }
 
   const maxresWebp = `https://i.ytimg.com/vi_webp/${id}/maxresdefault.webp`
@@ -39,9 +44,13 @@ export function getYouTubeThumbnailCandidates(input: { url?: string | null; medi
   const mq = `https://i.ytimg.com/vi/${id}/mqdefault.jpg`
   const fallback = `https://i.ytimg.com/vi/${id}/default.jpg`
   const isRawLowResYtimg = (url?: string | null) =>
-    Boolean(url && /i\.ytimg\.com\/(?:vi|vi_webp)\//.test(url) && !url.includes('/maxresdefault.'))
+    Boolean(isRawYouTubeThumbnail(url) && !url?.includes('/maxresdefault.'))
 
   return dedupe([
+    input.thumbnail_url_override && !isRawYouTubeThumbnail(input.thumbnail_url_override) ? input.thumbnail_url_override : null,
+    input.thumbnail_url_hq && !isRawYouTubeThumbnail(input.thumbnail_url_hq) ? input.thumbnail_url_hq : null,
+    input.thumbnail_url && !isRawYouTubeThumbnail(input.thumbnail_url) ? input.thumbnail_url : null,
+    input.thumbnail_url_override && !isRawLowResYtimg(input.thumbnail_url_override) ? input.thumbnail_url_override : null,
     input.thumbnail_url_hq && !isRawLowResYtimg(input.thumbnail_url_hq) ? input.thumbnail_url_hq : null,
     input.thumbnail_url && !isRawLowResYtimg(input.thumbnail_url) ? input.thumbnail_url : null,
     maxresWebp,

@@ -77,6 +77,7 @@ export async function GET(request: NextRequest) {
       aspect: link.aspect || null,
       render_mode: link.render_mode || 'embed',
       artist: link.artist || null,
+      thumbnail_url_override: link.thumbnail_url_override || null,
       thumbnail_url_hq: link.thumbnail_url_hq || null,
       media_id: link.media_id || null,
       source: 'links' as const,

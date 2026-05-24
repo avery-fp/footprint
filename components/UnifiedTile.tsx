@@ -44,11 +44,12 @@ function shouldCropPreviewThumbnail(type: string, url: string, mediaKind?: strin
   return type === 'video' || mediaKind === 'video' || Boolean(extractYouTubeId(url)) || VIDEO_PREVIEW_URL.test(url)
 }
 
-function getPreviewThumbnailCandidates(item: Pick<UnifiedTileProps['item'], 'type' | 'url' | 'media_id' | 'thumbnail_url_hq' | 'thumbnail_url'>): string[] {
+function getPreviewThumbnailCandidates(item: Pick<UnifiedTileProps['item'], 'type' | 'url' | 'media_id' | 'thumbnail_url_override' | 'thumbnail_url_hq' | 'thumbnail_url'>): string[] {
   return getThumbnailCandidates({
     type: item.type,
     url: item.url,
     media_id: item.media_id,
+    thumbnail_url_override: item.thumbnail_url_override,
     thumbnail_url_hq: item.thumbnail_url_hq,
     thumbnail_url: item.thumbnail_url,
   })
@@ -541,6 +542,7 @@ export default function UnifiedTile({
           title={item.title || undefined}
           artist={item.artist || undefined}
           thumbnail_url={item.thumbnail_url_hq || item.thumbnail_url || undefined}
+          thumbnail_url_override={item.thumbnail_url_override || undefined}
           clip_start_ms={(item as any).clip_start_ms ?? undefined}
           clip_end_ms={(item as any).clip_end_ms ?? undefined}
           displayMode={aspect === 'wide' || aspect === 'landscape' ? 'player' : 'cover'}
