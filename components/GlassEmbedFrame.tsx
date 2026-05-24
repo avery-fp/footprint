@@ -13,10 +13,7 @@ import { useState } from 'react'
 
 export const GLASS_STYLE: React.CSSProperties = {
   borderRadius: 'inherit',
-  background: 'rgba(255, 255, 255, 0.06)',
-  backdropFilter: 'blur(22px) saturate(140%)',
-  WebkitBackdropFilter: 'blur(22px) saturate(140%)',
-  boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.12)',
+  background: 'transparent',
 }
 
 // ── Main component ──────────────────────────────────────────
@@ -64,11 +61,7 @@ export default function GlassEmbedFrame({
       <div
         className="glass-embed-frame relative w-full max-w-full h-full overflow-hidden flex items-center justify-center"
         style={{ ...GLASS_STYLE, ...(height ? { height: `${height}px` } : {}) }}
-      >
-        <span className="text-xs text-white/40 font-mono" style={{ opacity: 0.7 }}>
-          embed unavailable
-        </span>
-      </div>
+      />
     )
   }
 

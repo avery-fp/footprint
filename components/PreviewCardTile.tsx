@@ -55,7 +55,7 @@ export default function PreviewCardTile({
           <img
             src={thumbSrc}
             alt=""
-            className={`${cropThumbnail ? 'fp-resting-video-media' : 'absolute inset-0 w-full h-full object-cover'} transition-opacity duration-500 ease-in-out ${loaded ? 'opacity-100' : 'opacity-0'}`}
+            className={`${cropThumbnail ? 'fp-resting-video-media' : 'absolute inset-0 w-full h-full object-cover'} transition-opacity duration-700 ease-out ${loaded ? 'opacity-100' : 'opacity-0'}`}
             loading="eager"
             fetchPriority="high"
             decoding="async"
@@ -105,7 +105,7 @@ export default function PreviewCardTile({
     )
   }
 
-  // ── Without thumbnail: frosted glass ──
+  // ── Without thumbnail: invisible reserved link surface ──
   return (
     <a
       href={url}
@@ -113,21 +113,10 @@ export default function PreviewCardTile({
       rel="noopener noreferrer"
       className="block w-full h-full flex flex-col items-center justify-center p-4"
       style={{
-        background: 'rgba(255, 255, 255, 0.06)',
-        backdropFilter: 'blur(20px) saturate(120%)',
-        WebkitBackdropFilter: 'blur(20px) saturate(120%)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
+        background: 'transparent',
         borderRadius: 'inherit',
       }}
     >
-      {title && title !== 'Link' && (
-        <span
-          className="text-[11px] tracking-wider text-white/60 text-center line-clamp-2"
-          style={{ fontWeight: 500, lineHeight: 1.35 }}
-        >
-          {title}
-        </span>
-      )}
     </a>
   )
 }

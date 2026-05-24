@@ -7,7 +7,7 @@ import { detectVariant } from '@/lib/parser'
 import { audioManager } from '@/lib/audio-manager'
 import { parseEmbed, extractYouTubeId, extractYouTubeStart, buildYouTubeEmbedUrl } from '@/lib/parseEmbed'
 import type { EmbedResult } from '@/lib/parseEmbed'
-import GlassEmbedFrameExtracted, { GLASS_STYLE as GLASS_STYLE_IMPORTED, GlassPlaceholder as GlassPlaceholderExtracted } from '@/components/GlassEmbedFrame'
+import GlassEmbedFrameExtracted, { GlassPlaceholder as GlassPlaceholderExtracted } from '@/components/GlassEmbedFrame'
 import { transformImageUrl } from '@/lib/image'
 import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getBestThumbnailUrl, getYouTubeThumbnailCandidates } from '@/lib/media/thumbnails'
 import ArtifactShell from '@/components/ArtifactShell'
@@ -19,7 +19,6 @@ import TwitterTile from '@/components/TwitterTile'
 import MusicEmbedTile from '@/components/MusicEmbedTile'
 import ReaderTile from '@/components/ReaderTile'
 import { sanitizeLinkMeta, normalizeLinkObject } from '@/lib/link-object'
-import { tryNativeFullscreen } from '@/lib/fullscreen'
 import TheaterOverlay from '@/components/TheaterOverlay'
 import {
   consumePendingYouTubeActivation,
@@ -42,7 +41,6 @@ import { beginInvocation, isIntentionalInvocation, type InvocationPoint } from '
 // Glass Embed Frame — imported from extracted component
 // ════════════════════════════════════════
 
-const GLASS_STYLE = GLASS_STYLE_IMPORTED
 const GlassEmbedFrame = GlassEmbedFrameExtracted
 const GlassPlaceholder = GlassPlaceholderExtracted
 
@@ -152,9 +150,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const youtubeRevealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const invocationPointRef = useRef<InvocationPoint | null>(null)
   const [youtubeRevealSettled, setYoutubeRevealSettled] = useState(false)
-  // Fullscreen affordance for the YouTube embed branch: mirrors GhostTile
-  // so cross-origin-iframe-fullscreen failures (iOS Safari) drop into the
-  // Footprint Theater overlay instead of producing a dead tap.
   const [theaterOpen, setTheaterOpen] = useState(false)
   // Pause the underlying YouTube iframe while theater is open so audio
   // doesn't double up. Same pattern as GhostTile.
@@ -414,7 +409,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             <img
               src={youtubeThumbCandidates[0]}
               alt=""
-              className={`fp-resting-video-media transition-opacity duration-500 ease-in-out ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+              className={`fp-resting-video-media transition-opacity duration-700 ease-out ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
               loading="eager"
               fetchPriority="high"
               decoding="async"
@@ -500,7 +495,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               <img
                 src={youtubeThumbCandidates[0]}
                 alt=""
-                className={`fp-resting-video-media transition-opacity duration-500 ease-in-out ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+                className={`fp-resting-video-media transition-opacity duration-700 ease-out ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
                 loading="eager"
                 fetchPriority="high"
                 decoding="async"
@@ -531,42 +526,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             pointerEvents: !shouldUsePosterSurface && !shouldRevealPlayer ? 'none' : 'auto',
           }}
         />
-        {/* Desktop (fine pointer): hover chip → native fullscreen. */}
-        <button
-          type="button"
-          aria-label="Fullscreen"
-          onClick={(e) => {
-            e.stopPropagation()
-            const btn = e.currentTarget as HTMLElement
-            const container = (btn.closest('[data-tile]') as HTMLElement) || containerRef.current
-            const iframe = container?.querySelector('iframe') as HTMLIFrameElement | null
-            nudgeYouTubeQuality(iframe)
-            tryNativeFullscreen(iframe).then((ok) => {
-              if (ok) return
-              tryNativeFullscreen(container).then((ok2) => {
-                if (!ok2) setTheaterOpen(true)
-              })
-            })
-          }}
-          className="absolute items-center justify-center text-white/85 hover:text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-300 hidden [@media(pointer:fine)]:flex"
-          style={{
-            bottom: 12,
-            right: 12,
-            width: 28,
-            height: 28,
-            borderRadius: 999,
-            zIndex: 4,
-            background: 'rgba(0,0,0,0.45)',
-            backdropFilter: 'blur(10px) saturate(140%)',
-            WebkitBackdropFilter: 'blur(10px) saturate(140%)',
-            boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08)',
-            pointerEvents: 'auto',
-          }}
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6"/>
-          </svg>
-        </button>
         {theaterOpen && (
           <TheaterOverlay src={ytActivatedSrc} onClose={() => setTheaterOpen(false)} />
         )}
@@ -606,23 +565,16 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       return (
         <div
           ref={containerRef}
-          className={`w-full max-w-full ${aspectClass || 'aspect-square'} fp-tile overflow-hidden relative group bg-black`}
+          className={`w-full max-w-full ${aspectClass || 'aspect-square'} fp-tile overflow-hidden relative group`}
+          style={{ background: 'transparent' }}
         >
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-            {isMobile && (
-              <button
-                type="button"
-                aria-label="Play audio"
-                onClick={handleActivate}
-                className="w-20 h-20 rounded-full bg-white/10 backdrop-blur-sm border border-white/10 flex items-center justify-center group-hover:scale-105 transition-transform"
-              >
-                <svg className="w-4 h-4 text-white/80 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M8 5v14l11-7z"/>
-                </svg>
-              </button>
-            )}
-            <p className="text-white/50 text-[10px] font-medium line-clamp-2 max-w-[80%] text-center" style={{ lineHeight: 1.35 }}>{content.title || ''}</p>
-          </div>
+          <button
+            type="button"
+            aria-label="Play audio"
+            onClick={handleActivate}
+            className="absolute inset-0"
+            style={{ zIndex: 3, border: 'none', background: 'transparent', padding: 0, cursor: 'pointer' }}
+          />
         </div>
       )
     }
@@ -651,8 +603,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     if (content.embed_html) {
       return (
         <div
-          className={`w-full max-w-full ${aspectClass} fp-tile overflow-hidden bg-black [&_iframe]:!w-full [&_iframe]:!max-w-full [&_iframe]:!h-full`}
-          style={{ position: 'relative' }}
+          className={`w-full max-w-full ${aspectClass} fp-tile overflow-hidden [&_iframe]:!w-full [&_iframe]:!max-w-full [&_iframe]:!h-full`}
+          style={{ position: 'relative', background: 'transparent' }}
         >
           <div dangerouslySetInnerHTML={{ __html: content.embed_html }} className="w-full h-full" />
           {/* Cover SoundCloud branding in legacy embed_html */}
@@ -690,7 +642,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     // Fallback: stored embed_html
     if (content.embed_html) {
       return (
-        <div ref={containerRef} className={`w-full max-w-full ${aspectClass || 'aspect-video'} fp-tile overflow-hidden relative bg-black`}>
+        <div ref={containerRef} className={`w-full max-w-full ${aspectClass || 'aspect-video'} fp-tile overflow-hidden relative`} style={{ background: 'transparent' }}>
           {isInView ? (
             <div
               className="absolute inset-0 [&_iframe]:!w-full [&_iframe]:!max-w-full [&_iframe]:!h-full"
@@ -780,7 +732,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             width={600}
             height={800}
             sizes="(max-width: 768px) 50vw, 25vw"
-            className={`w-full h-full object-cover transition-opacity duration-500 ease-in-out ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+            className={`w-full h-full object-cover transition-opacity duration-700 ease-out ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
             loading="eager"
             quality={90}
             onLoad={(e) => {
@@ -897,11 +849,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           onKeyDown={(e) => { if (e.key === 'Enter') (canPlayInline ? setIsActivated(true) : setShellOpen(true)) }}
           ref={containerRef as any}
           className={`block w-full h-full fp-tile overflow-hidden relative cursor-pointer ${aspectClass}`}
-          style={hasVisualBg ? { background: 'transparent' } : {
-            background: 'rgba(255,255,255,0.06)',
-            backdropFilter: 'blur(20px) saturate(120%)',
-            WebkitBackdropFilter: 'blur(20px) saturate(120%)',
-          }}
+          style={{ background: 'transparent' }}
         >
           {thumbSrc && (
             <div className="fp-resting-video-frame z-[1]">
@@ -909,7 +857,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               <img
                 src={thumbSrc}
                 alt=""
-                className={`fp-resting-video-media transition-opacity duration-500 ease-in-out ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+                className={`fp-resting-video-media transition-opacity duration-700 ease-out ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
                 loading="eager"
                 decoding="async"
                 onLoad={() => setIsLoaded(true)}
@@ -976,7 +924,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           onKeyDown={(e) => { if (e.key === 'Enter') setShellOpen(true) }}
           ref={containerRef as any}
           className={`block w-full h-full fp-tile overflow-hidden relative cursor-pointer ${aspectClass}`}
-          style={{ background: 'rgba(255,255,255,0.04)' }}
+          style={{ background: 'transparent' }}
         >
           {thumbSrc && (
             <div className="fp-resting-video-frame z-[1]">
@@ -984,7 +932,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               <img
                 src={thumbSrc}
                 alt=""
-                className={`fp-resting-video-media transition-opacity duration-500 ease-in-out ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+                className={`fp-resting-video-media transition-opacity duration-700 ease-out ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
                 loading="lazy"
                 decoding="async"
                 onLoad={() => setIsLoaded(true)}

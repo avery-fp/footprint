@@ -156,7 +156,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
         alt={alt}
         fill
         sizes={sizes}
-        className={`object-cover transition-opacity duration-500 ease-in-out ${loaded ? 'opacity-100' : 'opacity-0'}`}
+        className={`object-cover transition-opacity duration-700 ease-out ${loaded ? 'opacity-100' : 'opacity-0'}`}
         loading="lazy"
         quality={90}
         onLoad={(e) => {

@@ -5,7 +5,6 @@ import { audioManager } from '@/lib/audio-manager'
 import { buildYouTubeEmbedUrl } from '@/lib/parseEmbed'
 import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getThumbnailCandidates, isBadOrMissingThumbnail } from '@/lib/media/thumbnails'
 import { transformImageUrl } from '@/lib/image'
-import { tryNativeFullscreen } from '@/lib/fullscreen'
 import {
   consumePendingYouTubeActivation,
   isYouTubePlayingMessage,
@@ -339,7 +338,6 @@ export default function GhostTile({
           onPointerUp={(e) => handleInvocationPointerUp(e, handleToggle)}
           onPointerCancel={() => { invocationPointRef.current = null }}
         >
-          {isPlaying ? <WaveformBars /> : null}
         </div>
       </div>
     )
@@ -366,9 +364,7 @@ export default function GhostTile({
             pointerEvents: isPlaying ? 'none' : 'auto',
             transition: 'opacity 0.4s ease',
             zIndex: 2,
-            background: 'rgba(255,255,255,0.06)',
-            backdropFilter: 'blur(22px) saturate(140%)',
-            WebkitBackdropFilter: 'blur(22px) saturate(140%)',
+            background: 'transparent',
           }}
           onPointerDown={(e) => handleInvocationPointerDown(e, handlePlay)}
           onPointerUp={(e) => handleInvocationPointerUp(e, handlePlay)}
@@ -560,41 +556,6 @@ export default function GhostTile({
                   cursor: 'pointer',
                 }}
               />
-              <button
-                type="button"
-                aria-label="Fullscreen"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  const btn = e.currentTarget as HTMLElement
-                  const container = (btn.closest('[data-tile]') as HTMLElement) || tileRef.current
-                  const iframe = container?.querySelector('iframe') as HTMLIFrameElement | null
-                  nudgeYouTubeQuality(iframe)
-                  tryNativeFullscreen(iframe).then((ok) => {
-                    if (ok) return
-                    tryNativeFullscreen(container).then((ok2) => {
-                      if (!ok2) setTheaterOpen(true)
-                    })
-                  })
-                }}
-                className="absolute items-center justify-center text-white/85 hover:text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-300 hidden [@media(pointer:fine)]:flex"
-                style={{
-                  bottom: 12,
-                  right: 12,
-                  width: 28,
-                  height: 28,
-                  borderRadius: 999,
-                  zIndex: 4,
-                  background: 'rgba(0,0,0,0.45)',
-                  backdropFilter: 'blur(10px) saturate(140%)',
-                  WebkitBackdropFilter: 'blur(10px) saturate(140%)',
-                  boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08)',
-                  pointerEvents: 'auto',
-                }}
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6"/>
-                </svg>
-              </button>
             </>
           )}
         </div>
@@ -689,7 +650,7 @@ function ThumbnailBg({
       <img
         src={src}
         alt=""
-        className={`${cropBars ? 'fp-resting-video-media' : 'absolute inset-0 w-full h-full object-cover'} transition-opacity duration-500 ease-in-out ${loaded ? 'opacity-100' : 'opacity-0'}`}
+        className={`${cropBars ? 'fp-resting-video-media' : 'absolute inset-0 w-full h-full object-cover'} transition-opacity duration-700 ease-out ${loaded ? 'opacity-100' : 'opacity-0'}`}
         style={{}}
         loading="eager"
         fetchPriority="high"
@@ -710,25 +671,6 @@ function ThumbnailBg({
           if (!advanced) onExhausted?.()
         }}
       />
-    </div>
-  )
-}
-
-function PlayIcon() {
-  return (
-    <div
-      className="w-12 h-12 rounded-full flex items-center justify-center"
-      style={{
-        background: 'rgba(0, 0, 0, 0.4)',
-        border: '1px solid rgba(255, 255, 255, 0.15)',
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
-        transition: 'all 0.25s ease',
-      }}
-    >
-      <svg className="w-5 h-5 ml-0.5" fill="rgba(255, 255, 255, 0.9)" viewBox="0 0 24 24">
-        <path d="M8 5v14l11-7z" />
-      </svg>
     </div>
   )
 }
@@ -779,52 +721,3 @@ const barKeyframes = `
 @keyframes ghost-wave-5 { 0%, 100% { height: 50%; } 50% { height: 40%; } }
 @keyframes ghost-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.015); } }
 `
-
-function WaveformBars() {
-  const bars = [
-    { animation: 'ghost-wave-1 1.2s ease-in-out infinite', delay: '0s' },
-    { animation: 'ghost-wave-2 1.0s ease-in-out infinite', delay: '0.1s' },
-    { animation: 'ghost-wave-3 0.8s ease-in-out infinite', delay: '0.2s' },
-    { animation: 'ghost-wave-4 1.1s ease-in-out infinite', delay: '0.15s' },
-    { animation: 'ghost-wave-5 0.9s ease-in-out infinite', delay: '0.05s' },
-  ]
-
-  return (
-    <>
-      <style dangerouslySetInnerHTML={{ __html: barKeyframes }} />
-      <div className="flex items-end gap-[3px]" style={{ height: 24 }}>
-        {bars.map((bar, i) => (
-          <div
-            key={i}
-            style={{
-              width: 3,
-              borderRadius: 1,
-              background: 'rgba(255, 255, 255, 0.3)',
-              animation: bar.animation,
-              animationDelay: bar.delay,
-            }}
-          />
-        ))}
-      </div>
-    </>
-  )
-}
-
-function WaveformBarsIdle() {
-  const heights = [4, 7, 10, 6, 8]
-  return (
-    <div className="flex items-end gap-[2px]" style={{ height: 12 }}>
-      {heights.map((h, i) => (
-        <div
-          key={i}
-          style={{
-            width: 2,
-            height: h,
-            borderRadius: 1,
-            background: 'rgba(255, 255, 255, 0.5)',
-          }}
-        />
-      ))}
-    </div>
-  )
-}
