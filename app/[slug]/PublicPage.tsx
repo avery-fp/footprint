@@ -127,20 +127,29 @@ function CollectionPosterPlaceholder({
   previewUrl,
   posterKey,
   loadedPosterKeysRef,
+  alreadyLoaded,
   isSoundRoom,
   eager,
+  debugTiles,
 }: {
   previewUrl: string | null
   posterKey: string | null
   loadedPosterKeysRef: React.MutableRefObject<Set<string>>
+  alreadyLoaded: boolean
   isSoundRoom: boolean
   eager: boolean
+  debugTiles: boolean
 }) {
-  const [loaded, setLoaded] = useState(() => (
-    posterKey ? loadedPosterKeysRef.current.has(posterKey) : false
-  ))
+  const [loaded, setLoaded] = useState(alreadyLoaded)
   const handleLoad = () => {
     if (posterKey) loadedPosterKeysRef.current.add(posterKey)
+    if (debugTiles) {
+      console.debug('[fp:tile-poster-load]', {
+        renderPath: 'collection-placeholder',
+        posterKey,
+        alreadyLoaded,
+      })
+    }
     setLoaded(true)
   }
 
@@ -149,6 +158,14 @@ function CollectionPosterPlaceholder({
       <div
         className={`relative w-full max-w-full h-full overflow-hidden fp-tile rounded-2xl${isSoundRoom ? ' fp-sound-tile' : ''}`}
         style={{ background: 'rgba(10,10,12,0.92)', border: '1px solid rgba(255,255,255,0.06)' }}
+        {...(debugTiles ? {
+          'data-render-path': 'collection-placeholder',
+          'data-off-window': 'true',
+          'data-poster-loaded': loaded ? 'true' : 'false',
+          'data-already-loaded': alreadyLoaded ? 'true' : 'false',
+          'data-has-poster-url': previewUrl ? 'true' : 'false',
+          'data-poster-key': posterKey || '',
+        } : {})}
       >
         <div
           className="absolute inset-0"
@@ -202,9 +219,15 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [showToast, setShowToast] = useState(false)
   const [serialFlyout, setSerialFlyout] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [debugTiles, setDebugTiles] = useState(process.env.NODE_ENV !== 'production')
   const [roomFade, setRoomFade] = useState<'visible' | 'out' | 'in'>('visible')
   const [roomNavDocked, setRoomNavDocked] = useState(false)
   const loadedPosterKeysRef = useRef<Set<string>>(new Set())
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'production') return
+    setDebugTiles(new URLSearchParams(window.location.search).has('debugTiles'))
+  }, [])
 
   // ── Owner editor surface ──
   // editorMode is the toggle behind the corner home button: when off,
@@ -1500,12 +1523,28 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     if (isOwner) {
       return (
         <SortableTileWrapper key={item.id} item={item} idx={idx} className={wrapperClass} disabled={!!expanded}>
+          {debugTiles ? (
+            <div
+              className="pointer-events-none absolute inset-0 z-[1]"
+              data-render-path="main-grid"
+              data-off-window="false"
+              data-has-poster-url={item.thumbnail_url_override || item.thumbnail_url_hq || item.thumbnail_url || item.poster_url ? 'true' : 'false'}
+            />
+          ) : null}
           {tileBody}
         </SortableTileWrapper>
       )
     }
     return (
-      <div key={item.id} className={wrapperClass}>
+      <div
+        key={item.id}
+        className={wrapperClass}
+        {...(debugTiles ? {
+          'data-render-path': 'main-grid',
+          'data-off-window': 'false',
+          'data-has-poster-url': item.thumbnail_url_override || item.thumbnail_url_hq || item.thumbnail_url || item.poster_url ? 'true' : 'false',
+        } : {})}
+      >
         {tileBody}
       </div>
     )
@@ -1567,6 +1606,26 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         const shouldMountTile = fitMobileViewport
           ? shouldRenderCollectionTile(idx, items.length, collectionActiveIndex, collectionRenderRadius)
           : true
+        if (debugTiles && fitMobileViewport) {
+          const previewUrl = item.thumbnail_url_override || item.thumbnail_url_hq || item.thumbnail_url || item.poster_url || null
+          const posterKey = previewUrl ? `${item.id}:${previewUrl}` : null
+          console.debug('[fp:tile-render]', {
+            childId: item.id,
+            idx,
+            posterUrlExists: !!previewUrl,
+            thumbnailUrlOverrideExists: !!item.thumbnail_url_override,
+            storedThumbnailExists: !!(item.thumbnail_url_hq || item.thumbnail_url || item.poster_url),
+            isOffWindow: !shouldMountTile,
+            isNearWindow: Math.abs(idx - collectionActiveIndex) <= collectionRenderRadius + 2,
+            activeIndex: collectionActiveIndex,
+            renderPath: shouldMountTile ? 'collection-active' : 'collection-placeholder',
+            usesCollectionPosterPlaceholder: !shouldMountTile,
+            usesUnifiedTile: shouldMountTile,
+            posterKey,
+            alreadyLoaded: posterKey ? loadedPosterKeysRef.current.has(posterKey) : false,
+            playerMounted: shouldMountTile,
+          })
+        }
         const body = (
           <>
             {shouldMountTile ? renderBody(item, idx) : renderCollectionTilePlaceholder(item, idx)}
@@ -1584,6 +1643,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               disabled={fitMobileViewport ? false : !!expanded}
               dataCollectionChildId={fitMobileViewport ? item.id : undefined}
             >
+              {debugTiles && fitMobileViewport ? (
+                <div
+                  className="pointer-events-none absolute inset-0 z-[1]"
+                  data-render-path={shouldMountTile ? 'collection-active' : 'collection-placeholder'}
+                  data-off-window={shouldMountTile ? 'false' : 'true'}
+                  data-has-poster-url={item.thumbnail_url_override || item.thumbnail_url_hq || item.thumbnail_url || item.poster_url ? 'true' : 'false'}
+                />
+              ) : null}
               {body}
             </SortableTileWrapper>
           )
@@ -1594,6 +1661,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             className={wrapperClass}
             style={wrapperStyle}
             data-collection-child-id={fitMobileViewport ? item.id : undefined}
+            {...(debugTiles && fitMobileViewport ? {
+              'data-render-path': shouldMountTile ? 'collection-active' : 'collection-placeholder',
+              'data-off-window': shouldMountTile ? 'false' : 'true',
+              'data-has-poster-url': item.thumbnail_url_override || item.thumbnail_url_hq || item.thumbnail_url || item.poster_url ? 'true' : 'false',
+            } : {})}
           >
             {body}
           </div>
@@ -1604,7 +1676,15 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   }
 
   const renderCollectionTileBody = (child: any, idx: number) => (
-    <div className="w-full h-full relative">
+    <div
+      className="w-full h-full relative"
+      {...(debugTiles ? {
+        'data-render-path': 'collection-active',
+        'data-off-window': 'false',
+        'data-has-poster-url': child.thumbnail_url_override || child.thumbnail_url_hq || child.thumbnail_url || child.poster_url ? 'true' : 'false',
+        'data-iframe-video-mounted': 'true',
+      } : {})}
+    >
       <div
         className={`relative w-full max-w-full h-full overflow-hidden fp-tile-hover rounded-2xl${isSoundRoom ? ' fp-sound-tile' : ''}`}
         style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)' }}
@@ -1645,14 +1725,17 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       null
     const posterKey = previewUrl ? `${child.id}:${previewUrl}` : null
     const eagerPoster = Math.abs(idx - collectionActiveIndex) <= getCollectionRenderRadius(isMobile) + 2
+    const alreadyLoaded = posterKey ? loadedPosterKeysRef.current.has(posterKey) : false
 
     return (
       <CollectionPosterPlaceholder
         previewUrl={previewUrl}
         posterKey={posterKey}
         loadedPosterKeysRef={loadedPosterKeysRef}
+        alreadyLoaded={alreadyLoaded}
         isSoundRoom={isSoundRoom}
         eager={eagerPoster}
+        debugTiles={debugTiles}
       />
     )
   }

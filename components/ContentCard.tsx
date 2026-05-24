@@ -141,6 +141,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const [isVideoPlaying, setIsVideoPlaying] = useState(false)
   const [isVideoError, setIsVideoError] = useState(false)
   const [isVideoMuted, setIsVideoMuted] = useState(true)
+  const [debugTiles, setDebugTiles] = useState(process.env.NODE_ENV !== 'production')
   // Decoder cap: only autoplay when ≥50% visible. See videoRef effect below.
   const [isVideoPlayable, setIsVideoPlayable] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -153,6 +154,11 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const youtubeRevealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const invocationPointRef = useRef<InvocationPoint | null>(null)
   const [youtubeRevealSettled, setYoutubeRevealSettled] = useState(false)
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'production') return
+    setDebugTiles(new URLSearchParams(window.location.search).has('debugTiles'))
+  }, [])
   // Fullscreen affordance for the YouTube embed branch: mirrors GhostTile
   // so cross-origin-iframe-fullscreen failures (iOS Safari) drop into the
   // Footprint Theater overlay instead of producing a dead tap.
@@ -400,6 +406,12 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         <div
           ref={containerRef}
           className="w-full h-full fp-tile overflow-hidden relative group bg-black"
+          {...(debugTiles ? {
+            'data-render-path': 'content-card',
+            'data-content-type': content.type,
+            'data-player-mounted': 'false',
+            'data-has-poster-url': youtubeThumbCandidates[0] ? 'true' : 'false',
+          } : {})}
         >
           <div className="fp-resting-video-frame">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -440,6 +452,13 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         ref={containerRef}
         className="w-full max-w-full h-full fp-tile overflow-hidden relative group"
         style={{ background: '#000' }}
+        {...(debugTiles ? {
+          'data-render-path': 'content-card',
+          'data-content-type': content.type,
+          'data-player-mounted': shouldMountPlayer ? 'true' : 'false',
+          'data-poster-loaded': youtubeHasStarted ? 'true' : 'false',
+          'data-has-poster-url': youtubeThumbCandidates[0] ? 'true' : 'false',
+        } : {})}
       >
         <FieldBackground imageUrl={youtubeThumbCandidates[0]} intensity="embed" />
         <div
@@ -697,7 +716,17 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     // Skips if URL already has a fragment.
     const videoSrc = content.url && !content.url.includes('#') ? `${content.url}#t=0.1` : content.url
     return (
-      <div ref={containerRef} className="fp-tile overflow-hidden relative group">
+      <div
+        ref={containerRef}
+        className="fp-tile overflow-hidden relative group"
+        {...(debugTiles ? {
+          'data-render-path': 'content-card',
+          'data-content-type': content.type,
+          'data-player-mounted': isInView ? 'true' : 'false',
+          'data-poster-loaded': isLoaded ? 'true' : 'false',
+          'data-has-poster-url': (content as any).poster_url ? 'true' : 'false',
+        } : {})}
+      >
         {isVideoError ? (
           <GlassPlaceholder aspectClass={aspectClass || 'aspect-video'} />
         ) : isInView ? (
