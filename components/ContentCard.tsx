@@ -377,7 +377,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
 
     const isYouTubeShort = /\/shorts\//i.test(content.url || '')
     const shouldUsePosterSurface = shouldUseYouTubePosterSurface(isSoundRoom, isYouTubeShort, effectiveAspect)
-    const shouldPrewarmPosterSurface = shouldUsePosterSurface && isNearViewport
+    const shouldPrewarmPosterSurface = shouldUsePosterSurface
     const shouldMountPlayer = shouldUsePosterSurface
       ? isActivated || shouldPrewarmPosterSurface
       : shouldMountYouTubePlayer('youtube', isActivated, isCoarsePointer, isNearViewport)
