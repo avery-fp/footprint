@@ -406,7 +406,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               src={youtubeThumbCandidates[0]}
               alt=""
               className="fp-resting-video-media"
-              loading="lazy"
+              loading="eager"
               decoding="async"
               referrerPolicy="no-referrer"
               onLoad={(e) => applyThumbnailLoadGuard(e.currentTarget, youtubeThumbCandidates)}
@@ -489,7 +489,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 src={youtubeThumbCandidates[0]}
                 alt=""
                 className="fp-resting-video-media"
-                loading="lazy"
+                loading="eager"
                 decoding="async"
                 referrerPolicy="no-referrer"
                 onLoad={(e) => applyThumbnailLoadGuard(e.currentTarget, youtubeThumbCandidates)}
