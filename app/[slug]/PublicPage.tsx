@@ -1342,7 +1342,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       >
         <div
           className={`relative w-full max-w-full h-full overflow-hidden fp-tile-hover rounded-2xl${isSoundRoom ? ' fp-sound-tile' : ''}`}
-          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)' }}
+          style={{ background: 'transparent', border: '1px solid transparent' }}
         >
           <UnifiedTile
             item={item}
@@ -1548,7 +1548,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     <div className="w-full h-full relative">
       <div
         className={`relative w-full max-w-full h-full overflow-hidden fp-tile-hover rounded-2xl${isSoundRoom ? ' fp-sound-tile' : ''}`}
-        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)' }}
+        style={{ background: 'transparent', border: '1px solid transparent' }}
       >
         <UnifiedTile
           item={{
@@ -1590,7 +1590,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       <div className="w-full h-full relative">
         <div
           className={`relative w-full max-w-full h-full overflow-hidden rounded-2xl${isSoundRoom ? ' fp-sound-tile' : ''}`}
-          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
+          style={{ background: 'transparent', border: '1px solid transparent' }}
         >
           {previewUrl ? (
             // eslint-disable-next-line @next/next/no-img-element

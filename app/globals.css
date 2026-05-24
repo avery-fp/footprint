@@ -412,7 +412,7 @@ input:-webkit-autofill:focus {
 
 /* Theme-aware tile surface — adapts to any theme */
 .fp-surface {
-  background: var(--fp-glass, rgba(255, 255, 255, 0.05));
+  background: transparent;
 }
 
 /* ═══ Public tile hover — subtle zoom + glow ═══ */
@@ -422,8 +422,6 @@ input:-webkit-autofill:focus {
 
 .fp-tile-hover:hover {
   transform: scale(1.015);
-  border-color: rgba(255, 255, 255, 0.12) !important;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.06);
   z-index: 2;
 }
 
