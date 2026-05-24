@@ -468,7 +468,7 @@ export default function UnifiedTile({
           <div className="w-full h-full" data-tile-id={item.id} data-tile-type="preview-card">
             <PreviewCardTileBase
               url={item.url}
-              thumbnailUrl={item.thumbnail_url_override || previewThumbnailCandidates[0] || item.thumbnail_url_hq || item.thumbnail_url}
+              thumbnailUrl={previewThumbnailCandidates[0] || item.thumbnail_url_override || item.thumbnail_url_hq || item.thumbnail_url}
               title={previewMeta.title}
               subtitle={previewMeta.creator}
               cropThumbnail={shouldCropPreviewThumbnail(item.type, item.url, item.media_kind)}

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { requireAdminOrMachine } from '@/src/aro/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/aro-feed
  *

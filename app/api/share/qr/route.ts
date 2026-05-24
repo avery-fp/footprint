@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import QRCode from 'qrcode'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/share/qr?slug=xxx&ref=FP-7777
  *

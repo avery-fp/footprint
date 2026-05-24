@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback, type PointerEvent } from 'rea
 import { audioManager } from '@/lib/audio-manager'
 import { buildYouTubeEmbedUrl } from '@/lib/parseEmbed'
 import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getThumbnailCandidates, isBadOrMissingThumbnail } from '@/lib/media/thumbnails'
+import { transformImageUrl } from '@/lib/image'
 import { tryNativeFullscreen } from '@/lib/fullscreen'
 import {
   consumePendingYouTubeActivation,
@@ -274,13 +275,22 @@ export default function GhostTile({
   }, [])
 
   // Thumbnail URL
-  const thumbCandidates = getThumbnailCandidates({
+  const rawThumbCandidates = getThumbnailCandidates({
     type: platform,
     url,
     media_id,
     thumbnail_url_override,
     thumbnail_url,
   })
+  const thumbCandidates = platform === 'youtube'
+    ? Array.from(
+        new Set([
+          thumbnail_url ? transformImageUrl(thumbnail_url) : null,
+          thumbnail_url_override ? transformImageUrl(thumbnail_url_override) : null,
+          ...rawThumbCandidates,
+        ].filter(Boolean) as string[])
+      )
+    : rawThumbCandidates
   const thumbUrl = thumbCandidates[0] || null
 
   // ════════════════════════════════════════
@@ -680,6 +690,7 @@ function ThumbnailBg({
         className={cropBars ? 'fp-resting-video-media' : 'absolute inset-0 w-full h-full object-cover'}
         style={{}}
         loading="eager"
+        fetchPriority="high"
         decoding="async"
         referrerPolicy="no-referrer"
         onLoad={(e) => {

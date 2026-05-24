@@ -14,7 +14,7 @@ describe('YouTube thumbnail candidates', () => {
     expect(candidates[1]).toBe('https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg')
   })
 
-  it('uses non-YouTube stored thumbnails before generated ytimg fallbacks', () => {
+  it('uses stored thumbnail_url before generated ytimg fallbacks', () => {
     const candidates = getYouTubeThumbnailCandidates({
       url: 'https://youtu.be/dQw4w9WgXcQ',
       thumbnail_url_hq: 'https://cdn.footprint.test/hq.jpg',
@@ -22,8 +22,8 @@ describe('YouTube thumbnail candidates', () => {
     })
 
     expect(candidates.slice(0, 2)).toEqual([
-      'https://cdn.footprint.test/hq.jpg',
       'https://cdn.footprint.test/thumb.jpg',
+      'https://cdn.footprint.test/hq.jpg',
     ])
   })
 })

@@ -3,6 +3,8 @@ import { createServerSupabaseClient } from '@/lib/supabase'
 import { getTheme } from '@/lib/themes'
 import { getFootprintDisplayTitle } from '@/lib/footprint'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/aro/remix-data?slug=ae&room=nba-allstar
  *

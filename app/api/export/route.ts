@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getEditAuth } from '@/lib/edit-auth'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/export?slug=...
  *

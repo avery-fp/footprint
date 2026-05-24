@@ -348,14 +348,22 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   // Detect YouTube by URL, not just stored type — catches mistyped tiles
   const youtubeId = extractYouTubeId(content.url)
+  const cachedYouTubeThumb = content.thumbnail_url ? transformImageUrl(content.thumbnail_url) : null
   const youtubeThumbCandidates = youtubeId
-    ? getYouTubeThumbnailCandidates({
-        url: content.url,
-        media_id: youtubeId,
-        thumbnail_url_override: content.thumbnail_url_override,
-        thumbnail_url: content.thumbnail_url,
-        thumbnail_url_hq: content.thumbnail_url_hq,
-      })
+    ? Array.from(
+        new Set([
+          cachedYouTubeThumb,
+          content.thumbnail_url_override ? transformImageUrl(content.thumbnail_url_override) : null,
+          content.thumbnail_url_hq ? transformImageUrl(content.thumbnail_url_hq) : null,
+          ...getYouTubeThumbnailCandidates({
+            url: content.url,
+            media_id: youtubeId,
+            thumbnail_url_override: content.thumbnail_url_override,
+            thumbnail_url: content.thumbnail_url,
+            thumbnail_url_hq: content.thumbnail_url_hq,
+          }),
+        ].filter(Boolean) as string[])
+      )
     : []
   if (youtubeId && !iframeFailed) {
     // The autoplay= URL param can be dropped when the iframe loads
@@ -408,6 +416,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               alt=""
               className="fp-resting-video-media"
               loading="eager"
+              fetchPriority="high"
               decoding="async"
               referrerPolicy="no-referrer"
               onLoad={(e) => applyThumbnailLoadGuard(e.currentTarget, youtubeThumbCandidates)}
@@ -491,6 +500,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 alt=""
                 className="fp-resting-video-media"
                 loading="eager"
+                fetchPriority="high"
                 decoding="async"
                 referrerPolicy="no-referrer"
                 onLoad={(e) => applyThumbnailLoadGuard(e.currentTarget, youtubeThumbCandidates)}
@@ -594,16 +604,18 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           className={`w-full max-w-full ${aspectClass || 'aspect-square'} fp-tile overflow-hidden relative group bg-black`}
         >
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-            <button
-              type="button"
-              aria-label="Play audio"
-              onClick={handleActivate}
-              className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-sm border border-white/10 flex items-center justify-center group-hover:scale-105 transition-transform"
-            >
-              <svg className="w-3 h-3 text-white/80 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z"/>
-              </svg>
-            </button>
+            {isMobile && (
+              <button
+                type="button"
+                aria-label="Play audio"
+                onClick={handleActivate}
+                className="w-20 h-20 rounded-full bg-white/10 backdrop-blur-sm border border-white/10 flex items-center justify-center group-hover:scale-105 transition-transform"
+              >
+                <svg className="w-4 h-4 text-white/80 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+              </button>
+            )}
             <p className="text-white/50 text-[10px] font-medium line-clamp-2 max-w-[80%] text-center" style={{ lineHeight: 1.35 }}>{content.title || ''}</p>
           </div>
         </div>

@@ -29,6 +29,7 @@ import { getGridClass, resolveAspect, isVideoTile } from '@/lib/media/aspect'
 import { getFootprintDisplayTitle } from '@/lib/footprint'
 import { getRoomAtmosphere } from '@/lib/roomAtmosphere'
 import { wallpaperSourceFromTile } from '@/lib/tile-rendering'
+import { transformImageUrl } from '@/lib/image'
 import {
   DndContext,
   closestCenter,
@@ -1577,12 +1578,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   )
 
   const renderCollectionTilePlaceholder = (child: any) => {
-    const previewUrl =
+    const previewUrl = transformImageUrl(
       child.thumbnail_url_override ||
       child.thumbnail_url_hq ||
       child.thumbnail_url ||
       child.poster_url ||
       null
+    )
 
     return (
       <div className="w-full h-full relative">
@@ -1595,7 +1597,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             <img
               src={previewUrl}
               alt=""
-              loading="lazy"
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
               className="absolute inset-0 w-full h-full object-cover"
               style={{ filter: 'blur(14px)', opacity: 0.32, transform: 'scale(1.04)' }}
             />
