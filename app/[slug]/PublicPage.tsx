@@ -125,14 +125,24 @@ function SortableTileWrapper({ item, idx, children, className, style: extraStyle
 
 function CollectionPosterPlaceholder({
   previewUrl,
+  posterKey,
+  loadedPosterKeysRef,
   isSoundRoom,
   eager,
 }: {
   previewUrl: string | null
+  posterKey: string | null
+  loadedPosterKeysRef: React.MutableRefObject<Set<string>>
   isSoundRoom: boolean
   eager: boolean
 }) {
-  const [loaded, setLoaded] = useState(false)
+  const [loaded, setLoaded] = useState(() => (
+    posterKey ? loadedPosterKeysRef.current.has(posterKey) : false
+  ))
+  const handleLoad = () => {
+    if (posterKey) loadedPosterKeysRef.current.add(posterKey)
+    setLoaded(true)
+  }
 
   return (
     <div className="w-full h-full relative">
@@ -159,7 +169,7 @@ function CollectionPosterPlaceholder({
               className="fp-resting-video-media fp-poster-resolve"
               data-loaded={loaded ? 'true' : 'false'}
               referrerPolicy="no-referrer"
-              onLoad={() => setLoaded(true)}
+              onLoad={handleLoad}
             />
           </div>
         ) : null}
@@ -194,6 +204,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [isMobile, setIsMobile] = useState(false)
   const [roomFade, setRoomFade] = useState<'visible' | 'out' | 'in'>('visible')
   const [roomNavDocked, setRoomNavDocked] = useState(false)
+  const loadedPosterKeysRef = useRef<Set<string>>(new Set())
 
   // ── Owner editor surface ──
   // editorMode is the toggle behind the corner home button: when off,
@@ -1632,11 +1643,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       child.thumbnail_url ||
       child.poster_url ||
       null
+    const posterKey = previewUrl ? `${child.id}:${previewUrl}` : null
     const eagerPoster = Math.abs(idx - collectionActiveIndex) <= getCollectionRenderRadius(isMobile) + 2
 
     return (
       <CollectionPosterPlaceholder
         previewUrl={previewUrl}
+        posterKey={posterKey}
+        loadedPosterKeysRef={loadedPosterKeysRef}
         isSoundRoom={isSoundRoom}
         eager={eagerPoster}
       />
