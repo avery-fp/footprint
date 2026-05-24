@@ -94,7 +94,7 @@ interface UnifiedTileProps {
   firstChildThumb?: string | null
 }
 
-function VideoTile({ url, id, posterUrl }: { url: string; id: string; posterUrl?: string | null }) {
+function VideoTile({ url, id }: { url: string; id: string }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isInView, setIsInView] = useState(false)
@@ -213,36 +213,15 @@ function VideoTile({ url, id, posterUrl }: { url: string; id: string; posterUrl?
       onPointerDown={revealChip}
     >
       <div className="absolute inset-0">
-        <div className="absolute inset-0" style={{ background: 'rgba(10,10,12,0.92)' }}>
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                'radial-gradient(circle at 45% 38%, rgba(255,255,255,0.08), rgba(255,255,255,0.025) 36%, rgba(0,0,0,0.32) 100%)',
-            }}
-          />
-          {posterUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={posterUrl}
-              alt=""
-              loading="lazy"
-              decoding="async"
-              className="absolute inset-0 w-full h-full object-cover"
-              referrerPolicy="no-referrer"
-            />
-          ) : null}
-        </div>
         <video
           ref={videoRef}
           src={videoSrc}
-          className="relative z-[1] block w-full h-full object-cover"
+          className="block w-full h-full object-cover"
           muted
           loop
           playsInline
           autoPlay={isPlayable}
           preload={isInView ? 'metadata' : 'none'}
-          poster={posterUrl || undefined}
         />
         <button
           type="button"
@@ -423,7 +402,7 @@ export default function UnifiedTile({
       case 'native_video':
         return (
           <div className="w-full h-full" data-tile-id={item.id} data-tile-type="native-video">
-            {item.url ? <VideoTile url={item.url} id={item.id} posterUrl={item.thumbnail_url_override || item.thumbnail_url_hq || item.thumbnail_url || null} /> : null}
+            {item.url ? <VideoTile url={item.url} id={item.id} /> : null}
           </div>
         )
       case 'embed':
@@ -540,8 +519,7 @@ export default function UnifiedTile({
   const VIDEO_PLATFORMS = new Set(['youtube', 'vimeo', 'video'])
   const isVideoPlatform = VIDEO_PLATFORMS.has(item.type)
   const AUDIO_PLATFORMS = ['spotify', 'soundcloud']
-  const hasKnownVisual = !!(item.thumbnail_url_override || item.thumbnail_url_hq || item.thumbnail_url)
-  const forceGhost = isSoundRoom && AUDIO_PLATFORMS.includes(item.type) && !hasKnownVisual
+  const forceGhost = isSoundRoom && AUDIO_PLATFORMS.includes(item.type)
   const derivedGhostMediaId =
     item.type === 'youtube'
       ? extractYouTubeId(item.url || '')
@@ -611,7 +589,7 @@ export default function UnifiedTile({
         />
       )
     }
-    return <VideoTile url={item.url} id={item.id} posterUrl={item.thumbnail_url_override || item.thumbnail_url_hq || item.thumbnail_url || null} />
+    return <VideoTile url={item.url} id={item.id} />
   }
 
   // ── Image ──

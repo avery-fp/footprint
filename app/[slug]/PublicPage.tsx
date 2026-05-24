@@ -143,14 +143,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [showToast, setShowToast] = useState(false)
   const [serialFlyout, setSerialFlyout] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
-  const [debugTiles, setDebugTiles] = useState(process.env.NODE_ENV !== 'production')
   const [roomFade, setRoomFade] = useState<'visible' | 'out' | 'in'>('visible')
   const [roomNavDocked, setRoomNavDocked] = useState(false)
-
-  useEffect(() => {
-    if (process.env.NODE_ENV !== 'production') return
-    setDebugTiles(new URLSearchParams(window.location.search).has('debugTiles'))
-  }, [])
 
   // ── Owner editor surface ──
   // editorMode is the toggle behind the corner home button: when off,
@@ -1446,28 +1440,12 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     if (isOwner) {
       return (
         <SortableTileWrapper key={item.id} item={item} idx={idx} className={wrapperClass} disabled={!!expanded}>
-          {debugTiles ? (
-            <div
-              className="pointer-events-none absolute inset-0 z-[1]"
-              data-render-path="main-grid"
-              data-off-window="false"
-              data-has-poster-url={item.thumbnail_url_override || item.thumbnail_url_hq || item.thumbnail_url || item.poster_url ? 'true' : 'false'}
-            />
-          ) : null}
           {tileBody}
         </SortableTileWrapper>
       )
     }
     return (
-      <div
-        key={item.id}
-        className={wrapperClass}
-        {...(debugTiles ? {
-          'data-render-path': 'main-grid',
-          'data-off-window': 'false',
-          'data-has-poster-url': item.thumbnail_url_override || item.thumbnail_url_hq || item.thumbnail_url || item.poster_url ? 'true' : 'false',
-        } : {})}
-      >
+      <div key={item.id} className={wrapperClass}>
         {tileBody}
       </div>
     )
@@ -1526,30 +1504,12 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           } : {}),
         }
         const wrapperClass = getGridLayout('horizontal').tileClass
-        const wouldHaveBeenOffWindow = fitMobileViewport
-          ? !shouldRenderCollectionTile(idx, items.length, collectionActiveIndex, collectionRenderRadius)
-          : false
-        if (debugTiles && fitMobileViewport) {
-          const previewUrl = item.thumbnail_url_override || item.thumbnail_url_hq || item.thumbnail_url || item.poster_url || null
-          console.debug('[fp:tile-render]', {
-            childId: item.id,
-            idx,
-            posterUrlExists: !!previewUrl,
-            thumbnailUrlOverrideExists: !!item.thumbnail_url_override,
-            storedThumbnailExists: !!(item.thumbnail_url_hq || item.thumbnail_url || item.poster_url),
-            isOffWindow: false,
-            wouldHaveBeenOffWindow,
-            isNearWindow: Math.abs(idx - collectionActiveIndex) <= collectionRenderRadius + 2,
-            activeIndex: collectionActiveIndex,
-            renderPath: 'collection-active',
-            usesCollectionPosterPlaceholder: false,
-            usesUnifiedTile: true,
-            playerMounted: true,
-          })
-        }
+        const shouldMountTile = fitMobileViewport
+          ? shouldRenderCollectionTile(idx, items.length, collectionActiveIndex, collectionRenderRadius)
+          : true
         const body = (
           <>
-            {renderBody(item, idx)}
+            {shouldMountTile ? renderBody(item, idx) : renderCollectionTilePlaceholder(item)}
             {renderOverlay?.(item, idx)}
           </>
         )
@@ -1564,15 +1524,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               disabled={fitMobileViewport ? false : !!expanded}
               dataCollectionChildId={fitMobileViewport ? item.id : undefined}
             >
-              {debugTiles && fitMobileViewport ? (
-                <div
-                  className="pointer-events-none absolute inset-0 z-[1]"
-                  data-render-path="collection-active"
-                  data-off-window="false"
-                  data-would-have-been-off-window={wouldHaveBeenOffWindow ? 'true' : 'false'}
-                  data-has-poster-url={item.thumbnail_url_override || item.thumbnail_url_hq || item.thumbnail_url || item.poster_url ? 'true' : 'false'}
-                />
-              ) : null}
               {body}
             </SortableTileWrapper>
           )
@@ -1583,12 +1534,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             className={wrapperClass}
             style={wrapperStyle}
             data-collection-child-id={fitMobileViewport ? item.id : undefined}
-            {...(debugTiles && fitMobileViewport ? {
-              'data-render-path': 'collection-active',
-              'data-off-window': 'false',
-              'data-would-have-been-off-window': wouldHaveBeenOffWindow ? 'true' : 'false',
-              'data-has-poster-url': item.thumbnail_url_override || item.thumbnail_url_hq || item.thumbnail_url || item.poster_url ? 'true' : 'false',
-            } : {})}
           >
             {body}
           </div>
@@ -1599,15 +1544,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   }
 
   const renderCollectionTileBody = (child: any, idx: number) => (
-    <div
-      className="w-full h-full relative"
-      {...(debugTiles ? {
-        'data-render-path': 'collection-active',
-        'data-off-window': 'false',
-        'data-has-poster-url': child.thumbnail_url_override || child.thumbnail_url_hq || child.thumbnail_url || child.poster_url ? 'true' : 'false',
-        'data-iframe-video-mounted': 'true',
-      } : {})}
-    >
+    <div className="w-full h-full relative">
       <div
         className={`relative w-full max-w-full h-full overflow-hidden fp-tile-hover rounded-2xl${isSoundRoom ? ' fp-sound-tile' : ''}`}
         style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)' }}
@@ -1638,6 +1575,39 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       </div>
     </div>
   )
+
+  const renderCollectionTilePlaceholder = (child: any) => {
+    const previewUrl =
+      child.thumbnail_url_override ||
+      child.thumbnail_url_hq ||
+      child.thumbnail_url ||
+      child.poster_url ||
+      null
+
+    return (
+      <div className="w-full h-full relative">
+        <div
+          className={`relative w-full max-w-full h-full overflow-hidden rounded-2xl${isSoundRoom ? ' fp-sound-tile' : ''}`}
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
+        >
+          {previewUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={previewUrl}
+              alt=""
+              loading="lazy"
+              className="absolute inset-0 w-full h-full object-cover"
+              style={{ filter: 'blur(14px)', opacity: 0.32, transform: 'scale(1.04)' }}
+            />
+          ) : null}
+          <div
+            className="absolute inset-0"
+            style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.04) 0%, rgba(0,0,0,0.22) 100%)' }}
+          />
+        </div>
+      </div>
+    )
+  }
 
   const renderCollectionOwnerControls = (child: any, idx: number) => isOwner ? (
     <div className="absolute inset-0 z-10 pointer-events-none opacity-100 transition-opacity duration-150">
@@ -1760,6 +1730,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               transition: 'filter 0.8s ease',
             }}
             onLoad={() => setWallpaperLoaded(true)}
+            onLoadingComplete={() => setWallpaperLoaded(true)}
           />
           <div
             className="absolute inset-0 transition-all duration-800"

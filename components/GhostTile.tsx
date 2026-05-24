@@ -86,7 +86,6 @@ export default function GhostTile({
   const [iframeFailed, setIframeFailed] = useState(false)
   const [thumbnailExhausted, setThumbnailExhausted] = useState(false)
   const [theaterOpen, setTheaterOpen] = useState(false)
-  const [debugTiles, setDebugTiles] = useState(process.env.NODE_ENV !== 'production')
   const iframeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const tileRef = useRef<HTMLDivElement | null>(null)
   const youtubeIframeRef = useRef<HTMLIFrameElement | null>(null)
@@ -112,11 +111,6 @@ export default function GhostTile({
 
   useEffect(() => {
     setIsCoarsePointer(window.matchMedia('(pointer: coarse)').matches)
-  }, [])
-
-  useEffect(() => {
-    if (process.env.NODE_ENV !== 'production') return
-    setDebugTiles(new URLSearchParams(window.location.search).has('debugTiles'))
   }, [])
 
   useEffect(() => {
@@ -462,13 +456,6 @@ export default function GhostTile({
     <div
       ref={tileRef}
       className="w-full h-full relative fp-tile group"
-      {...(debugTiles ? {
-        'data-render-path': 'ghost-tile',
-        'data-content-type': platform,
-        'data-player-mounted': shouldMountPlayer ? 'true' : 'false',
-        'data-poster-loaded': iframeLoaded || youtubeHasStarted ? 'true' : 'false',
-        'data-has-poster-url': thumbnailExhausted || !thumbUrl ? 'false' : 'true',
-      } : {})}
       style={{
         borderRadius: 'inherit',
         overflow: 'hidden',

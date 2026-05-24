@@ -340,25 +340,6 @@ input:-webkit-autofill:focus {
   border: 0;
 }
 
-.fp-poster-resolve {
-  opacity: 0;
-  transform: scale(1.015);
-  transition: opacity 220ms ease-out, transform 220ms ease-out;
-  will-change: opacity, transform;
-}
-
-.fp-poster-resolve[data-loaded="true"] {
-  opacity: 1;
-  transform: scale(1);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .fp-poster-resolve {
-    transition: opacity 80ms linear;
-    transform: none;
-  }
-}
-
 .fp-open-source-fallback {
   background:
     radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.055), transparent 42%),

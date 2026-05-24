@@ -29,7 +29,6 @@ interface GlassEmbedFrameProps {
   allowFullScreen?: boolean
   /** Override referrer policy — default "no-referrer", YouTube/Spotify need "origin" */
   referrerPolicy?: React.HTMLAttributeReferrerPolicy
-  posterUrl?: string | null
   onError?: () => void
   onLoad?: () => void
   children?: React.ReactNode
@@ -43,7 +42,6 @@ export default function GlassEmbedFrame({
   allowFullScreen,
   // Do NOT use 'no-referrer' — YouTube Error 153 when origin is stripped
   referrerPolicy = 'strict-origin-when-cross-origin',
-  posterUrl,
   onError,
   onLoad: onLoadCallback,
   children,
@@ -79,19 +77,6 @@ export default function GlassEmbedFrame({
       className="glass-embed-frame relative w-full max-w-full h-full overflow-hidden"
       style={{ ...GLASS_STYLE, ...(height ? { height: `${height}px` } : {}) }}
     >
-      {posterUrl ? (
-        <div className="absolute inset-0" style={{ zIndex: 0 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={posterUrl}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover"
-            loading="lazy"
-            decoding="async"
-            referrerPolicy="no-referrer"
-          />
-        </div>
-      ) : null}
       <iframe
         src={src}
         width="100%"
@@ -114,8 +99,6 @@ export default function GlassEmbedFrame({
           margin: 0,
           opacity: loaded ? 1 : 0,
           transition: 'opacity 250ms ease-out',
-          position: 'relative',
-          zIndex: 1,
         }}
       />
       {children}

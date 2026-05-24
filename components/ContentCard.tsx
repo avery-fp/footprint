@@ -128,7 +128,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       : aspect
   const aspectClass = effectiveAspect === 'wide' ? 'aspect-video' : effectiveAspect === 'tall' ? 'aspect-[9/16]' : effectiveAspect === 'portrait' ? 'aspect-[3/4]' : 'aspect-square'
   const fitClass = 'object-cover'
-  const staticPosterUrl = getBestThumbnailUrl(content)
   const [isActivated, setIsActivated] = useState(false)
   const [youtubeHasStarted, setYoutubeHasStarted] = useState(false)
   const [isCoarsePointer, setIsCoarsePointer] = useState(false)
@@ -142,7 +141,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const [isVideoPlaying, setIsVideoPlaying] = useState(false)
   const [isVideoError, setIsVideoError] = useState(false)
   const [isVideoMuted, setIsVideoMuted] = useState(true)
-  const [debugTiles, setDebugTiles] = useState(process.env.NODE_ENV !== 'production')
   // Decoder cap: only autoplay when ≥50% visible. See videoRef effect below.
   const [isVideoPlayable, setIsVideoPlayable] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -155,35 +153,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const youtubeRevealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const invocationPointRef = useRef<InvocationPoint | null>(null)
   const [youtubeRevealSettled, setYoutubeRevealSettled] = useState(false)
-  const renderStaticPosterSurface = (posterUrl: string | null = staticPosterUrl) => (
-    <div className="absolute inset-0" style={{ background: 'rgba(10,10,12,0.92)' }}>
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(circle at 45% 38%, rgba(255,255,255,0.08), rgba(255,255,255,0.025) 36%, rgba(0,0,0,0.32) 100%)',
-        }}
-      />
-      {posterUrl ? (
-        <div className="fp-resting-video-frame">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={posterUrl}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            className="fp-resting-video-media"
-            referrerPolicy="no-referrer"
-          />
-        </div>
-      ) : null}
-    </div>
-  )
-
-  useEffect(() => {
-    if (process.env.NODE_ENV !== 'production') return
-    setDebugTiles(new URLSearchParams(window.location.search).has('debugTiles'))
-  }, [])
   // Fullscreen affordance for the YouTube embed branch: mirrors GhostTile
   // so cross-origin-iframe-fullscreen failures (iOS Safari) drop into the
   // Footprint Theater overlay instead of producing a dead tap.
@@ -431,12 +400,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         <div
           ref={containerRef}
           className="w-full h-full fp-tile overflow-hidden relative group bg-black"
-          {...(debugTiles ? {
-            'data-render-path': 'content-card',
-            'data-content-type': content.type,
-            'data-player-mounted': 'false',
-            'data-has-poster-url': youtubeThumbCandidates[0] ? 'true' : 'false',
-          } : {})}
         >
           <div className="fp-resting-video-frame">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -477,13 +440,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         ref={containerRef}
         className="w-full max-w-full h-full fp-tile overflow-hidden relative group"
         style={{ background: '#000' }}
-        {...(debugTiles ? {
-          'data-render-path': 'content-card',
-          'data-content-type': content.type,
-          'data-player-mounted': shouldMountPlayer ? 'true' : 'false',
-          'data-poster-loaded': youtubeHasStarted ? 'true' : 'false',
-          'data-has-poster-url': youtubeThumbCandidates[0] ? 'true' : 'false',
-        } : {})}
       >
         <FieldBackground imageUrl={youtubeThumbCandidates[0]} intensity="embed" />
         <div
@@ -667,7 +623,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             height={scHeight}
             allow="autoplay"
             sandbox="allow-scripts allow-same-origin allow-popups"
-            posterUrl={staticPosterUrl}
             onError={() => setIframeFailed(true)}
           />
           {/* Cover SoundCloud logo / branding at bottom */}
@@ -705,11 +660,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               allow="autoplay; fullscreen; picture-in-picture"
               allowFullScreen
               sandbox="allow-scripts allow-same-origin allow-popups"
-              posterUrl={staticPosterUrl}
               onError={() => setIframeFailed(true)}
             />
           ) : (
-            renderStaticPosterSurface()
+            <GlassPlaceholder aspectClass={aspectClass || 'aspect-video'} />
           )}
           {/* Defensive click-blocker over Vimeo badge area */}
           <div style={{ position: 'absolute', bottom: 0, right: 0, width: 50, height: 36, zIndex: 2, pointerEvents: 'auto' }} />
@@ -726,7 +680,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               dangerouslySetInnerHTML={{ __html: content.embed_html }}
             />
           ) : (
-            renderStaticPosterSurface()
+            <GlassPlaceholder aspectClass={aspectClass || 'aspect-video'} />
           )}
           {/* Cover Vimeo badge in legacy embed_html */}
           <div style={{ position: 'absolute', bottom: 0, right: 0, width: 50, height: 36, zIndex: 2, pointerEvents: 'auto' }} />
@@ -743,17 +697,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     // Skips if URL already has a fragment.
     const videoSrc = content.url && !content.url.includes('#') ? `${content.url}#t=0.1` : content.url
     return (
-      <div
-        ref={containerRef}
-        className="fp-tile overflow-hidden relative group"
-        {...(debugTiles ? {
-          'data-render-path': 'content-card',
-          'data-content-type': content.type,
-          'data-player-mounted': isInView ? 'true' : 'false',
-          'data-poster-loaded': isLoaded ? 'true' : 'false',
-          'data-has-poster-url': (content as any).poster_url ? 'true' : 'false',
-        } : {})}
-      >
+      <div ref={containerRef} className="fp-tile overflow-hidden relative group">
         {isVideoError ? (
           <GlassPlaceholder aspectClass={aspectClass || 'aspect-video'} />
         ) : isInView ? (
@@ -800,7 +744,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             </div>
           </>
         ) : (
-          renderStaticPosterSurface((content as any).poster_url || content.thumbnail_url || staticPosterUrl)
+          <div className={`w-full ${aspectClass || 'aspect-video'}`} style={{ background: 'rgba(0,0,0,0.3)' }} />
         )}
       </div>
     )
@@ -1067,7 +1011,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       <Tier2EmbedTile
         embed={embed}
         isInView={isInView}
-        thumbnail={staticPosterUrl}
         onFail={() => setIframeFailed(true)}
       />
     )
@@ -1098,12 +1041,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
 function Tier2EmbedTile({
   embed,
   isInView,
-  thumbnail,
   onFail,
 }: {
   embed: EmbedResult
   isInView: boolean
-  thumbnail: string | null
   onFail: () => void
 }) {
   const [loaded, setLoaded] = useState(false)
@@ -1141,33 +1082,11 @@ function Tier2EmbedTile({
           src={embed.embedUrl}
           height={embed.aspectRatio ? undefined : fallbackHeight}
           sandbox="allow-scripts allow-same-origin allow-popups"
-          posterUrl={thumbnail}
           onLoad={handleGlassLoad}
           onError={() => onFail()}
         />
       ) : (
-        <div className="absolute inset-0" style={{ background: 'rgba(10,10,12,0.92)' }}>
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                'radial-gradient(circle at 45% 38%, rgba(255,255,255,0.08), rgba(255,255,255,0.025) 36%, rgba(0,0,0,0.32) 100%)',
-            }}
-          />
-          {thumbnail ? (
-            <div className="fp-resting-video-frame">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={thumbnail}
-                alt=""
-                loading="lazy"
-                decoding="async"
-                className="fp-resting-video-media"
-                referrerPolicy="no-referrer"
-              />
-            </div>
-          ) : null}
-        </div>
+        <GlassPlaceholder height={embed.aspectRatio ? undefined : fallbackHeight} />
       )}
       {/* Cover Bandcamp logo — top-left corner */}
       {embed.platform === 'bandcamp' && (
