@@ -15,6 +15,7 @@ interface TileImageProps {
   aspect?: string
   layout?: string
   size?: number
+  isPublicView?: boolean
 }
 
 /** Compute aspect from a natural ratio. */
@@ -22,7 +23,7 @@ function inferAspect(r: number): 'portrait' | 'landscape' | 'square' {
   return r > 1.2 ? 'landscape' : r < 0.8 ? 'portrait' : 'square'
 }
 
-export default function TileImage({ src, alt, sizes, index, aspect, layout, size }: TileImageProps) {
+export default function TileImage({ src, alt, sizes, index, aspect, layout, size, isPublicView = false }: TileImageProps) {
   const [failed, setFailed] = useState(false)
   const [videoFailed, setVideoFailed] = useState(false)
   const [loaded, setLoaded] = useState(false)
@@ -156,7 +157,9 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
         alt={alt}
         fill
         sizes={sizes}
-        className={`object-cover transition-opacity duration-700 ease-out ${loaded ? 'opacity-100' : 'opacity-0'}`}
+        className={isPublicView
+          ? 'object-cover fp-public-poster'
+          : `object-cover transition-opacity duration-700 ease-out ${loaded ? 'opacity-100' : 'opacity-0'}`}
         loading="lazy"
         quality={90}
         onLoad={(e) => {

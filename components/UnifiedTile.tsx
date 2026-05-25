@@ -343,6 +343,7 @@ export default function UnifiedTile({
             thumbnailUrl={item.thumbnail_url_override || item.thumbnail_url || null}
             title={item.title || null}
             subtitle={null}
+            isPublicView={mode === 'public'}
           />
         </div>
       )
@@ -473,6 +474,7 @@ export default function UnifiedTile({
               subtitle={previewMeta.creator}
               cropThumbnail={shouldCropPreviewThumbnail(item.type, item.url, item.media_kind)}
               thumbnailCandidates={previewThumbnailCandidates}
+              isPublicView={mode === 'public'}
             />
           </div>
         )
@@ -487,6 +489,7 @@ export default function UnifiedTile({
               thumbnailUrl={item.thumbnail_url_hq || item.thumbnail_url}
               title={musicMeta.title}
               subtitle={musicMeta.creator}
+              isPublicView={mode === 'public'}
             />
           </div>
         )
@@ -500,6 +503,7 @@ export default function UnifiedTile({
               thumbnailUrl={item.thumbnail_url_override || item.thumbnail_url || null}
               title={linkMeta.title}
               subtitle={null}
+              isPublicView={mode === 'public'}
             />
           </div>
         )
@@ -615,6 +619,7 @@ export default function UnifiedTile({
                 aspect={aspect}
                 layout={layout}
                 size={size}
+                isPublicView
               />
               {captionVisible && (
                 <div
@@ -635,6 +640,7 @@ export default function UnifiedTile({
                 aspect={aspect}
                 layout={layout}
                 size={size}
+                isPublicView
               />
             </ZoomableImage>
           )}

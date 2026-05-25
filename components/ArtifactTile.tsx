@@ -22,6 +22,7 @@ interface ArtifactTileProps {
   aspectClass?: string
   /** Drop the glass plate on text-only render so the tile sits flush on wallpaper. */
   transparent?: boolean
+  isPublicView?: boolean
 }
 
 export default function ArtifactTile({
@@ -32,6 +33,7 @@ export default function ArtifactTile({
   actionUrl,
   aspectClass = 'aspect-square',
   transparent = false,
+  isPublicView = false,
 }: ArtifactTileProps) {
   const [imgFailed, setImgFailed] = useState(false)
   const showImage = !!image && !imgFailed
@@ -63,7 +65,7 @@ export default function ArtifactTile({
           <img
             src={image}
             alt=""
-            className="absolute inset-0 w-full h-full object-cover"
+            className={`absolute inset-0 w-full h-full object-cover${isPublicView ? ' fp-public-poster' : ''}`}
             loading="eager"
             onError={() => setImgFailed(true)}
           />

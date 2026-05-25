@@ -125,6 +125,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       : aspect
   const aspectClass = effectiveAspect === 'wide' ? 'aspect-video' : effectiveAspect === 'tall' ? 'aspect-[9/16]' : effectiveAspect === 'portrait' ? 'aspect-[3/4]' : 'aspect-square'
   const fitClass = 'object-cover'
+  const publicPosterClass = isPublicView ? ' fp-public-poster' : ''
   const [isActivated, setIsActivated] = useState(false)
   const [youtubeHasStarted, setYoutubeHasStarted] = useState(false)
   const [isCoarsePointer, setIsCoarsePointer] = useState(false)
@@ -409,7 +410,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             <img
               src={youtubeThumbCandidates[0]}
               alt=""
-              className={`fp-resting-video-media transition-opacity duration-700 ease-out ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+              className={`fp-resting-video-media${publicPosterClass}`}
               loading="eager"
               fetchPriority="high"
               decoding="async"
@@ -495,7 +496,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               <img
                 src={youtubeThumbCandidates[0]}
                 alt=""
-                className={`fp-resting-video-media transition-opacity duration-700 ease-out ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+                className={`fp-resting-video-media${publicPosterClass}`}
                 loading="eager"
                 fetchPriority="high"
                 decoding="async"
@@ -732,7 +733,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             width={600}
             height={800}
             sizes="(max-width: 768px) 50vw, 25vw"
-            className={`w-full h-full object-cover transition-opacity duration-700 ease-out ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+            className={`w-full h-full object-cover${publicPosterClass}`}
             loading="eager"
             quality={90}
             onLoad={(e) => {
@@ -857,7 +858,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               <img
                 src={thumbSrc}
                 alt=""
-                className={`fp-resting-video-media transition-opacity duration-700 ease-out ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+                className={`fp-resting-video-media${publicPosterClass}`}
                 loading="eager"
                 decoding="async"
                 onLoad={() => setIsLoaded(true)}
@@ -932,7 +933,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               <img
                 src={thumbSrc}
                 alt=""
-                className={`fp-resting-video-media transition-opacity duration-700 ease-out ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+                className={`fp-resting-video-media${publicPosterClass}`}
                 loading="lazy"
                 decoding="async"
                 onLoad={() => setIsLoaded(true)}
@@ -997,6 +998,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       artist={content.artist}
       isInView={isInView}
       aspectClass={aspectClass}
+      isPublicView={isPublicView}
     />
   )
 }
@@ -1076,6 +1078,7 @@ function SmartLinkFallback({
   artist,
   isInView,
   aspectClass,
+  isPublicView,
 }: {
   url: string
   title: string | null
@@ -1085,6 +1088,7 @@ function SmartLinkFallback({
   artist: string | null | undefined
   isInView: boolean
   aspectClass: string
+  isPublicView: boolean
 }) {
   const [ogMeta, setOgMeta] = useState<{
     title?: string | null
@@ -1133,6 +1137,7 @@ function SmartLinkFallback({
       description={linkObj.description}
       actionUrl={linkObj.actionUrl}
       aspectClass={aspectClass}
+      isPublicView={isPublicView}
     />
   )
 }
