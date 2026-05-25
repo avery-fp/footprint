@@ -21,6 +21,7 @@ interface PreviewCardTileProps {
   subtitle: string | null
   cropThumbnail?: boolean
   thumbnailCandidates?: string[]
+  isPublicView?: boolean
 }
 
 export default function PreviewCardTile({
@@ -30,6 +31,7 @@ export default function PreviewCardTile({
   subtitle,
   cropThumbnail = false,
   thumbnailCandidates = [],
+  isPublicView = false,
 }: PreviewCardTileProps) {
   const candidates = thumbnailCandidates.length > 0 ? thumbnailCandidates : thumbnailUrl ? [thumbnailUrl] : []
   const thumbSrc = candidates[0] || thumbnailUrl
@@ -55,7 +57,9 @@ export default function PreviewCardTile({
           <img
             src={thumbSrc}
             alt=""
-            className={`${cropThumbnail ? 'fp-resting-video-media' : 'absolute inset-0 w-full h-full object-cover'} transition-opacity duration-700 ease-out ${loaded ? 'opacity-100' : 'opacity-0'}`}
+            className={isPublicView
+              ? `${cropThumbnail ? 'fp-resting-video-media' : 'absolute inset-0 w-full h-full object-cover'} fp-public-poster`
+              : `${cropThumbnail ? 'fp-resting-video-media' : 'absolute inset-0 w-full h-full object-cover'} transition-opacity duration-700 ease-out ${loaded ? 'opacity-100' : 'opacity-0'}`}
             loading="eager"
             fetchPriority="high"
             decoding="async"
