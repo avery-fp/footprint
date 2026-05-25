@@ -124,6 +124,32 @@ function SortableTileWrapper({ item, idx, children, className, style: extraStyle
   )
 }
 
+function OwnerDndFrame({
+  children,
+  onDragStart,
+  onDragEnd,
+}: {
+  children: React.ReactNode
+  onDragStart: (event: DragStartEvent) => void
+  onDragEnd: (event: DragEndEvent) => void
+}) {
+  const mouseSensor = useSensor(MouseSensor, { activationConstraint: { distance: 4 } })
+  const touchSensor = useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } })
+  const keyboardSensor = useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  const ownerSensors = useSensors(mouseSensor, touchSensor, keyboardSensor)
+
+  return (
+    <DndContext
+      sensors={ownerSensors}
+      collisionDetection={closestCenter}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+    >
+      {children}
+    </DndContext>
+  )
+}
+
 export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl, isDraft, isOwnerHinted = false, containerMeta = {}, ownerEmail = null, wantsEditOverlay = false }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
 
@@ -158,6 +184,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // top-right corner surfaces ClaimPlaque instead), so the action bar
   // must already be reachable.
   const [editorMode, setEditorMode] = useState(!!isDraft)
+  const isEditorActive = isOwner && editorMode
   const [selectedTileId, setSelectedTileId] = useState<string | null>(null)
   // Editor-mode tile-tap scroll anchor. The interceptor sits inside a
   // dnd-kit Sortable wrapper, which exposes role="button" + tabIndex=0
@@ -541,11 +568,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     }
     setTileSources(sources)
   }, [allContent])
-
-  const mouseSensor = useSensor(MouseSensor, { activationConstraint: { distance: 4 } })
-  const touchSensor = useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } })
-  const keyboardSensor = useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  const ownerSensors = useSensors(mouseSensor, touchSensor, keyboardSensor)
 
   const [localContent, setLocalContent] = useState<any[]>([])
   useEffect(() => { setLocalContent(content) }, [content])
@@ -1408,7 +1430,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             See tileEditScrollAnchor above: we snapshot the scroll Y at
             pointerdown so the page can be restored if the browser scrolls
             the focusable Sortable wrapper into view on focus. */}
-        {isOwner && editorMode && !expanded && (
+        {isEditorActive && !expanded && (
           <div
             className="absolute inset-0 z-20 cursor-pointer"
             onPointerDown={() => { tileEditScrollAnchor.current = window.scrollY }}
@@ -1416,7 +1438,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           />
         )}
         {/* Container click interceptor — only containers are doors. */}
-        {isContainer && !expanded && !(isOwner && editorMode) && (
+        {isContainer && !expanded && !isEditorActive && (
           <div className="absolute inset-0 z-10 cursor-pointer" onClick={() => expand(item.id)} />
         )}
       </div>
@@ -1438,7 +1460,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         ? ' self-start'
         : ''
     const wrapperClass = `relative overflow-hidden rounded-2xl ${gridClass}${fitClass}`
-    if (isOwner) {
+    if (isEditorActive) {
       return (
         <SortableTileWrapper key={item.id} item={item} idx={idx} className={wrapperClass} disabled={!!expanded}>
           {tileBody}
@@ -1514,7 +1536,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             {renderOverlay?.(item, idx)}
           </>
         )
-        if (sortable && isOwner) {
+        if (sortable && isEditorActive) {
           return (
             <SortableTileWrapper
               key={item.id}
@@ -1613,7 +1635,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     )
   }
 
-  const renderCollectionOwnerControls = (child: any, idx: number) => isOwner ? (
+  const renderCollectionOwnerControls = (child: any, idx: number) => isEditorActive ? (
     <div className="absolute inset-0 z-10 pointer-events-none opacity-100 transition-opacity duration-150">
       <button
         type="button"
@@ -1701,7 +1723,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // (see render below) so room pills can register as droppable targets
   // for the send-to-room gesture. Here we just hand back the grid
   // wrapped in a SortableContext for tile reorder.
-  const activeGrid = isOwner ? (
+  const activeGrid = isEditorActive ? (
     <SortableContext items={displayContent.map((item: any) => item.id)} strategy={rectSortingStrategy}>
       {gridInner}
     </SortableContext>
@@ -2170,15 +2192,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         <div style={{ height: 96 }} aria-hidden="true" />
             </>
           )
-          return isOwner ? (
-            <DndContext
-              sensors={ownerSensors}
-              collisionDetection={closestCenter}
+          return isEditorActive ? (
+            <OwnerDndFrame
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
             >
               {navAndGrid}
-            </DndContext>
+            </OwnerDndFrame>
           ) : navAndGrid
         })()}
 
@@ -2248,17 +2268,15 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                   style={{ padding: '12px 0', overscrollBehavior: 'contain' }}
                 >
                   {localChildren.length > 0 ? (
-                    isOwner ? (
-                      <DndContext
-                        sensors={ownerSensors}
-                        collisionDetection={closestCenter}
+                    isEditorActive ? (
+                      <OwnerDndFrame
                         onDragStart={handleDragStart}
                         onDragEnd={handleChildDragEnd}
                       >
                         <SortableContext items={localChildren.map((item: any) => item.id)} strategy={horizontalListSortingStrategy}>
                           {renderHorizontalTiles(localChildren, renderCollectionTileBody, renderCollectionOwnerControls, false, true, true)}
                         </SortableContext>
-                      </DndContext>
+                      </OwnerDndFrame>
                     ) : (
                       renderHorizontalTiles(localChildren, renderCollectionTileBody, renderCollectionOwnerControls, false, false, true)
                     )
