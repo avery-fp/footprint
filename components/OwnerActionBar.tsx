@@ -36,9 +36,9 @@ interface OwnerActionBarProps {
 }
 
 const glassBar: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.05)',
-  backdropFilter: 'blur(28px) saturate(140%)',
-  WebkitBackdropFilter: 'blur(28px) saturate(140%)',
+  background: 'rgba(0,0,0,0.28)',
+  backdropFilter: 'blur(22px) saturate(130%)',
+  WebkitBackdropFilter: 'blur(22px) saturate(130%)',
   border: '1px solid rgba(255,255,255,0.06)',
   borderRadius: 999,
 }
@@ -48,11 +48,11 @@ const glassBar: React.CSSProperties = {
 // Darker dim under a saturated blur so typed text sits on glass, not on
 // the page beneath.
 const inputPanel: React.CSSProperties = {
-  background: 'rgba(0,0,0,0.55)',
-  backdropFilter: 'blur(28px) saturate(140%)',
-  WebkitBackdropFilter: 'blur(28px) saturate(140%)',
-  border: '1px solid rgba(255,255,255,0.12)',
-  boxShadow: '0 8px 32px rgba(0,0,0,0.30)',
+  background: 'rgba(0,0,0,0.36)',
+  backdropFilter: 'blur(22px) saturate(130%)',
+  WebkitBackdropFilter: 'blur(22px) saturate(130%)',
+  border: '1px solid rgba(255,255,255,0.10)',
+  boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
 }
 
 export default function OwnerActionBar({
@@ -394,20 +394,22 @@ export default function OwnerActionBar({
 
         {(verb === 'link' || verb === 'text') && (
         <div
-          className={`absolute left-0 right-0 px-3 py-2.5 flex gap-2 ${verb === 'text' ? 'flex-col items-stretch' : 'items-center'}`}
+          className={`absolute left-1/2 -translate-x-1/2 px-3 flex gap-2 ${verb === 'text' ? 'py-3 flex-col items-stretch' : 'h-9 items-center overflow-hidden'}`}
           style={{
             ...inputPanel,
             bottom: 'calc(100% + 10px)',
-            borderRadius: 18,
+            borderRadius: verb === 'text' ? 18 : 999,
             // Active input panels span wider than the (narrowed) center
             // bar so URLs and thoughts have room to breathe.
-            minWidth: 'min(320px, calc(100vw - 48px))',
+            width: verb === 'text' ? 'min(360px, calc(100vw - 48px))' : 'fit-content',
+            minWidth: verb === 'text' ? undefined : 'min(320px, calc(100vw - 48px))',
+            maxWidth: 'calc(100vw - 48px)',
           }}
         >
           {verb === 'link' && (
             <>
-              <input ref={inputRef as React.RefObject<HTMLInputElement>} type="url" inputMode="url" placeholder="paste any link…" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submitLink() }} className="flex-1 bg-transparent text-white/[0.78] placeholder:text-white/[0.35] outline-none text-sm font-mono" />
-              <button onClick={submitLink} disabled={!linkUrl.trim() || busy} className="text-xs text-white/70 hover:text-white/95 px-2 py-1 disabled:opacity-30 font-mono">{busy ? '…' : 'add'}</button>
+              <input ref={inputRef as React.RefObject<HTMLInputElement>} type="url" inputMode="url" placeholder="paste any link…" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submitLink() }} className="min-w-[220px] flex-1 appearance-none border-0 bg-transparent text-white/[0.80] placeholder:text-white/[0.38] outline-none ring-0 shadow-none focus:border-0 focus:outline-none focus:ring-0 text-sm font-mono" />
+              <button onClick={submitLink} disabled={!linkUrl.trim() || busy} className="-mr-3 h-9 px-3.5 text-xs text-white/70 hover:bg-white/[0.05] hover:text-white/95 disabled:opacity-30 font-mono transition-colors">{busy ? '…' : 'add'}</button>
             </>
           )}
           {verb === 'text' && (
