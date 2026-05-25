@@ -6,6 +6,7 @@ import { getCollectionRenderRadius, shouldRenderCollectionTile } from '@/lib/col
 import { getGridLayout, tileAspectRatio, type RoomLayout } from '@/lib/grid-layouts'
 import { getGridClass, isVideoTile, resolveAspect } from '@/lib/media/aspect'
 import { glassStyle } from '@/lib/glass'
+import { transformImageUrl } from '@/lib/image'
 
 interface Room {
   id: string
@@ -168,7 +169,7 @@ export default function PublicRoomSurface({
       >
         <div
           className={`relative w-full max-w-full h-full overflow-hidden fp-tile-hover rounded-2xl${isSoundRoom ? ' fp-sound-tile' : ''}`}
-          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)' }}
+          style={{ background: 'transparent', border: '1px solid transparent' }}
         >
           <UnifiedTile
             item={item}
@@ -209,7 +210,7 @@ export default function PublicRoomSurface({
     <div className="w-full h-full relative">
       <div
         className={`relative w-full max-w-full h-full overflow-hidden fp-tile-hover rounded-2xl${isSoundRoom ? ' fp-sound-tile' : ''}`}
-        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)' }}
+        style={{ background: 'transparent', border: '1px solid transparent' }}
       >
         <UnifiedTile
           item={{
@@ -239,12 +240,13 @@ export default function PublicRoomSurface({
   )
 
   const renderCollectionTilePlaceholder = (child: any) => {
-    const previewUrl =
+    const previewUrl = transformImageUrl(
       child.thumbnail_url_override ||
       child.thumbnail_url_hq ||
       child.thumbnail_url ||
       child.poster_url ||
       null
+    )
 
     return (
       <div className="w-full h-full relative">
@@ -257,7 +259,9 @@ export default function PublicRoomSurface({
             <img
               src={previewUrl}
               alt=""
-              loading="lazy"
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
               className="absolute inset-0 w-full h-full object-cover"
               style={{ filter: 'blur(14px)', opacity: 0.32, transform: 'scale(1.04)' }}
             />
