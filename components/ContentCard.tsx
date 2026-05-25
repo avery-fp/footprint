@@ -415,6 +415,11 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               fetchPriority="high"
               decoding="async"
               referrerPolicy="no-referrer"
+              ref={(img) => {
+                if (img?.complete && img.naturalWidth) {
+                  applyThumbnailLoadGuard(img, youtubeThumbCandidates)
+                }
+              }}
               onLoad={(e) => {
                 applyThumbnailLoadGuard(e.currentTarget, youtubeThumbCandidates)
                 setIsLoaded(true)
@@ -501,6 +506,11 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 fetchPriority="high"
                 decoding="async"
                 referrerPolicy="no-referrer"
+                ref={(img) => {
+                  if (img?.complete && img.naturalWidth) {
+                    applyThumbnailLoadGuard(img, youtubeThumbCandidates)
+                  }
+                }}
                 onLoad={(e) => {
                   applyThumbnailLoadGuard(e.currentTarget, youtubeThumbCandidates)
                   setIsLoaded(true)

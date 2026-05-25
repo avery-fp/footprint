@@ -64,6 +64,11 @@ export default function PreviewCardTile({
             fetchPriority="high"
             decoding="async"
             referrerPolicy="no-referrer"
+            ref={(img) => {
+              if (img?.complete && img.naturalWidth) {
+                applyThumbnailLoadGuard(img, candidates)
+              }
+            }}
             onLoad={(e) => {
               applyThumbnailLoadGuard(e.currentTarget, candidates)
               setLoaded(true)
