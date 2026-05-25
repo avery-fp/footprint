@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Image from 'next/image'
 import UnifiedTile from '@/components/UnifiedTile'
 import SAspectShell from '@/components/SAspectShell'
+import PublicRoomSurface from '@/components/PublicRoomSurface'
 
 import WeatherEffect from '@/components/WeatherEffect'
 import { RemoveBubble } from '@/components/RemoveBubble'
@@ -2040,6 +2041,31 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </header>
         </RemoveBubble>
 
+        {!isEditorActive ? (
+          <PublicRoomSurface
+            content={displayContent}
+            visibleRooms={visibleRooms}
+            activeRoomId={activeRoomId}
+            onNavigateRoom={goToRoom}
+            roomLayout={roomLayout}
+            roomFade={roomFade}
+            roomNavDocked={roomNavDocked}
+            isMobile={isMobile}
+            isSoundRoom={isSoundRoom}
+            isGrid={isGrid}
+            containerMeta={containerMeta}
+            expanded={expanded}
+            showOverlay={showOverlay}
+            collectionChildren={localChildren}
+            loadingChildren={loadingChildren}
+            expandedContainerLabel={expandedContainerLabel}
+            expand={expand}
+            collapse={collapse}
+            registerRef={registerRef}
+            depthTouchStart={depthTouchStart}
+          />
+        ) : (
+          <>
         {/* DndContext hoist — wraps both the room nav and the grid so
             tile drags can land on room pills (the send-to-room gesture)
             in addition to reordering tiles. For non-owners we render
@@ -2352,6 +2378,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 )}
               </div>
             )}
+          </>
+        )}
           </>
         )}
 
