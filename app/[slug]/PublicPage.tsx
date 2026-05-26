@@ -52,18 +52,6 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-const WALLPAPER_SUPABASE_PATTERN = /supabase\.co\/storage\/v1\/(?:object|render\/image)\/public\//
-const WALLPAPER_RENDER_PARAMS = 'width=1024&quality=70'
-
-function transformWallpaperImageUrl(url: string): string {
-  if (!WALLPAPER_SUPABASE_PATTERN.test(url)) return url
-  const baseUrl = url
-    .replace('/storage/v1/render/image/public/', '/storage/v1/object/public/')
-    .replace(/\?.*$/, '')
-    .replace('/storage/v1/object/public/', '/storage/v1/render/image/public/')
-  return `${baseUrl}?${WALLPAPER_RENDER_PARAMS}`
-}
-
 interface Room {
   id: string
   name: string
@@ -296,10 +284,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // mutations apply optimistically. PATCH fires from the change handlers
   // below.
   const [wallpaperUrlLocal, setWallpaperUrlLocal] = useState<string>(footprint.background_url || '')
-  const wallpaperImageUrl = useMemo(
-    () => (wallpaperUrlLocal ? transformWallpaperImageUrl(wallpaperUrlLocal) : ''),
-    [wallpaperUrlLocal],
-  )
   useEffect(() => {
     setWallpaperUrlLocal(footprint.background_url || '')
     setWallpaperLoaded(false)
@@ -1762,11 +1746,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       {wallpaperUrlLocal && (
         <div key={wallpaperUrlLocal} ref={wallpaperLayerRef} className="fixed inset-0 z-0 fp-wallpaper-gpu">
           <Image
-            src={wallpaperImageUrl}
+            src={wallpaperUrlLocal}
             alt=""
             fill
             priority
-            quality={70}
+            quality={90}
             sizes="100vw"
             fetchPriority="high"
             className={`object-cover transition-opacity duration-700 ${wallpaperLoaded ? 'opacity-100' : 'opacity-0'}`}
