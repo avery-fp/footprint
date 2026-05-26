@@ -18,7 +18,6 @@ import TwitterTile from '@/components/TwitterTile'
 import MusicEmbedTile from '@/components/MusicEmbedTile'
 import ReaderTile from '@/components/ReaderTile'
 import { sanitizeLinkMeta, normalizeLinkObject } from '@/lib/link-object'
-import TheaterOverlay from '@/components/TheaterOverlay'
 import {
   consumePendingYouTubeActivation,
   isYouTubePlayingMessage,
@@ -153,17 +152,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const youtubeRevealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const invocationPointRef = useRef<InvocationPoint | null>(null)
   const [youtubeRevealSettled, setYoutubeRevealSettled] = useState(false)
-  const [theaterOpen, setTheaterOpen] = useState(false)
-  // Pause the underlying YouTube iframe while theater is open so audio
-  // doesn't double up. Same pattern as GhostTile.
-  useEffect(() => {
-    if (!theaterOpen) return
-    audioManager.activateProvider(`theater-${content.id}`)
-    const tileIframe = containerRef.current?.querySelector('iframe') as HTMLIFrameElement | null
-    pauseYouTubePlayback(tileIframe)
-    return () => audioManager.release(`theater-${content.id}`)
-  }, [content.id, theaterOpen])
-
   // FIDELIO: Detect post vs profile for social embeds
   const socialVariant = detectVariant(content.type, content.url)
   const hasSocialEmbed = ['twitter', 'tiktok', 'instagram'].includes(content.type)
@@ -527,26 +515,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               />
             </div>
           </button>
-        )}
-        {/* Mobile (coarse pointer): tap anywhere on the tile opens focus
-            mode. Provider iframes can't be trusted to native-fullscreen on
-            iOS, so we don't try — focus mode is the affordance. */}
-        <button
-          type="button"
-          aria-label="Open focus mode"
-          onClick={(e) => { e.stopPropagation(); setTheaterOpen(true) }}
-          className="absolute inset-0 hidden [@media(pointer:coarse)]:block"
-          style={{
-            zIndex: 3,
-            background: 'transparent',
-            border: 'none',
-            padding: 0,
-            cursor: 'pointer',
-            pointerEvents: !shouldUsePosterSurface && !shouldRevealPlayer ? 'none' : 'auto',
-          }}
-        />
-        {theaterOpen && (
-          <TheaterOverlay src={ytActivatedSrc} onClose={() => setTheaterOpen(false)} />
         )}
       </div>
     )
