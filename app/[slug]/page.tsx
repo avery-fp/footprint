@@ -1,6 +1,4 @@
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { cookies } from 'next/headers'
-import { unstable_noStore as noStore } from 'next/cache'
 import { notFound } from 'next/navigation'
 import { Metadata } from 'next'
 import { getTheme } from '@/lib/themes'
@@ -39,16 +37,14 @@ function collectPublicPosterPreloads(
   return urls
 }
 
-// ISR for the public surface — strangers get a 5-second edge cache.
-// Owners get a per-request cache bypass below via noStore() so a tile
-// they just edited optimistically doesn't appear reverted on the next
-// hard navigation. The cookie probe is the gate; the auth API
-// re-verifies the token on every owner mutation.
-export const revalidate = 5
+// ISR for the public surface. The route renders the same artifact for every
+// visitor; owner/editor state is resolved client-side after the static shell
+// loads.
+export const revalidate = 60
+export const dynamic = 'force-static'
 
 interface Props {
   params: { slug: string }
-  searchParams?: { edit?: string; token?: string; email?: string; sent?: string }
 }
 
 // Reserved paths that have their own routes — skip DB lookup
@@ -103,44 +99,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default async function FootprintPage({ params, searchParams }: Props) {
+export default async function FootprintPage({ params }: Props) {
   if (RESERVED_SLUGS.has(params.slug)) notFound()
-
-  // Server-side cookie probe. The cookie is httpOnly so we only see its
-  // presence — that's enough to gate caching and surface owner chrome on
-  // first paint. The auth API re-verifies the token on every mutation, so
-  // a forged cookie here only loses caching, never grants edit access.
-  const isOwnerHinted = cookies().has(`fp_edit_${params.slug}`)
-  if (isOwnerHinted) noStore()
-
-  // Edit-access overlay surfaces when ?edit=1 is present on a non-owner
-  // visit. Magic links from claim/email-code flows include this query
-  // param so they land on the unified page with the email-code form
-  // showing on top of the public render. Owners with a valid cookie
-  // skip the overlay entirely (already authenticated).
-  const wantsEditOverlay = !isOwnerHinted && searchParams?.edit === '1'
 
   // Draft slugs (draft-{12-char uuid}) are unguessable preview URLs — the
   // owner can share one before paying. Knowledge of the slug IS the access
   // credential. ownerView drops the `published = true` filter so unpublished
-  // (work-in-progress) state renders for the owner without a 404. Drafts
-  // and authenticated owners both opt in.
+  // (work-in-progress) state renders for the draft without a 404.
   const isDraft = params.slug.startsWith('draft-')
-  const ownerView = isDraft || isOwnerHinted
+  const ownerView = isDraft
 
   const result = await loadFootprint(params.slug, { ownerView })
   if (!result) notFound()
 
   const { footprint, content, rooms: roomsFlat, containerMeta } = result
-
-  const supabase = createServerSupabaseClient()
-  const { data: owner } = footprint.user_id
-    ? await supabase
-        .from('users')
-        .select('email')
-        .eq('id', footprint.user_id)
-        .maybeSingle()
-    : { data: null }
 
   // Public page expects rooms with their content already grouped in.
   // Tiles with room_id=null (orphans — typically uploads that landed before
@@ -199,10 +171,7 @@ export default async function FootprintPage({ params, searchParams }: Props) {
         serial={serial}
         pageUrl={pageUrl}
         containerMeta={containerMeta}
-        ownerEmail={owner?.email || null}
         isDraft={isDraft}
-        isOwnerHinted={isOwnerHinted}
-        wantsEditOverlay={wantsEditOverlay}
       />
     </>
   )

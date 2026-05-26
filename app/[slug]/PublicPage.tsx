@@ -332,6 +332,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // immediately — magic links short-circuit the email-code form.
   const [editOverlayOpen, setEditOverlayOpen] = useState<boolean>(wantsEditOverlay)
   useEffect(() => {
+    if (typeof window === 'undefined' || isOwnerHinted) return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('edit') === '1') setEditOverlayOpen(true)
+  }, [isOwnerHinted])
+  useEffect(() => {
     if (typeof window === 'undefined') return
     const params = new URLSearchParams(window.location.search)
     const token = params.get('token')
