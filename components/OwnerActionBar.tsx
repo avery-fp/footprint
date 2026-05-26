@@ -36,7 +36,7 @@ interface OwnerActionBarProps {
 }
 
 const glassBar: React.CSSProperties = {
-  background: 'rgba(0,0,0,0.28)',
+  background: 'rgba(0,0,0,0.38)',
   backdropFilter: 'blur(22px) saturate(130%)',
   WebkitBackdropFilter: 'blur(22px) saturate(130%)',
   border: '1px solid rgba(255,255,255,0.06)',
@@ -48,10 +48,10 @@ const glassBar: React.CSSProperties = {
 // Darker dim under a saturated blur so typed text sits on glass, not on
 // the page beneath.
 const inputPanel: React.CSSProperties = {
-  background: 'rgba(0,0,0,0.36)',
+  background: 'rgba(0,0,0,0.48)',
   backdropFilter: 'blur(22px) saturate(130%)',
   WebkitBackdropFilter: 'blur(22px) saturate(130%)',
-  border: '1px solid rgba(255,255,255,0.10)',
+  border: '1px solid rgba(255,255,255,0.08)',
   boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
 }
 
@@ -409,7 +409,7 @@ export default function OwnerActionBar({
           {verb === 'link' && (
             <>
               <input ref={inputRef as React.RefObject<HTMLInputElement>} type="url" inputMode="url" placeholder="paste any link…" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') submitLink() }} className="min-w-[220px] flex-1 appearance-none border-0 bg-transparent text-white/[0.80] placeholder:text-white/[0.38] outline-none ring-0 shadow-none focus:border-0 focus:outline-none focus:ring-0 text-sm font-mono" />
-              <button onClick={submitLink} disabled={!linkUrl.trim() || busy} className="-mr-3 h-9 px-3.5 text-xs text-white/70 hover:bg-white/[0.05] hover:text-white/95 disabled:opacity-30 font-mono transition-colors">{busy ? '…' : 'add'}</button>
+              <button onClick={submitLink} disabled={!linkUrl.trim() || busy} className="-mr-2 h-9 px-3.5 text-xs text-white/70 hover:bg-white/[0.05] hover:text-white/95 disabled:opacity-30 font-mono transition-colors">{busy ? '…' : 'add'}</button>
             </>
           )}
           {verb === 'text' && (
