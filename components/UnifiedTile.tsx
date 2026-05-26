@@ -159,23 +159,25 @@ function VideoTile({ url, id }: { url: string; id: string }) {
     const audioId = audioIdRef.current
     audioManager.register(audioId, () => {
       const v = videoRef.current
-      if (v) v.muted = true
+      if (v) audioManager.silenceNativeMedia(v)
       setIsMuted(true)
     })
-    return () => audioManager.unregister(audioId)
+    return () => {
+      audioManager.release(audioId)
+      audioManager.unregister(audioId)
+    }
   }, [])
 
   const toggleAudio = useCallback(() => {
     const v = videoRef.current
     if (!v) return
     if (v.muted) {
-      audioManager.play(audioIdRef.current)
-      v.muted = false
+      audioManager.playNative(audioIdRef.current, v)
       setIsMuted(false)
       v.play().catch(() => {})
     } else {
-      audioManager.mute(audioIdRef.current)
-      v.muted = true
+      audioManager.release(audioIdRef.current)
+      audioManager.silenceNativeMedia(v)
       setIsMuted(true)
     }
   }, [])
@@ -344,6 +346,7 @@ export default function UnifiedTile({
             title={item.title || null}
             subtitle={null}
             isPublicView={mode === 'public'}
+            index={index}
           />
         </div>
       )
@@ -425,6 +428,7 @@ export default function UnifiedTile({
               tileSize={size}
               aspect={aspect}
               isPublicView={mode === 'public'}
+              index={index}
               isExpanded={isExpanded}
               isMobile={isMobile}
               isSoundRoom={isSoundRoom}
@@ -456,6 +460,7 @@ export default function UnifiedTile({
                 tileSize={size}
                 aspect={aspect}
                 isPublicView={mode === 'public'}
+                index={index}
                 isExpanded={isExpanded}
                 isMobile={isMobile}
                 isSoundRoom={isSoundRoom}
@@ -475,6 +480,7 @@ export default function UnifiedTile({
               cropThumbnail={shouldCropPreviewThumbnail(item.type, item.url, item.media_kind)}
               thumbnailCandidates={previewThumbnailCandidates}
               isPublicView={mode === 'public'}
+              index={index}
             />
           </div>
         )
@@ -490,6 +496,7 @@ export default function UnifiedTile({
               title={musicMeta.title}
               subtitle={musicMeta.creator}
               isPublicView={mode === 'public'}
+              index={index}
             />
           </div>
         )
@@ -504,6 +511,7 @@ export default function UnifiedTile({
               title={linkMeta.title}
               subtitle={null}
               isPublicView={mode === 'public'}
+              index={index}
             />
           </div>
         )
@@ -678,6 +686,8 @@ export default function UnifiedTile({
             thumbnailUrl={item.thumbnail_url_override || item.thumbnail_url || null}
             title={item.title || null}
             subtitle={null}
+            isPublicView={mode === 'public'}
+            index={index}
           />
         </div>
       )
@@ -714,6 +724,7 @@ export default function UnifiedTile({
           tileSize={size}
           aspect={aspect}
           isPublicView={mode === 'public'}
+          index={index}
           isExpanded={isExpanded}
           isSoundRoom={isSoundRoom}
         />

@@ -654,7 +654,7 @@ function ThumbnailBg({
         style={{}}
         loading="eager"
         fetchPriority="high"
-        decoding="async"
+        decoding="sync"
         referrerPolicy="no-referrer"
         onLoad={(e) => {
           applyThumbnailLoadGuard(e.currentTarget, candidates)

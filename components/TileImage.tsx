@@ -48,23 +48,25 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
     const audioId = audioIdRef.current
     audioManager.register(audioId, () => {
       const video = fallbackVideoRef.current
-      if (video) video.muted = true
+      if (video) audioManager.silenceNativeMedia(video)
       setVideoMuted(true)
     })
-    return () => audioManager.unregister(audioId)
+    return () => {
+      audioManager.release(audioId)
+      audioManager.unregister(audioId)
+    }
   }, [])
 
   const toggleFallbackVideoAudio = useCallback(() => {
     const video = fallbackVideoRef.current
     if (!video) return
     if (video.muted) {
-      audioManager.play(audioIdRef.current)
-      video.muted = false
+      audioManager.playNative(audioIdRef.current, video)
       setVideoMuted(false)
       video.play().catch(() => {})
     } else {
-      audioManager.mute(audioIdRef.current)
-      video.muted = true
+      audioManager.release(audioIdRef.current)
+      audioManager.silenceNativeMedia(video)
       setVideoMuted(true)
     }
   }, [])
@@ -149,7 +151,30 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
     )
   }
 
-  // grid/horizontal → Next.js Image fill + object-cover.
+  // Public rooms are static artifacts: the poster img exists immediately and
+  // browser-native scheduling owns loading. Player/video depth still sleeps
+  // elsewhere; this is only the visual surface.
+  if (isPublicView) {
+    const isPriority = index < 10
+    const isSyncDecode = index < 6
+    return (
+      <div ref={containerRef} className="absolute inset-0">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={src}
+          alt={alt}
+          sizes={sizes}
+          className="absolute inset-0 h-full w-full object-cover fp-public-poster"
+          loading={isPriority ? 'eager' : 'lazy'}
+          fetchPriority={isPriority ? 'high' : 'auto'}
+          decoding={isSyncDecode ? 'sync' : 'async'}
+          onError={() => setFailed(true)}
+        />
+      </div>
+    )
+  }
+
+  // editor/private surfaces keep Next.js Image fill + object-cover.
   return (
     <div ref={containerRef} className="absolute inset-0">
       <Image

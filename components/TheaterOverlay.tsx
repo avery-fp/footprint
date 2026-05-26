@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { audioManager } from '@/lib/audio-manager'
 import { nudgeYouTubeQuality } from '@/lib/youtube-player'
 
 /**
@@ -45,6 +46,8 @@ export default function TheaterOverlay({
   const [cursorVisible, setCursorVisible] = useState(true)
 
   useEffect(() => {
+    const providerId = `theater-${src}`
+    audioManager.activateProvider(providerId)
     const prevOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -67,6 +70,7 @@ export default function TheaterOverlay({
 
     return () => {
       document.body.style.overflow = prevOverflow
+      audioManager.release(providerId)
       window.removeEventListener('keydown', onKey)
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current)
     }

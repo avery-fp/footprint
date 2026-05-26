@@ -125,7 +125,10 @@ export default function MusicEmbedTile({
   useEffect(() => {
     const id = tileIdRef.current
     audioManager.register(id, stopPlayback)
-    return () => audioManager.unregister(id)
+    return () => {
+      audioManager.release(id)
+      audioManager.unregister(id)
+    }
   }, [stopPlayback])
 
   if (!embed) {
@@ -223,7 +226,7 @@ function MusicSurface({
   const pendingPlayRef = useRef(false)
   const setPlaybackState = useCallback((next: boolean) => {
     onPlayingChange(next)
-    if (!next) audioManager.mute(tileId)
+    if (!next) audioManager.release(tileId)
   }, [onPlayingChange, tileId])
 
   useEffect(() => {
@@ -279,6 +282,7 @@ function MusicSurface({
         appleAudioRef.current = audio
         if (pendingPlayRef.current) {
           pendingPlayRef.current = false
+          audioManager.playNative(tileId, audio)
           void audio.play().catch(() => setPlaybackState(false))
         }
       })
@@ -286,19 +290,20 @@ function MusicSurface({
     return () => {
       active = false
       pendingPlayRef.current = false
-      appleAudioRef.current?.pause()
+      if (appleAudioRef.current) audioManager.silenceNativeMedia(appleAudioRef.current, true)
+      audioManager.release(tileId)
       appleAudioRef.current = null
     }
-  }, [provider, setPlaybackState, url])
+  }, [provider, setPlaybackState, tileId, url])
 
   useEffect(() => {
     if (isPlaying) return
     spotifyControllerRef.current?.pause()
-    appleAudioRef.current?.pause()
+    if (appleAudioRef.current) audioManager.silenceNativeMedia(appleAudioRef.current, true)
   }, [isPlaying])
 
   const handleToggle = useCallback(() => {
-    audioManager.play(tileId)
+    if (provider === 'spotify') audioManager.activateProvider(tileId)
     if (!isPlaying) {
       onPlayingChange(true)
     }
@@ -317,9 +322,11 @@ function MusicSurface({
       return
     }
     if (audio.paused) {
+      audioManager.playNative(tileId, audio)
       void audio.play().catch(() => setPlaybackState(false))
     } else {
-      audio.pause()
+      audioManager.release(tileId)
+      audioManager.silenceNativeMedia(audio, true)
     }
   }, [isPlaying, onPlayingChange, provider, setPlaybackState, tileId])
 

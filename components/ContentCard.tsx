@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback, type PointerEvent } from 'react'
-import Image from 'next/image'
 import type { ContentType } from '@/lib/parser'
 import { detectVariant } from '@/lib/parser'
 import { audioManager } from '@/lib/audio-manager'
@@ -103,6 +102,7 @@ interface ContentCardProps {
   tileSize?: number
   aspect?: string
   isPublicView?: boolean
+  index?: number
   /** When true, show full embed immediately (no facade). Used in lightbox. */
   isExpanded?: boolean
   isSoundRoom?: boolean
@@ -116,7 +116,7 @@ interface ContentCardProps {
  * null → link card (OG metadata via /api/og-preview)
  * Everything fails gracefully. No broken states.
  */
-export default function ContentCard({ content, onWidescreen, isMobile = false, tileSize = 1, aspect = 'square', isPublicView = false, isExpanded = false, isSoundRoom = false }: ContentCardProps) {
+export default function ContentCard({ content, onWidescreen, isMobile = false, tileSize = 1, aspect = 'square', isPublicView = false, index = 999, isExpanded = false, isSoundRoom = false }: ContentCardProps) {
   // Size changes tile presence; explicit vertical media shape must survive.
   const isExplicitShape = aspect === 'square' || aspect === 'tall' || aspect === 'portrait'
   const effectiveAspect =
@@ -126,6 +126,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const aspectClass = effectiveAspect === 'wide' ? 'aspect-video' : effectiveAspect === 'tall' ? 'aspect-[9/16]' : effectiveAspect === 'portrait' ? 'aspect-[3/4]' : 'aspect-square'
   const fitClass = 'object-cover'
   const publicPosterClass = isPublicView ? ' fp-public-poster' : ''
+  const isPriorityPoster = isPublicView && index < 10
+  const posterDecoding = isPublicView && index < 6 ? 'sync' : 'async'
   const [isActivated, setIsActivated] = useState(false)
   const [youtubeHasStarted, setYoutubeHasStarted] = useState(false)
   const [isCoarsePointer, setIsCoarsePointer] = useState(false)
@@ -156,9 +158,11 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // doesn't double up. Same pattern as GhostTile.
   useEffect(() => {
     if (!theaterOpen) return
+    audioManager.activateProvider(`theater-${content.id}`)
     const tileIframe = containerRef.current?.querySelector('iframe') as HTMLIFrameElement | null
     pauseYouTubePlayback(tileIframe)
-  }, [theaterOpen])
+    return () => audioManager.release(`theater-${content.id}`)
+  }, [content.id, theaterOpen])
 
   // FIDELIO: Detect post vs profile for social embeds
   const socialVariant = detectVariant(content.type, content.url)
@@ -209,31 +213,36 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       }
       youtubePendingActivationRef.current = false
       activatedRef.current = false
+      audioManager.release(audioIdRef.current)
       setIsActivated(false)
       setYoutubeHasStarted(false)
       setYoutubeRevealSettled(false)
-    } else if (content.type === 'soundcloud' || content.type === 'spotify') {
+    } else if (content.type === 'soundcloud' || content.type === 'spotify' || content.type === 'tiktok') {
       activatedRef.current = false
       setIsActivated(false)
+      setShellOpen(false)
     }
     const video = videoRef.current
     if (video) {
-      video.muted = true
+      audioManager.silenceNativeMedia(video)
       setIsVideoMuted(true)
     }
   }, [content.type])
 
   // Register audio-producing types with AudioManager
   useEffect(() => {
-    const isAudioType = ['youtube', 'soundcloud', 'spotify', 'video'].includes(content.type)
+    const isAudioType = ['youtube', 'soundcloud', 'spotify', 'video', 'tiktok'].includes(content.type)
     if (!isAudioType) return
     audioManager.register(audioIdRef.current, stopCardAudio)
-    return () => audioManager.unregister(audioIdRef.current)
+    return () => {
+      audioManager.release(audioIdRef.current)
+      audioManager.unregister(audioIdRef.current)
+    }
   }, [content.type, content.id, stopCardAudio])
 
   const handleActivate = () => {
     if (['youtube', 'soundcloud', 'spotify'].includes(content.type)) {
-      audioManager.play(audioIdRef.current)
+      audioManager.activateProvider(audioIdRef.current)
     }
     activatedRef.current = true
     setIsActivated(true)
@@ -254,13 +263,12 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     const video = videoRef.current
     if (!video) return
     if (video.muted) {
-      audioManager.play(audioIdRef.current)
-      video.muted = false
+      audioManager.playNative(audioIdRef.current, video)
       setIsVideoMuted(false)
       video.play().catch(() => {})
     } else {
-      audioManager.mute(audioIdRef.current)
-      video.muted = true
+      audioManager.release(audioIdRef.current)
+      audioManager.silenceNativeMedia(video)
       setIsVideoMuted(true)
     }
   }
@@ -411,9 +419,9 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               src={youtubeThumbCandidates[0]}
               alt=""
               className={`fp-resting-video-media${publicPosterClass}`}
-              loading="eager"
-              fetchPriority="high"
-              decoding="async"
+              loading={isPriorityPoster ? 'eager' : 'lazy'}
+              fetchPriority={isPriorityPoster ? 'high' : 'auto'}
+              decoding={posterDecoding}
               referrerPolicy="no-referrer"
               ref={(img) => {
                 if (img?.complete && img.naturalWidth) {
@@ -502,9 +510,9 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 src={youtubeThumbCandidates[0]}
                 alt=""
                 className={`fp-resting-video-media${publicPosterClass}`}
-                loading="eager"
-                fetchPriority="high"
-                decoding="async"
+                loading={isPriorityPoster ? 'eager' : 'lazy'}
+                fetchPriority={isPriorityPoster ? 'high' : 'auto'}
+                decoding={posterDecoding}
                 referrerPolicy="no-referrer"
                 ref={(img) => {
                   if (img?.complete && img.naturalWidth) {
@@ -694,7 +702,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               className={`block w-full ${aspectClass || 'aspect-video'} ${fitClass} cursor-pointer`}
               onLoadedData={() => setIsLoaded(true)}
               onPlay={() => setIsVideoPlaying(true)}
-              onPause={() => setIsVideoPlaying(false)}
+              onPause={(e) => {
+                setIsVideoPlaying(false)
+                if (!e.currentTarget.muted) audioManager.release(audioIdRef.current)
+              }}
               onError={() => setIsVideoError(true)}
             />
             <button
@@ -737,18 +748,18 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     return (
       <div ref={containerRef} className="fp-tile overflow-hidden relative">
         <a href={content.url} target="_blank" rel="noopener noreferrer">
-          <Image
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
             src={transformImageUrl(content.url)}
             alt={content.title || ''}
-            width={600}
-            height={800}
             sizes="(max-width: 768px) 50vw, 25vw"
             className={`w-full h-full object-cover${publicPosterClass}`}
-            loading="eager"
-            quality={90}
+            loading={isPriorityPoster ? 'eager' : 'lazy'}
+            fetchPriority={isPriorityPoster ? 'high' : 'auto'}
+            decoding={posterDecoding}
             onLoad={(e) => {
               setIsLoaded(true)
-              const img = e.currentTarget as HTMLImageElement
+              const img = e.currentTarget
               if (img.naturalWidth > img.naturalHeight * 1.3) {
                 onWidescreen?.()
               }
@@ -856,8 +867,16 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         <div
           role="button"
           tabIndex={0}
-          onClick={() => canPlayInline ? setIsActivated(true) : setShellOpen(true)}
-          onKeyDown={(e) => { if (e.key === 'Enter') (canPlayInline ? setIsActivated(true) : setShellOpen(true)) }}
+          onClick={() => {
+            audioManager.activateProvider(audioIdRef.current)
+            canPlayInline ? setIsActivated(true) : setShellOpen(true)
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              audioManager.activateProvider(audioIdRef.current)
+              canPlayInline ? setIsActivated(true) : setShellOpen(true)
+            }
+          }}
           ref={containerRef as any}
           className={`block w-full h-full fp-tile overflow-hidden relative cursor-pointer ${aspectClass}`}
           style={{ background: 'transparent' }}
@@ -869,8 +888,9 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 src={thumbSrc}
                 alt=""
                 className={`fp-resting-video-media${publicPosterClass}`}
-                loading="eager"
-                decoding="async"
+                loading={isPriorityPoster ? 'eager' : 'lazy'}
+                fetchPriority={isPriorityPoster ? 'high' : 'auto'}
+                decoding={posterDecoding}
                 onLoad={() => setIsLoaded(true)}
                 onError={() => setSocialThumbFailed(true)}
               />
@@ -895,7 +915,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           </div>
         </div>
         {shellOpen && (
-          <ArtifactShell onDismiss={() => setShellOpen(false)} fallbackUrl={content.url}>
+          <ArtifactShell onDismiss={() => { setShellOpen(false); audioManager.release(audioIdRef.current) }} fallbackUrl={content.url}>
             <SocialEmbed url={content.url} type="tiktok" variant={socialVariant} onError={() => setShellOpen(false)} />
           </ArtifactShell>
         )}
@@ -944,8 +964,9 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 src={thumbSrc}
                 alt=""
                 className={`fp-resting-video-media${publicPosterClass}`}
-                loading="lazy"
-                decoding="async"
+                loading={isPriorityPoster ? 'eager' : 'lazy'}
+                fetchPriority={isPriorityPoster ? 'high' : 'auto'}
+                decoding={posterDecoding}
                 onLoad={() => setIsLoaded(true)}
                 onError={() => setSocialThumbFailed(true)}
               />

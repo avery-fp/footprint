@@ -12,6 +12,33 @@ import ReferralBanner from '@/components/ReferralBanner'
 import ClaimOverlay from '@/components/ClaimOverlay'
 import PublicPage from './PublicPage'
 
+function collectPublicPosterPreloads(
+  rooms: Array<{ content: any[] }>,
+  content: any[],
+  containerMeta: Record<string, { childCount: number; firstThumb: string | null }>
+) {
+  const ordered = rooms.length > 0
+    ? rooms.flatMap((room) => room.content || [])
+    : content
+  const seen = new Set<string>()
+  const urls: string[] = []
+
+  for (const item of ordered) {
+    const url =
+      item?.thumbnail_url_override ||
+      item?.thumbnail_url_hq ||
+      item?.thumbnail_url ||
+      containerMeta[item?.id]?.firstThumb ||
+      (item?.type === 'image' || item?.type === 'video' ? item?.url : null)
+    if (!url || seen.has(url)) continue
+    seen.add(url)
+    urls.push(url)
+    if (urls.length >= 10) break
+  }
+
+  return urls
+}
+
 // ISR for the public surface — strangers get a 5-second edge cache.
 // Owners get a per-request cache bypass below via noStore() so a tile
 // they just edited optimistically doesn't appear reverted on the next
@@ -141,9 +168,15 @@ export default async function FootprintPage({ params, searchParams }: Props) {
     : footprint.serial_number.toString().padStart(4, '0')
   const theme = getTheme(footprint.dimension || 'midnight')
   const pageUrl = `https://footprint.onl/${params.slug}`
+  const publicPosterPreloads = ownerView
+    ? []
+    : collectPublicPosterPreloads(rooms, content, containerMeta)
 
   return (
     <>
+      {publicPosterPreloads.map((url) => (
+        <link key={url} rel="preload" as="image" href={url} />
+      ))}
       {/* Drafts skip analytics, referral banner, and the post-claim overlay:
           user_id is null for anonymous drafts, the serial isn't claimed yet,
           and there's no claim event to animate. */}

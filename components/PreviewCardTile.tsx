@@ -22,6 +22,7 @@ interface PreviewCardTileProps {
   cropThumbnail?: boolean
   thumbnailCandidates?: string[]
   isPublicView?: boolean
+  index?: number
 }
 
 export default function PreviewCardTile({
@@ -32,9 +33,12 @@ export default function PreviewCardTile({
   cropThumbnail = false,
   thumbnailCandidates = [],
   isPublicView = false,
+  index = 999,
 }: PreviewCardTileProps) {
   const candidates = thumbnailCandidates.length > 0 ? thumbnailCandidates : thumbnailUrl ? [thumbnailUrl] : []
   const thumbSrc = candidates[0] || thumbnailUrl
+  const isPriorityPoster = isPublicView && index < 10
+  const posterDecoding = isPublicView && index < 6 ? 'sync' : 'async'
   // When every candidate 404s, the <img> would otherwise sit as a broken
   // element on a transparent tile — reads as an empty rectangle. Flip to
   // the no-thumbnail glass card so the tile still shows title + provider.
@@ -60,9 +64,9 @@ export default function PreviewCardTile({
             className={isPublicView
               ? `${cropThumbnail ? 'fp-resting-video-media' : 'absolute inset-0 w-full h-full object-cover'} fp-public-poster`
               : `${cropThumbnail ? 'fp-resting-video-media' : 'absolute inset-0 w-full h-full object-cover'} transition-opacity duration-700 ease-out ${loaded ? 'opacity-100' : 'opacity-0'}`}
-            loading="eager"
-            fetchPriority="high"
-            decoding="async"
+            loading={isPriorityPoster ? 'eager' : 'lazy'}
+            fetchPriority={isPriorityPoster ? 'high' : 'auto'}
+            decoding={posterDecoding}
             referrerPolicy="no-referrer"
             ref={(img) => {
               if (img?.complete && img.naturalWidth) {
