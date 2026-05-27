@@ -10,6 +10,9 @@ import ReferralBanner from '@/components/ReferralBanner'
 import ClaimOverlay from '@/components/ClaimOverlay'
 import PublicPage from './PublicPage'
 import { withPublicTileGeometry } from '@/lib/public-tile-geometry'
+import { transformImageUrl } from '@/lib/image'
+
+const VIDEO_ASSET_RE = /\.(mp4|mov|webm|m4v|3gp|3gpp|mkv)($|\?)/i
 
 function collectPublicPosterPreloads(
   rooms: Array<{ content: any[] }>,
@@ -23,12 +26,14 @@ function collectPublicPosterPreloads(
   const urls: string[] = []
 
   for (const item of ordered) {
-    const url =
+    const rawUrl =
       item?.thumbnail_url_override ||
       item?.thumbnail_url_hq ||
       item?.thumbnail_url ||
       containerMeta[item?.id]?.firstThumb ||
-      (item?.type === 'image' || item?.type === 'video' ? item?.url : null)
+      (item?.type === 'image' ? item?.url : null)
+    if (!rawUrl || VIDEO_ASSET_RE.test(rawUrl)) continue
+    const url = transformImageUrl(rawUrl) || rawUrl
     if (!url || seen.has(url)) continue
     seen.add(url)
     urls.push(url)
