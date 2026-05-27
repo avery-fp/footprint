@@ -345,6 +345,21 @@ input:-webkit-autofill:focus {
   will-change: opacity, filter;
 }
 
+.fp-public-horizontal-tile {
+  height: var(--fp-rail-height-desktop);
+}
+
+@media (max-width: 767px) {
+  .fp-public-horizontal-tile {
+    height: var(--fp-rail-height-mobile);
+  }
+
+  .fp-public-collection-fit-tile {
+    max-width: calc(100vw - 32px);
+    max-height: min(var(--fp-rail-height-mobile), var(--fp-viewport-fit-height));
+  }
+}
+
 @keyframes fpPosterMaterialSettle {
   from {
     opacity: 0.975;

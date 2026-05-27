@@ -9,6 +9,7 @@ import EventTracker from '@/components/EventTracker'
 import ReferralBanner from '@/components/ReferralBanner'
 import ClaimOverlay from '@/components/ClaimOverlay'
 import PublicPage from './PublicPage'
+import { withPublicTileGeometry } from '@/lib/public-tile-geometry'
 
 function collectPublicPosterPreloads(
   rooms: Array<{ content: any[] }>,
@@ -113,6 +114,7 @@ export default async function FootprintPage({ params }: Props) {
   if (!result) notFound()
 
   const { footprint, content, rooms: roomsFlat, containerMeta } = result
+  const contentWithGeometry = content.map(withPublicTileGeometry)
 
   // Public page expects rooms with their content already grouped in.
   // Tiles with room_id=null (orphans — typically uploads that landed before
@@ -126,7 +128,7 @@ export default async function FootprintPage({ params }: Props) {
     roomsFlat.find(r => r.name && r.name.trim().length > 0)?.id ?? null
   const rooms = roomsFlat.map(room => ({
     ...room,
-    content: content.filter(item =>
+    content: contentWithGeometry.filter(item =>
       item.room_id === room.id ||
       (room.id === orphanTargetRoomId && !item.room_id)
     ),
@@ -142,7 +144,7 @@ export default async function FootprintPage({ params }: Props) {
   const pageUrl = `https://footprint.onl/${params.slug}`
   const publicPosterPreloads = ownerView
     ? []
-    : collectPublicPosterPreloads(rooms, content, containerMeta)
+    : collectPublicPosterPreloads(rooms, contentWithGeometry, containerMeta)
 
   return (
     <>
@@ -165,7 +167,7 @@ export default async function FootprintPage({ params }: Props) {
       )}
       <PublicPage
         footprint={footprint}
-        content={content}
+        content={contentWithGeometry}
         rooms={rooms}
         theme={theme}
         serial={serial}

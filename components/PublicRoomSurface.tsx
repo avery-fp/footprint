@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import UnifiedTile from '@/components/UnifiedTile'
 import { getCollectionRenderRadius, shouldRenderCollectionTile } from '@/lib/collection-window'
-import { getGridLayout, tileAspectRatio, type RoomLayout } from '@/lib/grid-layouts'
-import { getGridClass, isVideoTile, resolveAspect } from '@/lib/media/aspect'
+import { getGridLayout, type RoomLayout } from '@/lib/grid-layouts'
 import { glassStyle } from '@/lib/glass'
 import { transformImageUrl } from '@/lib/image'
+import { getPublicTileGeometry, type PublicTileGeometry } from '@/lib/public-tile-geometry'
 
 interface Room {
   id: string
@@ -122,25 +122,7 @@ export default function PublicRoomSurface({
     transition: 'opacity 250ms ease-out, transform 350ms ease-out',
   }
 
-  const tileAspectCss = (item: any): string => {
-    const isMusic = item.type === 'spotify' || item.type === 'apple_music'
-    if (isMusic) {
-      return item.aspect === 'square' ? '1 / 1' : '9 / 2'
-    }
-
-    if (item.aspect === 'square' || item.aspect === 'wide' || item.aspect === 'tall' || item.aspect === 'portrait') {
-      return tileAspectRatio(item.aspect)
-    }
-    const resolved = resolveAspect(item.aspect, item.type, item.url)
-    if (resolved === 'square' || resolved === 'wide' || resolved === 'tall' || resolved === 'portrait') {
-      return tileAspectRatio(resolved)
-    }
-    const isEmbedVid = item.type === 'youtube' || item.type === 'vimeo' ||
-      item.url?.includes('youtube') || item.url?.includes('youtu.be')
-    if (isEmbedVid) return '16 / 9'
-    if (item.type === 'soundcloud') return '16 / 9'
-    return tileAspectRatio(resolved)
-  }
+  const tileGeometry = (item: any): PublicTileGeometry => item.public_geometry || getPublicTileGeometry(item)
 
   const getDepthStyle = (tileId: string): React.CSSProperties => {
     if (!expanded) return { transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease' }
@@ -175,7 +157,7 @@ export default function PublicRoomSurface({
             item={item}
             index={idx}
             size={item.size || 1}
-            aspect={resolveAspect(item.aspect, item.type, item.url)}
+            aspect={tileGeometry(item).resolvedAspect}
             mode="public"
             layout={roomLayout}
             isMobile={isMobile}
@@ -193,14 +175,9 @@ export default function PublicRoomSurface({
   }
 
   const renderMasonryTile = (item: any, idx: number) => {
-    const resolved = resolveAspect(item.aspect, item.type, item.url)
-    const gridClass = getGridClass(Number(item.size || 1), resolved, isVideoTile(item.type, item.url), item.type)
-    const fitClass =
-      ((item.type === 'spotify' || item.type === 'apple_music') && resolved === 'wide')
-        ? ' self-start'
-        : ''
+    const geometry = tileGeometry(item)
     return (
-      <div key={item.id} className={`relative overflow-hidden rounded-2xl ${gridClass}${fitClass}`}>
+      <div key={item.id} className={`relative overflow-hidden rounded-2xl ${geometry.gridClass}${geometry.fitClass}`}>
         {renderTileBody(item, idx)}
       </div>
     )
@@ -229,7 +206,7 @@ export default function PublicRoomSurface({
           }}
           index={idx}
           size={child.size || 1}
-          aspect={resolveAspect(child.aspect, child.type, child.url)}
+          aspect={tileGeometry(child).resolvedAspect}
           mode="public"
           layout="horizontal"
           isMobile={isMobile}
@@ -305,25 +282,12 @@ export default function PublicRoomSurface({
         onScroll={notifyCollectionScroll}
       >
         {items.map((item: any, idx: number) => {
-          const aspectCss = tileAspectCss(item)
-          const size = Number(item.size || 1)
-          const railHeight = size >= 3
-            ? (isMobile ? 'min(78vh, 600px)' : 'min(76vh, 700px)')
-            : size <= 1
-              ? (isMobile ? 'min(58vh, 420px)' : 'min(54vh, 500px)')
-              : (isMobile ? 'min(72vh, 540px)' : 'min(70vh, 640px)')
-          const [aspectWidth, aspectHeight] = aspectCss.split('/').map(part => Number(part.trim()))
-          const aspectRatioValue = Number.isFinite(aspectWidth) && Number.isFinite(aspectHeight) && aspectHeight > 0
-            ? aspectWidth / aspectHeight
-            : 1
-          const viewportFitHeight = `calc(${100 / aspectRatioValue}vw - ${32 / aspectRatioValue}px)`
-          const wrapperStyle: React.CSSProperties = {
-            height: railHeight,
-            aspectRatio: aspectCss,
-            ...(fitMobileViewport && isMobile ? {
-              maxWidth: 'calc(100vw - 32px)',
-              maxHeight: `min(${railHeight}, ${viewportFitHeight})`,
-            } : {}),
+          const geometry = tileGeometry(item)
+          const wrapperStyle: React.CSSProperties & Record<string, string> = {
+            '--fp-rail-height-mobile': geometry.railHeightMobile,
+            '--fp-rail-height-desktop': geometry.railHeightDesktop,
+            '--fp-viewport-fit-height': geometry.viewportFitHeight,
+            aspectRatio: geometry.aspectCss,
           }
           const shouldMountTile = fitMobileViewport
             ? shouldRenderCollectionTile(idx, items.length, collectionActiveIndex, collectionRenderRadius)
@@ -331,7 +295,7 @@ export default function PublicRoomSurface({
           return (
             <div
               key={item.id}
-              className={getGridLayout('horizontal').tileClass}
+              className={`${getGridLayout('horizontal').tileClass} fp-public-horizontal-tile${fitMobileViewport ? ' fp-public-collection-fit-tile' : ''}`}
               style={wrapperStyle}
               data-collection-child-id={fitMobileViewport ? item.id : undefined}
             >

@@ -31,9 +31,9 @@ describe('isYouTubePlayingMessage', () => {
 })
 
 describe('mobile youtube prewarm contract', () => {
-  it('prewarms nearby youtube before activation on coarse pointers', () => {
-    expect(shouldPrewarmYouTubePlayer('youtube', true, true)).toBe(true)
-    expect(shouldMountYouTubePlayer('youtube', false, true, true)).toBe(true)
+  it('does not prewarm youtube before explicit activation', () => {
+    expect(shouldPrewarmYouTubePlayer('youtube', true, true)).toBe(false)
+    expect(shouldMountYouTubePlayer('youtube', false, true, true)).toBe(false)
   })
 
   it('mounts youtube after explicit activation', () => {

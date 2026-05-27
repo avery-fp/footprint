@@ -81,6 +81,10 @@ interface PublicPageProps {
   wantsEditOverlay?: boolean
 }
 
+function firstVisibleRoomId(rooms: Room[]): string | null {
+  return rooms.find(r => r.name && r.name.trim().length > 0)?.id ?? null
+}
+
 // Room subtitles removed — the rooms speak for themselves
 // Wallpaper filter + overlay per room live in lib/roomAtmosphere.ts so
 // the editor and public render the same room with the same atmosphere.
@@ -152,15 +156,14 @@ function OwnerDndFrame({
 }
 
 export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl, isDraft, isOwnerHinted = false, containerMeta = {}, ownerEmail = null, wantsEditOverlay = false }: PublicPageProps) {
-  const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
+  const [activeRoomId, setActiveRoomId] = useState<string | null>(() => firstVisibleRoomId(rooms))
 
   // Default to first room
   useEffect(() => {
-    if (activeRoomId === null && rooms.length > 0) {
-      const visible = rooms.filter(r => r.name && r.name.trim().length > 0)
-      if (visible.length > 0) setActiveRoomId(visible[0].id)
-    }
-  }, [rooms])
+    const first = firstVisibleRoomId(rooms)
+    if (activeRoomId === null && first) setActiveRoomId(first)
+    else if (activeRoomId && !rooms.some(r => r.id === activeRoomId)) setActiveRoomId(first)
+  }, [activeRoomId, rooms])
 
   // wallpaperLoaded is the load-fade latch; reset effects live alongside
   // wallpaperUrlLocal further down so prop changes and optimistic owner
