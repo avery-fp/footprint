@@ -39,6 +39,8 @@ interface PublicRoomSurfaceProps {
   collectionChildren: any[]
   loadingChildren: boolean
   expandedContainerLabel: string
+  canEditCollections?: boolean
+  onEditCollections?: () => void
   expand: (id: string) => void
   collapse: () => void
   registerRef: (id: string, el: HTMLDivElement | null) => void
@@ -62,6 +64,8 @@ export default function PublicRoomSurface({
   collectionChildren,
   loadingChildren,
   expandedContainerLabel,
+  canEditCollections = false,
+  onEditCollections,
   expand,
   collapse,
   registerRef,
@@ -412,19 +416,34 @@ export default function PublicRoomSurface({
                 >
                   {expandedContainerLabel}
                 </span>
-                <button
-                  className="w-8 h-8 flex items-center justify-center rounded-full transition-all touch-manipulation flex-shrink-0 ml-3 hover:bg-white/[0.08] hover:border-white/[0.12]"
-                  style={{
-                    background: 'rgba(255,255,255,0.03)',
-                    border: '1px solid rgba(255,255,255,0.06)',
-                  }}
-                  onClick={collapse}
-                  aria-label="Close container"
-                >
-                  <svg className="w-3.5 h-3.5 text-white/30" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                  {canEditCollections && (
+                    <button
+                      className="h-8 px-3 flex items-center justify-center rounded-full transition-all touch-manipulation font-mono text-[11px] text-white/40 hover:text-white/70 hover:bg-white/[0.08] hover:border-white/[0.12]"
+                      style={{
+                        background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid rgba(255,255,255,0.06)',
+                      }}
+                      onClick={onEditCollections}
+                      aria-label="Edit collection"
+                    >
+                      edit
+                    </button>
+                  )}
+                  <button
+                    className="w-8 h-8 flex items-center justify-center rounded-full transition-all touch-manipulation hover:bg-white/[0.08] hover:border-white/[0.12]"
+                    style={{
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid rgba(255,255,255,0.06)',
+                    }}
+                    onClick={collapse}
+                    aria-label="Close container"
+                  >
+                    <svg className="w-3.5 h-3.5 text-white/30" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               </div>
 
               <div

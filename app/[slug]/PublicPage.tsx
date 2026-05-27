@@ -2067,6 +2067,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             collectionChildren={localChildren}
             loadingChildren={loadingChildren}
             expandedContainerLabel={expandedContainerLabel}
+            canEditCollections={isOwner}
+            onEditCollections={() => setEditorMode(true)}
             expand={expand}
             collapse={collapse}
             registerRef={registerRef}
@@ -2322,7 +2324,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 </div>
 
                 {/* Owner-only add URL footer */}
-                {isOwner && (
+                {isEditorActive && (
                   <div
                     className="pointer-events-auto flex-shrink-0 flex items-center gap-2 px-4 py-3 relative z-[2]"
                     style={{
