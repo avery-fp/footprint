@@ -140,6 +140,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const [isVideoPlaying, setIsVideoPlaying] = useState(false)
   const [isVideoError, setIsVideoError] = useState(false)
   const [isVideoMuted, setIsVideoMuted] = useState(true)
+  const [isNativeVideoActivated, setIsNativeVideoActivated] = useState(false)
   // Decoder cap: only autoplay when ≥50% visible. See videoRef effect below.
   const [isVideoPlayable, setIsVideoPlayable] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -188,9 +189,9 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   useEffect(() => {
     const v = videoRef.current
     if (!v) return
-    if (isVideoPlayable) v.play().catch(() => {})
+    if (isVideoPlayable || isNativeVideoActivated) v.play().catch(() => {})
     else v.pause()
-  }, [isVideoPlayable])
+  }, [isVideoPlayable, isNativeVideoActivated])
 
   const stopCardAudio = useCallback(() => {
     if (content.type === 'youtube') {
@@ -214,6 +215,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     if (video) {
       audioManager.silenceNativeMedia(video)
       setIsVideoMuted(true)
+      setIsNativeVideoActivated(false)
     }
   }, [content.type])
 
@@ -251,10 +253,12 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     const video = videoRef.current
     if (!video) return
     if (video.muted) {
+      setIsNativeVideoActivated(true)
       audioManager.playNative(audioIdRef.current, video)
       setIsVideoMuted(false)
       video.play().catch(() => {})
     } else {
+      setIsNativeVideoActivated(false)
       audioManager.release(audioIdRef.current)
       audioManager.silenceNativeMedia(video)
       setIsVideoMuted(true)
@@ -659,7 +663,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               ref={videoRef}
               src={videoSrc}
               muted={isVideoMuted}
-              autoPlay={isVideoPlayable}
+              autoPlay={isVideoPlayable || isNativeVideoActivated}
               loop
               playsInline
               preload="metadata"

@@ -109,6 +109,7 @@ function VideoTile({ url, id }: { url: string; id: string }) {
   // across all video surfaces so mobile doesn't accumulate permanent chrome.
   const [chipRevealed, setChipRevealed] = useState(false)
   const [isMuted, setIsMuted] = useState(true)
+  const [isUserActivated, setIsUserActivated] = useState(false)
   const chipFadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const audioIdRef = useRef(`unified-video-${id}`)
   const invocationPointRef = useRef<InvocationPoint | null>(null)
@@ -151,9 +152,9 @@ function VideoTile({ url, id }: { url: string; id: string }) {
   useEffect(() => {
     const v = videoRef.current
     if (!v) return
-    if (isPlayable) v.play().catch(() => {})
+    if (isPlayable || isUserActivated) v.play().catch(() => {})
     else v.pause()
-  }, [isPlayable])
+  }, [isPlayable, isUserActivated])
 
   useEffect(() => {
     const audioId = audioIdRef.current
@@ -172,15 +173,21 @@ function VideoTile({ url, id }: { url: string; id: string }) {
     const v = videoRef.current
     if (!v) return
     if (v.muted) {
+      if (!v.getAttribute('src')) {
+        v.src = url.includes('#') ? url : `${url}#t=0.1`
+      }
+      setIsInView(true)
+      setIsUserActivated(true)
       audioManager.playNative(audioIdRef.current, v)
       setIsMuted(false)
       v.play().catch(() => {})
     } else {
+      setIsUserActivated(false)
       audioManager.release(audioIdRef.current)
       audioManager.silenceNativeMedia(v)
       setIsMuted(true)
     }
-  }, [])
+  }, [url])
 
   const handleInvocationPointerDown = useCallback((e: PointerEvent<HTMLElement>) => {
     e.stopPropagation()
