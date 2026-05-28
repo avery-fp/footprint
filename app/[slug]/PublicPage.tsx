@@ -1859,11 +1859,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             right: '16px',
             width: 36,
             height: 36,
-            background: 'rgba(0,0,0,0.08)',
-            backdropFilter: 'blur(8px) saturate(110%)',
-            WebkitBackdropFilter: 'blur(8px) saturate(110%)',
-            border: '1px solid rgba(255,255,255,0.035)',
-            color: 'rgba(255,255,255,0.72)',
+            background: 'transparent',
+            backdropFilter: 'none',
+            WebkitBackdropFilter: 'none',
+            border: '1px solid transparent',
+            color: 'rgba(255,255,255,0.84)',
             borderRadius: 999,
             cursor: 'pointer',
             userSelect: 'none',
@@ -2286,8 +2286,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                   <button
                     className="w-8 h-8 flex items-center justify-center rounded-full transition-all touch-manipulation flex-shrink-0 ml-3 hover:bg-white/[0.04] hover:border-white/[0.06]"
                     style={{
-                      background: 'rgba(255,255,255,0.01)',
-                      border: '1px solid rgba(255,255,255,0.025)',
+                      background: 'transparent',
+                      border: '1px solid transparent',
                     }}
                     onClick={collapse}
                     aria-label="Close container"
