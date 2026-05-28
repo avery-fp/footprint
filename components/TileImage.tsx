@@ -144,9 +144,6 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
             transition: 'opacity 180ms ease',
           }}
         />
-        <div data-mute-dot className="absolute bottom-2.5 right-2.5 pointer-events-none transition-opacity duration-300" style={{ opacity: videoMuted ? 0.35 : 0.9 }}>
-          <div className="w-2 h-2 rounded-full" style={{ background: '#fff' }} />
-        </div>
       </div>
     )
   }
