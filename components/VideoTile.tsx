@@ -352,11 +352,6 @@ export default function VideoTile({ src, playbackUrl, posterUrl, status, onWides
                 </div>
               )}
 
-              {/* Unmuted indicator dot — tile mode only */}
-              {!isMuted && isReady && !isExpanded && (
-                <div className="absolute bottom-2 right-2 w-1.5 h-1.5 rounded-full bg-white/60" />
-              )}
-
               {/* Scrub bar — theatre/fullscreen only */}
               {isExpanded && (
                 <VideoScrubBar videoRef={videoRef} />
