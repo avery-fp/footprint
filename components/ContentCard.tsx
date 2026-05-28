@@ -692,16 +692,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 transition: 'opacity 180ms ease',
               }}
             />
-            {/* Mute state dot — lower right */}
-            <div
-              className="absolute bottom-2.5 right-2.5 pointer-events-none transition-opacity duration-300"
-              style={{ opacity: isVideoMuted ? 0.35 : 0.9 }}
-            >
-              <div
-                className="w-2 h-2 rounded-full"
-                style={{ background: isVideoMuted ? 'rgba(255,255,255,0.6)' : '#fff' }}
-              />
-            </div>
           </>
         ) : (
           <div className={`w-full ${aspectClass || 'aspect-video'}`} style={{ background: 'transparent' }} />

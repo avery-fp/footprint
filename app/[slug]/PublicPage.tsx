@@ -1823,10 +1823,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
             right: '64px',
             background: 'rgba(255,255,255,0.05)',
-            backdropFilter: 'blur(28px) saturate(140%)',
-            WebkitBackdropFilter: 'blur(28px) saturate(140%)',
-            border: '1px solid rgba(255,255,255,0.06)',
-            color: 'rgba(255,255,255,0.62)',
+            backdropFilter: 'blur(20px) saturate(120%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(120%)',
+            border: '1px solid rgba(255,255,255,0.035)',
+            color: 'rgba(255,255,255,0.50)',
             borderRadius: 999,
             width: 36,
             height: 36,
@@ -1859,16 +1859,16 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             right: '16px',
             width: 36,
             height: 36,
-            background: 'rgba(0,0,0,0.34)',
-            backdropFilter: 'blur(16px) saturate(140%)',
-            WebkitBackdropFilter: 'blur(16px) saturate(140%)',
-            border: '1px solid rgba(255,255,255,0.14)',
-            color: 'rgba(255,255,255,0.92)',
+            background: 'rgba(0,0,0,0.08)',
+            backdropFilter: 'blur(8px) saturate(110%)',
+            WebkitBackdropFilter: 'blur(8px) saturate(110%)',
+            border: '1px solid rgba(255,255,255,0.035)',
+            color: 'rgba(255,255,255,0.72)',
             borderRadius: 999,
             cursor: 'pointer',
             userSelect: 'none',
             WebkitUserSelect: 'none',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10)',
+            boxShadow: 'none',
           }}
         >
           {editorMode ? (
@@ -2273,7 +2273,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                     height: '52px',
                     ...glassStyle,
                     border: 'none',
-                    borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    borderBottom: '1px solid rgba(255,255,255,0.025)',
                     borderRadius: 0,
                   }}
                 >
@@ -2284,10 +2284,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                     {expandedContainerLabel}
                   </span>
                   <button
-                    className="w-8 h-8 flex items-center justify-center rounded-full transition-all touch-manipulation flex-shrink-0 ml-3 hover:bg-white/[0.08] hover:border-white/[0.12]"
+                    className="w-8 h-8 flex items-center justify-center rounded-full transition-all touch-manipulation flex-shrink-0 ml-3 hover:bg-white/[0.04] hover:border-white/[0.06]"
                     style={{
-                      background: 'rgba(255,255,255,0.03)',
-                      border: '1px solid rgba(255,255,255,0.06)',
+                      background: 'rgba(255,255,255,0.01)',
+                      border: '1px solid rgba(255,255,255,0.025)',
                     }}
                     onClick={collapse}
                     aria-label="Close container"
@@ -2301,7 +2301,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 {/* Child tiles — horizontal rail fills viewport below header */}
                 <div
                   className="flex-1 flex items-center pointer-events-auto overflow-hidden relative z-[1]"
-                  style={{ padding: '12px 0', overscrollBehavior: 'contain' }}
+                  style={{ padding: '18px 0 6px', overscrollBehavior: 'contain' }}
                 >
                   {localChildren.length > 0 ? (
                     isEditorActive ? (
@@ -2330,7 +2330,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                     style={{
                       ...glassStyle,
                       border: 'none',
-                      borderTop: '1px solid rgba(255,255,255,0.06)',
+                      borderTop: '1px solid rgba(255,255,255,0.025)',
                       borderRadius: 0,
                     }}
                   >
