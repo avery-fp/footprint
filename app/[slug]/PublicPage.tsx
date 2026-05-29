@@ -2310,7 +2310,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                         onDragEnd={handleChildDragEnd}
                       >
                         <SortableContext items={localChildren.map((item: any) => item.id)} strategy={horizontalListSortingStrategy}>
-                          {renderHorizontalTiles(localChildren, renderCollectionTileBody, renderCollectionOwnerControls, false, true, true)}
+                          {renderHorizontalTiles(localChildren, renderCollectionTileBody, renderCollectionOwnerControls, false, false, true)}
                         </SortableContext>
                       </OwnerDndFrame>
                     ) : (
