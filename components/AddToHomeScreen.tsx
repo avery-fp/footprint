@@ -54,7 +54,7 @@ function ShareIcon() {
 
 // ── Component ──────────────────────────────────────────────────
 
-export default function AddToHomeScreen() {
+export default function AddToHomeScreen({ enabled = true }: { enabled?: boolean }) {
   const [mounted, setMounted] = useState(false)
   const [dismissed, setDismissed] = useState(false)
   const [installed, setInstalled] = useState(false)
@@ -102,7 +102,7 @@ export default function AddToHomeScreen() {
     const installedHandler = () => {
       localStorage.setItem('fp_installed', 'true')
       setInstalled(true)
-      toast('Your deed is placed.', {
+      toast('Your door is pinned.', {
         style: {
           background: '#111111',
           color: '#F5F5F5',
@@ -130,7 +130,7 @@ export default function AddToHomeScreen() {
         localStorage.setItem('fp_ios_a2hs_seen', 'true')
         setShowModal(false)
         setDismissed(true)
-        toast('Your deed is placed.', {
+        toast('Your door is pinned.', {
           style: {
             background: '#111111',
             color: '#F5F5F5',
@@ -175,7 +175,7 @@ export default function AddToHomeScreen() {
   }, [platform])
 
   // ── Don't render on server, when installed, dismissed, or on desktop ──
-  if (!mounted || installed || dismissed || platform === 'unsupported') return null
+  if (!enabled || !mounted || installed || dismissed || platform === 'unsupported') return null
 
   return (
     <>
@@ -205,7 +205,7 @@ export default function AddToHomeScreen() {
           boxSizing: 'border-box',
         }}
       >
-        <ShareIcon /> Add to Home Screen
+        <ShareIcon /> pin the door
       </button>
 
       {/* ── Modal backdrop + card ── */}
@@ -245,7 +245,7 @@ export default function AddToHomeScreen() {
                   margin: 0,
                   letterSpacing: '-0.01em',
                 }}>
-                  Add Footprint to your Home Screen
+                  Pin your Footprint
                 </p>
                 <p style={{
                   color: 'rgba(255, 255, 255, 0.4)',
@@ -255,7 +255,7 @@ export default function AddToHomeScreen() {
                   margin: '16px 0 0 0',
                 }}>
                   <ShareIcon />
-                  Tap Share, then &lsquo;Add to Home Screen&rsquo;
+                  Tap Share, then &lsquo;Add to Home Screen&rsquo;. This pins your door.
                 </p>
               </>
             ) : (
@@ -269,7 +269,7 @@ export default function AddToHomeScreen() {
                   margin: 0,
                   letterSpacing: '-0.01em',
                 }}>
-                  Add Footprint to your Home Screen
+                  Pin your Footprint
                 </p>
                 <p style={{
                   color: 'rgba(255, 255, 255, 0.4)',
@@ -278,7 +278,7 @@ export default function AddToHomeScreen() {
                   lineHeight: 1.6,
                   margin: '16px 0 0 0',
                 }}>
-                  Use your browser menu to add to Home Screen
+                  Use your browser menu to pin the door.
                 </p>
               </>
             )}

@@ -19,6 +19,7 @@ import OwnerActionBar from '@/components/OwnerActionBar'
 import OwnerTileSheet from '@/components/OwnerTileSheet'
 import RoomLockOverlay from '@/components/RoomLockOverlay'
 import EditAccessScreen from '@/components/EditAccessScreen'
+import AddToHomeScreen from '@/components/AddToHomeScreen'
 import { uploadWithProgress as uploadShared, resizeImage as resizeShared, detectImageAspect as detectAspectShared } from '@/lib/upload'
 import { getGridLayout, tileAspectRatio, LAYOUT_LABELS, type RoomLayout } from '@/lib/grid-layouts'
 import LayoutToggle from '@/components/LayoutToggle'
@@ -1785,6 +1786,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         onNavigateToTile={handleTileNavigate}
         onNavigateToRoom={goToRoom}
       />
+
+      <AddToHomeScreen enabled={!isDraft && isOwner && !expanded} />
 
       {/* Draft banner */}
       {isDraft && (
