@@ -69,6 +69,24 @@ export async function POST(request: NextRequest) {
       }
     } else {
       parsed = await parseURL(url!)
+
+      // Hard guard: Letterboxd film/share URLs must never fall through as generic links.
+      // This route is the live add-link path for room links.
+      if (url && parsed.type === 'link' && /(letterboxd\.com\/film\/|boxd\.it\/)/i.test(url)) {
+        const cleanUrl = url.trim()
+        const filmSlug =
+          cleanUrl.match(/letterboxd\.com\/film\/([a-zA-Z0-9_-]+)/i)?.[1]
+          || cleanUrl.match(/boxd\.it\/([a-zA-Z0-9]+)/i)?.[1]
+          || 'letterboxd'
+
+        parsed = {
+          ...parsed,
+          type: 'letterboxd',
+          url: cleanUrl.startsWith('http') ? cleanUrl : `https://${cleanUrl}`,
+          external_id: filmSlug,
+          title: filmSlug.replace(/-/g, ' '),
+        }
+      }
     }
 
     // Determine which table to use based on type
