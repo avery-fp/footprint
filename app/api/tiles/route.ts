@@ -266,7 +266,7 @@ export async function POST(request: NextRequest) {
                   if (ogTitle) enrichedTitle = ogTitle.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
                   const ogDesc = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i)?.[1]
                     || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:description["']/i)?.[1]
-                  if (ogDesc) ghostArtist = ogDesc.slice(0, 100)
+                  if (ogDesc && parsed.type !== 'letterboxd') ghostArtist = ogDesc.slice(0, 100)
                 }
               } catch { /* silent */ }
             }

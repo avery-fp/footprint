@@ -480,7 +480,7 @@ export default function UnifiedTile({
               url={item.url}
               thumbnailUrl={previewThumbnailCandidates[0] || item.thumbnail_url_override || item.thumbnail_url_hq || item.thumbnail_url}
               title={previewMeta.title}
-              subtitle={previewMeta.creator}
+              subtitle={item.type === 'letterboxd' ? null : previewMeta.creator}
               cropThumbnail={shouldCropPreviewThumbnail(item.type, item.url, item.media_kind)}
               thumbnailCandidates={previewThumbnailCandidates}
               isPublicView={mode === 'public'}
