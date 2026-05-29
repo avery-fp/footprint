@@ -127,12 +127,12 @@ export async function POST(
   return NextResponse.json({
     child: {
       id: row.id,
-      type: 'link',
+      type: row.platform || parsed.type,
       url: row.url,
       title: row.title,
-      description: null,
-      thumbnail_url: null,
-      embed_html: null,
+      description: parsed.description,
+      thumbnail_url: row.thumbnail || parsed.thumbnail_url,
+      embed_html: parsed.embed_html,
       position: row.position,
       size: row.size || 1,
       aspect: row.aspect || null,
