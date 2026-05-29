@@ -122,6 +122,21 @@ describe('parseURL', () => {
     })
   })
 
+  describe('Letterboxd detection', () => {
+    it('parses Letterboxd film URLs', async () => {
+      const result = await parseURL('https://letterboxd.com/film/open-your-eyes/')
+      expect(result.type).toBe('letterboxd')
+      expect(result.external_id).toBe('open-your-eyes')
+      expect(result.title).toBe('Open Your Eyes')
+    })
+
+    it('parses official Letterboxd share URLs', async () => {
+      const result = await parseURL('https://boxd.it/27TU')
+      expect(result.type).toBe('letterboxd')
+      expect(result.external_id).toBe('27TU')
+    })
+  })
+
   describe('generic link fallback', () => {
     it('falls back to link for unknown URLs', async () => {
       const result = await parseURL('https://example.com/some-page')

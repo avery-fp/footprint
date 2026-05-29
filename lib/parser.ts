@@ -248,10 +248,33 @@ async function parseByType(type: ContentType, url: string, match: RegExpMatchArr
     case 'vimeo': return parseVimeo(url, match)
     case 'soundcloud': return parseSoundCloud(url, match)
     case 'bandcamp': return parseBandcamp(url, match)
+    case 'letterboxd': return parseLetterboxd(url, match)
     case 'video': return parseVideo(url)
     case 'image': return parseImage(url)
     case 'payment': return parsePaymentLink(url)
     default: return parseGenericLink(url)
+  }
+}
+
+// ============================================
+// LETTERBOXD
+// ============================================
+function parseLetterboxd(url: string, match: RegExpMatchArray): ParsedContent {
+  const slug = match[1] || 'letterboxd'
+  const isShort = /boxd\.it\//i.test(url)
+  const title = isShort
+    ? 'Letterboxd'
+    : slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+
+  return {
+    type: 'letterboxd',
+    variant: 'post',
+    url,
+    external_id: slug,
+    title,
+    description: null,
+    thumbnail_url: null,
+    embed_html: null,
   }
 }
 
