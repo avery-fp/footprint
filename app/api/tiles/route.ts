@@ -342,9 +342,9 @@ export async function POST(request: NextRequest) {
           // 'ghost' mode is for audio platforms only — a music video on
           // YouTube is still a video and renders with its thumbnail visible.
           ...(needsEnrich ? {
-            render_mode: ['youtube', 'vimeo'].includes(parsed.type)
-              ? identityRenderMode
-              : 'ghost',
+            render_mode: ['spotify', 'apple_music', 'soundcloud'].includes(parsed.type)
+              ? 'ghost'
+              : identityRenderMode,
             artist: ghostArtist,
             thumbnail_url_hq: ghostThumbnailHq,
             media_id: ghostMediaId,
