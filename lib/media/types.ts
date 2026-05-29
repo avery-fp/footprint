@@ -80,7 +80,7 @@ export const PROVIDER_RENDER_DEFAULTS: Record<
   vimeo:          { preferredMode: 'embed',        fallbackMode: 'preview_card' },
   bandcamp:       { preferredMode: 'embed',        fallbackMode: 'preview_card' },
   github:         { preferredMode: 'preview_card', fallbackMode: 'link_only'    },
-  letterboxd:     { preferredMode: 'preview_card', fallbackMode: 'link_only'    },
+  letterboxd:     { preferredMode: 'link_only',    fallbackMode: 'link_only'    },
   uploaded_video: { preferredMode: 'native_video', fallbackMode: 'preview_card' },
   generic:        { preferredMode: 'preview_card', fallbackMode: 'link_only'    },
 }
