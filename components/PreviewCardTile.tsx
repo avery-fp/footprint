@@ -118,7 +118,26 @@ export default function PreviewCardTile({
     )
   }
 
-  // ── Without thumbnail: invisible reserved link surface ──
+  const fallbackHost = (() => {
+    try {
+      return new URL(url).hostname.replace(/^www\./, '')
+    } catch {
+      return 'link'
+    }
+  })()
+
+  const fallbackPath = (() => {
+    try {
+      const path = new URL(url).pathname.split('/').filter(Boolean).pop()
+      return path ? path.replace(/[-_]/g, ' ') : null
+    } catch {
+      return null
+    }
+  })()
+
+  const fallbackTitle = title || fallbackPath || fallbackHost
+
+  // ── Without thumbnail: visible minimum link tile ──
   return (
     <a
       href={url}
@@ -126,10 +145,25 @@ export default function PreviewCardTile({
       rel="noopener noreferrer"
       className="block w-full h-full flex flex-col items-center justify-center p-4"
       style={{
-        background: 'transparent',
+        background: 'rgba(255,255,255,0.035)',
         borderRadius: 'inherit',
+        border: '1px solid rgba(255,255,255,0.045)',
       }}
     >
+      <span
+        className="font-mono uppercase tracking-[0.22em] text-center text-white/35"
+        style={{ fontSize: '9px', lineHeight: 1.2 }}
+      >
+        {fallbackHost}
+      </span>
+      {fallbackTitle && fallbackTitle !== fallbackHost ? (
+        <span
+          className="mt-2 text-center text-white/65 line-clamp-2"
+          style={{ fontSize: '13px', fontWeight: 450, lineHeight: 1.25 }}
+        >
+          {fallbackTitle}
+        </span>
+      ) : null}
     </a>
   )
 }
