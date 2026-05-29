@@ -84,6 +84,10 @@ const PATTERNS: Record<string, { regex: RegExp; type: ContentType }[]> = {
   bandcamp: [
     { regex: /([a-zA-Z0-9-]+)\.bandcamp\.com\/(track|album)\/([a-zA-Z0-9-]+)/, type: 'bandcamp' },
   ],
+  letterboxd: [
+    { regex: /letterboxd\.com\/film\/([a-zA-Z0-9_-]+)\/?(?:\?.*)?$/, type: 'letterboxd' },
+    { regex: /boxd\.it\/([a-zA-Z0-9]+)\/?(?:\?.*)?$/, type: 'letterboxd' },
+  ],
   payment: [
     { regex: /buy\.stripe\.com\//, type: 'payment' },
     { regex: /checkout\.stripe\.com\//, type: 'payment' },
