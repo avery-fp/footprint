@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { parseURL } from '@/lib/parser'
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getEditAuth } from '@/lib/edit-auth'
@@ -94,15 +95,21 @@ export async function POST(
   ])
   const nextPosition = Math.max(libMax?.position ?? -1, linkMax?.position ?? -1) + 1
 
-  const title = titleFromUrl(normalizedUrl)
+  const parsed = await parseURL(normalizedUrl)
+  const title = parsed.title || titleFromUrl(normalizedUrl)
 
   const { data: row, error } = await supabase
     .from('links')
     .insert({
       serial_number: serialNumber,
-      url: normalizedUrl,
-      platform: 'link',
+      url: parsed.url || normalizedUrl,
+      platform: parsed.type,
       title,
+      thumbnail: parsed.thumbnail_url,
+      metadata: {
+        description: parsed.description,
+        embed_html: parsed.embed_html,
+      },
       position: nextPosition,
       parent_tile_id: tileId,
       size: 1,
