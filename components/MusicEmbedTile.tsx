@@ -116,7 +116,20 @@ export default function MusicEmbedTile({
   const [imgFailed, setImgFailed] = useState(false)
   const embed = parseEmbed(url)
   const showArtwork = !!image && !imgFailed
+  useEffect(() => {
+    return () => {
+      if (previewAudioRef.current) {
+        audioManager.silenceNativeMedia(previewAudioRef.current, true)
+        previewAudioRef.current = null
+      }
+    }
+  }, [])
+
   const tileIdRef = useRef(`music-${Math.random().toString(36).slice(2, 10)}`)
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null)
+  const previewPlayingRef = useRef(false)
+  const [resolvedPreviewUrl, setResolvedPreviewUrl] = useState<string | null>(null)
+  const [previewResolved, setPreviewResolved] = useState(false)
 
   const stopPlayback = useCallback(() => {
     setIsPlaying(false)
@@ -134,6 +147,94 @@ export default function MusicEmbedTile({
   if (!embed) {
     return <MusicFacade provider={provider} title={title} artist={artist} image={image} displayMode={displayMode} onImageError={() => setImgFailed(true)} />
   }
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function resolvePreview() {
+      try {
+        const res = await fetch('/api/music/resolve-preview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ artist: artist || '', title, url }),
+        })
+
+        const data = (await res.json()) as { previewUrl?: string | null }
+        if (cancelled) return
+
+        const nextPreviewUrl = data.previewUrl || null
+        setResolvedPreviewUrl(nextPreviewUrl)
+
+        if (previewAudioRef.current) {
+          audioManager.silenceNativeMedia(previewAudioRef.current, true)
+          previewAudioRef.current = null
+        }
+
+        if (nextPreviewUrl) {
+          const audio = new Audio(nextPreviewUrl)
+          audio.preload = 'auto'
+          audio.addEventListener('ended', () => {
+            previewPlayingRef.current = false
+            setIsPlaying(false)
+            previewAudioRef.current = null
+          })
+          previewAudioRef.current = audio
+        }
+
+        setPreviewResolved(true)
+      } catch {
+        if (!cancelled) {
+          setResolvedPreviewUrl(null)
+          setPreviewResolved(true)
+        }
+      }
+    }
+
+    resolvePreview()
+
+    return () => {
+      cancelled = true
+    }
+  }, [artist, title, url])
+
+  useEffect(() => {
+    const handlePreviewAudioClaim = (event: Event) => {
+      const claimedId = (event as CustomEvent<{ id?: string }>).detail?.id
+      if (claimedId !== tileIdRef.current) {
+        previewPlayingRef.current = false
+        setIsPlaying(false)
+      }
+    }
+
+    window.addEventListener('audio-claim', handlePreviewAudioClaim)
+    return () => window.removeEventListener('audio-claim', handlePreviewAudioClaim)
+  }, [])
+
+  const handleCoverActivate = useCallback((event: React.MouseEvent) => {
+    event.preventDefault()
+    event.stopPropagation()
+
+    if (previewPlayingRef.current && previewAudioRef.current) {
+      audioManager.stopNativePreview(tileIdRef.current)
+      previewPlayingRef.current = false
+      setIsPlaying(false)
+      return
+    }
+
+    if (!previewResolved) {
+      return
+    }
+
+    if (!resolvedPreviewUrl || !previewAudioRef.current) {
+      window.location.href = url
+      return
+    }
+
+    const audio = previewAudioRef.current
+    audioManager.playNativePreview(tileIdRef.current, audio)
+    previewPlayingRef.current = true
+    setIsPlaying(true)
+  }, [previewResolved, resolvedPreviewUrl, url])
 
   if (displayMode === 'player') {
     if (provider === 'spotify') {
@@ -190,6 +291,8 @@ export default function MusicEmbedTile({
       image={showArtwork ? image : null}
       displayMode="cover"
       href={url}
+      onClick={handleCoverActivate}
+      isPlaying={isPlaying}
       onImageError={() => setImgFailed(true)}
     />
   )
@@ -436,6 +539,7 @@ function MusicFacade({
   displayMode,
   isPlaying,
   href,
+  onClick,
   onImageError,
 }: {
   provider: MusicProvider
@@ -445,6 +549,7 @@ function MusicFacade({
   displayMode: MusicDisplayMode
   isPlaying?: boolean
   href?: string
+  onClick?: (event: React.MouseEvent) => void
   onImageError?: () => void
 }) {
   const providerLabel = provider === 'spotify' ? 'Spotify' : 'Apple Music'
@@ -458,7 +563,8 @@ function MusicFacade({
         rel="noreferrer"
         className="group relative block h-full w-full overflow-hidden fp-tile text-left"
         style={{ borderRadius: 'inherit', background: 'rgba(255,255,255,0.06)' }}
-        aria-label={`Open ${title}`}
+        aria-label={onClick ? `${isPlaying ? 'Pause' : 'Play'} ${title}` : `Open ${title}`}
+        onClick={onClick}
       >
         {showArtwork ? (
           // eslint-disable-next-line @next/next/no-img-element

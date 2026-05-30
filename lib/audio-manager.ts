@@ -13,6 +13,8 @@ export const AUDIO_AUTHORITY = {
 
 class AudioManager {
   private currentPlayingId: string | null = null
+  private currentPreviewId: string | null = null
+  private currentPreviewAudio: HTMLAudioElement | null = null
   private focusListenerInstalled = false
   private currentNativeId: string | null = null
   private currentProviderId: string | null = null
@@ -36,6 +38,13 @@ class AudioManager {
   }
 
   play(id: string) {
+    if (this.currentPreviewAudio && this.currentPreviewId !== id) {
+      this.currentPreviewAudio.pause()
+      this.currentPreviewAudio.currentTime = 0
+      this.currentPreviewAudio = null
+      this.currentPreviewId = null
+    }
+
     this.muteCallbacks.forEach((stopAudio, registeredId) => {
       if (registeredId !== id) {
         stopAudio()
@@ -63,6 +72,37 @@ class AudioManager {
     }
   }
 
+  playNativePreview(id: string, audio: HTMLAudioElement) {
+    this.play(id)
+
+    if (this.currentPreviewAudio && this.currentPreviewAudio !== audio) {
+      this.currentPreviewAudio.pause()
+      this.currentPreviewAudio.currentTime = 0
+    }
+
+    this.currentPreviewId = id
+    this.currentPreviewAudio = audio
+    audio.currentTime = 0
+    audio.muted = false
+    audio.volume = 0.85
+
+    void audio.play().catch((error) => {
+      console.error('[music-preview] audio.play failed', error)
+    })
+  }
+
+  stopNativePreview(id?: string) {
+    if (!this.currentPreviewAudio) return
+    if (id && this.currentPreviewId !== id) return
+
+    this.currentPreviewAudio.pause()
+    this.currentPreviewAudio.currentTime = 0
+    this.currentPreviewAudio = null
+    this.currentPreviewId = null
+
+    if (id) this.release(id)
+  }
+
   playNative(id: string, media: NativeMediaElement, targetVolume = AUDIO_AUTHORITY.nativeMediaVolume) {
     this.play(id)
     this.currentNativeId = id
@@ -71,6 +111,10 @@ class AudioManager {
     media.muted = false
     media.volume = Math.min(Number.isFinite(media.volume) ? media.volume : 0, 0.08)
     this.fadeTo(media, targetVolume)
+
+    void media.play().catch((error) => {
+      console.error('native media play failed', error)
+    })
   }
 
   silenceNativeMedia(media: NativeMediaElement, pause = false) {
