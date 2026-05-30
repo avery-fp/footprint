@@ -43,6 +43,10 @@ class AudioManager {
     })
     this.resetForeignMusicIframes(id)
     this.currentPlayingId = id
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('audio-claim', { detail: { id } }))
+    }
   }
 
   mute(id: string) {
