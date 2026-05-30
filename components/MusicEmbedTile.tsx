@@ -303,7 +303,7 @@ function MusicSurface({
   }, [isPlaying])
 
   const handleToggle = useCallback(() => {
-    if (provider === 'spotify') audioManager.activateProvider(tileId)
+    if (provider === 'spotify' || provider === 'apple_music') audioManager.activateProvider(tileId)
     if (!isPlaying) {
       onPlayingChange(true)
     }

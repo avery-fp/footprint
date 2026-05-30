@@ -231,7 +231,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }, [content.type, content.id, stopCardAudio])
 
   const handleActivate = () => {
-    if (['youtube', 'soundcloud', 'spotify'].includes(content.type)) {
+    if (['youtube', 'soundcloud', 'spotify', 'tiktok'].includes(content.type)) {
       audioManager.activateProvider(audioIdRef.current)
     }
     activatedRef.current = true
