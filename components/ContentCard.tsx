@@ -539,7 +539,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         title={title}
         artist={creator || undefined}
         image={thumbSrc}
-        displayMode={isWideMusic ? 'player' : 'cover'}
+        displayMode={content.type === 'spotify' ? 'player' : content.type === 'apple_music' ? 'cover' : isWideMusic ? 'player' : 'cover'}
       />
     )
   }

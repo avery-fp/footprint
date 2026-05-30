@@ -221,6 +221,11 @@ export default function MusicEmbedTile({
       return
     }
 
+    if (provider === 'spotify') {
+      window.location.href = url
+      return
+    }
+
     if (!previewResolved) {
       return
     }

@@ -561,7 +561,7 @@ export default function UnifiedTile({
           thumbnail_url_override={item.thumbnail_url_override || undefined}
           clip_start_ms={(item as any).clip_start_ms ?? undefined}
           clip_end_ms={(item as any).clip_end_ms ?? undefined}
-          displayMode={aspect === 'wide' || aspect === 'landscape' ? 'player' : 'cover'}
+          displayMode={item.type === 'spotify' ? 'player' : item.type === 'apple_music' ? 'cover' : aspect === 'wide' || aspect === 'landscape' ? 'player' : 'cover'}
         />
       </div>
     )

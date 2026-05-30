@@ -668,7 +668,7 @@ export default function OwnerTileSheet({
             and renders a fixed col/row-span footprint regardless of
             S/M/L. Surfacing the pills as clickable when they have no
             visible effect would be a dead control. */}
-        {!isVideo && (
+        {!isVideo && tile.type !== 'spotify' && tile.type !== 'apple_music' && (
           <div style={{ ...rowStyle, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
             <span style={rowLabel}>size</span>
             <div className="flex gap-2">
