@@ -1195,12 +1195,12 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     }
   }
 
-  // Per-pill render: no drop targets. Drag may only reorder within
-  // the active room — cross-room migration via drag was removed.
-  function RoomPillNode({ room }: { room: any }) {
+  // Per-pill render: in editor mode, room pills can be dragged to reorder rooms.
+  // Tile cross-room migration via drag remains removed.
+  function RoomPillNode({ room, index }: { room: any; index: number }) {
     const isActive = activeRoomId === room.id
     const isOpen = isOwner && editorMode && pillMenuOpenForId === room.id
-    // Room pills are NOT drop targets. Drag is reorder-within-room only.
+    // Room pill drag is room-order only. Tile drag does not target pills.
     return (
       <div
         className="relative flex items-center"
@@ -1233,6 +1233,52 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           />
         ) : (
           <button
+            draggable={isOwner && editorMode && !isOpen}
+            onDragStart={(e) => {
+              if (!isOwner || !editorMode) return
+              e.dataTransfer.setData('roomId', room.id)
+              e.dataTransfer.effectAllowed = 'move'
+            }}
+            onDragOver={(e) => {
+              if (!isOwner || !editorMode) return
+              e.preventDefault()
+            }}
+            onDrop={(e) => {
+              if (!isOwner || !editorMode) return
+              e.preventDefault()
+
+              const draggedId = e.dataTransfer.getData('roomId')
+              if (!draggedId || draggedId === room.id) return
+
+              const from = visibleRooms.findIndex((r) => r.id === draggedId)
+              const to = visibleRooms.findIndex((r) => r.id === room.id)
+              if (from < 0 || to < 0 || from === to) return
+
+              const nextVisible = [...visibleRooms]
+              const [moved] = nextVisible.splice(from, 1)
+              if (!moved) return
+              nextVisible.splice(to, 0, moved)
+
+              const orderedIds = nextVisible.map((r) => r.id)
+
+              setRoomsLocal((prev) => {
+                const byId = new Map(prev.map((r) => [r.id, r]))
+                const visibleSet = new Set(orderedIds)
+
+                const reorderedVisible = orderedIds
+                  .map((id, position) => {
+                    const existing = byId.get(id)
+                    return existing ? { ...existing, position } : null
+                  })
+                  .filter(Boolean) as Room[]
+
+                const hiddenRooms = prev
+                  .filter((r) => !visibleSet.has(r.id))
+                  .map((r, i) => ({ ...r, position: reorderedVisible.length + i }))
+
+                return [...reorderedVisible, ...hiddenRooms]
+              })
+            }}
             onClick={() => {
               if (isActive && isOwner && editorMode) {
                 setRenameValue(room.name)
@@ -2100,8 +2146,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               style={{ top: roomNavDocked ? 'calc(env(safe-area-inset-top, 0px) + 60px)' : 0 }}
             >
               <div className="flex max-w-full items-center gap-3 overflow-x-auto hide-scrollbar px-1 font-mono" data-no-wp-press>
-                {visibleRooms.map((room) => (
-                  <RoomPillNode key={room.id} room={room} />
+                {visibleRooms.map((room, index) => (
+                  <RoomPillNode key={room.id} room={room} index={index} />
                 ))}
 
                 {/* Tap-empty-after-last-pill — a quiet wide tap-target
