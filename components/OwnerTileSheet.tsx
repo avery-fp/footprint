@@ -647,21 +647,23 @@ export default function OwnerTileSheet({
         )}
 
         {/* Row 1 — shape. */}
-        <div style={(canSetWallpaper || showNoteRow || showThoughtRow) ? { ...rowStyle, borderTop: '1px solid rgba(255,255,255,0.06)' } : rowStyle}>
-          <span style={rowLabel}>shape</span>
-          <div className="flex gap-2">
-            {VISIBLE_SHAPES.map((s) => (
-              <button
-                key={s.key}
-                type="button"
-                onClick={() => handleShape(s.key)}
-                style={highlightedShape === s.key ? pillActive : pillBase}
-              >
-                {s.label}
-              </button>
-            ))}
+        {tile.type !== 'spotify' && tile.type !== 'apple_music' && (
+          <div style={(canSetWallpaper || showNoteRow || showThoughtRow) ? { ...rowStyle, borderTop: '1px solid rgba(255,255,255,0.06)' } : rowStyle}>
+            <span style={rowLabel}>shape</span>
+            <div className="flex gap-2">
+              {VISIBLE_SHAPES.map((s) => (
+                <button
+                  key={s.key}
+                  type="button"
+                  onClick={() => handleShape(s.key)}
+                  style={highlightedShape === s.key ? pillActive : pillBase}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Row 2 — size. Hidden for video tiles: the grid engine
             (lib/media/aspect.ts) ignores `size` on the video branch
