@@ -793,6 +793,18 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [footprint.username])
 
+  const persistRoomOrder = useCallback((orderedRooms: Room[]) => {
+    orderedRooms.forEach((room, position) => {
+      fetch('/api/rooms', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: room.id, slug: footprint.username, position }),
+      }).catch((e) => console.error('room reorder failed', e))
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [footprint.username])
+
   // Toggle a room between locked and public. Going public → locked
   // prompts for a 4-digit passcode inline; going locked → public just
   // flips the flag (server clears the hash). Optimistic on the local
@@ -1276,7 +1288,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                   .filter((r) => !visibleSet.has(r.id))
                   .map((r, i) => ({ ...r, position: reorderedVisible.length + i }))
 
-                return [...reorderedVisible, ...hiddenRooms]
+                const nextRooms = [...reorderedVisible, ...hiddenRooms]
+                persistRoomOrder(nextRooms)
+                return nextRooms
               })
             }}
             onClick={() => {
