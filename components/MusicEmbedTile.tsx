@@ -137,7 +137,26 @@ export default function MusicEmbedTile({
 
   if (displayMode === 'player') {
     if (provider === 'spotify') {
-      return <NativeMusicBar src={embed.embedUrl} title={title} provider={provider} />
+      const audioId = `music-native-${provider}-${embed.embedUrl}`
+
+      return (
+        <NativeMusicShell
+          src={embed.embedUrl}
+          title={title}
+          provider={provider}
+          audioId={audioId}
+        >
+          <MusicFacade
+            provider={provider}
+            title={title}
+            artist={artist}
+            image={showArtwork ? image : null}
+            displayMode="player"
+            isPlaying={isPlaying}
+            onImageError={() => setImgFailed(true)}
+          />
+        </NativeMusicShell>
+      )
     }
     if (provider === 'apple_music' && supportsCompactAppleMusicBar(url)) {
       return <NativeMusicBar src={embed.embedUrl} title={title} provider={provider} />
@@ -176,8 +195,68 @@ export default function MusicEmbedTile({
   )
 }
 
-function NativeMusicBar({ src, title, provider }: { src: string; title: string; provider: MusicProvider }) {
-  const audioIdRef = useRef(`music-native-${provider}-${src}`)
+function NativeMusicShell({
+  src,
+  title,
+  provider,
+  audioId,
+  children,
+}: {
+  src: string
+  title: string
+  provider: MusicProvider
+  audioId: string
+  children: ReactNode
+}) {
+  const [isArmed, setIsArmed] = useState(false)
+
+  useEffect(() => {
+    const handleAudioClaim = (event: Event) => {
+      const claimedId = (event as CustomEvent<{ id?: string }>).detail?.id
+      if (claimedId !== audioId) setIsArmed(false)
+    }
+
+    window.addEventListener('audio-claim', handleAudioClaim)
+    return () => window.removeEventListener('audio-claim', handleAudioClaim)
+  }, [audioId])
+
+  const handleActivate = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation()
+    audioManager.play(audioId)
+    setIsArmed(true)
+  }, [audioId])
+
+  return (
+    <div className="relative h-full w-full overflow-hidden fp-tile" style={{ borderRadius: 'inherit' }}>
+      <div
+        className="absolute inset-0 transition-opacity duration-300"
+        style={{
+          opacity: isArmed ? 1 : 0,
+          pointerEvents: isArmed ? 'auto' : 'none',
+        }}
+      >
+        <NativeMusicBar src={src} title={title} provider={provider} audioId={audioId} />
+      </div>
+
+      <button
+        type="button"
+        aria-label={`activate ${title}`}
+        onClick={handleActivate}
+        className="absolute inset-0 z-10 h-full w-full border-0 bg-transparent p-0 text-left transition-opacity duration-300"
+        style={{
+          opacity: isArmed ? 0 : 1,
+          pointerEvents: isArmed ? 'none' : 'auto',
+          borderRadius: 'inherit',
+        }}
+      >
+        {children}
+      </button>
+    </div>
+  )
+}
+
+function NativeMusicBar({ src, title, provider, audioId }: { src: string; title: string; provider: MusicProvider; audioId?: string }) {
+  const audioIdRef = useRef(audioId ?? `music-native-${provider}-${src}`)
 
   return (
     <div className="relative h-full w-full overflow-hidden fp-tile" style={{ borderRadius: 'inherit' }}>
