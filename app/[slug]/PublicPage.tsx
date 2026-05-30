@@ -699,7 +699,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     })
   }, [])
 
-  // Cross-room move from the tile sheet. Without this, picking a new room
+  // Cross-room move from the tile sheet. Without this, picking another room
   // in the dropdown left the user on the source room with the tile gone
   // — indistinguishable from delete. Here we relocate the tile inside
   // roomsLocal (source → destination) and navigate to the destination so
@@ -2092,7 +2092,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             Tapping a non-active pill navigates; tapping the active pill
             in editor mode opens its inline editor (rename + layout +
             delete). Tapping the empty space after the last pill in
-            editor mode prompts for a new room. */}
+            editor mode prompts for room creation. */}
         {(visibleRooms.length > 1 || (isOwner && editorMode)) && (
           <div className="relative mb-4 h-12 md:mb-6">
             <div
@@ -2127,7 +2127,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                       cursor: 'pointer',
                     }}
                   >
-                    + new room
+                    +
                   </button>
                 )}
               </div>
