@@ -13,11 +13,16 @@ export const AUDIO_AUTHORITY = {
 
 class AudioManager {
   private currentPlayingId: string | null = null
+  private focusListenerInstalled = false
   private currentNativeId: string | null = null
   private currentProviderId: string | null = null
   private muteCallbacks: Map<string, AudioCallback> = new Map()
   private roomSources: Map<string, NativeMediaElement> = new Map()
   private fadeTimers: WeakMap<NativeMediaElement, ReturnType<typeof setInterval>> = new WeakMap()
+
+  constructor() {
+    this.installGlobalAudioFocus()
+  }
 
   register(id: string, muteCallback: AudioCallback) {
     this.muteCallbacks.set(id, muteCallback)
@@ -36,6 +41,7 @@ class AudioManager {
         stopAudio()
       }
     })
+    this.resetForeignMusicIframes(id)
     this.currentPlayingId = id
   }
 
@@ -88,6 +94,35 @@ class AudioManager {
 
   unregisterRoomSource(id: string) {
     this.roomSources.delete(id)
+  }
+
+  private resetForeignMusicIframes(exceptId: string) {
+    if (typeof document === 'undefined') return
+
+    document.querySelectorAll<HTMLIFrameElement>('iframe[data-music-iframe]').forEach((iframe) => {
+      if (iframe.dataset.audioId === exceptId) return
+      iframe.src = iframe.src
+    })
+  }
+
+  private installGlobalAudioFocus() {
+    if (typeof window === 'undefined') return
+    if (this.focusListenerInstalled) return
+    this.focusListenerInstalled = true
+
+    window.addEventListener('blur', () => {
+      window.setTimeout(() => {
+        const activeElement = document.activeElement
+        if (!(activeElement instanceof HTMLIFrameElement)) return
+        if (!activeElement.dataset.musicIframe) return
+
+        const activeTileId = activeElement.dataset.audioId
+        if (!activeTileId) return
+
+        this.play(activeTileId)
+        window.focus()
+      }, 0)
+    })
   }
 
   private duckRoom() {

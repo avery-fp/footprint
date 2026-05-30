@@ -177,9 +177,13 @@ export default function MusicEmbedTile({
 }
 
 function NativeMusicBar({ src, title, provider }: { src: string; title: string; provider: MusicProvider }) {
+  const audioIdRef = useRef(`music-native-${provider}-${src}`)
+
   return (
     <div className="relative h-full w-full overflow-hidden fp-tile" style={{ borderRadius: 'inherit' }}>
       <iframe
+        data-music-iframe="true"
+        data-audio-id={audioIdRef.current}
         src={src}
         title={title}
         className="block h-full w-full fp-tile"
