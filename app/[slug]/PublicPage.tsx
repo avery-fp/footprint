@@ -1068,11 +1068,22 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       source: tileSources[item.id] || 'library',
       position: item.position,
     }))
-    fetch('/api/tiles', {
+    const save = fetch('/api/tiles', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ slug: footprint.username, positions }),
-    }).catch(e => console.error('Failed to save tile order:', e))
+    }).then((res) => {
+      if (!res.ok) console.error('Failed to save tile order:', res.status)
+      return res.ok
+    }).catch(e => {
+      console.error('Failed to save tile order:', e)
+      return false
+    })
+
+    pendingSavesRef.current.push(save)
+    save.finally(() => {
+      pendingSavesRef.current = pendingSavesRef.current.filter((pending) => pending !== save)
+    })
   }
 
   function handleChildDelete(child: any) {
@@ -1141,14 +1152,25 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     const reordered = arrayMove(localChildren, oldIndex, newIndex).map((item: any, index: number) => ({ ...item, position: index }))
     pendingCollectionFocusId.current = String(active.id)
     setLocalChildren(reordered)
-    fetch('/api/tiles', {
+    const save = fetch('/api/tiles', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         slug: footprint.username,
         positions: reordered.map((c: any) => ({ id: c.id, source: c.source, position: c.position })),
       }),
-    }).catch(e => console.error('Failed to reorder child tiles:', e))
+    }).then((res) => {
+      if (!res.ok) console.error('Failed to reorder child tiles:', res.status)
+      return res.ok
+    }).catch(e => {
+      console.error('Failed to reorder child tiles:', e)
+      return false
+    })
+
+    pendingSavesRef.current.push(save)
+    save.finally(() => {
+      pendingSavesRef.current = pendingSavesRef.current.filter((pending) => pending !== save)
+    })
   }
 
   const [addUrl, setAddUrl] = useState('')
