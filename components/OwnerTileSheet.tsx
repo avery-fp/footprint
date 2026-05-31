@@ -167,14 +167,22 @@ export default function OwnerTileSheet({
     ? 'wide'
     : resolvedShape
 
-  function patchTile(body: Record<string, unknown>) {
-    fetch('/api/tiles', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: tile.id, source, slug, ...body }),
-    }).then((res) => {
-      if (!res.ok) console.error('tile PATCH failed', res.status)
-    }).catch((e) => console.error('tile PATCH threw', e))
+  async function patchTile(body: Record<string, unknown>) {
+    try {
+      const res = await fetch('/api/tiles', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: tile.id, source, slug, ...body }),
+      })
+      if (!res.ok) {
+        console.error('tile PATCH failed', res.status)
+        return false
+      }
+      return true
+    } catch (e) {
+      console.error('tile PATCH threw', e)
+      return false
+    }
   }
 
   // ── Link authoring: title + thumbnail override ──
