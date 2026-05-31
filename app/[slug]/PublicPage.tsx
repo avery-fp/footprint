@@ -525,11 +525,21 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // Navigate to room
   const goToRoom = useCallback((roomId: string | null) => {
     if (roomId === activeRoomId || roomFade !== 'visible') return
+
     setRoomFade('out')
+
     setTimeout(() => {
+      // Hide the jump during fade-out, then reveal the next room from its entrance.
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+      document.documentElement.scrollTop = 0
+      document.body.scrollTop = 0
+
       setActiveRoomId(roomId)
-      setRoomFade('in')
-      setTimeout(() => setRoomFade('visible'), 300)
+
+      requestAnimationFrame(() => {
+        setRoomFade('in')
+        setTimeout(() => setRoomFade('visible'), 300)
+      })
     }, 200)
   }, [activeRoomId, roomFade])
 
