@@ -730,9 +730,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             } as any
           }
           if (r.id === destRoomId) {
+            const existing = (((r as any).content || []) as any[]).filter((t: any) => t.id !== tileId)
             return {
               ...r,
-              content: [...(((r as any).content || []) as any[]), moved],
+              content: [...existing, moved],
             } as any
           }
           return r
