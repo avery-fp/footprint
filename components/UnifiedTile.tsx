@@ -472,19 +472,28 @@ export default function UnifiedTile({
             </div>
           )
         }
-        const previewThumbnailCandidates = getPreviewThumbnailCandidates(item)
-        const previewMeta = sanitizeLinkMeta({ title: item.title, creator: item.artist }, item.url || '')
         return (
           <div className="w-full h-full" data-tile-id={item.id} data-tile-type="preview-card">
-            <PreviewCardTileBase
-              url={item.url}
-              thumbnailUrl={previewThumbnailCandidates[0] || item.thumbnail_url_override || item.thumbnail_url_hq || item.thumbnail_url}
-              title={previewMeta.title}
-              subtitle={item.type === 'letterboxd' ? null : previewMeta.creator}
-              cropThumbnail={shouldCropPreviewThumbnail(item.type, item.url, item.media_kind)}
-              thumbnailCandidates={previewThumbnailCandidates}
+            <ContentCard
+              content={{
+                id: item.id,
+                url: item.url,
+                type: item.type,
+                title: item.title,
+                description: item.description,
+                thumbnail_url: item.thumbnail_url,
+                embed_html: item.embed_html,
+                artist: item.artist,
+                thumbnail_url_hq: item.thumbnail_url_hq,
+                thumbnail_url_override: item.thumbnail_url_override,
+              }}
+              tileSize={size}
+              aspect={aspect}
               isPublicView={mode === 'public'}
               index={index}
+              isExpanded={isExpanded}
+              isMobile={isMobile}
+              isSoundRoom={isSoundRoom}
             />
           </div>
         )

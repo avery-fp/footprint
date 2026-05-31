@@ -858,7 +858,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           {/* Text overlay — caption atop thumb, readable via text-shadow */}
           <div className="absolute inset-0 flex flex-col items-center justify-center p-5 gap-3">
             <p
-              className={`whitespace-pre-wrap text-center text-white/80 fp-text-shadow ${typo} line-clamp-6`}
+              className={`whitespace-pre-wrap text-center text-white/80 fp-text-shadow text-sm line-clamp-6`}
               style={{ fontWeight: 500 }}
             >
               {tiktokText}
@@ -934,7 +934,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           {/* Text overlay — caption atop thumb */}
           <div className="absolute inset-0 flex flex-col items-center justify-center p-5">
             <p
-              className={`whitespace-pre-wrap text-center text-white/80 fp-text-shadow ${typo} line-clamp-6`}
+              className={`whitespace-pre-wrap text-center text-white/80 fp-text-shadow text-sm line-clamp-6`}
               style={{ fontWeight: 500 }}
             >
               {igText}
@@ -944,6 +944,114 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         {shellOpen && (
           <ArtifactShell onDismiss={() => setShellOpen(false)} fallbackUrl={content.url}>
             <SocialEmbed url={content.url} type="instagram" variant={socialVariant} onError={() => setShellOpen(false)} />
+          </ArtifactShell>
+        )}
+      </>
+    )
+  }
+
+  // ════════════════════════════════════════
+  // GENERIC EXTERNAL ARTIFACT — IG-style shell for ordinary links
+  // Depop, RedBar, X/link cards, etc. stay inside Footprint first.
+  // ════════════════════════════════════════
+  const isGenericExternalArtifact =
+    Boolean(content.url) &&
+    content.type !== 'instagram' &&
+    content.type !== 'tiktok' &&
+    content.type !== 'native_music'
+
+  if (isGenericExternalArtifact) {
+    const thumbSrc =
+      content.thumbnail_url_override ||
+      content.thumbnail_url_hq ||
+      content.thumbnail_url ||
+      ''
+
+    let host = 'source'
+    try {
+      host = new URL(content.url).hostname.replace(/^www\./, '')
+    } catch {}
+
+    const displayTitle = content.title || host
+    const displayDescription = content.description || content.artist || ''
+
+    return (
+      <>
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setShellOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') setShellOpen(true)
+          }}
+          ref={containerRef as any}
+          className={`block w-full h-full fp-tile overflow-hidden relative cursor-pointer ${aspectClass}`}
+          style={{ background: 'transparent' }}
+        >
+          {thumbSrc ? (
+            <div className="fp-resting-video-frame z-[1]">
+              <img
+                src={thumbSrc}
+                alt=""
+                className={`fp-resting-video-media${publicPosterClass}`}
+                loading={isPriorityPoster ? 'eager' : 'lazy'}
+                fetchPriority={isPriorityPoster ? 'high' : 'auto'}
+                decoding={posterDecoding}
+                onLoad={() => setIsLoaded(true)}
+                onError={() => setSocialThumbFailed(true)}
+              />
+            </div>
+          ) : null}
+
+          <div className="absolute inset-0 z-[2] flex flex-col items-center justify-center p-5">
+            <p
+              className={`whitespace-pre-wrap text-center text-white/80 fp-text-shadow text-sm line-clamp-6`}
+              style={{ fontWeight: 500 }}
+            >
+              {displayTitle}
+            </p>
+
+            <span className="mt-2 font-mono text-[9px] uppercase tracking-[0.22em] text-white/35">
+              {host}
+            </span>
+          </div>
+        </div>
+
+        {shellOpen && (
+          <ArtifactShell onDismiss={() => setShellOpen(false)} fallbackUrl={content.url}>
+            <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/35">
+              {thumbSrc ? (
+                <img
+                  src={thumbSrc}
+                  alt=""
+                  className="w-full max-h-[70vh] object-contain"
+                />
+              ) : (
+                <div className="flex min-h-[320px] items-center justify-center p-8">
+                  <div className="font-mono text-[11px] uppercase tracking-[0.3em] text-white/45">
+                    {host}
+                  </div>
+                </div>
+              )}
+
+              <div className="p-5">
+                {displayTitle ? (
+                  <div className="text-sm leading-relaxed text-white/80">
+                    {displayTitle}
+                  </div>
+                ) : null}
+
+                {displayDescription ? (
+                  <div className="mt-2 text-xs leading-relaxed text-white/45">
+                    {displayDescription}
+                  </div>
+                ) : null}
+
+                <div className="mt-4 font-mono text-[9px] uppercase tracking-[0.24em] text-white/30">
+                  {host}
+                </div>
+              </div>
+            </div>
           </ArtifactShell>
         )}
       </>
