@@ -1061,6 +1061,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
     const reordered = arrayMove(localContent, oldIndex, newIndex).map((item: any, index: number) => ({ ...item, position: index }))
     setLocalContent(reordered)
+    setRoomsLocal((prev) =>
+      prev.map((room: any) =>
+        room.id === activeRoomId
+          ? { ...room, content: reordered }
+          : room
+      )
+    )
 
     // Persist positions to server
     const positions = reordered.map((item: any) => ({
