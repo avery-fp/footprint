@@ -284,9 +284,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   useEffect(() => { setDisplayTitleLocal(footprint.display_title || '') }, [footprint.display_title])
   const [titleEditing, setTitleEditing] = useState(false)
 
-  const handleDoneEditing = () => {
+  const handleDoneEditing = async () => {
     if (titleEditing) {
-      commitTitleEdit()
+      await commitTitleEdit()
       setTitleEditing(false)
     }
 
@@ -765,9 +765,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      if (!res.ok) console.error('patchFootprint failed', res.status)
+      if (!res.ok) {
+        console.error('patchFootprint failed', res.status)
+        return false
+      }
+      return true
     } catch (e) {
       console.error('patchFootprint threw', e)
+      return false
     }
   }
 
@@ -777,11 +782,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [footprint.username])
 
-  const commitTitleEdit = useCallback(() => {
+  const commitTitleEdit = useCallback(async () => {
     setTitleEditing(false)
     const trimmed = (displayTitleLocal || '').trim()
-    if (trimmed === (footprint.display_title || '').trim()) return
-    patchFootprint({ display_title: trimmed })
+    if (trimmed === (footprint.display_title || '').trim()) return true
+    return patchFootprint({ display_title: trimmed })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [displayTitleLocal, footprint.display_title, footprint.username])
 
