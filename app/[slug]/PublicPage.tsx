@@ -283,6 +283,17 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [displayTitleLocal, setDisplayTitleLocal] = useState<string>(footprint.display_title || '')
   useEffect(() => { setDisplayTitleLocal(footprint.display_title || '') }, [footprint.display_title])
   const [titleEditing, setTitleEditing] = useState(false)
+
+  const handleDoneEditing = () => {
+    if (titleEditing) {
+      commitTitleEdit()
+      setTitleEditing(false)
+    }
+
+    setPillMenuOpenForId(null)
+    setSelectedTileId(null)
+    setEditorMode(false)
+  }
   const titleInputRef = useRef<HTMLInputElement>(null)
   // Wallpaper local state — mirrors the prop so blur and replace-image
   // mutations apply optimistically. PATCH fires from the change handlers
@@ -1926,7 +1937,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           type="button"
           aria-label={editorMode ? 'done editing' : 'edit page'}
           aria-pressed={editorMode}
-          onClick={() => setEditorMode((v) => !v)}
+          onClick={editorMode ? handleDoneEditing : () => setEditorMode(true)}
           className="fixed z-30 flex items-center justify-center touch-manipulation"
           style={{
             top: 'calc(env(safe-area-inset-top, 0px) + 16px)',
