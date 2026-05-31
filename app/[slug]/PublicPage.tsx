@@ -283,11 +283,17 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [displayTitleLocal, setDisplayTitleLocal] = useState<string>(footprint.display_title || '')
   useEffect(() => { setDisplayTitleLocal(footprint.display_title || '') }, [footprint.display_title])
   const [titleEditing, setTitleEditing] = useState(false)
+  const pendingSavesRef = useRef<Promise<unknown>[]>([])
 
   const handleDoneEditing = async () => {
     if (titleEditing) {
       await commitTitleEdit()
       setTitleEditing(false)
+    }
+
+    const pending = pendingSavesRef.current
+    if (pending.length) {
+      await Promise.allSettled(pending)
     }
 
     setPillMenuOpenForId(null)
@@ -757,23 +763,32 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   )
 
   // \u2500\u2500 Optimistic owner mutations: footprint settings \u2500\u2500
-  async function patchFootprint(body: Record<string, unknown>) {
-    try {
-      const res = await fetch(`/api/footprint/${encodeURIComponent(footprint.username)}`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-      if (!res.ok) {
-        console.error('patchFootprint failed', res.status)
+  function patchFootprint(body: Record<string, unknown>) {
+    const save = (async () => {
+      try {
+        const res = await fetch(`/api/footprint/${encodeURIComponent(footprint.username)}`, {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+        if (!res.ok) {
+          console.error('patchFootprint failed', res.status)
+          return false
+        }
+        return true
+      } catch (e) {
+        console.error('patchFootprint threw', e)
         return false
       }
-      return true
-    } catch (e) {
-      console.error('patchFootprint threw', e)
-      return false
-    }
+    })()
+
+    pendingSavesRef.current.push(save)
+    save.finally(() => {
+      pendingSavesRef.current = pendingSavesRef.current.filter((pending) => pending !== save)
+    })
+
+    return save
   }
 
   const handlePublishedChange = useCallback((next: boolean) => {
