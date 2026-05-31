@@ -303,7 +303,7 @@ export default function OwnerTileSheet({
     if (next) onClose()
   }
 
-  function handleRoom(roomId: string) {
+  async function handleRoom(roomId: string) {
     const next = roomId || null
     if ((tile.room_id || '') === (next || '')) return
     // If the parent wires onTileMovedToRoom, defer to it: it updates the
@@ -315,7 +315,7 @@ export default function OwnerTileSheet({
     } else {
       onTileChange(tile.id, { room_id: next })
     }
-    patchTile({ room_id: next })
+    await patchTile({ room_id: next })
     onClose()
   }
 
