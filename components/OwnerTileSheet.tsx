@@ -25,6 +25,9 @@ type Tile = {
   parent_tile_id?: string | null
   room_id?: string | null
   title?: string | null
+  description?: string | null
+  metadata?: Record<string, any> | null
+  thumbnail_url?: string | null
   thumbnail_url_override?: string | null
   container_cover_url?: string | null
   caption?: string | null
@@ -190,12 +193,17 @@ export default function OwnerTileSheet({
   // tiles inherit the same controls so users can author them rather than
   // accepting the generic CTA fallback.
   const isLinkTile = source === 'links' && tile.type !== 'container' && tile.type !== 'thought'
-  // Embed-rendered tiles paint fullbleed with no Footprint chrome surface
-  // for an authored title — the row would be a dead control. Thumbnail
-  // override stays available because broken provider thumbs do happen.
+  // Most embed-rendered tiles paint fullbleed with no Footprint chrome surface
+  // for an authored title. X/Instagram still use authored preview text inside
+  // their Footprint shell/fallback, so keep manual override available there.
   const EMBED_TYPES = ['youtube', 'spotify', 'vimeo', 'soundcloud', 'tiktok', 'instagram', 'twitter', 'bandcamp']
-  const showTitleRow = isLinkTile && !EMBED_TYPES.includes(tile.type)
+  const SOCIAL_OVERRIDE_TYPES = ['twitter', 'x', 'instagram']
+  const showTitleRow = isLinkTile && (!EMBED_TYPES.includes(tile.type) || SOCIAL_OVERRIDE_TYPES.includes(tile.type))
   const [titleDraft, setTitleDraft] = useState(tile.title || '')
+  const [descriptionDraft, setDescriptionDraft] = useState(tile.description || '')
+  const [imageUrlDraft, setImageUrlDraft] = useState(tile.thumbnail_url_override || '')
+  const [previewRefreshing, setPreviewRefreshing] = useState(false)
+  const [previewError, setPreviewError] = useState<string | null>(null)
   const [thoughtDraft, setThoughtDraft] = useState(tile.title || '')
   const [thoughtStyle, setThoughtStyle] = useState<'clean' | 'editorial' | 'mono'>(tile.text_style || 'clean')
   const thoughtSavedRef = useRef(tile.title || '')
@@ -223,6 +231,95 @@ export default function OwnerTileSheet({
     if (trimmed === current) return
     onTileChange(tile.id, { title: trimmed || null })
     patchTile({ title: trimmed })
+  }
+
+  function commitDescription(next: string) {
+    const trimmed = next.trim()
+    const current = (tile.description || '').trim()
+    if (trimmed === current) return
+    onTileChange(tile.id, {
+      description: trimmed || null,
+      metadata: { ...(tile.metadata || {}), description: trimmed || null },
+    })
+    patchTile({ preview_description: trimmed || null })
+  }
+
+  function commitImageUrl(next: string) {
+    const trimmed = next.trim()
+    const current = (tile.thumbnail_url_override || '').trim()
+    if (trimmed === current) return
+    onTileChange(tile.id, { thumbnail_url_override: trimmed || null })
+    patchTile({ thumbnail_url_override: trimmed || null })
+  }
+
+  useEffect(() => {
+    setTitleDraft(tile.title || '')
+    setDescriptionDraft(tile.description || '')
+    setImageUrlDraft(tile.thumbnail_url_override || '')
+    setPreviewError(null)
+  }, [tile.id, tile.title, tile.description, tile.thumbnail_url_override])
+
+  async function handleRefreshPreview() {
+    if (!tile.url) return
+    setPreviewError(null)
+    const hasManualValues = !!(
+      (titleDraft || '').trim() ||
+      (descriptionDraft || '').trim() ||
+      (tile.thumbnail_url_override || '').trim()
+    )
+    if (hasManualValues && !window.confirm('replace current preview fields with fetched metadata?')) return
+    setPreviewRefreshing(true)
+    try {
+      const res = await fetch(`/api/link-preview?url=${encodeURIComponent(tile.url)}`)
+      const data = await res.json()
+      if (!res.ok) {
+        setPreviewError(data?.error || 'refresh failed')
+        return
+      }
+      const nextTitle = (data?.title || '').trim()
+      const nextDescription = (data?.description || '').trim()
+      const nextImage = (data?.image || '').trim()
+      const nextMetadata = {
+        ...(tile.metadata || {}),
+        description: nextDescription || null,
+        site_name: data?.siteName || null,
+        canonical_url: data?.canonical || data?.url || null,
+      }
+      setTitleDraft(nextTitle)
+      setDescriptionDraft(nextDescription)
+      setImageUrlDraft(nextImage)
+      onTileChange(tile.id, {
+        title: nextTitle || null,
+        description: nextDescription || null,
+        thumbnail_url_override: nextImage || null,
+        metadata: nextMetadata,
+      })
+      patchTile({
+        title: nextTitle,
+        preview_description: nextDescription || null,
+        preview_site_name: data?.siteName || null,
+        preview_canonical_url: data?.canonical || data?.url || null,
+        thumbnail_url_override: nextImage || null,
+      })
+    } catch {
+      setPreviewError('refresh failed')
+    } finally {
+      setPreviewRefreshing(false)
+    }
+  }
+
+  function handleClearPreviewOverride() {
+    if (!window.confirm('clear title, description, and image overrides for this tile?')) return
+    setTitleDraft('')
+    setDescriptionDraft('')
+    setImageUrlDraft('')
+    onTileChange(tile.id, {
+      title: null,
+      description: null,
+      thumbnail_url_override: null,
+      metadata: { ...(tile.metadata || {}), description: null },
+    })
+    patchTile({ title: '', preview_description: null, thumbnail_url_override: null })
   }
 
   useEffect(() => {
@@ -457,6 +554,56 @@ export default function OwnerTileSheet({
                 }}
               />
             </div>
+            <div style={{ ...rowStyle, borderTop: '1px solid rgba(255,255,255,0.06)', flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
+              <div className="flex items-center justify-between">
+                <span style={rowLabel}>description</span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleRefreshPreview}
+                    disabled={previewRefreshing || !tile.url}
+                    style={pillBase}
+                    aria-label="refresh preview"
+                  >
+                    {previewRefreshing ? 'refreshing…' : 'refresh'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleClearPreviewOverride}
+                    style={pillBase}
+                    aria-label="clear preview override"
+                  >
+                    clear
+                  </button>
+                </div>
+              </div>
+              <textarea
+                value={descriptionDraft}
+                onChange={(e) => setDescriptionDraft(e.target.value)}
+                onBlur={(e) => commitDescription(e.target.value)}
+                placeholder="optional"
+                rows={2}
+                maxLength={500}
+                style={{
+                  width: '100%',
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.10)',
+                  borderRadius: 12,
+                  padding: '10px 12px',
+                  color: 'rgba(255,255,255,0.85)',
+                  fontFamily: "'DM Sans', system-ui, sans-serif",
+                  fontSize: 13,
+                  lineHeight: 1.45,
+                  outline: 'none',
+                  resize: 'none',
+                }}
+              />
+              {previewError && (
+                <p style={{ ...rowLabel, color: 'rgba(220,90,90,0.7)' }}>
+                  {previewError}
+                </p>
+              )}
+            </div>
           </>
         )}
 
@@ -464,7 +611,23 @@ export default function OwnerTileSheet({
           <>
             <div style={showTitleRow ? { ...rowStyle, borderTop: '1px solid rgba(255,255,255,0.06)' } : rowStyle}>
               <span style={rowLabel}>{isContainerCoverTile ? 'cover' : 'image'}</span>
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+                {showTitleRow && !isContainerCoverTile && (
+                  <input
+                    type="url"
+                    value={imageUrlDraft}
+                    onChange={(e) => setImageUrlDraft(e.target.value)}
+                    onBlur={(e) => commitImageUrl(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+                    placeholder="image url"
+                    style={{
+                      ...pillBase,
+                      minWidth: 0,
+                      width: 170,
+                      textAlign: 'right',
+                    }}
+                  />
+                )}
                 {getCurrentCover() && (
                   <button
                     type="button"

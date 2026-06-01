@@ -129,6 +129,7 @@ for (const row of links) {
     description: cleanString(preview?.description, 320) || row.metadata?.description || null,
     canonical_url: cleanString(preview?.canonical, 2048) || row.metadata?.canonical_url || null,
     site_name: cleanString(preview?.siteName, 120) || row.metadata?.site_name || null,
+    published_at: cleanString(resolved.published_at, 80) || row.metadata?.published_at || null,
     domain,
     source_excerpt_category: resolved.category,
     source_excerpt_fallback_reason: resolved.fallback_reason,
@@ -150,6 +151,7 @@ for (const row of links) {
   console.log(`  new desc:   ${logValue(metadata.description)}`)
   console.log(`  new image:  ${logValue(updates.thumbnail)}`)
   console.log(`  new domain: ${logValue(metadata.domain)}`)
+  console.log(`  new date:   ${logValue(metadata.published_at)}`)
   console.log('  summary:')
   console.log(`    category:            ${resolved.category}`)
   console.log(`    title present:       ${yesNo(updates.title)}`)
@@ -157,6 +159,16 @@ for (const row of links) {
   console.log(`    description present: ${yesNo(metadata.description || resolved.product?.description)}`)
   console.log(`    excerpt_items count: ${resolved.excerpt_items.length}`)
   console.log(`    product present:     ${yesNo(resolved.product)}`)
+  if (resolved.product) {
+    console.log(`    product name:        ${logValue(resolved.product.name)}`)
+    console.log(`    product image:       ${yesNo(resolved.product.image)}`)
+    console.log(`    product price:       ${logValue(resolved.product.price)}`)
+    console.log(`    product currency:    ${logValue(resolved.product.priceCurrency)}`)
+    console.log(`    product brand:       ${logValue(resolved.product.brand)}`)
+    console.log(`    product seller:      ${logValue(resolved.product.seller)}`)
+    console.log(`    product availability:${logValue(resolved.product.availability)}`)
+    console.log(`    product condition:   ${logValue(resolved.product.condition)}`)
+  }
   console.log(`    fallback reason:     ${logValue(resolved.fallback_reason)}`)
   for (const item of resolved.excerpt_items) {
     console.log(`    item:                ${item.title}${item.url ? ` (${item.url})` : ''}`)

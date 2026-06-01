@@ -119,6 +119,8 @@ interface ContentCardProps {
         priceCurrency?: string | null
         brand?: string | null
         seller?: string | null
+        availability?: string | null
+        condition?: string | null
       } | null
       excerpt_items?: Array<{
         title?: string | null
@@ -126,6 +128,10 @@ interface ContentCardProps {
         date?: string | null
         description?: string | null
       }> | null
+      site_name?: string | null
+      domain?: string | null
+      published_at?: string | null
+      source_excerpt_category?: string | null
     } | null
   }
   onWidescreen?: () => void
@@ -1053,7 +1059,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     const excerptItems = (content.metadata?.excerpt_items || []).filter((item) => item?.title).slice(0, 3)
     const artifactImage = productMeta?.image || thumbSrc
     const hasArtifactImage = !!artifactImage && !socialThumbFailed
-    const productArtifact = isProductSource(content.url)
+    const productArtifact = !!productMeta || isProductSource(content.url)
     const sourceTitle = productMeta?.name || displayTitle
     const sourceDescription = productMeta?.description || displayDescription
     const productPrice = productMeta?.price || extractPrice(`${content.title || ''} ${content.description || ''}`)
@@ -1062,6 +1068,14 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       ? sourceDescription.replace(productPrice, '').trim()
       : sourceDescription
     const productTitle = productArtifact && (!content.title || content.title === host) ? host : sourceTitle
+    const sourceName = content.metadata?.site_name || content.metadata?.domain || host
+    const sourceDate = content.metadata?.published_at || ''
+    const articleArtifact = !productArtifact && (
+      content.metadata?.source_excerpt_category === 'article' ||
+      !!sourceDescription ||
+      hasArtifactImage ||
+      excerptItems.length > 0
+    )
 
     return (
       <>
@@ -1136,6 +1150,11 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                       {productSeller}
                     </div>
                   ) : null}
+                  {productMeta?.availability || productMeta?.condition ? (
+                    <div className="mt-3 text-[11px] leading-relaxed text-white/35">
+                      {[productMeta.availability, productMeta.condition].filter(Boolean).join(' · ')}
+                    </div>
+                  ) : null}
                   {productDescription ? (
                     <div className="mt-4 text-[12px] leading-relaxed text-white/50">
                       {productDescription}
@@ -1143,6 +1162,54 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                   ) : null}
                 </div>
               </div>
+            ) : articleArtifact ? (
+              <article className="mx-auto overflow-hidden rounded-2xl border border-white/10 bg-black/35">
+                {hasArtifactImage ? (
+                  <img
+                    src={artifactImage}
+                    alt=""
+                    className="w-full max-h-[48vh] object-contain bg-black/25"
+                  />
+                ) : null}
+
+                <div className="p-6 sm:p-7">
+                  <div className="font-mono text-[10px] uppercase tracking-[0.24em] text-white/35">
+                    {[sourceName, sourceDate].filter(Boolean).join(' · ')}
+                  </div>
+
+                  <h2 className="mt-4 text-[20px] leading-tight text-white/88">
+                    {sourceTitle}
+                  </h2>
+
+                  {sourceDescription ? (
+                    <p className="mt-4 text-[14px] leading-relaxed text-white/58">
+                      {sourceDescription}
+                    </p>
+                  ) : null}
+
+                  {excerptItems.length > 0 ? (
+                    <div className="mt-6 space-y-2 border-t border-white/10 pt-4">
+                      {excerptItems.map((item) => (
+                        <div key={`${item.title}-${item.url || ''}`} className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
+                          <div className="text-[12px] leading-snug text-white/75">
+                            {item.title}
+                          </div>
+                          {item.description ? (
+                            <div className="mt-1 text-[11px] leading-relaxed text-white/40 line-clamp-2">
+                              {item.description}
+                            </div>
+                          ) : null}
+                          {item.date ? (
+                            <div className="mt-2 font-mono text-[9px] uppercase tracking-[0.18em] text-white/25">
+                              {item.date}
+                            </div>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </article>
             ) : (
               <div className={`mx-auto overflow-hidden rounded-2xl border border-white/10 bg-black/35 ${hasArtifactImage ? 'max-w-lg' : 'max-w-[440px]'}`}>
                 {hasArtifactImage ? (

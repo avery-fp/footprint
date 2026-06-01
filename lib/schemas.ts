@@ -170,6 +170,9 @@ export const tilesPatchSchema = z.object({
   caption: z.string().optional(),
   caption_hidden: z.boolean().optional(),
   title: z.string().optional(),
+  preview_description: z.string().nullable().optional(),
+  preview_site_name: z.string().nullable().optional(),
+  preview_canonical_url: z.string().nullable().optional(),
   text_style: z.enum(['clean', 'editorial', 'mono']).optional(),
   // User-supplied thumbnail override for link/payment tiles. Empty string
   // clears the override; null also clears. Persisted only on `links`.

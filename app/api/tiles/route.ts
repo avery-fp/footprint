@@ -573,7 +573,7 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json()
     const v = validateBody(tilesPatchSchema, body)
     if (!v.success) return v.response
-    const { id, source, slug, size, caption, caption_hidden, title, text_style, thumbnail_url_override, container_cover_url, room_id, aspect, parent_tile_id } = v.data
+    const { id, source, slug, size, caption, caption_hidden, title, preview_description, preview_site_name, preview_canonical_url, text_style, thumbnail_url_override, container_cover_url, room_id, aspect, parent_tile_id } = v.data
 
     // Caption fields are library-only (the `links` table has no caption or
     // caption_hidden column). Silently dropping would be a dead-control bug —
@@ -598,6 +598,25 @@ export async function PATCH(request: NextRequest) {
     if (caption !== undefined) updates.caption = caption || null
     if (caption_hidden !== undefined) updates.caption_hidden = caption_hidden
     if (title !== undefined) updates.title = title
+    if (
+      preview_description !== undefined ||
+      preview_site_name !== undefined ||
+      preview_canonical_url !== undefined
+    ) {
+      if (source !== 'links') {
+        return NextResponse.json({ error: 'preview metadata is only supported for link tiles' }, { status: 400 })
+      }
+      const { data: current } = await supabase
+        .from('links')
+        .select('metadata')
+        .eq('id', id)
+        .eq('serial_number', serialNumber)
+        .single()
+      updates.metadata = { ...(current?.metadata || {}) }
+      if (preview_description !== undefined) updates.metadata.description = preview_description || null
+      if (preview_site_name !== undefined) updates.metadata.site_name = preview_site_name || null
+      if (preview_canonical_url !== undefined) updates.metadata.canonical_url = preview_canonical_url || null
+    }
     if (text_style !== undefined) {
       if (source !== 'links') {
         return NextResponse.json({ error: 'text style is only supported for link/thought tiles' }, { status: 400 })
@@ -608,7 +627,7 @@ export async function PATCH(request: NextRequest) {
         .eq('id', id)
         .eq('serial_number', serialNumber)
         .single()
-      updates.metadata = { ...(current?.metadata || {}), text_style }
+      updates.metadata = { ...(updates.metadata || current?.metadata || {}), text_style }
     }
     if (room_id !== undefined) updates.room_id = room_id || null
     if (parent_tile_id !== undefined) updates.parent_tile_id = parent_tile_id || null
