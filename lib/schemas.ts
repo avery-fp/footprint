@@ -180,6 +180,7 @@ export const tilesPatchSchema = z.object({
   container_cover_url: z.string().nullable().optional(),
   room_id: z.string().nullable().optional(),
   parent_tile_id: z.string().nullable().optional(),
+  source_excerpt: z.record(z.string(), z.unknown()).nullable().optional(),
 })
 
 // Container tile creation

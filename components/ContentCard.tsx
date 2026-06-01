@@ -807,6 +807,56 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     return <TextExpandTile text={text} isPublicView={isPublicView} />
   }
 
+  const renderManualSourceRows = (sourceExcerpt: NonNullable<NonNullable<ContentCardProps['content']['metadata']>['source_excerpt']> | null) => {
+    const rows = (sourceExcerpt?.items || []).filter((item) => item?.title || item?.description || item?.text || item?.image)
+    if (!rows.length) return null
+    return (
+      <div className="mt-5 border-t border-white/10 pt-4">
+        <div className="mb-3 font-mono text-[9px] uppercase tracking-[0.22em] text-white/25">
+          latest
+        </div>
+        <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
+          {rows.map((item, index) => {
+            const inner = (
+              <div className="flex gap-3">
+                {item.image ? (
+                  <img src={item.image} alt="" className="h-12 w-12 shrink-0 rounded-lg object-cover bg-black/25" loading="lazy" />
+                ) : null}
+                <div className="min-w-0 flex-1">
+                  {item.title ? <div className="text-[13px] leading-snug text-white/78">{item.title}</div> : null}
+                  {item.description || item.text ? (
+                    <div className="mt-1.5 text-[11px] leading-relaxed text-white/43 line-clamp-3">
+                      {item.description || item.text}
+                    </div>
+                  ) : null}
+                  {item.date ? (
+                    <div className="mt-2.5 font-mono text-[9px] uppercase tracking-[0.18em] text-white/25">{item.date}</div>
+                  ) : null}
+                </div>
+              </div>
+            )
+            return item.url ? (
+              <a
+                key={`${item.url}-${index}`}
+                href={item.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block rounded-xl border border-white/10 bg-white/[0.04] p-3.5 no-underline transition-colors hover:bg-white/[0.06]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {inner}
+              </a>
+            ) : (
+              <div key={`${item.title || 'row'}-${index}`} className="rounded-xl border border-white/10 bg-white/[0.04] p-3.5">
+                {inner}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
   // ════════════════════════════════════════
   // TWITTER / X — glass tile, click-to-expand text artifact
   // Matched by URL, not stored type — seals pic.twitter.com and mistyped tiles.
@@ -883,6 +933,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                   {excerptDescription}
                 </div>
               ) : null}
+              {renderManualSourceRows(sourceExcerpt)}
             </div>
           </ArtifactShell>
         )}
@@ -900,6 +951,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   if (content.type === 'tiktok') {
     const sourceExcerpt = content.metadata?.source_excerpt || null
     const thumbSrc = sourceExcerpt?.image || getBestThumbnailUrl(content)
+    const hasManualSourceRows = !!sourceExcerpt?.items?.some((item) => item?.title || item?.description || item?.text || item?.image)
     // Numeric video ID from the canonical tiktok.com/@user/video/{id} shape.
     // external_id (when present) wins; otherwise extract from the URL.
     const tiktokId = (content.external_id && /^\d+$/.test(content.external_id))
@@ -956,12 +1008,12 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           tabIndex={0}
           onClick={() => {
             audioManager.activateProvider(audioIdRef.current)
-            canPlayInline ? setIsActivated(true) : setShellOpen(true)
+            canPlayInline && !hasManualSourceRows ? setIsActivated(true) : setShellOpen(true)
           }}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               audioManager.activateProvider(audioIdRef.current)
-              canPlayInline ? setIsActivated(true) : setShellOpen(true)
+              canPlayInline && !hasManualSourceRows ? setIsActivated(true) : setShellOpen(true)
             }
           }}
           ref={containerRef as any}
@@ -1003,7 +1055,29 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         </div>
         {shellOpen && (
           <ArtifactShell onDismiss={() => { setShellOpen(false); audioManager.release(audioIdRef.current) }} fallbackUrl={content.url}>
-            <SocialEmbed url={content.url} type="tiktok" variant={socialVariant} onError={() => setShellOpen(false)} />
+            {hasManualSourceRows ? (
+              <div className="mx-auto max-w-[520px] overflow-hidden rounded-2xl border border-white/10 bg-black/35 p-5">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div className="min-w-0 truncate text-[11px] font-medium text-white/50">
+                    {sourceExcerpt?.handle || sourceExcerpt?.source || 'tiktok.com'}
+                  </div>
+                  <div className="shrink-0 text-[11px] uppercase tracking-[0.22em] text-white/30">
+                    TikTok
+                  </div>
+                </div>
+                <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-white/85">
+                  {sourceExcerpt?.title || tiktokText}
+                </div>
+                {sourceExcerpt?.description ? (
+                  <div className="mt-4 whitespace-pre-wrap text-[13px] leading-relaxed text-white/50">
+                    {sourceExcerpt.description}
+                  </div>
+                ) : null}
+                {renderManualSourceRows(sourceExcerpt)}
+              </div>
+            ) : (
+              <SocialEmbed url={content.url} type="tiktok" variant={socialVariant} onError={() => setShellOpen(false)} />
+            )}
           </ArtifactShell>
         )}
       </>
@@ -1017,6 +1091,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   if (content.type === 'instagram') {
     const sourceExcerpt = content.metadata?.source_excerpt || null
     const thumbSrc = sourceExcerpt?.image || getBestThumbnailUrl(content)
+    const hasManualSourceRows = !!sourceExcerpt?.items?.some((item) => item?.title || item?.description || item?.text || item?.image)
 
     // Thumb 404 or no content at all → FallbackCard. Spec Task 3.
     if (thumbSrc && socialThumbFailed) {
@@ -1072,7 +1147,29 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         </div>
         {shellOpen && (
           <ArtifactShell onDismiss={() => setShellOpen(false)} fallbackUrl={content.url}>
-            <SocialEmbed url={content.url} type="instagram" variant={socialVariant} onError={() => setShellOpen(false)} />
+            {hasManualSourceRows ? (
+              <div className="mx-auto max-w-[520px] overflow-hidden rounded-2xl border border-white/10 bg-black/35 p-5">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div className="min-w-0 truncate text-[11px] font-medium text-white/50">
+                    {sourceExcerpt?.handle || sourceExcerpt?.source || 'instagram.com'}
+                  </div>
+                  <div className="shrink-0 text-[11px] uppercase tracking-[0.22em] text-white/30">
+                    Instagram
+                  </div>
+                </div>
+                <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-white/85">
+                  {sourceExcerpt?.title || igText}
+                </div>
+                {sourceExcerpt?.description ? (
+                  <div className="mt-4 whitespace-pre-wrap text-[13px] leading-relaxed text-white/50">
+                    {sourceExcerpt.description}
+                  </div>
+                ) : null}
+                {renderManualSourceRows(sourceExcerpt)}
+              </div>
+            ) : (
+              <SocialEmbed url={content.url} type="instagram" variant={socialVariant} onError={() => setShellOpen(false)} />
+            )}
           </ArtifactShell>
         )}
       </>
@@ -1109,6 +1206,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             url: item?.url,
             date: item?.date,
             description: item?.description || item?.text,
+            image: item?.image,
           }))
         : content.metadata?.excerpt_items || []
     ).filter((item) => item?.title)
@@ -1147,21 +1245,31 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         >
           {excerptItems.map((item) => {
             const rowInner = (
-              <>
-                <div className="text-[13px] leading-snug text-white/78">
-                  {item.title}
+              <div className="flex gap-3">
+                {(item as any).image ? (
+                  <img
+                    src={(item as any).image}
+                    alt=""
+                    className="h-12 w-12 shrink-0 rounded-lg object-cover bg-black/25"
+                    loading="lazy"
+                  />
+                ) : null}
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13px] leading-snug text-white/78">
+                    {item.title}
+                  </div>
+                  {item.description ? (
+                    <div className="mt-1.5 text-[11px] leading-relaxed text-white/43 line-clamp-3">
+                      {item.description}
+                    </div>
+                  ) : null}
+                  {item.date ? (
+                    <div className="mt-2.5 font-mono text-[9px] uppercase tracking-[0.18em] text-white/25">
+                      {item.date}
+                    </div>
+                  ) : null}
                 </div>
-                {item.description ? (
-                  <div className="mt-1.5 text-[11px] leading-relaxed text-white/43 line-clamp-3">
-                    {item.description}
-                  </div>
-                ) : null}
-                {item.date ? (
-                  <div className="mt-2.5 font-mono text-[9px] uppercase tracking-[0.18em] text-white/25">
-                    {item.date}
-                  </div>
-                ) : null}
-              </>
+              </div>
             )
 
             return item.url ? (

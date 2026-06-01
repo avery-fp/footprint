@@ -111,6 +111,74 @@ function sourceExcerptFromLinkMetadata(
   }
 }
 
+function cleanManualString(value: unknown, maxLength: number): string | null {
+  if (typeof value !== 'string' && typeof value !== 'number') return null
+  const cleaned = String(value).replace(/\s+/g, ' ').trim()
+  return cleaned ? cleaned.slice(0, maxLength) : null
+}
+
+function cleanManualUrl(value: unknown): string | null {
+  const cleaned = cleanManualString(value, 2048)
+  if (!cleaned) return null
+  try {
+    const parsed = new URL(cleaned)
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.href : null
+  } catch {
+    return null
+  }
+}
+
+function sanitizeManualSourceExcerpt(raw: any, currentMetadata: Record<string, any>, url: string | null) {
+  const current = currentMetadata.source_excerpt || {}
+  const domain = cleanManualString(raw?.domain, 160) || current.domain || currentMetadata.domain || (() => {
+    try { return url ? new URL(url).hostname.replace(/^www\./, '') : null } catch { return null }
+  })()
+  const requestedKind = cleanManualString(raw?.kind, 24)
+  const kind = ['profile', 'post', 'product', 'feed', 'article', 'media', 'portal'].includes(requestedKind || '')
+    ? requestedKind
+    : current.kind || 'portal'
+  const items = (Array.isArray(raw?.items) ? raw.items : [])
+    .slice(0, 12)
+    .map((item: any) => ({
+      title: cleanManualString(item?.title, 180),
+      text: cleanManualString(item?.text, 500),
+      description: cleanManualString(item?.description, 500),
+      image: cleanManualUrl(item?.image),
+      url: cleanManualUrl(item?.url),
+      date: cleanManualString(item?.date, 80),
+    }))
+    .filter((item: any) => item.title || item.text || item.description || item.image || item.url || item.date)
+  const rawProduct = raw?.product && typeof raw.product === 'object' ? raw.product : null
+  const product = rawProduct
+    ? {
+        name: cleanManualString(rawProduct.name, 180),
+        image: cleanManualUrl(rawProduct.image),
+        description: cleanManualString(rawProduct.description, 500),
+        price: cleanManualString(rawProduct.price, 60),
+        currency: cleanManualString(rawProduct.currency, 12),
+        seller: cleanManualString(rawProduct.seller, 120),
+        brand: cleanManualString(rawProduct.brand, 120),
+        condition: cleanManualString(rawProduct.condition, 120),
+        availability: cleanManualString(rawProduct.availability, 120),
+      }
+    : null
+
+  return {
+    kind,
+    source: cleanManualString(raw?.source, 160) || current.source || currentMetadata.site_name || domain,
+    domain,
+    title: cleanManualString(raw?.title, 240),
+    handle: cleanManualString(raw?.handle, 120),
+    description: cleanManualString(raw?.description, 500),
+    image: cleanManualUrl(raw?.image),
+    url: cleanManualUrl(raw?.url) || current.url || currentMetadata.canonical_url || url,
+    date: cleanManualString(raw?.date, 80),
+    items,
+    product: product && Object.values(product).some(Boolean) ? product : null,
+    fallback_reason: cleanManualString(raw?.fallback_reason, 160) || current.fallback_reason || currentMetadata.source_excerpt_fallback_reason || null,
+  }
+}
+
 /**
  * POST /api/tiles
  *
@@ -661,7 +729,7 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json()
     const v = validateBody(tilesPatchSchema, body)
     if (!v.success) return v.response
-    const { id, source, slug, size, caption, caption_hidden, title, preview_description, preview_site_name, preview_canonical_url, text_style, thumbnail_url_override, container_cover_url, room_id, aspect, parent_tile_id } = v.data
+    const { id, source, slug, size, caption, caption_hidden, title, preview_description, preview_site_name, preview_canonical_url, text_style, thumbnail_url_override, container_cover_url, room_id, aspect, parent_tile_id, source_excerpt } = v.data
 
     // Caption fields are library-only (the `links` table has no caption or
     // caption_hidden column). Silently dropping would be a dead-control bug —
@@ -726,9 +794,26 @@ export async function PATCH(request: NextRequest) {
     if (container_cover_url !== undefined && source === 'links') {
       updates.container_cover_url = container_cover_url || null
     }
+    if (source_excerpt !== undefined) {
+      if (source !== 'links') {
+        return NextResponse.json({ error: 'source excerpts are only supported for link tiles' }, { status: 400 })
+      }
+      const { data: current } = await supabase
+        .from('links')
+        .select('url, metadata')
+        .eq('id', id)
+        .eq('serial_number', serialNumber)
+        .single()
+      const nextMetadata = { ...(updates.metadata || current?.metadata || {}) }
+      nextMetadata.source_excerpt = source_excerpt
+        ? sanitizeManualSourceExcerpt(source_excerpt, nextMetadata, current?.url || null)
+        : null
+      updates.metadata = nextMetadata
+    }
 
     if (
       source === 'links' &&
+      source_excerpt === undefined &&
       (
         title !== undefined ||
         preview_description !== undefined ||
