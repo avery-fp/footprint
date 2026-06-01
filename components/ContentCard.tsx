@@ -807,9 +807,61 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     return <TextExpandTile text={text} isPublicView={isPublicView} />
   }
 
-  const renderManualSourceRows = (sourceExcerpt: NonNullable<NonNullable<ContentCardProps['content']['metadata']>['source_excerpt']> | null) => {
+  const renderSourceItems = (sourceExcerpt: NonNullable<NonNullable<ContentCardProps['content']['metadata']>['source_excerpt']> | null) => {
     const rows = (sourceExcerpt?.items || []).filter((item) => item?.title || item?.description || item?.text || item?.image)
     if (!rows.length) return null
+    const kind = sourceExcerpt?.kind || 'portal'
+    const visualMode = kind === 'media' || (sourceExcerpt?.source || '').toLowerCase().includes('instagram')
+    const textMode = kind === 'profile' || kind === 'post'
+    const productMode = kind === 'product'
+    const mediaMode = kind === 'media'
+    const rowShell = (item: typeof rows[number], index: number, children: React.ReactNode, className: string) => {
+      const key = `${item.url || item.title || 'row'}-${index}`
+      return item.url ? (
+        <a
+          key={key}
+          href={item.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`${className} no-underline`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {children}
+        </a>
+      ) : (
+        <div key={key} className={className}>
+          {children}
+        </div>
+      )
+    }
+
+    if (visualMode && rows.some((item) => item.image)) {
+      return (
+        <div className="mt-5 border-t border-white/10 pt-4">
+          <div className="mb-3 font-mono text-[9px] uppercase tracking-[0.22em] text-white/25">
+            latest
+          </div>
+          <div className="grid max-h-[420px] grid-cols-2 gap-2 overflow-y-auto pr-1" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
+            {rows.map((item, index) => rowShell(item, index, (
+              <>
+                {item.image ? (
+                  <img src={item.image} alt="" className="aspect-square w-full rounded-lg object-cover bg-black/25" loading="lazy" />
+                ) : null}
+                <div className="mt-2 px-1">
+                  {item.title ? <div className="text-[12px] leading-snug text-white/78 line-clamp-2">{item.title}</div> : null}
+                  {item.description || item.text ? (
+                    <div className="mt-1 text-[10px] leading-relaxed text-white/42 line-clamp-3">
+                      {item.description || item.text}
+                    </div>
+                  ) : null}
+                </div>
+              </>
+            ), 'block rounded-xl border border-white/10 bg-white/[0.035] p-2 transition-colors hover:bg-white/[0.06]'))}
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className="mt-5 border-t border-white/10 pt-4">
         <div className="mb-3 font-mono text-[9px] uppercase tracking-[0.22em] text-white/25">
@@ -817,7 +869,38 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         </div>
         <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
           {rows.map((item, index) => {
-            const inner = (
+            const inner = productMode || mediaMode ? (
+              <div className="flex gap-3">
+                {item.image ? (
+                  <img src={item.image} alt="" className="h-16 w-16 shrink-0 rounded-lg object-cover bg-black/25" loading="lazy" />
+                ) : null}
+                <div className="min-w-0 flex-1">
+                  {item.title ? <div className="text-[13px] leading-snug text-white/80">{item.title}</div> : null}
+                  {item.description || item.text ? (
+                    <div className="mt-1.5 text-[11px] leading-relaxed text-white/45 line-clamp-3">
+                      {item.description || item.text}
+                    </div>
+                  ) : null}
+                  {item.date ? (
+                    <div className="mt-2.5 font-mono text-[9px] uppercase tracking-[0.18em] text-white/25">{item.date}</div>
+                  ) : null}
+                </div>
+              </div>
+            ) : textMode ? (
+              <div>
+                <div className="whitespace-pre-wrap text-[14px] leading-relaxed text-white/82">
+                  {item.title || item.text || item.description}
+                </div>
+                {item.description && item.description !== item.title ? (
+                  <div className="mt-2 whitespace-pre-wrap text-[12px] leading-relaxed text-white/45">
+                    {item.description}
+                  </div>
+                ) : null}
+                {item.date ? (
+                  <div className="mt-3 font-mono text-[9px] uppercase tracking-[0.18em] text-white/25">{item.date}</div>
+                ) : null}
+              </div>
+            ) : (
               <div className="flex gap-3">
                 {item.image ? (
                   <img src={item.image} alt="" className="h-12 w-12 shrink-0 rounded-lg object-cover bg-black/25" loading="lazy" />
@@ -835,22 +918,12 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 </div>
               </div>
             )
-            return item.url ? (
-              <a
-                key={`${item.url}-${index}`}
-                href={item.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block rounded-xl border border-white/10 bg-white/[0.04] p-3.5 no-underline transition-colors hover:bg-white/[0.06]"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {inner}
-              </a>
-            ) : (
-              <div key={`${item.title || 'row'}-${index}`} className="rounded-xl border border-white/10 bg-white/[0.04] p-3.5">
-                {inner}
-              </div>
-            )
+            const shellClass = textMode
+              ? 'block rounded-xl border border-white/10 bg-white/[0.035] p-4 transition-colors hover:bg-white/[0.055]'
+              : productMode
+              ? 'block rounded-xl border border-white/10 bg-white/[0.045] p-3.5 transition-colors hover:bg-white/[0.065]'
+              : 'block rounded-xl border border-white/10 bg-white/[0.04] p-3.5 transition-colors hover:bg-white/[0.06]'
+            return rowShell(item, index, inner, shellClass)
           })}
         </div>
       </div>
@@ -933,7 +1006,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                   {excerptDescription}
                 </div>
               ) : null}
-              {renderManualSourceRows(sourceExcerpt)}
+              {renderSourceItems(sourceExcerpt)}
             </div>
           </ArtifactShell>
         )}
@@ -1073,7 +1146,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                     {sourceExcerpt.description}
                   </div>
                 ) : null}
-                {renderManualSourceRows(sourceExcerpt)}
+                {renderSourceItems(sourceExcerpt)}
               </div>
             ) : (
               <SocialEmbed url={content.url} type="tiktok" variant={socialVariant} onError={() => setShellOpen(false)} />
@@ -1165,7 +1238,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                     {sourceExcerpt.description}
                   </div>
                 ) : null}
-                {renderManualSourceRows(sourceExcerpt)}
+                {renderSourceItems(sourceExcerpt)}
               </div>
             ) : (
               <SocialEmbed url={content.url} type="instagram" variant={socialVariant} onError={() => setShellOpen(false)} />
@@ -1228,8 +1301,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     const sourceEyebrow = [sourceName, sourceDate].filter(Boolean).join(' · ')
     const artifactFrameClass = 'mx-auto overflow-hidden rounded-2xl border border-white/10 bg-black/40 shadow-2xl'
     const sourceLabelClass = 'font-mono text-[10px] uppercase tracking-[0.24em] text-white/35'
-    const sourceRowClass = 'block rounded-xl border border-white/10 bg-white/[0.04] p-3.5 transition-colors hover:bg-white/[0.06]'
-    const latestSection = excerptItems.length > 0 ? (
+    const latestSection = sourceExcerpt?.items?.length ? renderSourceItems(sourceExcerpt) : excerptItems.length > 0 ? (
       <div className="mt-6 border-t border-white/10 pt-4">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div className="font-mono text-[9px] uppercase tracking-[0.22em] text-white/25">
@@ -1278,13 +1350,13 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 href={item.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`${sourceRowClass} no-underline`}
+                className="block rounded-xl border border-white/10 bg-white/[0.04] p-3.5 no-underline transition-colors hover:bg-white/[0.06]"
                 onClick={(e) => e.stopPropagation()}
               >
                 {rowInner}
               </a>
             ) : (
-              <div key={`${item.title}-${item.date || ''}`} className={sourceRowClass}>
+              <div key={`${item.title}-${item.date || ''}`} className="block rounded-xl border border-white/10 bg-white/[0.04] p-3.5 transition-colors hover:bg-white/[0.06]">
                 {rowInner}
               </div>
             )
