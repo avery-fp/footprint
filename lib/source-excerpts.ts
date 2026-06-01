@@ -36,6 +36,12 @@ function cleanString(value: unknown, maxLength: number): string | null {
   return cleaned ? cleaned.slice(0, maxLength) : null
 }
 
+function cleanText(value: unknown, maxLength: number): string | null {
+  const cleaned = cleanString(value, maxLength)
+  if (!cleaned) return null
+  return decodeEntities(cleaned.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, ' '))
+}
+
 function decodeEntities(value: string): string {
   return value
     .replace(/&amp;/g, '&')
@@ -76,10 +82,28 @@ function resolveHttpUrl(raw: unknown, base: string): string | null {
 }
 
 function resolveImageUrl(raw: unknown, base: string): string | null {
-  const value = arrayFirst(raw)
+  if (Array.isArray(raw)) {
+    for (const item of raw) {
+      const resolved = resolveImageUrl(item, base)
+      if (resolved) return resolved
+    }
+    return null
+  }
+  const value = raw
   if (typeof value === 'string') return resolveHttpUrl(value, base)
   if (value && typeof value === 'object') {
-    return resolveHttpUrl((value as any).url || (value as any).contentUrl, base)
+    const object = value as any
+    return resolveHttpUrl(
+      object.url ||
+        object.contentUrl ||
+        object.src ||
+        object.secure_url ||
+        object.originalSrc ||
+        object.transformedSrc ||
+        object.image?.url ||
+        object.image?.src,
+      base
+    )
   }
   return null
 }
@@ -94,6 +118,14 @@ function domainFor(url: string): string | null {
 
 function isXUrl(url: string): boolean {
   return /(?:^|\/\/)(?:www\.)?(?:x|twitter)\.com\//i.test(url)
+}
+
+function isTikTokUrl(url: string): boolean {
+  return /(?:^|\/\/)(?:www\.)?tiktok\.com\//i.test(url) || /(?:^|\/\/)vm\.tiktok\.com\//i.test(url)
+}
+
+function isInstagramUrl(url: string): boolean {
+  return /(?:^|\/\/)(?:www\.)?instagram\.com\//i.test(url)
 }
 
 function cleanHtmlText(value: string): string | null {
@@ -137,6 +169,90 @@ async function resolveXPublicExcerpt(sourceUrl: string, domain: string | null): 
     }
   } catch {
     return null
+  }
+}
+
+async function resolveTikTokPublicExcerpt(sourceUrl: string, domain: string | null): Promise<SourceExcerptResult | null> {
+  const oembedUrl = `https://www.tiktok.com/oembed?url=${encodeURIComponent(sourceUrl)}`
+  try {
+    const response = await fetch(oembedUrl, {
+      signal: AbortSignal.timeout(4000),
+      redirect: 'follow',
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Footprint/1.0; +https://footprint.onl)' },
+    })
+    if (!response.ok) return null
+    const data = await response.json()
+    const title = cleanString(data?.title, 240)
+    const author = cleanString(data?.author_name, 120)
+    const image = resolveHttpUrl(data?.thumbnail_url || '', sourceUrl)
+    if (!title && !author && !image) return null
+    return {
+      preview: {
+        url: sourceUrl,
+        canonical: sourceUrl,
+        title: title || author || 'TikTok',
+        description: author ? `TikTok · ${author}` : 'TikTok',
+        image,
+        siteName: cleanString(data?.provider_name, 80) || 'TikTok',
+        type: cleanString(data?.type, 40) || 'rich',
+      },
+      domain,
+      excerpt_items: [],
+      product: null,
+      category: 'article',
+      fallback_reason: null,
+      published_at: null,
+    }
+  } catch {
+    return null
+  }
+}
+
+function instagramOembedToken(): string | null {
+  return (
+    cleanString(process.env.INSTAGRAM_OEMBED_ACCESS_TOKEN, 2048) ||
+    cleanString(process.env.META_OEMBED_ACCESS_TOKEN, 2048) ||
+    cleanString(process.env.FACEBOOK_OEMBED_ACCESS_TOKEN, 2048)
+  )
+}
+
+async function resolveInstagramPublicExcerpt(sourceUrl: string, domain: string | null): Promise<SourceExcerptResult> {
+  const accessToken = instagramOembedToken()
+  if (!accessToken) return emptyResult(domain, 'instagram_oembed_not_configured')
+  const oembedUrl =
+    `https://graph.facebook.com/v19.0/instagram_oembed?url=${encodeURIComponent(sourceUrl)}` +
+    `&omitscript=true&access_token=${encodeURIComponent(accessToken)}`
+  try {
+    const response = await fetch(oembedUrl, {
+      signal: AbortSignal.timeout(4000),
+      redirect: 'follow',
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Footprint/1.0; +https://footprint.onl)' },
+    })
+    if (!response.ok) return emptyResult(domain, `instagram_oembed_http_${response.status}`)
+    const data = await response.json()
+    const title = cleanString(data?.title, 240)
+    const author = cleanString(data?.author_name, 120)
+    const image = resolveHttpUrl(data?.thumbnail_url || '', sourceUrl)
+    if (!title && !author && !image) return emptyResult(domain, 'instagram_oembed_empty')
+    return {
+      preview: {
+        url: sourceUrl,
+        canonical: sourceUrl,
+        title: title || author || 'Instagram',
+        description: author ? `Instagram · ${author}` : 'Instagram',
+        image,
+        siteName: cleanString(data?.provider_name, 80) || 'Instagram',
+        type: cleanString(data?.type, 40) || 'rich',
+      },
+      domain,
+      excerpt_items: [],
+      product: null,
+      category: 'article',
+      fallback_reason: null,
+      published_at: null,
+    }
+  } catch {
+    return emptyResult(domain, 'instagram_oembed_fetch_failed')
   }
 }
 
@@ -257,7 +373,19 @@ function findTypedNode(node: any, types: Set<string>, depth = 0): any | null {
 function findProductNode(node: any, depth = 0): any | null {
   if (!node || typeof node !== 'object' || depth > 9) return null
   if (nodeType(node) === 'product') return node
-  if (node.name && (node.offers || node.price || node.priceCurrency || node.images || node.image) && (node.description || node.brand || node.seller)) {
+  const hasIdentity = node.name || node.title || node.productTitle
+  const hasMedia = node.image || node.images || node.featuredImage || node.featured_image || node.media || node.photos
+  const hasCommerce =
+    node.offers ||
+    node.offer ||
+    node.price ||
+    node.priceCurrency ||
+    node.priceRange ||
+    node.variants ||
+    node.availableForSale ||
+    node.availability ||
+    node.condition
+  if (hasIdentity && hasMedia && hasCommerce) {
     return node
   }
   if (Array.isArray(node)) {
@@ -281,17 +409,55 @@ function lastUrlPart(value: unknown): string | null {
   return tail.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ')
 }
 
+function namedValue(value: unknown, maxLength = 120): string | null {
+  const item = arrayFirst(value) as any
+  if (!item) return null
+  return cleanString(typeof item === 'object' ? item.name || item.title || item.displayName : item, maxLength)
+}
+
+function booleanAvailability(value: unknown): string | null {
+  return typeof value === 'boolean' ? (value ? 'In stock' : 'Out of stock') : null
+}
+
 function productFromNode(product: any, sourceUrl: string): SourceProduct | null {
   const offer = arrayFirst(product.offers || product.offer) as any
   const priceSpec = arrayFirst(offer?.priceSpecification) as any
-  const brand = arrayFirst(product.brand) as any
-  const seller = arrayFirst(offer?.seller || product.seller) as any
-  const name = cleanString(product.name || product.title, 180)
-  const image = resolveImageUrl(product.image || product.images || product.featuredImage, sourceUrl)
-  const description = cleanString(product.description, 320)
-  const price = cleanString(offer?.price || offer?.lowPrice || priceSpec?.price || product.price, 60)
-  const priceCurrency = cleanString(offer?.priceCurrency || priceSpec?.priceCurrency || product.priceCurrency, 12)
-  const availability = lastUrlPart(offer?.availability || product.availability)
+  const variant = arrayFirst(product.variants || product.selectedVariant || product.defaultVariant) as any
+  const variantPrice = variant?.priceV2 || variant?.price || variant?.compareAtPriceV2 || variant?.compare_at_price
+  const priceRange = product.priceRange || product.price_range || product.priceRangeV2
+  const minPrice = priceRange?.minVariantPrice || priceRange?.min_price || priceRange?.minimum
+  const name = cleanString(product.name || product.title || product.productTitle, 180)
+  const image = resolveImageUrl(
+    product.image || product.images || product.featuredImage || product.featured_image || product.media || product.photos || variant?.image,
+    sourceUrl
+  )
+  const description = cleanText(product.description || product.shortDescription || product.body_html || product.descriptionHtml, 320)
+  const price = cleanString(
+    offer?.price ||
+      offer?.lowPrice ||
+      priceSpec?.price ||
+      product.price ||
+      product.priceAmount ||
+      product.amount ||
+      (typeof variantPrice === 'object' ? variantPrice.amount : variantPrice) ||
+      minPrice?.amount ||
+      minPrice,
+    60
+  )
+  const priceCurrency = cleanString(
+    offer?.priceCurrency ||
+      priceSpec?.priceCurrency ||
+      product.priceCurrency ||
+      product.currency ||
+      product.currencyCode ||
+      (typeof variantPrice === 'object' ? variantPrice.currencyCode || variantPrice.currency : null) ||
+      minPrice?.currencyCode ||
+      minPrice?.currency,
+    12
+  )
+  const availability =
+    lastUrlPart(offer?.availability || product.availability || variant?.availability) ||
+    booleanAvailability(product.availableForSale ?? product.available ?? variant?.availableForSale ?? variant?.available)
   const condition = lastUrlPart(offer?.itemCondition || product.itemCondition || product.condition)
   const parsed = {
     name,
@@ -299,8 +465,8 @@ function productFromNode(product: any, sourceUrl: string): SourceProduct | null 
     description,
     price,
     priceCurrency,
-    brand: cleanString(typeof brand === 'object' ? brand?.name : brand, 120),
-    seller: cleanString(typeof seller === 'object' ? seller?.name : seller, 120),
+    brand: namedValue(product.brand || product.brandName || product.vendor || product.manufacturer),
+    seller: namedValue(offer?.seller || product.seller || product.shop || product.store || product.merchant),
     availability,
     condition,
   }
@@ -355,11 +521,20 @@ function parseArticleDate(html: string): string | null {
 
 function parseOpenGraphProduct(html: string, sourceUrl: string, preview: LinkPreview | null): SourceProduct | null {
   const type = meta(html, 'og:type')
-  const price = cleanString(meta(html, 'product:price:amount') || meta(html, 'product:price') || meta(html, 'og:price:amount'), 60)
-  const priceCurrency = cleanString(meta(html, 'product:price:currency') || meta(html, 'og:price:currency'), 12)
+  const price = cleanString(
+    meta(html, 'product:price:amount') ||
+      meta(html, 'product:price') ||
+      meta(html, 'og:price:amount'),
+    60
+  )
+  const priceCurrency = cleanString(
+    meta(html, 'product:price:currency') || meta(html, 'og:price:currency'),
+    12
+  )
   const availability = lastUrlPart(meta(html, 'product:availability') || meta(html, 'og:availability'))
   const condition = lastUrlPart(meta(html, 'product:condition') || meta(html, 'og:condition'))
-  const hasProductSignal = /product/i.test(type || '') || !!(price || priceCurrency || availability || condition)
+  const brand = cleanString(meta(html, 'product:brand') || meta(html, 'og:brand') || meta(html, 'brand'), 120)
+  const hasProductSignal = /product/i.test(type || '') || !!(price || priceCurrency || availability || condition || brand)
   if (!hasProductSignal) return null
 
   const parsed = {
@@ -368,7 +543,7 @@ function parseOpenGraphProduct(html: string, sourceUrl: string, preview: LinkPre
     description: cleanString(preview?.description || meta(html, 'og:description') || meta(html, 'description'), 320),
     price,
     priceCurrency,
-    brand: cleanString(meta(html, 'product:brand') || meta(html, 'og:brand'), 120),
+    brand,
     seller: cleanString(meta(html, 'product:retailer_item_id') ? null : meta(html, 'product:seller'), 120),
     availability,
     condition,
@@ -400,7 +575,16 @@ export async function resolveSourceExcerpt(url: string): Promise<SourceExcerptRe
   try {
     if (isXUrl(sourceUrl)) {
       const xExcerpt = await resolveXPublicExcerpt(sourceUrl, domain)
-      if (xExcerpt) return xExcerpt
+      return xExcerpt || emptyResult(domain, 'x_oembed_unavailable')
+    }
+
+    if (isTikTokUrl(sourceUrl)) {
+      const tiktokExcerpt = await resolveTikTokPublicExcerpt(sourceUrl, domain)
+      return tiktokExcerpt || emptyResult(domain, 'tiktok_oembed_unavailable')
+    }
+
+    if (isInstagramUrl(sourceUrl)) {
+      return resolveInstagramPublicExcerpt(sourceUrl, domain)
     }
 
     const response = await fetch(sourceUrl, {

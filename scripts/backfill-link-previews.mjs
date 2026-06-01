@@ -58,6 +58,15 @@ function yesNo(value) {
   return value ? 'yes' : 'no'
 }
 
+function hardPlatformFor(row) {
+  const url = row.url || ''
+  const platform = row.platform || ''
+  if (platform === 'twitter' || platform === 'x' || /(?:twitter\.com|x\.com)/i.test(url)) return 'X'
+  if (platform === 'instagram' || /instagram\.com/i.test(url)) return 'Instagram'
+  if (platform === 'tiktok' || /tiktok\.com/i.test(url)) return 'TikTok'
+  return null
+}
+
 loadDotEnvLocal()
 
 const slug = process.argv[2] || 'ae'
@@ -82,8 +91,6 @@ const SKIP_PLATFORMS = new Set([
   'bandcamp',
   'vimeo',
   'video',
-  'instagram',
-  'tiktok',
 ])
 
 const { data: footprint, error: fpError } = await supabase
@@ -111,6 +118,22 @@ if (linksError) {
 
 const links = (rows || []).filter((row) => isHttpUrl(row.url) && !SKIP_PLATFORMS.has(row.platform))
 console.log(`Backfilling ${links.length} ordinary external link previews for /${slug}`)
+
+const summary = {
+  product: 0,
+  feed: 0,
+  article: 0,
+  generic: 0,
+  withProductImage: 0,
+  withProductPrice: 0,
+  fallback: 0,
+  failed: 0,
+  hardPlatforms: {
+    X: { total: 0, improved: 0, fallback: 0, reasons: new Set() },
+    Instagram: { total: 0, improved: 0, fallback: 0, reasons: new Set() },
+    TikTok: { total: 0, improved: 0, fallback: 0, reasons: new Set() },
+  },
+}
 
 for (const row of links) {
   const oldDomain = row.metadata?.domain || domainFor(row.url)
@@ -147,6 +170,22 @@ for (const row of links) {
     .update(updates)
     .eq('id', row.id)
 
+  summary[resolved.category] += 1
+  if (resolved.product?.image) summary.withProductImage += 1
+  if (resolved.product?.price) summary.withProductPrice += 1
+  if (resolved.fallback_reason) summary.fallback += 1
+  if (updateError) summary.failed += 1
+  const hardPlatform = hardPlatformFor(row)
+  if (hardPlatform) {
+    const hard = summary.hardPlatforms[hardPlatform]
+    hard.total += 1
+    if (resolved.preview) hard.improved += 1
+    if (resolved.fallback_reason) {
+      hard.fallback += 1
+      hard.reasons.add(resolved.fallback_reason)
+    }
+  }
+
   console.log(`  new title:  ${logValue(updates.title)}`)
   console.log(`  new desc:   ${logValue(metadata.description)}`)
   console.log(`  new image:  ${logValue(updates.thumbnail)}`)
@@ -174,4 +213,18 @@ for (const row of links) {
     console.log(`    item:                ${item.title}${item.url ? ` (${item.url})` : ''}`)
   }
   console.log(updateError ? `  failure: ${updateError.message}` : '  success')
+}
+
+console.log('\nProduct summary')
+console.log(`  products detected:      ${summary.product}`)
+console.log(`  product images:         ${summary.withProductImage}`)
+console.log(`  product prices:         ${summary.withProductPrice}`)
+console.log(`  feed/article/generic:   ${summary.feed}/${summary.article}/${summary.generic}`)
+console.log(`  fallback reasons:       ${summary.fallback}`)
+console.log(`  update failures:        ${summary.failed}`)
+
+console.log('\nHard platform summary')
+for (const [platform, hard] of Object.entries(summary.hardPlatforms)) {
+  console.log(`  ${platform}: total=${hard.total} safe_metadata=${hard.improved} fallback=${hard.fallback}`)
+  if (hard.reasons.size) console.log(`    fallback reasons: ${Array.from(hard.reasons).join(', ')}`)
 }
