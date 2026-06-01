@@ -212,7 +212,7 @@ export default function OwnerTileSheet({
   const [thumbError, setThumbError] = useState<string | null>(null)
   const thumbInputRef = useRef<HTMLInputElement>(null)
   const isContainerCoverTile = source === 'links' && tile.type === 'container'
-  const showCoverRow = isLinkTile || isContainerCoverTile
+  const showCoverRow = isContainerCoverTile || (isLinkTile && !showTitleRow)
 
   function getCoverPatch(url: string | null) {
     return isContainerCoverTile
@@ -275,6 +275,42 @@ export default function OwnerTileSheet({
     setPreviewStatus(null)
   }, [tile.id, tile.title, tile.description, tile.thumbnail_url_override])
 
+  async function fetchPreviewMetadata() {
+    if (!tile.url) return null
+    const res = await fetch(`/api/link-preview?url=${encodeURIComponent(tile.url)}`)
+    const data = await res.json()
+    if (!res.ok) throw new Error(data?.error || 'refresh failed')
+    return data
+  }
+
+  function applyPreviewMetadata(data: any) {
+    const nextTitle = (data?.title || '').trim()
+    const nextDescription = (data?.description || '').trim()
+    const nextImage = (data?.image || '').trim()
+    const nextMetadata = {
+      ...(tile.metadata || {}),
+      description: nextDescription || null,
+      site_name: data?.siteName || null,
+      canonical_url: data?.canonical || data?.url || null,
+    }
+    setTitleDraft(nextTitle)
+    setDescriptionDraft(nextDescription)
+    setImageUrlDraft(nextImage)
+    onTileChange(tile.id, {
+      title: nextTitle || null,
+      description: nextDescription || null,
+      thumbnail_url_override: nextImage || null,
+      metadata: nextMetadata,
+    })
+    return {
+      title: nextTitle,
+      preview_description: nextDescription || null,
+      preview_site_name: data?.siteName || null,
+      preview_canonical_url: data?.canonical || data?.url || null,
+      thumbnail_url_override: nextImage || null,
+    }
+  }
+
   async function handleRefreshPreview() {
     if (!tile.url) return
     setPreviewError(null)
@@ -286,46 +322,29 @@ export default function OwnerTileSheet({
     if (hasManualValues && !window.confirm('replace current preview fields with fetched metadata?')) return
     setPreviewRefreshing(true)
     try {
-      const res = await fetch(`/api/link-preview?url=${encodeURIComponent(tile.url)}`)
-      const data = await res.json()
-      if (!res.ok) {
-        setPreviewError(data?.error || 'refresh failed')
-        return
-      }
-      const nextTitle = (data?.title || '').trim()
-      const nextDescription = (data?.description || '').trim()
-      const nextImage = (data?.image || '').trim()
-      const nextMetadata = {
-        ...(tile.metadata || {}),
-        description: nextDescription || null,
-        site_name: data?.siteName || null,
-        canonical_url: data?.canonical || data?.url || null,
-      }
-      setTitleDraft(nextTitle)
-      setDescriptionDraft(nextDescription)
-      setImageUrlDraft(nextImage)
-      onTileChange(tile.id, {
-        title: nextTitle || null,
-        description: nextDescription || null,
-        thumbnail_url_override: nextImage || null,
-        metadata: nextMetadata,
-      })
-      savePreviewPatch({
-        title: nextTitle,
-        preview_description: nextDescription || null,
-        preview_site_name: data?.siteName || null,
-        preview_canonical_url: data?.canonical || data?.url || null,
-        thumbnail_url_override: nextImage || null,
-      }, 'refreshed')
-    } catch {
-      setPreviewError('refresh failed')
+      const data = await fetchPreviewMetadata()
+      if (!data) return
+      savePreviewPatch(applyPreviewMetadata(data), 'refreshed')
+    } catch (error: any) {
+      setPreviewError(error?.message || 'refresh failed')
     } finally {
       setPreviewRefreshing(false)
     }
   }
 
-  function handleClearPreviewOverride() {
+  async function handleClearPreviewOverride() {
     if (!window.confirm('clear title, description, and image overrides for this tile?')) return
+    setPreviewError(null)
+    setPreviewStatus('clearing...')
+    try {
+      const data = await fetchPreviewMetadata()
+      if (data?.title || data?.description || data?.image) {
+        savePreviewPatch(applyPreviewMetadata(data), 'cleared')
+        return
+      }
+    } catch {
+      // If the source is blocked, fall back to compact source rendering.
+    }
     setTitleDraft('')
     setDescriptionDraft('')
     setImageUrlDraft('')
@@ -659,15 +678,27 @@ export default function OwnerTileSheet({
                     </span>
                   ) : null}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => thumbInputRef.current?.click()}
-                  disabled={thumbUploading}
-                  style={pillBase}
-                  aria-label="replace preview image"
-                >
-                  {thumbUploading ? 'uploading...' : 'replace image'}
-                </button>
+                <div className="flex gap-2">
+                  {getCurrentCover() && (
+                    <button
+                      type="button"
+                      onClick={handleClearThumbnail}
+                      style={pillBase}
+                      aria-label="remove preview image"
+                    >
+                      remove image
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => thumbInputRef.current?.click()}
+                    disabled={thumbUploading}
+                    style={pillBase}
+                    aria-label="replace preview image"
+                  >
+                    {thumbUploading ? 'uploading...' : 'replace image'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
