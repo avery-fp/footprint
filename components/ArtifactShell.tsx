@@ -15,9 +15,10 @@ interface ArtifactShellProps {
   onDismiss: () => void
   fallbackUrl?: string
   children: React.ReactNode
+  wide?: boolean
 }
 
-export default function ArtifactShell({ onDismiss, fallbackUrl, children }: ArtifactShellProps) {
+export default function ArtifactShell({ onDismiss, fallbackUrl, children, wide = false }: ArtifactShellProps) {
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -71,7 +72,7 @@ export default function ArtifactShell({ onDismiss, fallbackUrl, children }: Arti
 
       {/* Content container — scroll INSIDE, no page reflow */}
       <div
-        className="relative z-10 w-full max-w-lg max-h-[85vh] overflow-y-auto overflow-x-hidden rounded-2xl mx-4"
+        className={`relative z-10 w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} max-h-[85vh] overflow-y-auto overflow-x-hidden rounded-2xl mx-4`}
         style={{
           WebkitOverflowScrolling: 'touch',
           scrollbarWidth: 'none',
