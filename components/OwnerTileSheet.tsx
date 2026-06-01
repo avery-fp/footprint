@@ -134,6 +134,16 @@ const sourceInputStyle: React.CSSProperties = {
 }
 
 const SOURCE_KINDS = ['portal', 'profile', 'post', 'media', 'article', 'feed', 'product'] as const
+type SourceKind = typeof SOURCE_KINDS[number]
+type SourceItemDraft = ReturnType<typeof blankSourceItem>
+
+const SOURCE_HELPER_COPY: Record<'instagram' | 'x' | 'product' | 'tiktok' | 'generic', string> = {
+  instagram: 'Instagram blocks public feed previews. Add visual rows manually or configure Meta oEmbed later.',
+  x: 'X profile feeds are limited. Add recent thought rows manually or use individual tweet links.',
+  product: 'If product data is blocked, add product fields manually.',
+  tiktok: 'TikTok previews can be limited. Add visual rows manually when the player is unavailable.',
+  generic: 'Author rows or product details for blocked sources.',
+}
 
 function blankSourceItem() {
   return { title: '', text: '', description: '', image: '', url: '', date: '' }
@@ -143,17 +153,63 @@ function blankProduct() {
   return { name: '', image: '', description: '', price: '', currency: '', seller: '', brand: '', condition: '', availability: '' }
 }
 
+function sourceHost(url?: string | null) {
+  try {
+    return url ? new URL(url).hostname.replace(/^www\./, '').toLowerCase() : ''
+  } catch {
+    return ''
+  }
+}
+
+function sourceAuthoringProfile(url?: string | null): { suggestedKind: SourceKind | null; copy: string; platform: string } {
+  const host = sourceHost(url)
+  if (/(^|\.)instagram\.com$/.test(host)) {
+    return { suggestedKind: 'media', copy: SOURCE_HELPER_COPY.instagram, platform: 'Instagram' }
+  }
+  if (/(^|\.)x\.com$/.test(host) || /(^|\.)twitter\.com$/.test(host)) {
+    return { suggestedKind: 'profile', copy: SOURCE_HELPER_COPY.x, platform: 'X' }
+  }
+  if (/(^|\.)depop\.com$/.test(host) || /(^|\.)vinted\./.test(host)) {
+    return { suggestedKind: 'product', copy: SOURCE_HELPER_COPY.product, platform: host.includes('depop') ? 'Depop' : 'Vinted' }
+  }
+  if (/(^|\.)tiktok\.com$/.test(host)) {
+    return { suggestedKind: 'media', copy: SOURCE_HELPER_COPY.tiktok, platform: 'TikTok' }
+  }
+  return { suggestedKind: null, copy: SOURCE_HELPER_COPY.generic, platform: host || 'source' }
+}
+
+function productHasValue(product: any) {
+  if (!product || typeof product !== 'object') return false
+  return ['name', 'image', 'description', 'price', 'currency', 'priceCurrency', 'seller', 'brand', 'condition', 'availability']
+    .some((key) => typeof product[key] === 'string' && product[key].trim())
+}
+
+function normalizeProduct(product: any) {
+  return {
+    name: product?.name || '',
+    image: product?.image || '',
+    description: product?.description || '',
+    price: product?.price || '',
+    currency: product?.currency || product?.priceCurrency || '',
+    seller: product?.seller || '',
+    brand: product?.brand || '',
+    condition: product?.condition || '',
+    availability: product?.availability || '',
+  }
+}
+
 function normalizeSourceDraft(tile: Tile) {
   const metadata = tile.metadata || {}
   const current = metadata.source_excerpt || {}
   const legacyItems = Array.isArray(metadata.excerpt_items) ? metadata.excerpt_items : []
   const rawItems = Array.isArray(current.items) && current.items.length ? current.items : legacyItems
   const product = current.product || metadata.product || null
+  const profile = sourceAuthoringProfile(tile.url)
   let domain = current.domain || metadata.domain || null
   try {
     if (!domain && tile.url) domain = new URL(tile.url).hostname.replace(/^www\./, '')
   } catch {}
-  const kind = current.kind || (product ? 'product' : rawItems.length ? 'feed' : metadata.source_excerpt_category === 'article' ? 'article' : 'portal')
+  const kind = current.kind || (productHasValue(product) ? 'product' : rawItems.length ? profile.suggestedKind || 'feed' : metadata.source_excerpt_category === 'article' ? 'article' : profile.suggestedKind || 'portal')
   return {
     kind,
     source: current.source || metadata.site_name || domain || '',
@@ -172,19 +228,7 @@ function normalizeSourceDraft(tile: Tile) {
       url: item?.url || '',
       date: item?.date || '',
     })),
-    product: product
-      ? {
-          name: product.name || '',
-          image: product.image || '',
-          description: product.description || '',
-          price: product.price || '',
-          currency: product.currency || product.priceCurrency || '',
-          seller: product.seller || '',
-          brand: product.brand || '',
-          condition: product.condition || '',
-          availability: product.availability || '',
-        }
-      : blankProduct(),
+    product: productHasValue(product) ? normalizeProduct(product) : blankProduct(),
     fallback_reason: current.fallback_reason || metadata.source_excerpt_fallback_reason || null,
   }
 }
@@ -305,7 +349,8 @@ export default function OwnerTileSheet({
   function withManualSourceExcerpt(patch: { title?: string | null; description?: string | null; image?: string | null }) {
     const metadata = { ...(tile.metadata || {}) }
     const current = sourceDraft || metadata.source_excerpt || {}
-    const product = current.product || metadata.product || null
+    const rawProduct = current.product || metadata.product || null
+    const product = current.kind === 'product' && productHasValue(rawProduct) ? normalizeProduct(rawProduct) : null
     const legacyItems = Array.isArray(metadata.excerpt_items) ? metadata.excerpt_items : []
     const currentItems = Array.isArray(current.items) ? current.items : []
     const items = (currentItems.length ? currentItems : legacyItems).slice(0, 12).map((item: any) => ({
@@ -320,9 +365,10 @@ export default function OwnerTileSheet({
     try {
       if (!domain && tile.url) domain = new URL(tile.url).hostname.replace(/^www\./, '')
     } catch {}
+    const profile = sourceAuthoringProfile(tile.url)
     metadata.description = patch.description !== undefined ? patch.description : metadata.description || null
     metadata.source_excerpt = {
-      kind: current.kind || (product ? 'product' : items.length ? 'feed' : metadata.source_excerpt_category === 'article' ? 'article' : 'portal'),
+      kind: current.kind || (product ? 'product' : items.length ? profile.suggestedKind || 'feed' : metadata.source_excerpt_category === 'article' ? 'article' : profile.suggestedKind || 'portal'),
       source: current.source || metadata.site_name || domain,
       domain,
       title: patch.title !== undefined ? patch.title : current.title || tile.title || null,
@@ -338,11 +384,23 @@ export default function OwnerTileSheet({
     return metadata
   }
 
+  function sourceExcerptPayload(next: any) {
+    const product = productHasValue(next.product) ? normalizeProduct(next.product) : null
+    return {
+      ...next,
+      kind: next.kind || sourceAuthoringProfile(tile.url).suggestedKind || 'portal',
+      product: next.kind === 'product' && product ? product : null,
+      items: Array.isArray(next.items) ? next.items.slice(0, 12) : [],
+    }
+  }
+
   function saveSourceExcerptDraft(next: any) {
-    setSourceDraft(next)
-    const metadata = { ...(tile.metadata || {}), source_excerpt: next }
+    const uiDraft = { ...next, product: next.product || blankProduct() }
+    const payload = sourceExcerptPayload(uiDraft)
+    setSourceDraft(uiDraft)
+    const metadata = { ...(tile.metadata || {}), source_excerpt: payload }
     onTileChange(tile.id, { metadata })
-    patchTile({ source_excerpt: next })
+    patchTile({ source_excerpt: payload })
   }
 
   function updateSourceDraft(patch: Record<string, any>, save = false) {
@@ -359,7 +417,7 @@ export default function OwnerTileSheet({
   }
 
   function updateSourceProduct(patch: Record<string, string>, save = false) {
-    updateSourceDraft({ product: { ...sourceDraft.product, ...patch } }, save)
+    updateSourceDraft({ kind: 'product', product: { ...sourceDraft.product, ...patch } }, save)
   }
 
   async function savePreviewPatch(body: Record<string, unknown>, okMessage = 'saved') {
@@ -639,6 +697,153 @@ export default function OwnerTileSheet({
     onClose()
   }
 
+  const authoring = sourceAuthoringProfile(tile.url)
+  const effectiveSourceKind = (sourceDraft.kind || authoring.suggestedKind || 'portal') as SourceKind
+  const isMediaSourceExcerpt = effectiveSourceKind === 'media'
+  const isProfileSourceExcerpt = effectiveSourceKind === 'profile' || effectiveSourceKind === 'post'
+  const isProductSourceExcerpt = effectiveSourceKind === 'product'
+
+  function renderSourceItemFields(item: SourceItemDraft, index: number) {
+    const saveItem = () => saveSourceExcerptDraft(sourceDraft)
+
+    if (isMediaSourceExcerpt) {
+      return (
+        <>
+          <input
+            type="url"
+            value={item.image}
+            onChange={(e) => updateSourceItem(index, { image: e.target.value })}
+            onBlur={saveItem}
+            style={sourceInputStyle}
+            placeholder="image url"
+          />
+          <input
+            type="text"
+            value={item.title}
+            onChange={(e) => updateSourceItem(index, { title: e.target.value })}
+            onBlur={saveItem}
+            style={sourceInputStyle}
+            placeholder="caption/title"
+          />
+          <textarea
+            value={item.description}
+            onChange={(e) => updateSourceItem(index, { description: e.target.value, text: e.target.value })}
+            onBlur={saveItem}
+            rows={2}
+            style={{ ...sourceInputStyle, resize: 'none' }}
+            placeholder="description"
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="url"
+              value={item.url}
+              onChange={(e) => updateSourceItem(index, { url: e.target.value })}
+              onBlur={saveItem}
+              style={sourceInputStyle}
+              placeholder="item url"
+            />
+            <input
+              type="text"
+              value={item.date}
+              onChange={(e) => updateSourceItem(index, { date: e.target.value })}
+              onBlur={saveItem}
+              style={sourceInputStyle}
+              placeholder="date"
+            />
+          </div>
+        </>
+      )
+    }
+
+    if (isProfileSourceExcerpt) {
+      return (
+        <>
+          <textarea
+            value={item.title}
+            onChange={(e) => updateSourceItem(index, { title: e.target.value, text: e.target.value })}
+            onBlur={saveItem}
+            rows={3}
+            style={{ ...sourceInputStyle, resize: 'vertical' }}
+            placeholder="thought text"
+          />
+          <textarea
+            value={item.description}
+            onChange={(e) => updateSourceItem(index, { description: e.target.value })}
+            onBlur={saveItem}
+            rows={2}
+            style={{ ...sourceInputStyle, resize: 'none' }}
+            placeholder="description optional"
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="url"
+              value={item.url}
+              onChange={(e) => updateSourceItem(index, { url: e.target.value })}
+              onBlur={saveItem}
+              style={sourceInputStyle}
+              placeholder="item url optional"
+            />
+            <input
+              type="text"
+              value={item.date}
+              onChange={(e) => updateSourceItem(index, { date: e.target.value })}
+              onBlur={saveItem}
+              style={sourceInputStyle}
+              placeholder="date optional"
+            />
+          </div>
+        </>
+      )
+    }
+
+    return (
+      <>
+        <div className="grid grid-cols-2 gap-2">
+          <input
+            type="text"
+            value={item.title}
+            onChange={(e) => updateSourceItem(index, { title: e.target.value })}
+            onBlur={saveItem}
+            style={sourceInputStyle}
+            placeholder="title/text"
+          />
+          <input
+            type="text"
+            value={item.date}
+            onChange={(e) => updateSourceItem(index, { date: e.target.value })}
+            onBlur={saveItem}
+            style={sourceInputStyle}
+            placeholder="date"
+          />
+          <input
+            type="url"
+            value={item.image}
+            onChange={(e) => updateSourceItem(index, { image: e.target.value })}
+            onBlur={saveItem}
+            style={sourceInputStyle}
+            placeholder="image url"
+          />
+          <input
+            type="url"
+            value={item.url}
+            onChange={(e) => updateSourceItem(index, { url: e.target.value })}
+            onBlur={saveItem}
+            style={sourceInputStyle}
+            placeholder="item url"
+          />
+        </div>
+        <textarea
+          value={item.description}
+          onChange={(e) => updateSourceItem(index, { description: e.target.value, text: e.target.value })}
+          onBlur={saveItem}
+          rows={2}
+          style={{ ...sourceInputStyle, resize: 'none' }}
+          placeholder="description"
+        />
+      </>
+    )
+  }
+
   return (
     <>
       {/* Backdrop — soft dim + tap-to-close. Pulled below the sheet so
@@ -852,7 +1057,7 @@ export default function OwnerTileSheet({
               <div>
                 <div style={rowLabel}>source excerpt</div>
                 <p className="mt-1 text-[11px] leading-snug text-white/32">
-                  Author rows or product details for blocked sources.
+                  {authoring.copy}
                 </p>
               </div>
               <select
@@ -866,6 +1071,16 @@ export default function OwnerTileSheet({
                 ))}
               </select>
             </div>
+            {authoring.suggestedKind && authoring.suggestedKind !== sourceDraft.kind ? (
+              <button
+                type="button"
+                onClick={() => saveSourceExcerptDraft({ ...sourceDraft, kind: authoring.suggestedKind })}
+                className="mt-3"
+                style={pillBase}
+              >
+                use {authoring.platform} {authoring.suggestedKind}
+              </button>
+            ) : null}
 
             <div className="mt-4 grid grid-cols-2 gap-3">
               <label>
@@ -892,6 +1107,41 @@ export default function OwnerTileSheet({
               </label>
             </div>
 
+            {isProductSourceExcerpt ? (
+              <>
+                <div className="mt-4 flex items-center justify-between gap-3">
+                  <span style={rowLabel}>product</span>
+                  <button
+                    type="button"
+                    onClick={() => saveSourceExcerptDraft({ ...sourceDraft, kind: 'product' })}
+                    style={pillActive}
+                  >
+                    product card
+                  </button>
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <input type="url" value={sourceDraft.product.image} onChange={(e) => updateSourceProduct({ image: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="product image" />
+                  <input type="text" value={sourceDraft.product.name} onChange={(e) => updateSourceProduct({ name: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="name" />
+                  <input type="text" value={sourceDraft.product.price} onChange={(e) => updateSourceProduct({ price: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="price" />
+                  <input type="text" value={sourceDraft.product.currency} onChange={(e) => updateSourceProduct({ currency: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="currency" />
+                  <input type="text" value={sourceDraft.product.seller} onChange={(e) => updateSourceProduct({ seller: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="seller" />
+                  <input type="text" value={sourceDraft.product.brand} onChange={(e) => updateSourceProduct({ brand: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="brand" />
+                  <input type="text" value={sourceDraft.product.condition} onChange={(e) => updateSourceProduct({ condition: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="condition" />
+                  <input type="text" value={sourceDraft.product.availability} onChange={(e) => updateSourceProduct({ availability: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="availability" />
+                </div>
+                <textarea
+                  value={sourceDraft.product.description}
+                  onChange={(e) => updateSourceProduct({ description: e.target.value })}
+                  onBlur={() => saveSourceExcerptDraft(sourceDraft)}
+                  rows={2}
+                  style={{ ...sourceInputStyle, resize: 'none' }}
+                  placeholder="product description"
+                />
+              </>
+            ) : null}
+
+            {!isProductSourceExcerpt ? (
+              <>
             <div className="mt-4 flex items-center justify-between gap-3">
               <span style={rowLabel}>items</span>
               <button
@@ -946,52 +1196,15 @@ export default function OwnerTileSheet({
                       </button>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      type="text"
-                      value={item.title}
-                      onChange={(e) => updateSourceItem(index, { title: e.target.value })}
-                      onBlur={() => saveSourceExcerptDraft(sourceDraft)}
-                      style={sourceInputStyle}
-                      placeholder="title/text"
-                    />
-                    <input
-                      type="text"
-                      value={item.date}
-                      onChange={(e) => updateSourceItem(index, { date: e.target.value })}
-                      onBlur={() => saveSourceExcerptDraft(sourceDraft)}
-                      style={sourceInputStyle}
-                      placeholder="date"
-                    />
-                    <input
-                      type="url"
-                      value={item.image}
-                      onChange={(e) => updateSourceItem(index, { image: e.target.value })}
-                      onBlur={() => saveSourceExcerptDraft(sourceDraft)}
-                      style={sourceInputStyle}
-                      placeholder="image url"
-                    />
-                    <input
-                      type="url"
-                      value={item.url}
-                      onChange={(e) => updateSourceItem(index, { url: e.target.value })}
-                      onBlur={() => saveSourceExcerptDraft(sourceDraft)}
-                      style={sourceInputStyle}
-                      placeholder="item url"
-                    />
-                  </div>
-                  <textarea
-                    value={item.description}
-                    onChange={(e) => updateSourceItem(index, { description: e.target.value, text: e.target.value })}
-                    onBlur={() => saveSourceExcerptDraft(sourceDraft)}
-                    rows={2}
-                    style={{ ...sourceInputStyle, resize: 'none' }}
-                    placeholder="description"
-                  />
+                  {renderSourceItemFields(item, index)}
                 </div>
               ))}
             </div>
+              </>
+            ) : null}
 
+            {!isProductSourceExcerpt ? (
+              <>
             <div className="mt-4 flex items-center justify-between gap-3">
               <span style={rowLabel}>product</span>
               <button
@@ -1020,6 +1233,8 @@ export default function OwnerTileSheet({
               style={{ ...sourceInputStyle, resize: 'none' }}
               placeholder="product description"
             />
+              </>
+            ) : null}
           </div>
         )}
 
