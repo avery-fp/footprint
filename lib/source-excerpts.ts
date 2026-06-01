@@ -79,9 +79,41 @@ function tagValue(xml: string, tag: string): string | null {
   return decodeEntities(match[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/<[^>]+>/g, ' '))
 }
 
+function normalizeFeedDedupeKey(value: unknown): string {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/https?:\/\/(www\.)?/g, '')
+    .replace(/[?#].*$/g, '')
+    .replace(/[^a-z0-9\s:/.-]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function dedupeFeedItems(items: SourceExcerptItem[]): SourceExcerptItem[] {
+  const seenUrls = new Set<string>()
+  const seenTitles = new Set<string>()
+  const out: SourceExcerptItem[] = []
+
+  for (const item of items) {
+    const urlKey = normalizeFeedDedupeKey(item.url)
+    const titleKey = normalizeFeedDedupeKey(item.title)
+
+    if (urlKey && seenUrls.has(urlKey)) continue
+    if (titleKey && seenTitles.has(titleKey)) continue
+
+    if (urlKey) seenUrls.add(urlKey)
+    if (titleKey) seenTitles.add(titleKey)
+
+    out.push(item)
+  }
+
+  return out
+}
+
 function parseFeedItems(xml: string, feedUrl: string): SourceExcerptItem[] {
   const chunks = xml.match(/<item\b[\s\S]*?<\/item>/gi) || xml.match(/<entry\b[\s\S]*?<\/entry>/gi) || []
-  return chunks.slice(0, 3).map((chunk) => {
+
+  const items = chunks.map((chunk) => {
     const linkHref = chunk.match(/<link\b[^>]*href=["']([^"']+)["']/i)?.[1]
     const rssLink = tagValue(chunk, 'link')
     return {
@@ -91,6 +123,8 @@ function parseFeedItems(xml: string, feedUrl: string): SourceExcerptItem[] {
       description: cleanString(tagValue(chunk, 'description') || tagValue(chunk, 'summary'), 240),
     }
   }).filter((item) => item.title !== 'Untitled' || item.url)
+
+  return dedupeFeedItems(items).slice(0, 3)
 }
 
 function arrayFirst(value: unknown): unknown {
