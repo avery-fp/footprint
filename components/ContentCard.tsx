@@ -14,7 +14,6 @@ import SocialEmbed from '@/components/SocialEmbed'
 import TextExpandTile from '@/components/TextExpandTile'
 import FallbackCard from '@/components/FallbackCard'
 import ArtifactTile from '@/components/ArtifactTile'
-import TwitterTile from '@/components/TwitterTile'
 import MusicEmbedTile from '@/components/MusicEmbedTile'
 import ReaderTile from '@/components/ReaderTile'
 import { sanitizeLinkMeta, normalizeLinkObject } from '@/lib/link-object'
@@ -739,27 +738,72 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   }
 
   // ════════════════════════════════════════
-  // TWITTER / X — glass tile, click-to-expand XEmbed
+  // TWITTER / X — glass tile, click-to-expand text artifact
   // Matched by URL, not stored type — seals pic.twitter.com and mistyped tiles.
-  // Compact resting state; ArtifactShell + SocialEmbed on tap.
+  // Compact resting state; ArtifactShell opens source-specific excerpt.
   // ════════════════════════════════════════
   if (/(?:twitter\.com|x\.com)/i.test(content.url)) {
-    const { title, creator, image } = sanitizeLinkMeta(
+    const { title, creator } = sanitizeLinkMeta(
       { title: content.title, creator: content.artist, image: getBestThumbnailUrl(content), description: content.description },
       content.url
     )
-    const isPost = /\/status\/\d+/.test(content.url)
     const handleMatch = content.url.match(/(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]+)/)
     const handle = creator || (handleMatch ? `@${handleMatch[1]}` : null)
+    const excerptTitle = title || content.description || 'X'
+    const excerptDescription = content.description && content.description !== excerptTitle ? content.description : ''
+
     return (
-      <TwitterTile
-        title={title}
-        authorHandle={handle}
-        image={image}
-        url={content.url}
-        aspectClass={aspectClass}
-        variant={isPost ? 'post' : 'profile'}
-      />
+      <>
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setShellOpen(true)}
+          onKeyDown={(e) => { if (e.key === 'Enter') setShellOpen(true) }}
+          ref={containerRef as any}
+          className={`block w-full h-full fp-tile overflow-hidden relative cursor-pointer ${aspectClass}`}
+          style={{
+            background: 'rgba(255, 255, 255, 0.05)',
+            boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.07)',
+          }}
+        >
+          <div className="absolute inset-0 flex flex-col justify-center px-4 py-3 gap-2">
+            <div className="flex items-center justify-between gap-3">
+              <span className="truncate text-[11px] font-medium text-white/55">
+                {handle || 'x.com'}
+              </span>
+              <span className="shrink-0 text-[13px] font-light text-white/35 select-none">
+                X
+              </span>
+            </div>
+            <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-white/80 line-clamp-7">
+              {excerptTitle}
+            </p>
+          </div>
+        </div>
+
+        {shellOpen && (
+          <ArtifactShell onDismiss={() => setShellOpen(false)} fallbackUrl={content.url}>
+            <div className="mx-auto max-w-[440px] overflow-hidden rounded-2xl border border-white/10 bg-black/35 p-5">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="min-w-0 truncate text-[11px] font-medium text-white/50">
+                  {handle || 'x.com'}
+                </div>
+                <div className="shrink-0 text-[11px] uppercase tracking-[0.22em] text-white/30">
+                  X
+                </div>
+              </div>
+              <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-white/85">
+                {excerptTitle}
+              </div>
+              {excerptDescription ? (
+                <div className="mt-4 whitespace-pre-wrap text-[13px] leading-relaxed text-white/50">
+                  {excerptDescription}
+                </div>
+              ) : null}
+            </div>
+          </ArtifactShell>
+        )}
+      </>
     )
   }
 
@@ -974,6 +1018,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
 
     const displayTitle = content.title || host
     const displayDescription = content.description || content.artist || ''
+    const hasArtifactImage = !!thumbSrc && !socialThumbFailed
 
     return (
       <>
@@ -988,7 +1033,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           className={`block w-full h-full fp-tile overflow-hidden relative cursor-pointer ${aspectClass}`}
           style={{ background: 'transparent' }}
         >
-          {thumbSrc ? (
+          {hasArtifactImage ? (
             <div className="fp-resting-video-frame z-[1]">
               <img
                 src={thumbSrc}
@@ -1019,23 +1064,28 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
 
         {shellOpen && (
           <ArtifactShell onDismiss={() => setShellOpen(false)} fallbackUrl={content.url}>
-            <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/35">
-              {thumbSrc ? (
+            <div className={`mx-auto overflow-hidden rounded-2xl border border-white/10 bg-black/35 ${hasArtifactImage ? 'max-w-lg' : 'max-w-[440px]'}`}>
+              {hasArtifactImage ? (
                 <img
                   src={thumbSrc}
                   alt=""
-                  className="w-full max-h-[70vh] object-contain"
+                  className="w-full max-h-[62vh] object-contain"
                 />
               ) : (
-                <div className="flex min-h-[320px] items-center justify-center p-8">
-                  <div className="font-mono text-[11px] uppercase tracking-[0.3em] text-white/45">
-                    {host}
+                <div className="flex min-h-[175px] items-center justify-center p-8 text-center">
+                  <div>
+                    <div className="font-mono text-[10px] uppercase tracking-[0.26em] text-white/35">
+                      {host}
+                    </div>
+                    <div className="mt-4 text-[15px] leading-snug text-white/80">
+                      {displayTitle}
+                    </div>
                   </div>
                 </div>
               )}
 
-              <div className="p-5">
-                {displayTitle ? (
+              <div className={`${hasArtifactImage ? 'p-5' : 'px-6 pb-6 pt-0 text-center'}`}>
+                {displayTitle && hasArtifactImage ? (
                   <div className="text-sm leading-relaxed text-white/80">
                     {displayTitle}
                   </div>

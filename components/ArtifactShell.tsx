@@ -106,7 +106,7 @@ export default function ArtifactShell({ onDismiss, fallbackUrl, children }: Arti
           className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 text-white/30 hover:text-white/60 transition-colors text-[11px] tracking-wider uppercase"
           style={{ fontWeight: 500 }}
         >
-          Open original →
+          GO TO SITE →
         </a>
       )}
 
