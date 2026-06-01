@@ -128,6 +128,9 @@ const summary = {
   withProductPrice: 0,
   fallback: 0,
   failed: 0,
+  feedSources: 0,
+  feedItems: 0,
+  sourceKinds: new Map(),
   hardPlatforms: {
     X: { total: 0, improved: 0, fallback: 0, reasons: new Set() },
     Instagram: { total: 0, improved: 0, fallback: 0, reasons: new Set() },
@@ -182,6 +185,11 @@ for (const row of links) {
   if (resolved.product?.price) summary.withProductPrice += 1
   if (resolved.fallback_reason) summary.fallback += 1
   if (updateError) summary.failed += 1
+  summary.sourceKinds.set(sourceExcerpt.kind, (summary.sourceKinds.get(sourceExcerpt.kind) || 0) + 1)
+  if (sourceExcerpt.kind === 'feed') {
+    summary.feedSources += 1
+    summary.feedItems += sourceExcerpt.items.length
+  }
   const hardPlatform = hardPlatformFor(row)
   if (hardPlatform) {
     const hard = summary.hardPlatforms[hardPlatform]
@@ -230,6 +238,11 @@ console.log(`  product prices:         ${summary.withProductPrice}`)
 console.log(`  feed/article/generic:   ${summary.feed}/${summary.article}/${summary.generic}`)
 console.log(`  fallback reasons:       ${summary.fallback}`)
 console.log(`  update failures:        ${summary.failed}`)
+
+console.log('\nSource summary')
+console.log(`  feed sources:           ${summary.feedSources}`)
+console.log(`  feed items stored:      ${summary.feedItems}`)
+console.log(`  source kinds:           ${Array.from(summary.sourceKinds.entries()).map(([kind, count]) => `${kind}=${count}`).join(', ') || 'none'}`)
 
 console.log('\nHard platform summary')
 for (const [platform, hard] of Object.entries(summary.hardPlatforms)) {

@@ -62,6 +62,8 @@ export interface SourceExcerptResult {
   published_at: string | null
 }
 
+const MAX_FEED_ITEMS = 12
+
 function cleanString(value: unknown, maxLength: number): string | null {
   if (typeof value !== 'string' && typeof value !== 'number') return null
   const cleaned = String(value).replace(/\s+/g, ' ').trim()
@@ -357,18 +359,56 @@ async function resolveInstagramPublicExcerpt(sourceUrl: string, domain: string |
   }
 }
 
-function findFeedUrl(html: string, sourceUrl: string): string | null {
+function tagAttr(tag: string, name: string): string | null {
+  const match = tag.match(new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i'))
+  return match ? decodeEntities(match[1] || match[2] || match[3] || '').trim() || null : null
+}
+
+function uniqueUrls(urls: Array<string | null>): string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const url of urls) {
+    if (!url || seen.has(url)) continue
+    seen.add(url)
+    out.push(url)
+  }
+  return out
+}
+
+function findFeedUrls(html: string, sourceUrl: string): string[] {
+  const urls: Array<string | null> = []
   const linkPattern = /<link\b[^>]*>/gi
   let match: RegExpExecArray | null
   while ((match = linkPattern.exec(html))) {
     const tag = match[0]
-    if (!/rel=["'][^"']*alternate/i.test(tag)) continue
-    if (!/type=["'](?:application\/rss\+xml|application\/atom\+xml|application\/feed\+json)/i.test(tag)) continue
-    const href = tag.match(/\bhref=["']([^"']+)["']/i)?.[1]
-    const url = resolveHttpUrl(href, sourceUrl)
-    if (url) return url
+    const rel = tagAttr(tag, 'rel') || ''
+    const type = tagAttr(tag, 'type') || ''
+    if (!/\balternate\b/i.test(rel)) continue
+    if (!/(application\/rss\+xml|application\/atom\+xml|application\/feed\+json|application\/json|text\/xml|application\/xml)/i.test(type)) continue
+    urls.push(resolveHttpUrl(tagAttr(tag, 'href'), sourceUrl))
   }
-  return null
+  return uniqueUrls(urls)
+}
+
+function feedFallbackUrls(sourceUrl: string): string[] {
+  try {
+    const parsed = new URL(sourceUrl)
+    parsed.search = ''
+    parsed.hash = ''
+    const origin = parsed.origin
+    const candidates = ['/feed', '/rss', '/atom', '/feed.xml', '/rss.xml', '/atom.xml'].map((path) => `${origin}${path}`)
+    const path = parsed.pathname.replace(/\/+$/, '')
+    if (path && path !== '') {
+      candidates.push(`${origin}${path}/feed`, `${origin}${path}/rss`, `${origin}${path}.rss`, `${origin}${path}.xml`)
+    }
+    return uniqueUrls(candidates)
+  } catch {
+    return []
+  }
+}
+
+function isFeedContentType(contentType: string): boolean {
+  return /(xml|rss|atom|feed\+json|application\/json)/i.test(contentType)
 }
 
 function tagValue(xml: string, tag: string): string | null {
@@ -446,7 +486,54 @@ function parseFeedItems(xml: string, feedUrl: string): SourceExcerptItem[] {
 
   return dedupeFeedItems(items)
     .sort((a, b) => parseDateValue(b.date) - parseDateValue(a.date))
-    .slice(0, 3)
+    .slice(0, MAX_FEED_ITEMS)
+}
+
+function parseJsonFeedItems(json: string, feedUrl: string): SourceExcerptItem[] {
+  try {
+    const data = JSON.parse(json)
+    const rawItems = Array.isArray(data?.items) ? data.items : []
+    const items = rawItems.map((item: any) => ({
+      title: cleanString(item.title || item.summary || item.content_text, 180) || 'Untitled',
+      url: resolveHttpUrl(item.url || item.external_url || item.id || '', feedUrl),
+      date: cleanString(item.date_published || item.date_modified, 80),
+      description: cleanString(item.summary || item.content_text || item.content_html, 240),
+    })).filter((item: SourceExcerptItem) => item.title !== 'Untitled' || item.url)
+    return dedupeFeedItems(items)
+      .sort((a, b) => parseDateValue(b.date) - parseDateValue(a.date))
+      .slice(0, MAX_FEED_ITEMS)
+  } catch {
+    return []
+  }
+}
+
+function parseFeedBody(body: string, feedUrl: string, contentType: string): SourceExcerptItem[] {
+  if (/feed\+json|application\/json/i.test(contentType) || body.trim().startsWith('{')) {
+    const jsonItems = parseJsonFeedItems(body, feedUrl)
+    if (jsonItems.length) return jsonItems
+  }
+  return parseFeedItems(body, feedUrl)
+}
+
+async function fetchFeedItems(feedUrl: string): Promise<SourceExcerptItem[]> {
+  const checked = validateFetchUrl(feedUrl)
+  if (!checked.valid || !checked.parsed) return []
+  try {
+    const feed = await fetch(checked.parsed.href, {
+      signal: AbortSignal.timeout(4000),
+      redirect: 'follow',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; Footprint/1.0; +https://footprint.onl)',
+        Accept: 'application/rss+xml,application/atom+xml,application/feed+json,application/xml,text/xml;q=0.9,*/*;q=0.2',
+      },
+    })
+    if (!feed.ok) return []
+    const contentType = feed.headers.get('content-type') || ''
+    if (!isFeedContentType(contentType) && !/\.(rss|atom|xml|json)(?:$|[?#])/i.test(checked.parsed.href)) return []
+    return parseFeedBody(await feed.text(), checked.parsed.href, contentType)
+  } catch {
+    return []
+  }
 }
 
 function arrayFirst(value: unknown): unknown {
@@ -698,8 +785,8 @@ export async function resolveSourceExcerpt(url: string): Promise<SourceExcerptRe
     })
     if (!response.ok) return emptyResult(domain, `http_${response.status}`)
     const contentType = response.headers.get('content-type') || ''
-    if (contentType.includes('xml') || contentType.includes('rss') || contentType.includes('atom')) {
-      const excerpt_items = parseFeedItems(await response.text(), sourceUrl)
+    if (isFeedContentType(contentType)) {
+      const excerpt_items = parseFeedBody(await response.text(), sourceUrl, contentType)
       return {
         preview: null,
         domain,
@@ -717,17 +804,10 @@ export async function resolveSourceExcerpt(url: string): Promise<SourceExcerptRe
     const preview = extractLinkPreview(html, sourceUrl)
     const published_at = parseArticleDate(html)
     const product = parseJsonLdProduct(html, sourceUrl) || parseOpenGraphProduct(html, sourceUrl, preview) || parseEmbeddedProduct(html, sourceUrl)
-    const feedUrl = findFeedUrl(html, sourceUrl)
     let excerpt_items: SourceExcerptItem[] = []
-    if (feedUrl) {
-      try {
-        const feed = await fetch(feedUrl, {
-          signal: AbortSignal.timeout(4000),
-          redirect: 'follow',
-          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Footprint/1.0; +https://footprint.onl)' },
-        })
-        if (feed.ok) excerpt_items = parseFeedItems(await feed.text(), feedUrl)
-      } catch {}
+    for (const feedUrl of uniqueUrls([...findFeedUrls(html, sourceUrl), ...feedFallbackUrls(sourceUrl)])) {
+      excerpt_items = await fetchFeedItems(feedUrl)
+      if (excerpt_items.length) break
     }
     const hasArticlePreview = !!(preview?.title || preview?.description || preview?.image)
     const category = excerpt_items.length > 0 ? 'feed' : product ? 'product' : hasArticlePreview ? 'article' : 'generic'
