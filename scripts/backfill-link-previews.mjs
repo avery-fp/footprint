@@ -65,7 +65,7 @@ if (!supabaseUrl || !serviceKey) {
   process.exit(1)
 }
 
-const { fetchLinkPreview } = tsxRequire('../lib/og.ts', import.meta.url)
+const { resolveSourceExcerpt } = tsxRequire('../lib/source-excerpts.ts', import.meta.url)
 const supabase = createClient(supabaseUrl, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 })
@@ -117,7 +117,8 @@ for (const row of links) {
   console.log(`  old image:  ${logValue(row.thumbnail)}`)
   console.log(`  old domain: ${logValue(oldDomain)}`)
 
-  const preview = await fetchLinkPreview(row.url, { timeoutMs: 4500 })
+  const resolved = await resolveSourceExcerpt(row.url)
+  const preview = resolved.preview
   const domain = domainFor(row.url)
   const metadata = {
     ...(row.metadata || {}),
@@ -125,10 +126,12 @@ for (const row of links) {
     canonical_url: cleanString(preview?.canonical, 2048) || row.metadata?.canonical_url || null,
     site_name: cleanString(preview?.siteName, 120) || row.metadata?.site_name || null,
     domain,
+    ...(resolved.excerpt_items.length > 0 ? { excerpt_items: resolved.excerpt_items } : {}),
+    ...(resolved.product ? { product: resolved.product } : {}),
   }
   const updates = {
-    title: cleanString(preview?.title, 180) || row.title || domain,
-    thumbnail: cleanString(preview?.image, 2048) || row.thumbnail || null,
+    title: cleanString(resolved.product?.name, 180) || cleanString(preview?.title, 180) || row.title || domain,
+    thumbnail: cleanString(resolved.product?.image, 2048) || cleanString(preview?.image, 2048) || row.thumbnail || null,
     metadata,
   }
 
@@ -141,5 +144,7 @@ for (const row of links) {
   console.log(`  new desc:   ${logValue(metadata.description)}`)
   console.log(`  new image:  ${logValue(updates.thumbnail)}`)
   console.log(`  new domain: ${logValue(metadata.domain)}`)
+  console.log(`  items:      ${resolved.excerpt_items.length}`)
+  console.log(`  product:    ${resolved.product?.name ? 'yes' : 'no'}`)
   console.log(updateError ? `  failure: ${updateError.message}` : '  success')
 }

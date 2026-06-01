@@ -66,6 +66,7 @@ interface UnifiedTileProps {
     description: string | null
     thumbnail_url: string | null
     embed_html: string | null
+  metadata?: Record<string, any> | null
     render_mode?: string
     artist?: string | null
     thumbnail_url_hq?: string | null
@@ -428,6 +429,7 @@ export default function UnifiedTile({
                 artist: item.artist,
                 thumbnail_url_hq: item.thumbnail_url_hq,
                 thumbnail_url_override: item.thumbnail_url_override,
+                metadata: item.metadata,
               }}
               tileSize={size}
               aspect={aspect}
@@ -486,6 +488,7 @@ export default function UnifiedTile({
                 artist: item.artist,
                 thumbnail_url_hq: item.thumbnail_url_hq,
                 thumbnail_url_override: item.thumbnail_url_override,
+                metadata: item.metadata,
               }}
               tileSize={size}
               aspect={aspect}

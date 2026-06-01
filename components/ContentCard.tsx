@@ -110,6 +110,23 @@ interface ContentCardProps {
     artist?: string | null
     thumbnail_url_hq?: string | null
     thumbnail_url_override?: string | null
+    metadata?: {
+      product?: {
+        name?: string | null
+        image?: string | null
+        description?: string | null
+        price?: string | null
+        priceCurrency?: string | null
+        brand?: string | null
+        seller?: string | null
+      } | null
+      excerpt_items?: Array<{
+        title?: string | null
+        url?: string | null
+        date?: string | null
+        description?: string | null
+      }> | null
+    } | null
   }
   onWidescreen?: () => void
   isMobile?: boolean
@@ -1032,12 +1049,15 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
 
     const displayTitle = content.title || host
     const displayDescription = content.description || content.artist || ''
-    const hasArtifactImage = !!thumbSrc && !socialThumbFailed
+    const productMeta = content.metadata?.product || null
+    const excerptItems = (content.metadata?.excerpt_items || []).filter((item) => item?.title).slice(0, 3)
+    const artifactImage = productMeta?.image || thumbSrc
+    const hasArtifactImage = !!artifactImage && !socialThumbFailed
     const productArtifact = isProductSource(content.url)
-    const sourceTitle = displayTitle
-    const sourceDescription = displayDescription
-    const productPrice = extractPrice(`${content.title || ''} ${content.description || ''}`)
-    const productSeller = content.artist || (productArtifact ? host : '')
+    const sourceTitle = productMeta?.name || displayTitle
+    const sourceDescription = productMeta?.description || displayDescription
+    const productPrice = productMeta?.price || extractPrice(`${content.title || ''} ${content.description || ''}`)
+    const productSeller = productMeta?.seller || productMeta?.brand || content.artist || (productArtifact ? host : '')
     const productDescription = productPrice
       ? sourceDescription.replace(productPrice, '').trim()
       : sourceDescription
@@ -1092,7 +1112,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 {hasArtifactImage ? (
                   <div className="flex items-center justify-center bg-black/25 sm:w-[48%]">
                     <img
-                      src={thumbSrc}
+                      src={artifactImage}
                       alt=""
                       className="max-h-[58vh] w-full object-contain"
                     />
@@ -1108,7 +1128,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                   </div>
                   {productPrice ? (
                     <div className="mt-3 text-[14px] font-medium text-white/75">
-                      {productPrice}
+                      {productMeta?.priceCurrency ? `${productMeta.priceCurrency} ${productPrice}` : productPrice}
                     </div>
                   ) : null}
                   {productSeller ? (
@@ -1127,7 +1147,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               <div className={`mx-auto overflow-hidden rounded-2xl border border-white/10 bg-black/35 ${hasArtifactImage ? 'max-w-lg' : 'max-w-[440px]'}`}>
                 {hasArtifactImage ? (
                   <img
-                    src={thumbSrc}
+                    src={artifactImage}
                     alt=""
                     className="w-full max-h-[62vh] object-contain"
                   />
@@ -1154,6 +1174,28 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                   {sourceDescription ? (
                     <div className="mt-2 text-xs leading-relaxed text-white/45">
                       {sourceDescription}
+                    </div>
+                  ) : null}
+
+                  {excerptItems.length > 0 ? (
+                    <div className="mt-4 space-y-2">
+                      {excerptItems.map((item) => (
+                        <div key={`${item.title}-${item.url || ''}`} className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
+                          <div className="text-[12px] leading-snug text-white/75">
+                            {item.title}
+                          </div>
+                          {item.description ? (
+                            <div className="mt-1 text-[11px] leading-relaxed text-white/40 line-clamp-2">
+                              {item.description}
+                            </div>
+                          ) : null}
+                          {item.date ? (
+                            <div className="mt-2 font-mono text-[9px] uppercase tracking-[0.18em] text-white/25">
+                              {item.date}
+                            </div>
+                          ) : null}
+                        </div>
+                      ))}
                     </div>
                   ) : null}
 

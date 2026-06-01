@@ -53,6 +53,7 @@ export interface Tile {
   playback_url?: string | null
   poster_url?: string | null
   status?: string | null
+  metadata?: Record<string, any> | null
   parent_tile_id: string | null
   source: TileSource
 }
@@ -144,6 +145,7 @@ function mapLinkRow(row: any): Tile {
     clip_start_ms: row.metadata?.clip_start_ms ?? null,
     clip_end_ms: row.metadata?.clip_end_ms ?? null,
     text_style: row.metadata?.text_style ?? null,
+    metadata: row.metadata || null,
     parent_tile_id: row.parent_tile_id || null,
     source: 'links',
   }
