@@ -635,16 +635,18 @@ export default function UnifiedTile({
               onClick={(e) => { e.stopPropagation(); setCaptionVisible(v => !v) }}
               style={{ cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
             >
-              <TileImage
-                src={item.url}
-                alt={item.title || ''}
-                sizes="(max-width: 768px) 50vw, 440px"
-                index={index}
-                aspect={aspect}
-                layout={layout}
-                size={size}
-                isPublicView
-              />
+              <ZoomableImage>
+                <TileImage
+                  src={item.url}
+                  alt={item.title || ''}
+                  sizes="(max-width: 768px) 50vw, 440px"
+                  index={index}
+                  aspect={aspect}
+                  layout={layout}
+                  size={size}
+                  isPublicView
+                />
+              </ZoomableImage>
               {captionVisible && (
                 <div
                   className="absolute bottom-0 inset-x-0 px-4 py-2.5 bg-black/35 backdrop-blur-md"
