@@ -1070,6 +1070,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     const productTitle = productArtifact && (!content.title || content.title === host) ? host : sourceTitle
     const sourceName = content.metadata?.site_name || content.metadata?.domain || host
     const sourceDate = content.metadata?.published_at || ''
+    const sourceEyebrow = [sourceName, sourceDate].filter(Boolean).join(' · ')
+    const artifactFrameClass = 'mx-auto overflow-hidden rounded-2xl border border-white/10 bg-black/40 shadow-2xl'
+    const sourceLabelClass = 'font-mono text-[10px] uppercase tracking-[0.24em] text-white/35'
+    const sourceRowClass = 'rounded-xl border border-white/10 bg-white/[0.04] p-3.5'
     const articleArtifact = !productArtifact && (
       content.metadata?.source_excerpt_category === 'article' ||
       !!sourceDescription ||
@@ -1122,9 +1126,9 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         {shellOpen && (
           <ArtifactShell onDismiss={() => setShellOpen(false)} fallbackUrl={content.url}>
             {productArtifact ? (
-              <div className={`mx-auto overflow-hidden rounded-2xl border border-white/10 bg-black/35 ${hasArtifactImage ? 'max-w-xl sm:flex' : 'max-w-[440px]'}`}>
+              <div className={`${artifactFrameClass} ${hasArtifactImage ? 'max-w-xl sm:flex' : 'max-w-[440px]'}`}>
                 {hasArtifactImage ? (
-                  <div className="flex items-center justify-center bg-black/25 sm:w-[48%]">
+                  <div className="flex items-center justify-center bg-black/30 sm:w-[48%]">
                     <img
                       src={artifactImage}
                       alt=""
@@ -1134,10 +1138,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 ) : null}
 
                 <div className={`${hasArtifactImage ? 'p-5 sm:w-[52%]' : 'flex min-h-[175px] flex-col items-center justify-center p-8 text-center'}`}>
-                  <div className="font-mono text-[10px] uppercase tracking-[0.24em] text-white/35">
+                  <div className={sourceLabelClass}>
                     {host}
                   </div>
-                  <div className="mt-4 text-[16px] leading-snug text-white/85">
+                  <div className="mt-4 text-[18px] leading-tight text-white/88">
                     {productTitle}
                   </div>
                   {productPrice ? (
@@ -1156,14 +1160,14 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                     </div>
                   ) : null}
                   {productDescription ? (
-                    <div className="mt-4 text-[12px] leading-relaxed text-white/50">
+                    <div className="mt-4 text-[13px] leading-relaxed text-white/54">
                       {productDescription}
                     </div>
                   ) : null}
                 </div>
               </div>
             ) : articleArtifact ? (
-              <article className="mx-auto overflow-hidden rounded-2xl border border-white/10 bg-black/35">
+              <article className={artifactFrameClass}>
                 {hasArtifactImage ? (
                   <img
                     src={artifactImage}
@@ -1173,8 +1177,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 ) : null}
 
                 <div className="p-6 sm:p-7">
-                  <div className="font-mono text-[10px] uppercase tracking-[0.24em] text-white/35">
-                    {[sourceName, sourceDate].filter(Boolean).join(' · ')}
+                  <div className={sourceLabelClass}>
+                    {sourceEyebrow || host}
                   </div>
 
                   <h2 className="mt-4 text-[20px] leading-tight text-white/88">
@@ -1188,9 +1192,13 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                   ) : null}
 
                   {excerptItems.length > 0 ? (
-                    <div className="mt-6 space-y-2 border-t border-white/10 pt-4">
+                    <div className="mt-6 border-t border-white/10 pt-4">
+                      <div className="mb-3 font-mono text-[9px] uppercase tracking-[0.22em] text-white/25">
+                        latest
+                      </div>
+                      <div className="space-y-2">
                       {excerptItems.map((item) => (
-                        <div key={`${item.title}-${item.url || ''}`} className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
+                        <div key={`${item.title}-${item.url || ''}`} className={sourceRowClass}>
                           <div className="text-[12px] leading-snug text-white/75">
                             {item.title}
                           </div>
@@ -1206,12 +1214,13 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                           ) : null}
                         </div>
                       ))}
+                      </div>
                     </div>
                   ) : null}
                 </div>
               </article>
             ) : (
-              <div className={`mx-auto overflow-hidden rounded-2xl border border-white/10 bg-black/35 ${hasArtifactImage ? 'max-w-lg' : 'max-w-[440px]'}`}>
+              <div className={`${artifactFrameClass} ${hasArtifactImage ? 'max-w-lg' : 'max-w-[440px]'}`}>
                 {hasArtifactImage ? (
                   <img
                     src={artifactImage}
@@ -1221,7 +1230,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 ) : (
                   <div className="flex min-h-[175px] items-center justify-center p-8 text-center">
                     <div>
-                      <div className="font-mono text-[10px] uppercase tracking-[0.26em] text-white/35">
+                      <div className={sourceLabelClass}>
                         {host}
                       </div>
                       <div className="mt-4 text-[15px] leading-snug text-white/80">
@@ -1245,9 +1254,13 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                   ) : null}
 
                   {excerptItems.length > 0 ? (
-                    <div className="mt-4 space-y-2">
+                    <div className="mt-5 border-t border-white/10 pt-4">
+                      <div className="mb-3 font-mono text-[9px] uppercase tracking-[0.22em] text-white/25">
+                        latest
+                      </div>
+                      <div className="space-y-2">
                       {excerptItems.map((item) => (
-                        <div key={`${item.title}-${item.url || ''}`} className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
+                        <div key={`${item.title}-${item.url || ''}`} className={sourceRowClass}>
                           <div className="text-[12px] leading-snug text-white/75">
                             {item.title}
                           </div>
@@ -1263,6 +1276,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                           ) : null}
                         </div>
                       ))}
+                      </div>
                     </div>
                   ) : null}
 
