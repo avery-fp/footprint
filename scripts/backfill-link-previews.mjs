@@ -54,6 +54,10 @@ function logValue(value) {
   return value || 'null'
 }
 
+function yesNo(value) {
+  return value ? 'yes' : 'no'
+}
+
 loadDotEnvLocal()
 
 const slug = process.argv[2] || 'ae'
@@ -126,8 +130,10 @@ for (const row of links) {
     canonical_url: cleanString(preview?.canonical, 2048) || row.metadata?.canonical_url || null,
     site_name: cleanString(preview?.siteName, 120) || row.metadata?.site_name || null,
     domain,
-    ...(resolved.excerpt_items.length > 0 ? { excerpt_items: resolved.excerpt_items } : {}),
-    ...(resolved.product ? { product: resolved.product } : {}),
+    source_excerpt_category: resolved.category,
+    source_excerpt_fallback_reason: resolved.fallback_reason,
+    excerpt_items: resolved.excerpt_items,
+    product: resolved.product,
   }
   const updates = {
     title: cleanString(resolved.product?.name, 180) || cleanString(preview?.title, 180) || row.title || domain,
@@ -144,7 +150,16 @@ for (const row of links) {
   console.log(`  new desc:   ${logValue(metadata.description)}`)
   console.log(`  new image:  ${logValue(updates.thumbnail)}`)
   console.log(`  new domain: ${logValue(metadata.domain)}`)
-  console.log(`  items:      ${resolved.excerpt_items.length}`)
-  console.log(`  product:    ${resolved.product?.name ? 'yes' : 'no'}`)
+  console.log('  summary:')
+  console.log(`    category:            ${resolved.category}`)
+  console.log(`    title present:       ${yesNo(updates.title)}`)
+  console.log(`    image present:       ${yesNo(updates.thumbnail)}`)
+  console.log(`    description present: ${yesNo(metadata.description || resolved.product?.description)}`)
+  console.log(`    excerpt_items count: ${resolved.excerpt_items.length}`)
+  console.log(`    product present:     ${yesNo(resolved.product)}`)
+  console.log(`    fallback reason:     ${logValue(resolved.fallback_reason)}`)
+  for (const item of resolved.excerpt_items) {
+    console.log(`    item:                ${item.title}${item.url ? ` (${item.url})` : ''}`)
+  }
   console.log(updateError ? `  failure: ${updateError.message}` : '  success')
 }
