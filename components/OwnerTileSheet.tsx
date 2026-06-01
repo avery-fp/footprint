@@ -226,6 +226,42 @@ export default function OwnerTileSheet({
       : tile.thumbnail_url_override || null
   }
 
+  function withManualSourceExcerpt(patch: { title?: string | null; description?: string | null; image?: string | null }) {
+    const metadata = { ...(tile.metadata || {}) }
+    const current = metadata.source_excerpt || {}
+    const product = current.product || metadata.product || null
+    const legacyItems = Array.isArray(metadata.excerpt_items) ? metadata.excerpt_items : []
+    const currentItems = Array.isArray(current.items) ? current.items : []
+    const items = (currentItems.length ? currentItems : legacyItems).slice(0, 3).map((item: any) => ({
+      title: item?.title || null,
+      text: item?.text || item?.description || null,
+      description: item?.description || item?.text || null,
+      image: item?.image || null,
+      url: item?.url || null,
+      date: item?.date || null,
+    }))
+    let domain = current.domain || metadata.domain || null
+    try {
+      if (!domain && tile.url) domain = new URL(tile.url).hostname.replace(/^www\./, '')
+    } catch {}
+    metadata.description = patch.description !== undefined ? patch.description : metadata.description || null
+    metadata.source_excerpt = {
+      kind: current.kind || (product ? 'product' : items.length ? 'feed' : metadata.source_excerpt_category === 'article' ? 'article' : 'portal'),
+      source: current.source || metadata.site_name || domain,
+      domain,
+      title: patch.title !== undefined ? patch.title : current.title || tile.title || null,
+      handle: current.handle || null,
+      description: metadata.description || current.description || null,
+      image: patch.image !== undefined ? patch.image : current.image || tile.thumbnail_url_override || null,
+      url: current.url || metadata.canonical_url || tile.url || null,
+      date: current.date || metadata.published_at || null,
+      items,
+      product,
+      fallback_reason: current.fallback_reason || metadata.source_excerpt_fallback_reason || null,
+    }
+    return metadata
+  }
+
   async function savePreviewPatch(body: Record<string, unknown>, okMessage = 'saved') {
     setPreviewError(null)
     setPreviewStatus('saving...')
@@ -244,7 +280,7 @@ export default function OwnerTileSheet({
     const trimmed = next.trim()
     const current = (tile.title || '').trim()
     if (trimmed === current) return
-    onTileChange(tile.id, { title: trimmed || null })
+    onTileChange(tile.id, { title: trimmed || null, metadata: withManualSourceExcerpt({ title: trimmed || null }) })
     savePreviewPatch({ title: trimmed })
   }
 
@@ -254,7 +290,7 @@ export default function OwnerTileSheet({
     if (trimmed === current) return
     onTileChange(tile.id, {
       description: trimmed || null,
-      metadata: { ...(tile.metadata || {}), description: trimmed || null },
+      metadata: withManualSourceExcerpt({ description: trimmed || null }),
     })
     savePreviewPatch({ preview_description: trimmed || null })
   }
@@ -263,7 +299,7 @@ export default function OwnerTileSheet({
     const trimmed = next.trim()
     const current = (tile.thumbnail_url_override || '').trim()
     if (trimmed === current) return
-    onTileChange(tile.id, { thumbnail_url_override: trimmed || null })
+    onTileChange(tile.id, { thumbnail_url_override: trimmed || null, metadata: withManualSourceExcerpt({ image: trimmed || null }) })
     savePreviewPatch({ thumbnail_url_override: trimmed || null })
   }
 
@@ -288,8 +324,7 @@ export default function OwnerTileSheet({
     const nextDescription = (data?.description || '').trim()
     const nextImage = (data?.image || '').trim()
     const nextMetadata = {
-      ...(tile.metadata || {}),
-      description: nextDescription || null,
+      ...withManualSourceExcerpt({ title: nextTitle || null, description: nextDescription || null, image: nextImage || null }),
       site_name: data?.siteName || null,
       canonical_url: data?.canonical || data?.url || null,
     }
@@ -352,7 +387,7 @@ export default function OwnerTileSheet({
       title: null,
       description: null,
       thumbnail_url_override: null,
-      metadata: { ...(tile.metadata || {}), description: null },
+      metadata: withManualSourceExcerpt({ title: null, description: null, image: null }),
     })
     savePreviewPatch({ title: '', preview_description: null, thumbnail_url_override: null }, 'cleared')
   }

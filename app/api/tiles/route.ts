@@ -33,6 +33,84 @@ async function getSerialNumber(
   return footprint?.serial_number ?? null
 }
 
+function manualSourceExcerptFromMetadata(
+  metadata: Record<string, any>,
+  url: string | null,
+  title?: string | null,
+  image?: string | null
+) {
+  const current = metadata.source_excerpt || {}
+  const product = current.product || metadata.product || null
+  const legacyItems = Array.isArray(metadata.excerpt_items) ? metadata.excerpt_items : []
+  const currentItems = Array.isArray(current.items) ? current.items : []
+  const items = (currentItems.length ? currentItems : legacyItems).slice(0, 3).map((item: any) => ({
+    title: item?.title || null,
+    text: item?.text || item?.description || null,
+    description: item?.description || item?.text || null,
+    image: item?.image || null,
+    url: item?.url || null,
+    date: item?.date || null,
+  }))
+  const kind =
+    current.kind ||
+    (product ? 'product' : items.length ? 'feed' : metadata.source_excerpt_category === 'article' ? 'article' : 'portal')
+  let domain = current.domain || metadata.domain || null
+  try {
+    if (!domain && url) domain = new URL(url).hostname.replace(/^www\./, '')
+  } catch {}
+
+  return {
+    kind,
+    source: current.source || metadata.site_name || domain,
+    domain,
+    title: title || current.title || null,
+    handle: current.handle || null,
+    description: metadata.description || current.description || null,
+    image: image || current.image || null,
+    url: current.url || metadata.canonical_url || url,
+    date: current.date || metadata.published_at || null,
+    items,
+    product: product
+      ? {
+          name: product.name || null,
+          image: product.image || null,
+          description: product.description || null,
+          price: product.price || null,
+          currency: product.currency || product.priceCurrency || null,
+          seller: product.seller || null,
+          brand: product.brand || null,
+          condition: product.condition || null,
+          availability: product.availability || null,
+        }
+      : null,
+    fallback_reason: current.fallback_reason || metadata.source_excerpt_fallback_reason || null,
+  }
+}
+
+function sourceExcerptKindForPlatform(platform: string, url: string | null, metadata: Record<string, any>) {
+  if (metadata.product) return 'product'
+  if (Array.isArray(metadata.excerpt_items) && metadata.excerpt_items.length) return 'feed'
+  if (platform === 'twitter' || platform === 'x') return /\/status(?:es)?\//i.test(url || '') ? 'post' : 'profile'
+  if (platform === 'tiktok') return /\/video\//i.test(url || '') ? 'media' : 'profile'
+  if (platform === 'instagram') return /\/(?:p|reel)\//i.test(url || '') ? 'media' : 'profile'
+  if (['github', 'letterboxd', 'bandcamp'].includes(platform)) return 'article'
+  return 'portal'
+}
+
+function sourceExcerptFromLinkMetadata(
+  metadata: Record<string, any>,
+  url: string | null,
+  platform: string,
+  title?: string | null,
+  image?: string | null
+) {
+  const excerpt = manualSourceExcerptFromMetadata(metadata, url, title, image)
+  return {
+    ...excerpt,
+    kind: sourceExcerptKindForPlatform(platform, url, metadata),
+  }
+}
+
 /**
  * POST /api/tiles
  *
@@ -331,6 +409,23 @@ export async function POST(request: NextRequest) {
       const identityProvider = detectProvider(parsed.url)
       const identityKind = contentTypeToKind(parsed.type)
       const identityRenderMode = PROVIDER_RENDER_DEFAULTS[identityProvider]?.preferredMode || 'link_only'
+      const metadata: Record<string, any> = {
+        description: parsed.description,
+        embed_html: parsed.embed_html,
+        kind: identityKind,
+        provider: identityProvider,
+        ...(thought ? { text_style: text_style || 'clean' } : {}),
+        ...((parsed as any)._clipMeta || {}),
+      }
+      if (!thought) {
+        metadata.source_excerpt = sourceExcerptFromLinkMetadata(
+          metadata,
+          parsed.url,
+          parsed.type,
+          enrichedTitle || parsed.title || null,
+          ghostThumbnailHq || parsed.thumbnail_url || null
+        )
+      }
 
       // Insert into links table for everything else
       const result = await supabase
@@ -340,14 +435,7 @@ export async function POST(request: NextRequest) {
           url: parsed.url,
           platform: parsed.type,
           title: enrichedTitle || parsed.title,
-          metadata: {
-            description: parsed.description,
-            embed_html: parsed.embed_html,
-            kind: identityKind,
-            provider: identityProvider,
-            ...(thought ? { text_style: text_style || 'clean' } : {}),
-            ...((parsed as any)._clipMeta || {}),
-          },
+          metadata,
           thumbnail: parsed.thumbnail_url,
           position: nextPosition,
           room_id: room_id || null,
@@ -637,6 +725,34 @@ export async function PATCH(request: NextRequest) {
     }
     if (container_cover_url !== undefined && source === 'links') {
       updates.container_cover_url = container_cover_url || null
+    }
+
+    if (
+      source === 'links' &&
+      (
+        title !== undefined ||
+        preview_description !== undefined ||
+        preview_site_name !== undefined ||
+        preview_canonical_url !== undefined ||
+        thumbnail_url_override !== undefined
+      )
+    ) {
+      const { data: current } = await supabase
+        .from('links')
+        .select('url, platform, title, metadata')
+        .eq('id', id)
+        .eq('serial_number', serialNumber)
+        .single()
+      if (current?.platform !== 'thought') {
+        const nextMetadata = { ...(updates.metadata || current?.metadata || {}) }
+        const nextTitle = title !== undefined ? title || null : current?.title || null
+        const nextImage =
+          thumbnail_url_override !== undefined
+            ? thumbnail_url_override || null
+            : nextMetadata.source_excerpt?.image || null
+        nextMetadata.source_excerpt = manualSourceExcerptFromMetadata(nextMetadata, current?.url || null, nextTitle, nextImage)
+        updates.metadata = nextMetadata
+      }
     }
 
     if (Object.keys(updates).length === 0) {

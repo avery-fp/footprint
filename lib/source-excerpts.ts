@@ -20,6 +20,38 @@ export interface SourceProduct {
   condition: string | null
 }
 
+export interface SourceExcerptPayload {
+  kind: 'profile' | 'post' | 'product' | 'feed' | 'article' | 'media' | 'portal'
+  source: string | null
+  domain: string | null
+  title: string | null
+  handle: string | null
+  description: string | null
+  image: string | null
+  url: string | null
+  date: string | null
+  items: Array<{
+    title: string | null
+    text: string | null
+    description: string | null
+    image: string | null
+    url: string | null
+    date: string | null
+  }>
+  product: {
+    name: string | null
+    image: string | null
+    description: string | null
+    price: string | null
+    currency: string | null
+    seller: string | null
+    brand: string | null
+    condition: string | null
+    availability: string | null
+  } | null
+  fallback_reason: string | null
+}
+
 export interface SourceExcerptResult {
   preview: LinkPreview | null
   domain: string | null
@@ -113,6 +145,75 @@ function domainFor(url: string): string | null {
     return new URL(url).hostname.replace(/^www\./, '') || null
   } catch {
     return null
+  }
+}
+
+function handleFor(url: string, preview: LinkPreview | null): string | null {
+  const author = cleanString((preview as any)?.author || (preview as any)?.author_name, 120)
+  if (author) return author.startsWith('@') ? author : `@${author}`
+  try {
+    const parsed = new URL(url)
+    const first = parsed.pathname.split('/').filter(Boolean)[0]
+    if (!first || first === 'p' || first === 'reel' || first === 'video') return null
+    return first.startsWith('@') ? first : `@${first}`
+  } catch {
+    return null
+  }
+}
+
+function sourceKindFor(url: string, result: SourceExcerptResult): SourceExcerptPayload['kind'] {
+  if (result.product) return 'product'
+  if (result.excerpt_items.length > 0) return 'feed'
+  if (isTikTokUrl(url)) return result.preview ? 'media' : 'portal'
+  if (isInstagramUrl(url)) {
+    if (!result.preview) return 'portal'
+    return /\/(?:p|reel)\//i.test(url) ? 'media' : 'profile'
+  }
+  if (isXUrl(url)) {
+    if (!result.preview) return 'portal'
+    return /\/status(?:es)?\//i.test(url) ? 'post' : 'profile'
+  }
+  if (result.category === 'article') return 'article'
+  return 'portal'
+}
+
+export function buildSourceExcerptPayload(url: string, result: SourceExcerptResult): SourceExcerptPayload {
+  const domain = result.domain || domainFor(url)
+  const kind = sourceKindFor(url, result)
+  const product = result.product
+  const source = result.preview?.siteName || domain
+  return {
+    kind,
+    source,
+    domain,
+    title: product?.name || cleanString(result.preview?.title, 240) || null,
+    handle: handleFor(url, result.preview),
+    description: product?.description || cleanString(result.preview?.description, 500) || null,
+    image: product?.image || resolveHttpUrl(result.preview?.image || '', url),
+    url: cleanString(result.preview?.canonical, 2048) || url,
+    date: result.published_at,
+    items: result.excerpt_items.map((item) => ({
+      title: item.title || null,
+      text: item.description || null,
+      description: item.description || null,
+      image: null,
+      url: item.url || null,
+      date: item.date || null,
+    })),
+    product: product
+      ? {
+          name: product.name,
+          image: product.image,
+          description: product.description,
+          price: product.price,
+          currency: product.priceCurrency,
+          seller: product.seller,
+          brand: product.brand,
+          condition: product.condition,
+          availability: product.availability,
+        }
+      : null,
+    fallback_reason: result.fallback_reason,
   }
 }
 

@@ -78,7 +78,7 @@ if (!supabaseUrl || !serviceKey) {
   process.exit(1)
 }
 
-const { resolveSourceExcerpt } = tsxRequire('../lib/source-excerpts.ts', import.meta.url)
+const { resolveSourceExcerpt, buildSourceExcerptPayload } = tsxRequire('../lib/source-excerpts.ts', import.meta.url)
 const supabase = createClient(supabaseUrl, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 })
@@ -145,8 +145,14 @@ for (const row of links) {
   console.log(`  old domain: ${logValue(oldDomain)}`)
 
   const resolved = await resolveSourceExcerpt(row.url)
+  const sourceExcerpt = buildSourceExcerptPayload(row.url, resolved)
   const preview = resolved.preview
   const domain = domainFor(row.url)
+  sourceExcerpt.title = cleanString(sourceExcerpt.title, 240) || row.title || domain
+  sourceExcerpt.description = cleanString(sourceExcerpt.description, 500) || oldDescription || null
+  sourceExcerpt.image = cleanString(sourceExcerpt.image, 2048) || row.thumbnail || null
+  sourceExcerpt.source = sourceExcerpt.source || row.metadata?.site_name || domain
+  sourceExcerpt.domain = sourceExcerpt.domain || domain
   const metadata = {
     ...(row.metadata || {}),
     description: cleanString(preview?.description, 320) || row.metadata?.description || null,
@@ -158,6 +164,7 @@ for (const row of links) {
     source_excerpt_fallback_reason: resolved.fallback_reason,
     excerpt_items: resolved.excerpt_items,
     product: resolved.product,
+    source_excerpt: sourceExcerpt,
   }
   const updates = {
     title: cleanString(resolved.product?.name, 180) || cleanString(preview?.title, 180) || row.title || domain,
@@ -191,6 +198,7 @@ for (const row of links) {
   console.log(`  new image:  ${logValue(updates.thumbnail)}`)
   console.log(`  new domain: ${logValue(metadata.domain)}`)
   console.log(`  new date:   ${logValue(metadata.published_at)}`)
+  console.log(`  source_excerpt: kind=${sourceExcerpt.kind} title=${yesNo(sourceExcerpt.title)} image=${yesNo(sourceExcerpt.image)} items=${sourceExcerpt.items.length} product=${yesNo(sourceExcerpt.product)} fallback=${logValue(sourceExcerpt.fallback_reason)}`)
   console.log('  summary:')
   console.log(`    category:            ${resolved.category}`)
   console.log(`    title present:       ${yesNo(updates.title)}`)

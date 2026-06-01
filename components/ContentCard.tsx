@@ -128,6 +128,37 @@ interface ContentCardProps {
         date?: string | null
         description?: string | null
       }> | null
+      source_excerpt?: {
+        kind?: 'profile' | 'post' | 'product' | 'feed' | 'article' | 'media' | 'portal' | null
+        source?: string | null
+        domain?: string | null
+        title?: string | null
+        handle?: string | null
+        description?: string | null
+        image?: string | null
+        url?: string | null
+        date?: string | null
+        items?: Array<{
+          title?: string | null
+          text?: string | null
+          description?: string | null
+          image?: string | null
+          url?: string | null
+          date?: string | null
+        }> | null
+        product?: {
+          name?: string | null
+          image?: string | null
+          description?: string | null
+          price?: string | null
+          currency?: string | null
+          seller?: string | null
+          brand?: string | null
+          condition?: string | null
+          availability?: string | null
+        } | null
+        fallback_reason?: string | null
+      } | null
       site_name?: string | null
       domain?: string | null
       published_at?: string | null
@@ -782,15 +813,27 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // Compact resting state; ArtifactShell opens source-specific excerpt.
   // ════════════════════════════════════════
   if (/(?:twitter\.com|x\.com)/i.test(content.url)) {
+    const sourceExcerpt = content.metadata?.source_excerpt || null
     const { title, creator } = sanitizeLinkMeta(
-      { title: content.title, creator: content.artist, image: getBestThumbnailUrl(content), description: content.description },
+      {
+        title: sourceExcerpt?.title || content.title,
+        creator: sourceExcerpt?.handle || content.artist,
+        image: sourceExcerpt?.image || getBestThumbnailUrl(content),
+        description: sourceExcerpt?.description || content.description,
+      },
       content.url
     )
     const handleMatch = content.url.match(/(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]+)/)
     const handle = creator || (handleMatch ? `@${handleMatch[1]}` : null)
-    const isProfileExcerpt = !!handle && !content.description && (title === handle || title === 'X' || title === 'x.com')
-    const excerptTitle = isProfileExcerpt ? handle : title || content.description || 'X'
-    const excerptDescription = content.description && content.description !== excerptTitle ? content.description : ''
+    const excerptKind = sourceExcerpt?.kind || null
+    const isProfileExcerpt = excerptKind === 'profile' || (!!handle && !content.description && (title === handle || title === 'X' || title === 'x.com'))
+    const excerptTitle = isProfileExcerpt ? handle : title || sourceExcerpt?.description || content.description || 'X'
+    const excerptDescription =
+      sourceExcerpt?.description && sourceExcerpt.description !== excerptTitle
+        ? sourceExcerpt.description
+        : content.description && content.description !== excerptTitle
+        ? content.description
+        : ''
 
     return (
       <>
@@ -855,7 +898,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // fall through to ArtifactShell as a fallback path.
   // ════════════════════════════════════════
   if (content.type === 'tiktok') {
-    const thumbSrc = getBestThumbnailUrl(content)
+    const sourceExcerpt = content.metadata?.source_excerpt || null
+    const thumbSrc = sourceExcerpt?.image || getBestThumbnailUrl(content)
     // Numeric video ID from the canonical tiktok.com/@user/video/{id} shape.
     // external_id (when present) wins; otherwise extract from the URL.
     const tiktokId = (content.external_id && /^\d+$/.test(content.external_id))
@@ -871,7 +915,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       return <FallbackCard platform="tiktok" title={null} url={content.url} aspectClass={aspectClass} />
     }
 
-    const tiktokText = content.title || 'TikTok'
+    const tiktokText = sourceExcerpt?.title || content.title || 'TikTok'
     const len = tiktokText.length
     const typo = len <= 60
       ? 'text-[14px] tracking-[-0.01em] leading-snug'
@@ -971,7 +1015,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // FIDELIO: No third-party scripts until shell opens
   // ════════════════════════════════════════
   if (content.type === 'instagram') {
-    const thumbSrc = getBestThumbnailUrl(content)
+    const sourceExcerpt = content.metadata?.source_excerpt || null
+    const thumbSrc = sourceExcerpt?.image || getBestThumbnailUrl(content)
 
     // Thumb 404 or no content at all → FallbackCard. Spec Task 3.
     if (thumbSrc && socialThumbFailed) {
@@ -981,7 +1026,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       return <FallbackCard platform="instagram" title={null} url={content.url} aspectClass={aspectClass} />
     }
 
-    const igText = content.title || 'Instagram'
+    const igText = sourceExcerpt?.title || content.title || 'Instagram'
     const len = igText.length
     const typo = len <= 60
       ? 'text-[14px] tracking-[-0.01em] leading-snug'
@@ -1053,23 +1098,35 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
 
     const host = getExternalHost(content.url)
 
-    const displayTitle = content.title || host
-    const displayDescription = content.description || content.artist || ''
-    const productMeta = content.metadata?.product || null
-    const excerptItems = (content.metadata?.excerpt_items || []).filter((item) => item?.title)
-    const artifactImage = productMeta?.image || thumbSrc
+    const sourceExcerpt = content.metadata?.source_excerpt || null
+    const displayTitle = sourceExcerpt?.title || content.title || host
+    const displayDescription = sourceExcerpt?.description || content.description || content.artist || ''
+    const productMeta = sourceExcerpt?.product || content.metadata?.product || null
+    const excerptItems = (
+      sourceExcerpt?.items?.length
+        ? sourceExcerpt.items.map((item) => ({
+            title: item?.title,
+            url: item?.url,
+            date: item?.date,
+            description: item?.description || item?.text,
+          }))
+        : content.metadata?.excerpt_items || []
+    ).filter((item) => item?.title)
+    const artifactImage = productMeta?.image || sourceExcerpt?.image || thumbSrc
     const hasArtifactImage = !!artifactImage && !socialThumbFailed
-    const productArtifact = !!productMeta || isProductSource(content.url)
+    const sourceKind = sourceExcerpt?.kind || content.metadata?.source_excerpt_category || null
+    const productArtifact = sourceKind === 'product' || !!productMeta || isProductSource(content.url)
     const sourceTitle = productMeta?.name || displayTitle
     const sourceDescription = productMeta?.description || displayDescription
     const productPrice = productMeta?.price || extractPrice(`${content.title || ''} ${content.description || ''}`)
+    const productCurrency = productMeta && 'currency' in productMeta ? productMeta.currency : (productMeta as any)?.priceCurrency
     const productSeller = productMeta?.seller || productMeta?.brand || content.artist || (productArtifact ? host : '')
     const productDescription = productPrice
       ? sourceDescription.replace(productPrice, '').trim()
       : sourceDescription
     const productTitle = productArtifact && (!content.title || content.title === host) ? host : sourceTitle
-    const sourceName = content.metadata?.site_name || content.metadata?.domain || host
-    const sourceDate = content.metadata?.published_at || ''
+    const sourceName = sourceExcerpt?.source || sourceExcerpt?.domain || content.metadata?.site_name || content.metadata?.domain || host
+    const sourceDate = sourceExcerpt?.date || content.metadata?.published_at || ''
     const sourceEyebrow = [sourceName, sourceDate].filter(Boolean).join(' · ')
     const artifactFrameClass = 'mx-auto overflow-hidden rounded-2xl border border-white/10 bg-black/40 shadow-2xl'
     const sourceLabelClass = 'font-mono text-[10px] uppercase tracking-[0.24em] text-white/35'
@@ -1128,7 +1185,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       </div>
     ) : null
     const articleArtifact = !productArtifact && (
-      content.metadata?.source_excerpt_category === 'article' ||
+      sourceKind === 'feed' ||
+      sourceKind === 'article' ||
+      sourceKind === 'profile' ||
+      sourceKind === 'post' ||
       !!sourceDescription ||
       hasArtifactImage ||
       excerptItems.length > 0
@@ -1199,7 +1259,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                   </div>
                   {productPrice ? (
                     <div className="mt-3 text-[14px] font-medium text-white/75">
-                      {productMeta?.priceCurrency ? `${productMeta.priceCurrency} ${productPrice}` : productPrice}
+                      {productCurrency ? `${productCurrency} ${productPrice}` : productPrice}
                     </div>
                   ) : null}
                   {productSeller ? (
