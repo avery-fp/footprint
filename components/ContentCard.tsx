@@ -81,6 +81,22 @@ function enforceEmbedDarkMode(url: string, provider: string): string {
   }
 }
 
+function getExternalHost(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '') || 'source'
+  } catch {
+    return 'source'
+  }
+}
+
+function isProductSource(url: string): boolean {
+  return /(?:^|\/\/)(?:www\.)?depop\.com/i.test(url) || /\/products?\//i.test(url)
+}
+
+function extractPrice(text: string): string | null {
+  return text.match(/(?:[$£€]\s?\d[\d,.]*(?:\.\d{2})?)/)?.[0] || null
+}
+
 interface ContentCardProps {
   content: {
     id: string
@@ -749,7 +765,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     )
     const handleMatch = content.url.match(/(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]+)/)
     const handle = creator || (handleMatch ? `@${handleMatch[1]}` : null)
-    const excerptTitle = title || content.description || 'X'
+    const isProfileExcerpt = !!handle && !content.description && (title === handle || title === 'X' || title === 'x.com')
+    const excerptTitle = isProfileExcerpt ? handle : title || content.description || 'X'
     const excerptDescription = content.description && content.description !== excerptTitle ? content.description : ''
 
     return (
@@ -795,7 +812,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-white/85">
                 {excerptTitle}
               </div>
-              {excerptDescription ? (
+              {isProfileExcerpt ? null : excerptDescription ? (
                 <div className="mt-4 whitespace-pre-wrap text-[13px] leading-relaxed text-white/50">
                   {excerptDescription}
                 </div>
@@ -1011,14 +1028,20 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       content.thumbnail_url ||
       ''
 
-    let host = 'source'
-    try {
-      host = new URL(content.url).hostname.replace(/^www\./, '')
-    } catch {}
+    const host = getExternalHost(content.url)
 
     const displayTitle = content.title || host
     const displayDescription = content.description || content.artist || ''
     const hasArtifactImage = !!thumbSrc && !socialThumbFailed
+    const productArtifact = isProductSource(content.url)
+    const sourceTitle = displayTitle
+    const sourceDescription = displayDescription
+    const productPrice = extractPrice(`${content.title || ''} ${content.description || ''}`)
+    const productSeller = content.artist || (productArtifact ? host : '')
+    const productDescription = productPrice
+      ? sourceDescription.replace(productPrice, '').trim()
+      : sourceDescription
+    const productTitle = productArtifact && (!content.title || content.title === host) ? host : sourceTitle
 
     return (
       <>
@@ -1053,7 +1076,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               className={`whitespace-pre-wrap text-center text-white/80 fp-text-shadow text-sm line-clamp-6`}
               style={{ fontWeight: 500 }}
             >
-              {displayTitle}
+              {sourceTitle}
             </p>
 
             <span className="mt-2 font-mono text-[9px] uppercase tracking-[0.22em] text-white/35">
@@ -1064,44 +1087,82 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
 
         {shellOpen && (
           <ArtifactShell onDismiss={() => setShellOpen(false)} fallbackUrl={content.url}>
-            <div className={`mx-auto overflow-hidden rounded-2xl border border-white/10 bg-black/35 ${hasArtifactImage ? 'max-w-lg' : 'max-w-[440px]'}`}>
-              {hasArtifactImage ? (
-                <img
-                  src={thumbSrc}
-                  alt=""
-                  className="w-full max-h-[62vh] object-contain"
-                />
-              ) : (
-                <div className="flex min-h-[175px] items-center justify-center p-8 text-center">
-                  <div>
-                    <div className="font-mono text-[10px] uppercase tracking-[0.26em] text-white/35">
-                      {host}
-                    </div>
-                    <div className="mt-4 text-[15px] leading-snug text-white/80">
-                      {displayTitle}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className={`${hasArtifactImage ? 'p-5' : 'px-6 pb-6 pt-0 text-center'}`}>
-                {displayTitle && hasArtifactImage ? (
-                  <div className="text-sm leading-relaxed text-white/80">
-                    {displayTitle}
+            {productArtifact ? (
+              <div className={`mx-auto overflow-hidden rounded-2xl border border-white/10 bg-black/35 ${hasArtifactImage ? 'max-w-xl sm:flex' : 'max-w-[440px]'}`}>
+                {hasArtifactImage ? (
+                  <div className="flex items-center justify-center bg-black/25 sm:w-[48%]">
+                    <img
+                      src={thumbSrc}
+                      alt=""
+                      className="max-h-[58vh] w-full object-contain"
+                    />
                   </div>
                 ) : null}
 
-                {displayDescription ? (
-                  <div className="mt-2 text-xs leading-relaxed text-white/45">
-                    {displayDescription}
+                <div className={`${hasArtifactImage ? 'p-5 sm:w-[52%]' : 'flex min-h-[175px] flex-col items-center justify-center p-8 text-center'}`}>
+                  <div className="font-mono text-[10px] uppercase tracking-[0.24em] text-white/35">
+                    {host}
                   </div>
-                ) : null}
-
-                <div className="mt-4 font-mono text-[9px] uppercase tracking-[0.24em] text-white/30">
-                  {host}
+                  <div className="mt-4 text-[16px] leading-snug text-white/85">
+                    {productTitle}
+                  </div>
+                  {productPrice ? (
+                    <div className="mt-3 text-[14px] font-medium text-white/75">
+                      {productPrice}
+                    </div>
+                  ) : null}
+                  {productSeller ? (
+                    <div className="mt-3 text-[12px] leading-relaxed text-white/45">
+                      {productSeller}
+                    </div>
+                  ) : null}
+                  {productDescription ? (
+                    <div className="mt-4 text-[12px] leading-relaxed text-white/50">
+                      {productDescription}
+                    </div>
+                  ) : null}
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className={`mx-auto overflow-hidden rounded-2xl border border-white/10 bg-black/35 ${hasArtifactImage ? 'max-w-lg' : 'max-w-[440px]'}`}>
+                {hasArtifactImage ? (
+                  <img
+                    src={thumbSrc}
+                    alt=""
+                    className="w-full max-h-[62vh] object-contain"
+                  />
+                ) : (
+                  <div className="flex min-h-[175px] items-center justify-center p-8 text-center">
+                    <div>
+                      <div className="font-mono text-[10px] uppercase tracking-[0.26em] text-white/35">
+                        {host}
+                      </div>
+                      <div className="mt-4 text-[15px] leading-snug text-white/80">
+                        {sourceTitle}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className={`${hasArtifactImage ? 'p-5' : 'px-6 pb-6 pt-0 text-center'}`}>
+                  {sourceTitle && hasArtifactImage ? (
+                    <div className="text-sm leading-relaxed text-white/80">
+                      {sourceTitle}
+                    </div>
+                  ) : null}
+
+                  {sourceDescription ? (
+                    <div className="mt-2 text-xs leading-relaxed text-white/45">
+                      {sourceDescription}
+                    </div>
+                  ) : null}
+
+                  <div className="mt-4 font-mono text-[9px] uppercase tracking-[0.24em] text-white/30">
+                    {host}
+                  </div>
+                </div>
+              </div>
+            )}
           </ArtifactShell>
         )}
       </>
