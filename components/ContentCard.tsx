@@ -1056,7 +1056,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     const displayTitle = content.title || host
     const displayDescription = content.description || content.artist || ''
     const productMeta = content.metadata?.product || null
-    const excerptItems = (content.metadata?.excerpt_items || []).filter((item) => item?.title).slice(0, 3)
+    const excerptItems = (content.metadata?.excerpt_items || []).filter((item) => item?.title)
     const artifactImage = productMeta?.image || thumbSrc
     const hasArtifactImage = !!artifactImage && !socialThumbFailed
     const productArtifact = !!productMeta || isProductSource(content.url)
@@ -1073,7 +1073,60 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     const sourceEyebrow = [sourceName, sourceDate].filter(Boolean).join(' · ')
     const artifactFrameClass = 'mx-auto overflow-hidden rounded-2xl border border-white/10 bg-black/40 shadow-2xl'
     const sourceLabelClass = 'font-mono text-[10px] uppercase tracking-[0.24em] text-white/35'
-    const sourceRowClass = 'rounded-xl border border-white/10 bg-white/[0.04] p-3.5'
+    const sourceRowClass = 'block rounded-xl border border-white/10 bg-white/[0.04] p-3.5 transition-colors hover:bg-white/[0.06]'
+    const latestSection = excerptItems.length > 0 ? (
+      <div className="mt-6 border-t border-white/10 pt-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="font-mono text-[9px] uppercase tracking-[0.22em] text-white/25">
+            latest
+          </div>
+          <div className="font-mono text-[9px] uppercase tracking-[0.18em] text-white/18">
+            {excerptItems.length}
+          </div>
+        </div>
+        <div
+          className="max-h-[320px] space-y-2 overflow-y-auto pr-1"
+          style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}
+        >
+          {excerptItems.map((item) => {
+            const rowInner = (
+              <>
+                <div className="text-[13px] leading-snug text-white/78">
+                  {item.title}
+                </div>
+                {item.description ? (
+                  <div className="mt-1.5 text-[11px] leading-relaxed text-white/43 line-clamp-3">
+                    {item.description}
+                  </div>
+                ) : null}
+                {item.date ? (
+                  <div className="mt-2.5 font-mono text-[9px] uppercase tracking-[0.18em] text-white/25">
+                    {item.date}
+                  </div>
+                ) : null}
+              </>
+            )
+
+            return item.url ? (
+              <a
+                key={`${item.title}-${item.url}`}
+                href={item.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`${sourceRowClass} no-underline`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {rowInner}
+              </a>
+            ) : (
+              <div key={`${item.title}-${item.date || ''}`} className={sourceRowClass}>
+                {rowInner}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    ) : null
     const articleArtifact = !productArtifact && (
       content.metadata?.source_excerpt_category === 'article' ||
       !!sourceDescription ||
@@ -1191,32 +1244,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                     </p>
                   ) : null}
 
-                  {excerptItems.length > 0 ? (
-                    <div className="mt-6 border-t border-white/10 pt-4">
-                      <div className="mb-3 font-mono text-[9px] uppercase tracking-[0.22em] text-white/25">
-                        latest
-                      </div>
-                      <div className="space-y-2">
-                      {excerptItems.map((item) => (
-                        <div key={`${item.title}-${item.url || ''}`} className={sourceRowClass}>
-                          <div className="text-[12px] leading-snug text-white/75">
-                            {item.title}
-                          </div>
-                          {item.description ? (
-                            <div className="mt-1 text-[11px] leading-relaxed text-white/40 line-clamp-2">
-                              {item.description}
-                            </div>
-                          ) : null}
-                          {item.date ? (
-                            <div className="mt-2 font-mono text-[9px] uppercase tracking-[0.18em] text-white/25">
-                              {item.date}
-                            </div>
-                          ) : null}
-                        </div>
-                      ))}
-                      </div>
-                    </div>
-                  ) : null}
+                  {latestSection}
                 </div>
               </article>
             ) : (
@@ -1253,32 +1281,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                     </div>
                   ) : null}
 
-                  {excerptItems.length > 0 ? (
-                    <div className="mt-5 border-t border-white/10 pt-4">
-                      <div className="mb-3 font-mono text-[9px] uppercase tracking-[0.22em] text-white/25">
-                        latest
-                      </div>
-                      <div className="space-y-2">
-                      {excerptItems.map((item) => (
-                        <div key={`${item.title}-${item.url || ''}`} className={sourceRowClass}>
-                          <div className="text-[12px] leading-snug text-white/75">
-                            {item.title}
-                          </div>
-                          {item.description ? (
-                            <div className="mt-1 text-[11px] leading-relaxed text-white/40 line-clamp-2">
-                              {item.description}
-                            </div>
-                          ) : null}
-                          {item.date ? (
-                            <div className="mt-2 font-mono text-[9px] uppercase tracking-[0.18em] text-white/25">
-                              {item.date}
-                            </div>
-                          ) : null}
-                        </div>
-                      ))}
-                      </div>
-                    </div>
-                  ) : null}
+                  {latestSection}
 
                   <div className="mt-4 font-mono text-[9px] uppercase tracking-[0.24em] text-white/30">
                     {host}
