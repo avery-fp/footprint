@@ -138,11 +138,11 @@ type SourceKind = typeof SOURCE_KINDS[number]
 type SourceItemDraft = ReturnType<typeof blankSourceItem>
 
 const SOURCE_HELPER_COPY: Record<'instagram' | 'x' | 'product' | 'tiktok' | 'generic', string> = {
-  instagram: 'Instagram blocks public feed previews. Add visual rows manually or configure Meta oEmbed later.',
-  x: 'X profile feeds are limited. Add recent thought rows manually or use individual tweet links.',
-  product: 'If product data is blocked, add product fields manually.',
-  tiktok: 'TikTok previews can be limited. Add visual rows manually when the player is unavailable.',
-  generic: 'Author rows or product details for blocked sources.',
+  instagram: 'Add an image, caption, and optional post link.',
+  x: 'Add a thought and optional tweet link.',
+  product: 'Add a product card when the preview is weak.',
+  tiktok: 'Add an image, caption, and optional post link.',
+  generic: 'Use the preview fields above, or open Advanced for rare controls.',
 }
 
 function blankSourceItem() {
@@ -332,9 +332,11 @@ export default function OwnerTileSheet({
   const showCoverRow = isContainerCoverTile || (isLinkTile && !showTitleRow)
   const showSourceExcerptEditor = isLinkTile
   const [sourceDraft, setSourceDraft] = useState(() => normalizeSourceDraft(tile))
+  const [advancedOpen, setAdvancedOpen] = useState(false)
 
   useEffect(() => {
     setSourceDraft(normalizeSourceDraft(tile))
+    setAdvancedOpen(false)
   }, [tile.id, tile.metadata, tile.title, tile.description, tile.thumbnail_url_override, tile.url])
 
   function getCoverPatch(url: string | null) {
@@ -515,7 +517,7 @@ export default function OwnerTileSheet({
       (descriptionDraft || '').trim() ||
       (tile.thumbnail_url_override || '').trim()
     )
-    if (hasManualValues && !window.confirm('replace current preview fields with fetched metadata?')) return
+    if (hasManualValues && !window.confirm('replace current preview fields with fetched preview?')) return
     setPreviewRefreshing(true)
     try {
       const data = await fetchPreviewMetadata()
@@ -705,6 +707,9 @@ export default function OwnerTileSheet({
   const isMediaSourceExcerpt = effectiveSourceKind === 'media'
   const isProfileSourceExcerpt = effectiveSourceKind === 'profile' || effectiveSourceKind === 'post'
   const isProductSourceExcerpt = effectiveSourceKind === 'product'
+  const isProductLikeSource = authoring.suggestedKind === 'product'
+  const showProductEditor = isProductLikeSource || isProductSourceExcerpt
+  const showQuickRows = isMediaSourceExcerpt || isProfileSourceExcerpt || sourceDraft.items.length > 0
 
   function renderSourceItemFields(item: SourceItemDraft, index: number) {
     const saveItem = (patch: Record<string, string>) => updateSourceItem(index, patch, true)
@@ -718,7 +723,7 @@ export default function OwnerTileSheet({
             onChange={(e) => updateSourceItem(index, { image: e.target.value })}
             onBlur={(e) => saveItem({ image: e.target.value })}
             style={sourceInputStyle}
-            placeholder="image url"
+            placeholder="add image"
           />
           <input
             type="text"
@@ -726,34 +731,16 @@ export default function OwnerTileSheet({
             onChange={(e) => updateSourceItem(index, { title: e.target.value })}
             onBlur={(e) => saveItem({ title: e.target.value })}
             style={sourceInputStyle}
-            placeholder="caption/title"
+            placeholder="caption"
           />
-          <textarea
-            value={item.description}
-            onChange={(e) => updateSourceItem(index, { description: e.target.value, text: e.target.value })}
-            onBlur={(e) => saveItem({ description: e.target.value, text: e.target.value })}
-            rows={2}
-            style={{ ...sourceInputStyle, resize: 'none' }}
-            placeholder="description"
+          <input
+            type="url"
+            value={item.url}
+            onChange={(e) => updateSourceItem(index, { url: e.target.value })}
+            onBlur={(e) => saveItem({ url: e.target.value })}
+            style={sourceInputStyle}
+            placeholder="post link optional"
           />
-          <div className="grid grid-cols-2 gap-2">
-            <input
-              type="url"
-              value={item.url}
-              onChange={(e) => updateSourceItem(index, { url: e.target.value })}
-              onBlur={(e) => saveItem({ url: e.target.value })}
-              style={sourceInputStyle}
-              placeholder="item url"
-            />
-            <input
-              type="text"
-              value={item.date}
-              onChange={(e) => updateSourceItem(index, { date: e.target.value })}
-              onBlur={(e) => saveItem({ date: e.target.value })}
-              style={sourceInputStyle}
-              placeholder="date"
-            />
-          </div>
         </>
       )
     }
@@ -767,64 +754,7 @@ export default function OwnerTileSheet({
             onBlur={(e) => saveItem({ title: e.target.value, text: e.target.value })}
             rows={3}
             style={{ ...sourceInputStyle, resize: 'vertical' }}
-            placeholder="thought text"
-          />
-          <textarea
-            value={item.description}
-            onChange={(e) => updateSourceItem(index, { description: e.target.value })}
-            onBlur={(e) => saveItem({ description: e.target.value })}
-            rows={2}
-            style={{ ...sourceInputStyle, resize: 'none' }}
-            placeholder="description optional"
-          />
-          <div className="grid grid-cols-2 gap-2">
-            <input
-              type="url"
-              value={item.url}
-              onChange={(e) => updateSourceItem(index, { url: e.target.value })}
-              onBlur={(e) => saveItem({ url: e.target.value })}
-              style={sourceInputStyle}
-              placeholder="item url optional"
-            />
-            <input
-              type="text"
-              value={item.date}
-              onChange={(e) => updateSourceItem(index, { date: e.target.value })}
-              onBlur={(e) => saveItem({ date: e.target.value })}
-              style={sourceInputStyle}
-              placeholder="date optional"
-            />
-          </div>
-        </>
-      )
-    }
-
-    return (
-      <>
-        <div className="grid grid-cols-2 gap-2">
-          <input
-            type="text"
-            value={item.title}
-            onChange={(e) => updateSourceItem(index, { title: e.target.value })}
-            onBlur={(e) => saveItem({ title: e.target.value })}
-            style={sourceInputStyle}
-            placeholder="title/text"
-          />
-          <input
-            type="text"
-            value={item.date}
-            onChange={(e) => updateSourceItem(index, { date: e.target.value })}
-            onBlur={(e) => saveItem({ date: e.target.value })}
-            style={sourceInputStyle}
-            placeholder="date"
-          />
-          <input
-            type="url"
-            value={item.image}
-            onChange={(e) => updateSourceItem(index, { image: e.target.value })}
-            onBlur={(e) => saveItem({ image: e.target.value })}
-            style={sourceInputStyle}
-            placeholder="image url"
+            placeholder="add thought"
           />
           <input
             type="url"
@@ -832,16 +762,37 @@ export default function OwnerTileSheet({
             onChange={(e) => updateSourceItem(index, { url: e.target.value })}
             onBlur={(e) => saveItem({ url: e.target.value })}
             style={sourceInputStyle}
-            placeholder="item url"
+            placeholder="tweet link optional"
           />
-        </div>
-        <textarea
-          value={item.description}
-          onChange={(e) => updateSourceItem(index, { description: e.target.value, text: e.target.value })}
-          onBlur={(e) => saveItem({ description: e.target.value, text: e.target.value })}
-          rows={2}
-          style={{ ...sourceInputStyle, resize: 'none' }}
-          placeholder="description"
+        </>
+      )
+    }
+
+    return (
+      <>
+        <input
+          type="url"
+          value={item.image}
+          onChange={(e) => updateSourceItem(index, { image: e.target.value })}
+          onBlur={(e) => saveItem({ image: e.target.value })}
+          style={sourceInputStyle}
+          placeholder="image"
+        />
+        <input
+          type="text"
+          value={item.title}
+          onChange={(e) => updateSourceItem(index, { title: e.target.value })}
+          onBlur={(e) => saveItem({ title: e.target.value })}
+          style={sourceInputStyle}
+          placeholder="caption"
+        />
+        <input
+          type="url"
+          value={item.url}
+          onChange={(e) => updateSourceItem(index, { url: e.target.value })}
+          onBlur={(e) => saveItem({ url: e.target.value })}
+          style={sourceInputStyle}
+          placeholder="link optional"
         />
       </>
     )
@@ -921,7 +872,7 @@ export default function OwnerTileSheet({
               <div>
                 <div style={rowLabel}>preview</div>
                 <p className="mt-1 text-[11px] leading-snug text-white/32">
-                  Preview is weak. Add image/title/rows manually.
+                  Preview is weak. Add an image, title, or caption.
                 </p>
               </div>
               <div className="flex shrink-0 gap-2">
@@ -1049,114 +1000,33 @@ export default function OwnerTileSheet({
           </div>
         )}
 
-        {showSourceExcerptEditor && (
+        {showSourceExcerptEditor && (showQuickRows || showProductEditor || advancedOpen) && (
           <div
             style={{
               borderTop: '1px solid rgba(255,255,255,0.06)',
               padding: '12px 4px 14px',
             }}
           >
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div style={rowLabel}>source excerpt</div>
-                <p className="mt-1 text-[11px] leading-snug text-white/32">
-                  {authoring.copy}
-                </p>
-              </div>
-              <select
-                value={sourceDraft.kind}
-                onChange={(e) => updateSourceDraft({ kind: e.target.value }, true)}
-                style={{ ...pillBase, paddingRight: 28 }}
-                aria-label="source excerpt kind"
-              >
-                {SOURCE_KINDS.map((kind) => (
-                  <option key={kind} value={kind}>{kind}</option>
-                ))}
-              </select>
-            </div>
-            {authoring.suggestedKind && authoring.suggestedKind !== sourceDraft.kind ? (
-              <button
-                type="button"
-                onClick={() => saveSourceExcerptDraft({ ...sourceDraft, kind: authoring.suggestedKind })}
-                className="mt-3"
-                style={pillBase}
-              >
-                use {authoring.platform} {authoring.suggestedKind}
-              </button>
-            ) : null}
-
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <label>
-                <span style={rowLabel}>source</span>
-                <input
-                  type="text"
-                  value={sourceDraft.source}
-                  onChange={(e) => updateSourceDraft({ source: e.target.value })}
-                  onBlur={() => saveSourceExcerptDraft(sourceDraft)}
-                  style={sourceInputStyle}
-                  placeholder="site or source"
-                />
-              </label>
-              <label>
-                <span style={rowLabel}>handle</span>
-                <input
-                  type="text"
-                  value={sourceDraft.handle}
-                  onChange={(e) => updateSourceDraft({ handle: e.target.value })}
-                  onBlur={() => saveSourceExcerptDraft(sourceDraft)}
-                  style={sourceInputStyle}
-                  placeholder="@handle"
-                />
-              </label>
-            </div>
-
-            {isProductSourceExcerpt ? (
+            {showQuickRows ? (
               <>
                 <div className="mt-4 flex items-center justify-between gap-3">
-                  <span style={rowLabel}>product</span>
-                  <button
-                    type="button"
-                    onClick={() => saveSourceExcerptDraft({ ...sourceDraft, kind: 'product' })}
-                    style={pillActive}
-                  >
-                    product card
-                  </button>
-                </div>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  <input type="url" value={sourceDraft.product.image} onChange={(e) => updateSourceProduct({ image: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="product image" />
-                  <input type="text" value={sourceDraft.product.name} onChange={(e) => updateSourceProduct({ name: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="name" />
-                  <input type="text" value={sourceDraft.product.price} onChange={(e) => updateSourceProduct({ price: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="price" />
-                  <input type="text" value={sourceDraft.product.currency} onChange={(e) => updateSourceProduct({ currency: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="currency" />
-                  <input type="text" value={sourceDraft.product.seller} onChange={(e) => updateSourceProduct({ seller: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="seller" />
-                  <input type="text" value={sourceDraft.product.brand} onChange={(e) => updateSourceProduct({ brand: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="brand" />
-                  <input type="text" value={sourceDraft.product.condition} onChange={(e) => updateSourceProduct({ condition: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="condition" />
-                  <input type="text" value={sourceDraft.product.availability} onChange={(e) => updateSourceProduct({ availability: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="availability" />
-                </div>
-                <textarea
-                  value={sourceDraft.product.description}
-                  onChange={(e) => updateSourceProduct({ description: e.target.value })}
-                  onBlur={() => saveSourceExcerptDraft(sourceDraft)}
-                  rows={2}
-                  style={{ ...sourceInputStyle, resize: 'none' }}
-                  placeholder="product description"
-                />
-              </>
-            ) : null}
-
-            {!isProductSourceExcerpt ? (
-              <>
-                <div className="mt-4 flex items-center justify-between gap-3">
-                  <span style={rowLabel}>items</span>
+                  <div>
+                    <span style={rowLabel}>{isProfileSourceExcerpt ? 'thoughts' : 'posts'}</span>
+                    <p className="mt-1 text-[11px] leading-snug text-white/32">
+                      {authoring.copy}
+                    </p>
+                  </div>
                   <button
                     type="button"
                     onClick={() => {
+                      const nextKind = isProfileSourceExcerpt ? 'profile' : isMediaSourceExcerpt ? 'media' : 'feed'
                       const items = [...sourceDraft.items, blankSourceItem()].slice(0, 12)
-                      saveSourceExcerptDraft({ ...sourceDraft, items, kind: sourceDraft.kind === 'portal' ? 'feed' : sourceDraft.kind })
+                      saveSourceExcerptDraft({ ...sourceDraft, items, kind: sourceDraft.kind === 'portal' ? nextKind : sourceDraft.kind })
                     }}
                     disabled={sourceDraft.items.length >= 12}
                     style={pillBase}
                   >
-                    add row
+                    {isProfileSourceExcerpt ? 'add thought' : 'add image'}
                   </button>
                 </div>
                 <div className="mt-2 space-y-3">
@@ -1171,33 +1041,18 @@ export default function OwnerTileSheet({
                       }}
                     >
                       <div className="mb-2 flex items-center justify-between gap-2">
-                        <span style={rowLabel}>row {index + 1}</span>
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (index === 0) return
-                              const items = [...sourceDraft.items]
-                              ;[items[index - 1], items[index]] = [items[index], items[index - 1]]
-                              saveSourceExcerptDraft({ ...sourceDraft, items })
-                            }}
-                            disabled={index === 0 || sourceDraft.items.length === 0}
-                            style={pillBase}
-                          >
-                            up
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const items = sourceDraft.items.filter((_: any, i: number) => i !== index)
-                              saveSourceExcerptDraft({ ...sourceDraft, items })
-                            }}
-                            disabled={sourceDraft.items.length === 0}
-                            style={pillBase}
-                          >
-                            remove
-                          </button>
-                        </div>
+                        <span style={rowLabel}>{isProfileSourceExcerpt ? 'thought' : 'image'} {index + 1}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const items = sourceDraft.items.filter((_: any, i: number) => i !== index)
+                            saveSourceExcerptDraft({ ...sourceDraft, items })
+                          }}
+                          disabled={sourceDraft.items.length === 0}
+                          style={pillBase}
+                        >
+                          remove
+                        </button>
                       </div>
                       {renderSourceItemFields(item, index)}
                     </div>
@@ -1206,27 +1061,23 @@ export default function OwnerTileSheet({
               </>
             ) : null}
 
-            {!isProductSourceExcerpt ? (
+            {showProductEditor ? (
               <>
                 <div className="mt-4 flex items-center justify-between gap-3">
-                  <span style={rowLabel}>product</span>
+                  <span style={rowLabel}>product card</span>
                   <button
                     type="button"
                     onClick={() => saveSourceExcerptDraft({ ...sourceDraft, kind: 'product' })}
-                    style={sourceDraft.kind === 'product' ? pillActive : pillBase}
+                    style={pillActive}
                   >
-                    use product
+                    Product card
                   </button>
                 </div>
                 <div className="mt-2 grid grid-cols-2 gap-2">
+                  <input type="url" value={sourceDraft.product.image} onChange={(e) => updateSourceProduct({ image: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="image" />
                   <input type="text" value={sourceDraft.product.name} onChange={(e) => updateSourceProduct({ name: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="name" />
-                  <input type="url" value={sourceDraft.product.image} onChange={(e) => updateSourceProduct({ image: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="image url" />
                   <input type="text" value={sourceDraft.product.price} onChange={(e) => updateSourceProduct({ price: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="price" />
-                  <input type="text" value={sourceDraft.product.currency} onChange={(e) => updateSourceProduct({ currency: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="currency" />
                   <input type="text" value={sourceDraft.product.seller} onChange={(e) => updateSourceProduct({ seller: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="seller" />
-                  <input type="text" value={sourceDraft.product.brand} onChange={(e) => updateSourceProduct({ brand: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="brand" />
-                  <input type="text" value={sourceDraft.product.condition} onChange={(e) => updateSourceProduct({ condition: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="condition" />
-                  <input type="text" value={sourceDraft.product.availability} onChange={(e) => updateSourceProduct({ availability: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="availability" />
                 </div>
                 <textarea
                   value={sourceDraft.product.description}
@@ -1234,12 +1085,77 @@ export default function OwnerTileSheet({
                   onBlur={() => saveSourceExcerptDraft(sourceDraft)}
                   rows={2}
                   style={{ ...sourceInputStyle, resize: 'none' }}
-                  placeholder="product description"
+                  placeholder="description"
                 />
               </>
             ) : null}
+
+            {advancedOpen ? (
+              <div className="mt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 12 }}>
+                <div className="grid grid-cols-2 gap-3">
+                  <label>
+                    <span style={rowLabel}>site</span>
+                    <input
+                      type="text"
+                      value={sourceDraft.source}
+                      onChange={(e) => updateSourceDraft({ source: e.target.value })}
+                      onBlur={() => saveSourceExcerptDraft(sourceDraft)}
+                      style={sourceInputStyle}
+                      placeholder="site"
+                    />
+                  </label>
+                  <label>
+                    <span style={rowLabel}>handle</span>
+                    <input
+                      type="text"
+                      value={sourceDraft.handle}
+                      onChange={(e) => updateSourceDraft({ handle: e.target.value })}
+                      onBlur={() => saveSourceExcerptDraft(sourceDraft)}
+                      style={sourceInputStyle}
+                      placeholder="@handle"
+                    />
+                  </label>
+                </div>
+                {!showProductEditor ? (
+                  <button
+                    type="button"
+                    onClick={() => saveSourceExcerptDraft({ ...sourceDraft, kind: 'product' })}
+                    className="mt-3"
+                    style={pillBase}
+                  >
+                    Product card
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={() => setAdvancedOpen((open) => !open)}
+              className="mt-4"
+              style={pillBase}
+            >
+              Advanced
+            </button>
           </div>
         )}
+
+        {showSourceExcerptEditor && !showQuickRows && !showProductEditor && !advancedOpen ? (
+          <div
+            style={{
+              borderTop: '1px solid rgba(255,255,255,0.06)',
+              padding: '12px 4px 14px',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setAdvancedOpen(true)}
+              style={pillBase}
+            >
+              Advanced
+            </button>
+          </div>
+        ) : null}
 
         {showCoverRow && (
           <>
