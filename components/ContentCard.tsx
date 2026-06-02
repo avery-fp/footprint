@@ -1184,7 +1184,11 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   if (content.type === 'instagram') {
     const sourceExcerpt = content.metadata?.source_excerpt || null
-    const thumbSrc = sourceExcerpt?.image || getBestThumbnailUrl(content)
+    const sourceExcerptImage = sourceExcerpt?.image && !isPlatformLogoImage(sourceExcerpt.image)
+      ? sourceExcerpt.image
+      : null
+    const firstSourceItemImage = sourceExcerpt?.items?.find((item) => item?.image)?.image || null
+    const thumbSrc = sourceExcerptImage || firstSourceItemImage || getBestThumbnailUrl(content)
     const hasManualSourceRows = !!sourceExcerpt?.items?.some((item) => item?.title || item?.description || item?.text || item?.image)
 
     // Thumb 404 or no content at all → FallbackCard. Spec Task 3.
