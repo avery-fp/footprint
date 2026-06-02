@@ -161,13 +161,36 @@ function sourceHost(url?: string | null) {
   }
 }
 
+function isFirstClassObjectUrl(url?: string | null) {
+  return /(?:youtube\.com|youtu\.be|open\.spotify\.com|music\.apple\.com|soundcloud\.com)/i.test(url || '')
+}
+
+function isInstagramPostUrl(url?: string | null) {
+  return /instagram\.com\/(?:p|reel|tv)\//i.test(url || '')
+}
+
+function isXPostUrl(url?: string | null) {
+  return /(?:twitter\.com|x\.com)\/[^/?#]+\/status\//i.test(url || '')
+}
+
+function isHostileProfileUrl(url?: string | null) {
+  const host = sourceHost(url)
+  if (/(^|\.)instagram\.com$/.test(host)) return !isInstagramPostUrl(url)
+  if (/(^|\.)x\.com$/.test(host) || /(^|\.)twitter\.com$/.test(host)) return !isXPostUrl(url)
+  return false
+}
+
 function sourceAuthoringProfile(url?: string | null): { suggestedKind: SourceKind | null; copy: string; platform: string } {
   const host = sourceHost(url)
   if (/(^|\.)instagram\.com$/.test(host)) {
-    return { suggestedKind: 'media', copy: SOURCE_HELPER_COPY.instagram, platform: 'Instagram' }
+    return isInstagramPostUrl(url)
+      ? { suggestedKind: 'media', copy: SOURCE_HELPER_COPY.instagram, platform: 'Instagram' }
+      : { suggestedKind: null, copy: SOURCE_HELPER_COPY.generic, platform: 'Instagram' }
   }
   if (/(^|\.)x\.com$/.test(host) || /(^|\.)twitter\.com$/.test(host)) {
-    return { suggestedKind: 'profile', copy: SOURCE_HELPER_COPY.x, platform: 'X' }
+    return isXPostUrl(url)
+      ? { suggestedKind: 'profile', copy: SOURCE_HELPER_COPY.x, platform: 'X' }
+      : { suggestedKind: null, copy: SOURCE_HELPER_COPY.generic, platform: 'X' }
   }
   if (/(^|\.)depop\.com$/.test(host) || /(^|\.)vinted\./.test(host)) {
     return { suggestedKind: 'product', copy: SOURCE_HELPER_COPY.product, platform: host.includes('depop') ? 'Depop' : 'Vinted' }
@@ -330,7 +353,16 @@ export default function OwnerTileSheet({
   const thumbInputRef = useRef<HTMLInputElement>(null)
   const isContainerCoverTile = source === 'links' && tile.type === 'container'
   const showCoverRow = isContainerCoverTile || (isLinkTile && !showTitleRow)
-  const showSourceExcerptEditor = isLinkTile
+  const isFirstClassObject =
+    tile.type === 'youtube' ||
+    tile.type === 'spotify' ||
+    tile.type === 'apple_music' ||
+    tile.type === 'soundcloud' ||
+    tile.type === 'video' ||
+    tile.type === 'image' ||
+    tile.type === 'thought' ||
+    isFirstClassObjectUrl(tile.url)
+  const showSourceExcerptEditor = isLinkTile && !isFirstClassObject
   const [sourceDraft, setSourceDraft] = useState(() => normalizeSourceDraft(tile))
   const [advancedOpen, setAdvancedOpen] = useState(false)
 
@@ -703,13 +735,18 @@ export default function OwnerTileSheet({
   }
 
   const authoring = sourceAuthoringProfile(tile.url)
-  const effectiveSourceKind = (sourceDraft.kind || authoring.suggestedKind || 'portal') as SourceKind
+  const hasSavedSourceRows = sourceDraft.items.some((item: SourceItemDraft) => item.title || item.description || item.text || item.image || item.url)
+  const effectiveSourceKind = (
+    isHostileProfileUrl(tile.url) && !hasSavedSourceRows
+      ? 'portal'
+      : sourceDraft.kind || authoring.suggestedKind || 'portal'
+  ) as SourceKind
   const isMediaSourceExcerpt = effectiveSourceKind === 'media'
   const isProfileSourceExcerpt = effectiveSourceKind === 'profile' || effectiveSourceKind === 'post'
   const isProductSourceExcerpt = effectiveSourceKind === 'product'
   const isProductLikeSource = authoring.suggestedKind === 'product'
   const showProductEditor = isProductLikeSource || isProductSourceExcerpt
-  const showQuickRows = isMediaSourceExcerpt || isProfileSourceExcerpt || sourceDraft.items.length > 0
+  const showQuickRows = isMediaSourceExcerpt || isProfileSourceExcerpt || hasSavedSourceRows
 
   function renderSourceItemFields(item: SourceItemDraft, index: number) {
     const saveItem = (patch: Record<string, string>) => updateSourceItem(index, patch, true)

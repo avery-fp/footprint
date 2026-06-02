@@ -93,6 +93,25 @@ function isProductSource(url: string): boolean {
   return /(?:^|\/\/)(?:www\.)?depop\.com/i.test(url) || /\/products?\//i.test(url)
 }
 
+function musicProviderFromUrl(url: string): 'spotify' | 'apple_music' | 'soundcloud' | null {
+  if (/open\.spotify\.com/i.test(url)) return 'spotify'
+  if (/music\.apple\.com/i.test(url)) return 'apple_music'
+  if (/soundcloud\.com/i.test(url)) return 'soundcloud'
+  return null
+}
+
+function isInstagramPostUrl(url: string): boolean {
+  return /instagram\.com\/(?:p|reel|tv)\//i.test(url)
+}
+
+function isXPostUrl(url: string): boolean {
+  return /(?:twitter\.com|x\.com)\/[^/?#]+\/status\//i.test(url)
+}
+
+function hasSourceRows(metadata: ContentCardProps['content']['metadata'] | null | undefined): boolean {
+  return !!metadata?.source_excerpt?.items?.some((item) => item?.title || item?.description || item?.text || item?.image)
+}
+
 function extractPrice(text: string): string | null {
   return text.match(/(?:[$£€]\s?\d[\d,.]*(?:\.\d{2})?)/)?.[0] || null
 }
@@ -269,7 +288,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     )
     obs.observe(el)
     return () => obs.disconnect()
-  }, [content.type])
+  }, [content.type, content.url])
 
   useEffect(() => {
     const v = videoRef.current
@@ -291,7 +310,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       setIsActivated(false)
       setYoutubeHasStarted(false)
       setYoutubeRevealSettled(false)
-    } else if (content.type === 'soundcloud' || content.type === 'spotify' || content.type === 'tiktok') {
+    } else if (content.type === 'soundcloud' || content.type === 'spotify' || musicProviderFromUrl(content.url) || content.type === 'tiktok') {
       activatedRef.current = false
       setIsActivated(false)
       setShellOpen(false)
@@ -306,17 +325,17 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
 
   // Register audio-producing types with AudioManager
   useEffect(() => {
-    const isAudioType = ['youtube', 'soundcloud', 'spotify', 'video', 'tiktok'].includes(content.type)
+    const isAudioType = ['youtube', 'soundcloud', 'spotify', 'video', 'tiktok'].includes(content.type) || !!musicProviderFromUrl(content.url)
     if (!isAudioType) return
     audioManager.register(audioIdRef.current, stopCardAudio)
     return () => {
       audioManager.release(audioIdRef.current)
       audioManager.unregister(audioIdRef.current)
     }
-  }, [content.type, content.id, stopCardAudio])
+  }, [content.type, content.url, content.id, stopCardAudio])
 
   const handleActivate = () => {
-    if (['youtube', 'soundcloud', 'spotify', 'tiktok'].includes(content.type)) {
+    if (['youtube', 'soundcloud', 'spotify', 'tiktok'].includes(content.type) || !!musicProviderFromUrl(content.url)) {
       audioManager.activateProvider(audioIdRef.current)
     }
     activatedRef.current = true
@@ -609,7 +628,11 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   // MUSIC — square = cover-first, wide = compact glass facade
   // ════════════════════════════════════════
-  if (content.type === 'spotify' || content.type === 'apple_music') {
+  const musicProvider = content.type === 'spotify' || content.type === 'apple_music' || content.type === 'soundcloud'
+    ? content.type
+    : musicProviderFromUrl(content.url)
+
+  if (musicProvider === 'spotify' || musicProvider === 'apple_music') {
     const thumbSrc = getBestThumbnailUrl(content)
     const { title, creator } = sanitizeLinkMeta(
       { title: content.title, creator: content.artist },
@@ -620,11 +643,11 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     return (
       <MusicEmbedTile
         url={content.url}
-        provider={content.type}
+        provider={musicProvider}
         title={title}
         artist={creator || undefined}
         image={thumbSrc}
-        displayMode={content.type === 'spotify' ? 'player' : content.type === 'apple_music' ? 'cover' : isWideMusic ? 'player' : 'cover'}
+        displayMode={musicProvider === 'spotify' ? 'player' : musicProvider === 'apple_music' ? 'cover' : isWideMusic ? 'player' : 'cover'}
       />
     )
   }
@@ -632,7 +655,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   // SOUNDCLOUD — facade first, click loads embed
   // ════════════════════════════════════════
-  if (content.type === 'soundcloud' && !iframeFailed) {
+  if (musicProvider === 'soundcloud' && !iframeFailed) {
     const embed = parseEmbed(content.url)
     if (!isActivated) {
       return (
@@ -952,7 +975,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // Matched by URL, not stored type — seals pic.twitter.com and mistyped tiles.
   // Compact resting state; ArtifactShell opens source-specific excerpt.
   // ════════════════════════════════════════
-  if (/(?:twitter\.com|x\.com)/i.test(content.url)) {
+  if (/(?:twitter\.com|x\.com)/i.test(content.url) && (isXPostUrl(content.url) || hasSourceRows(content.metadata))) {
     const sourceExcerpt = content.metadata?.source_excerpt || null
     const { title, creator } = sanitizeLinkMeta(
       {
@@ -1182,7 +1205,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // INSTAGRAM — first-party closed state, ArtifactShell on tap
   // FIDELIO: No third-party scripts until shell opens
   // ════════════════════════════════════════
-  if (content.type === 'instagram') {
+  if (content.type === 'instagram' && (isInstagramPostUrl(content.url) || hasSourceRows(content.metadata))) {
     const sourceExcerpt = content.metadata?.source_excerpt || null
     const sourceImage = sourceExcerpt?.image && !isPlatformLogoImage(sourceExcerpt.image)
       ? sourceExcerpt.image
@@ -1286,9 +1309,9 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   const isGenericExternalArtifact =
     Boolean(content.url) &&
-    content.type !== 'instagram' &&
     content.type !== 'tiktok' &&
-    content.type !== 'native_music'
+    content.type !== 'native_music' &&
+    !musicProvider
 
   if (isGenericExternalArtifact) {
     const thumbSrc =
@@ -1435,7 +1458,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             </div>
           ) : null}
 
-          <div className="absolute inset-0 z-[2] flex flex-col items-center justify-center p-5">
+          <div className="absolute inset-0 z-[2] flex flex-col items-center justify-end p-5 pb-7">
             <p
               className={`whitespace-pre-wrap text-center text-white/80 fp-text-shadow text-sm line-clamp-6`}
               style={{ fontWeight: 500 }}
