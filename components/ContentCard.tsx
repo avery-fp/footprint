@@ -1040,11 +1040,11 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   if (content.type === 'tiktok') {
     const sourceExcerpt = content.metadata?.source_excerpt || null
-    const sourceExcerptImage = sourceExcerpt?.image && !isKnownPlatformLogo(sourceExcerpt.image)
-    ? sourceExcerpt.image
-    : null
-  const firstSourceItemImage = sourceExcerpt?.items?.find((item) => item?.image)?.image || null
-  const thumbSrc = sourceExcerptImage || firstSourceItemImage || getBestThumbnailUrl(content)
+    const sourceExcerptImage = sourceExcerpt?.image && !isPlatformLogoImage(sourceExcerpt.image)
+      ? sourceExcerpt.image
+      : null
+    const firstSourceItemImage = sourceExcerpt?.items?.find((item) => item?.image)?.image || null
+    const thumbSrc = sourceExcerptImage || firstSourceItemImage || getBestThumbnailUrl(content)
     const hasManualSourceRows = !!sourceExcerpt?.items?.some((item) => item?.title || item?.description || item?.text || item?.image)
     // Numeric video ID from the canonical tiktok.com/@user/video/{id} shape.
     // external_id (when present) wins; otherwise extract from the URL.
