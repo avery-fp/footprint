@@ -127,6 +127,12 @@ function resolveImageUrl(raw: unknown, base: string): string | null {
   if (typeof value === 'string') return resolveHttpUrl(value, base)
   if (value && typeof value === 'object') {
     const object = value as any
+    const firstEdge = arrayFirst(object.edges) as any
+    const nested = object.node || arrayFirst(object.nodes) || firstEdge?.node
+    if (nested) {
+      const resolved = resolveImageUrl(nested, base)
+      if (resolved) return resolved
+    }
     return resolveHttpUrl(
       object.url ||
         object.contentUrl ||
@@ -540,8 +546,15 @@ function arrayFirst(value: unknown): unknown {
   return Array.isArray(value) ? value[0] : value
 }
 
+function firstNode(value: unknown): any {
+  const item = arrayFirst(value) as any
+  if (!item || typeof item !== 'object') return item
+  return item.node || firstNode(item.nodes) || firstNode(item.edges) || item
+}
+
 function nodeType(node: any): string {
-  const type = Array.isArray(node?.['@type']) ? node['@type'][0] : node?.['@type']
+  const type = node?.['@type'] || node?.type || node?.__typename
+  if (Array.isArray(type)) return type.map((item) => cleanString(item, 80)?.toLowerCase()).filter(Boolean).join(' ')
   return typeof type === 'string' ? type.toLowerCase() : ''
 }
 
@@ -560,16 +573,28 @@ function findTypedNode(node: any, types: Set<string>, depth = 0): any | null {
 
 function findProductNode(node: any, depth = 0): any | null {
   if (!node || typeof node !== 'object' || depth > 9) return null
-  if (nodeType(node) === 'product') return node
-  const hasIdentity = node.name || node.title || node.productTitle
-  const hasMedia = node.image || node.images || node.featuredImage || node.featured_image || node.media || node.photos
+  if (/\bproduct\b/i.test(nodeType(node))) return node
+  const hasIdentity = node.name || node.title || node.productTitle || node.productName
+  const hasMedia =
+    node.image ||
+    node.images ||
+    node.featuredImage ||
+    node.featured_image ||
+    node.primaryImage ||
+    node.media ||
+    node.photos
   const hasCommerce =
     node.offers ||
     node.offer ||
     node.price ||
+    node.currentPrice ||
+    node.salePrice ||
+    node.compareAtPrice ||
     node.priceCurrency ||
     node.priceRange ||
+    node.priceRangeV2 ||
     node.variants ||
+    node.selectedVariant ||
     node.availableForSale ||
     node.availability ||
     node.condition
@@ -598,66 +623,117 @@ function lastUrlPart(value: unknown): string | null {
 }
 
 function namedValue(value: unknown, maxLength = 120): string | null {
-  const item = arrayFirst(value) as any
+  const item = firstNode(value) as any
   if (!item) return null
-  return cleanString(typeof item === 'object' ? item.name || item.title || item.displayName : item, maxLength)
+  return cleanString(typeof item === 'object' ? item.name || item.title || item.displayName || item.label : item, maxLength)
 }
 
 function booleanAvailability(value: unknown): string | null {
   return typeof value === 'boolean' ? (value ? 'In stock' : 'Out of stock') : null
 }
 
+function hasProductUrlHint(sourceUrl: string): boolean {
+  try {
+    const parsed = new URL(sourceUrl)
+    const domain = parsed.hostname.replace(/^www\./, '')
+    return (
+      /(?:depop|vinted|etsy|ebay|amazon|shopify|bigcartel|poshmark|grailed|stockx|stripe)\./i.test(domain) ||
+      /\/(?:products?|shop|store|items?|listing|catalog|collections|dp)\b/i.test(parsed.pathname)
+    )
+  } catch {
+    return false
+  }
+}
+
+function cleanPriceValue(value: unknown): string | null {
+  const price = cleanString(value, 60)
+  if (!price) return null
+  return /(?:\d|[$€£¥₹₩₽₺₴₦₫₪₱฿₲₡₵]|usd|eur|gbp|cad|aud|jpy|cny|sek|nok|dkk)/i.test(price) ? price : null
+}
+
+function moneyAmount(value: unknown): unknown {
+  const item = firstNode(value) as any
+  if (!item || typeof item !== 'object') return item
+  return item.amount || item.value || item.price || item.priceAmount || item.centAmount || item.money?.amount || item.minVariantPrice?.amount
+}
+
+function moneyCurrency(value: unknown): unknown {
+  const item = firstNode(value) as any
+  if (!item || typeof item !== 'object') return null
+  return item.currencyCode || item.currency || item.priceCurrency || item.money?.currencyCode || item.minVariantPrice?.currencyCode
+}
+
 function productFromNode(product: any, sourceUrl: string): SourceProduct | null {
-  const offer = arrayFirst(product.offers || product.offer) as any
-  const priceSpec = arrayFirst(offer?.priceSpecification) as any
-  const variant = arrayFirst(product.variants || product.selectedVariant || product.defaultVariant) as any
-  const variantPrice = variant?.priceV2 || variant?.price || variant?.compareAtPriceV2 || variant?.compare_at_price
+  const offer = firstNode(product.offers || product.offer) as any
+  const priceSpec = firstNode(offer?.priceSpecification) as any
+  const variant = firstNode(product.variants || product.selectedVariant || product.defaultVariant) as any
+  const variantPrice = variant?.priceV2 || variant?.price || variant?.currentPrice || variant?.compareAtPriceV2 || variant?.compare_at_price
   const priceRange = product.priceRange || product.price_range || product.priceRangeV2
-  const minPrice = priceRange?.minVariantPrice || priceRange?.min_price || priceRange?.minimum
-  const name = cleanString(product.name || product.title || product.productTitle, 180)
+  const minPrice = priceRange?.minVariantPrice || priceRange?.min_price || priceRange?.minimum || priceRange?.from
+  const name = cleanString(product.name || product.title || product.productTitle || product.productName, 180)
   const image = resolveImageUrl(
-    product.image || product.images || product.featuredImage || product.featured_image || product.media || product.photos || variant?.image,
+    product.image ||
+      product.images ||
+      product.featuredImage ||
+      product.featured_image ||
+      product.primaryImage ||
+      product.media ||
+      product.photos ||
+      variant?.image,
     sourceUrl
   )
-  const description = cleanText(product.description || product.shortDescription || product.body_html || product.descriptionHtml, 320)
-  const price = cleanString(
+  const description = cleanText(
+    product.description ||
+      product.shortDescription ||
+      product.descriptionPlainSummary ||
+      product.body_html ||
+      product.descriptionHtml,
+    320
+  )
+  const price = cleanPriceValue(
     offer?.price ||
       offer?.lowPrice ||
+      offer?.highPrice ||
       priceSpec?.price ||
       product.price ||
+      product.currentPrice ||
+      product.salePrice ||
+      product.compareAtPrice ||
       product.priceAmount ||
       product.amount ||
-      (typeof variantPrice === 'object' ? variantPrice.amount : variantPrice) ||
-      minPrice?.amount ||
-      minPrice,
-    60
+      moneyAmount(variantPrice) ||
+      moneyAmount(minPrice)
   )
   const priceCurrency = cleanString(
     offer?.priceCurrency ||
+      moneyCurrency(offer?.price) ||
       priceSpec?.priceCurrency ||
       product.priceCurrency ||
       product.currency ||
       product.currencyCode ||
-      (typeof variantPrice === 'object' ? variantPrice.currencyCode || variantPrice.currency : null) ||
-      minPrice?.currencyCode ||
-      minPrice?.currency,
+      moneyCurrency(variantPrice) ||
+      moneyCurrency(minPrice),
     12
   )
   const availability =
-    lastUrlPart(offer?.availability || product.availability || variant?.availability) ||
+    lastUrlPart(offer?.availability || product.availability || variant?.availability || variant?.inventoryPolicy) ||
     booleanAvailability(product.availableForSale ?? product.available ?? variant?.availableForSale ?? variant?.available)
   const condition = lastUrlPart(offer?.itemCondition || product.itemCondition || product.condition)
+  const brand = namedValue(product.brand || product.brandName || product.vendor || product.manufacturer || product.designer)
+  const seller = namedValue(offer?.seller || product.seller || product.shop || product.store || product.merchant || product.vendor)
   const parsed = {
     name,
     image,
     description,
     price,
     priceCurrency,
-    brand: namedValue(product.brand || product.brandName || product.vendor || product.manufacturer),
-    seller: namedValue(offer?.seller || product.seller || product.shop || product.store || product.merchant),
+    brand,
+    seller,
     availability,
     condition,
   }
+  const commerceSignal = !!(offer || variant || price || priceCurrency || brand || seller || availability || condition)
+  if (!commerceSignal && !hasProductUrlHint(sourceUrl)) return null
   return parsed.name || parsed.image || parsed.description || parsed.price ? parsed : null
 }
 
@@ -709,19 +785,20 @@ function parseArticleDate(html: string): string | null {
 
 function parseOpenGraphProduct(html: string, sourceUrl: string, preview: LinkPreview | null): SourceProduct | null {
   const type = meta(html, 'og:type')
-  const price = cleanString(
+  const price = cleanPriceValue(
     meta(html, 'product:price:amount') ||
+      meta(html, 'product:sale_price:amount') ||
       meta(html, 'product:price') ||
-      meta(html, 'og:price:amount'),
-    60
+      meta(html, 'og:price:amount') ||
+      meta(html, 'price:amount')
   )
   const priceCurrency = cleanString(
-    meta(html, 'product:price:currency') || meta(html, 'og:price:currency'),
+    meta(html, 'product:price:currency') || meta(html, 'product:sale_price:currency') || meta(html, 'og:price:currency') || meta(html, 'price:currency'),
     12
   )
   const availability = lastUrlPart(meta(html, 'product:availability') || meta(html, 'og:availability'))
   const condition = lastUrlPart(meta(html, 'product:condition') || meta(html, 'og:condition'))
-  const brand = cleanString(meta(html, 'product:brand') || meta(html, 'og:brand') || meta(html, 'brand'), 120)
+  const brand = cleanString(meta(html, 'product:brand') || meta(html, 'og:brand') || meta(html, 'brand') || meta(html, 'product:vendor'), 120)
   const hasProductSignal = /product/i.test(type || '') || !!(price || priceCurrency || availability || condition || brand)
   if (!hasProductSignal) return null
 
@@ -732,7 +809,7 @@ function parseOpenGraphProduct(html: string, sourceUrl: string, preview: LinkPre
     price,
     priceCurrency,
     brand,
-    seller: cleanString(meta(html, 'product:retailer_item_id') ? null : meta(html, 'product:seller'), 120),
+    seller: cleanString(meta(html, 'product:seller') || meta(html, 'product:retailer') || meta(html, 'merchant'), 120),
     availability,
     condition,
   }
@@ -743,7 +820,7 @@ function parseEmbeddedProduct(html: string, sourceUrl: string): SourceProduct | 
   const scripts = html.match(/<script\b(?=[^>]*(?:type=["']application\/json["']|id=["']__NEXT_DATA__["']))[^>]*>([\s\S]*?)<\/script>/gi) || []
   for (const script of scripts) {
     const raw = script.replace(/^<script\b[^>]*>/i, '').replace(/<\/script>$/i, '').trim()
-    if (!/"(?:Product|product|offers|price|priceCurrency)"/.test(raw)) continue
+    if (!/(?:__NEXT_DATA__|"(?:Product|product|productName|productTitle|offers|price|priceCurrency|variants)")/.test(script)) continue
     const product = parseProductFromJson(raw, sourceUrl)
     if (product) return product
   }

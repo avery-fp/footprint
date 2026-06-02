@@ -209,7 +209,10 @@ function normalizeSourceDraft(tile: Tile) {
   try {
     if (!domain && tile.url) domain = new URL(tile.url).hostname.replace(/^www\./, '')
   } catch {}
-  const kind = current.kind || (productHasValue(product) ? 'product' : rawItems.length ? profile.suggestedKind || 'feed' : metadata.source_excerpt_category === 'article' ? 'article' : profile.suggestedKind || 'portal')
+  const currentKind = current.kind || null
+  const kind = profile.suggestedKind && (!currentKind || currentKind === 'portal' || currentKind === 'profile')
+    ? profile.suggestedKind
+    : currentKind || (productHasValue(product) ? 'product' : rawItems.length ? 'feed' : metadata.source_excerpt_category === 'article' ? 'article' : profile.suggestedKind || 'portal')
   return {
     kind,
     source: current.source || metadata.site_name || domain || '',
@@ -704,7 +707,7 @@ export default function OwnerTileSheet({
   const isProductSourceExcerpt = effectiveSourceKind === 'product'
 
   function renderSourceItemFields(item: SourceItemDraft, index: number) {
-    const saveItem = () => saveSourceExcerptDraft(sourceDraft)
+    const saveItem = (patch: Record<string, string>) => updateSourceItem(index, patch, true)
 
     if (isMediaSourceExcerpt) {
       return (
@@ -713,7 +716,7 @@ export default function OwnerTileSheet({
             type="url"
             value={item.image}
             onChange={(e) => updateSourceItem(index, { image: e.target.value })}
-            onBlur={saveItem}
+            onBlur={(e) => saveItem({ image: e.target.value })}
             style={sourceInputStyle}
             placeholder="image url"
           />
@@ -721,14 +724,14 @@ export default function OwnerTileSheet({
             type="text"
             value={item.title}
             onChange={(e) => updateSourceItem(index, { title: e.target.value })}
-            onBlur={saveItem}
+            onBlur={(e) => saveItem({ title: e.target.value })}
             style={sourceInputStyle}
             placeholder="caption/title"
           />
           <textarea
             value={item.description}
             onChange={(e) => updateSourceItem(index, { description: e.target.value, text: e.target.value })}
-            onBlur={saveItem}
+            onBlur={(e) => saveItem({ description: e.target.value, text: e.target.value })}
             rows={2}
             style={{ ...sourceInputStyle, resize: 'none' }}
             placeholder="description"
@@ -738,7 +741,7 @@ export default function OwnerTileSheet({
               type="url"
               value={item.url}
               onChange={(e) => updateSourceItem(index, { url: e.target.value })}
-              onBlur={saveItem}
+              onBlur={(e) => saveItem({ url: e.target.value })}
               style={sourceInputStyle}
               placeholder="item url"
             />
@@ -746,7 +749,7 @@ export default function OwnerTileSheet({
               type="text"
               value={item.date}
               onChange={(e) => updateSourceItem(index, { date: e.target.value })}
-              onBlur={saveItem}
+              onBlur={(e) => saveItem({ date: e.target.value })}
               style={sourceInputStyle}
               placeholder="date"
             />
@@ -761,7 +764,7 @@ export default function OwnerTileSheet({
           <textarea
             value={item.title}
             onChange={(e) => updateSourceItem(index, { title: e.target.value, text: e.target.value })}
-            onBlur={saveItem}
+            onBlur={(e) => saveItem({ title: e.target.value, text: e.target.value })}
             rows={3}
             style={{ ...sourceInputStyle, resize: 'vertical' }}
             placeholder="thought text"
@@ -769,7 +772,7 @@ export default function OwnerTileSheet({
           <textarea
             value={item.description}
             onChange={(e) => updateSourceItem(index, { description: e.target.value })}
-            onBlur={saveItem}
+            onBlur={(e) => saveItem({ description: e.target.value })}
             rows={2}
             style={{ ...sourceInputStyle, resize: 'none' }}
             placeholder="description optional"
@@ -779,7 +782,7 @@ export default function OwnerTileSheet({
               type="url"
               value={item.url}
               onChange={(e) => updateSourceItem(index, { url: e.target.value })}
-              onBlur={saveItem}
+              onBlur={(e) => saveItem({ url: e.target.value })}
               style={sourceInputStyle}
               placeholder="item url optional"
             />
@@ -787,7 +790,7 @@ export default function OwnerTileSheet({
               type="text"
               value={item.date}
               onChange={(e) => updateSourceItem(index, { date: e.target.value })}
-              onBlur={saveItem}
+              onBlur={(e) => saveItem({ date: e.target.value })}
               style={sourceInputStyle}
               placeholder="date optional"
             />
@@ -803,7 +806,7 @@ export default function OwnerTileSheet({
             type="text"
             value={item.title}
             onChange={(e) => updateSourceItem(index, { title: e.target.value })}
-            onBlur={saveItem}
+            onBlur={(e) => saveItem({ title: e.target.value })}
             style={sourceInputStyle}
             placeholder="title/text"
           />
@@ -811,7 +814,7 @@ export default function OwnerTileSheet({
             type="text"
             value={item.date}
             onChange={(e) => updateSourceItem(index, { date: e.target.value })}
-            onBlur={saveItem}
+            onBlur={(e) => saveItem({ date: e.target.value })}
             style={sourceInputStyle}
             placeholder="date"
           />
@@ -819,7 +822,7 @@ export default function OwnerTileSheet({
             type="url"
             value={item.image}
             onChange={(e) => updateSourceItem(index, { image: e.target.value })}
-            onBlur={saveItem}
+            onBlur={(e) => saveItem({ image: e.target.value })}
             style={sourceInputStyle}
             placeholder="image url"
           />
@@ -827,7 +830,7 @@ export default function OwnerTileSheet({
             type="url"
             value={item.url}
             onChange={(e) => updateSourceItem(index, { url: e.target.value })}
-            onBlur={saveItem}
+            onBlur={(e) => saveItem({ url: e.target.value })}
             style={sourceInputStyle}
             placeholder="item url"
           />
@@ -835,7 +838,7 @@ export default function OwnerTileSheet({
         <textarea
           value={item.description}
           onChange={(e) => updateSourceItem(index, { description: e.target.value, text: e.target.value })}
-          onBlur={saveItem}
+          onBlur={(e) => saveItem({ description: e.target.value, text: e.target.value })}
           rows={2}
           style={{ ...sourceInputStyle, resize: 'none' }}
           placeholder="description"
@@ -1142,97 +1145,97 @@ export default function OwnerTileSheet({
 
             {!isProductSourceExcerpt ? (
               <>
-            <div className="mt-4 flex items-center justify-between gap-3">
-              <span style={rowLabel}>items</span>
-              <button
-                type="button"
-                onClick={() => {
-                  const items = [...sourceDraft.items, blankSourceItem()].slice(0, 12)
-                  saveSourceExcerptDraft({ ...sourceDraft, items, kind: sourceDraft.kind === 'portal' ? 'feed' : sourceDraft.kind })
-                }}
-                disabled={sourceDraft.items.length >= 12}
-                style={pillBase}
-              >
-                add row
-              </button>
-            </div>
-            <div className="mt-2 space-y-3">
-              {(sourceDraft.items.length ? sourceDraft.items : [blankSourceItem()]).map((item: ReturnType<typeof blankSourceItem>, index: number) => (
-                <div
-                  key={index}
-                  style={{
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    borderRadius: 12,
-                    padding: 10,
-                    background: 'rgba(255,255,255,0.025)',
-                  }}
-                >
-                  <div className="mb-2 flex items-center justify-between gap-2">
-                    <span style={rowLabel}>row {index + 1}</span>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (index === 0) return
-                          const items = [...sourceDraft.items]
-                          ;[items[index - 1], items[index]] = [items[index], items[index - 1]]
-                          saveSourceExcerptDraft({ ...sourceDraft, items })
-                        }}
-                        disabled={index === 0 || sourceDraft.items.length === 0}
-                        style={pillBase}
-                      >
-                        up
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const items = sourceDraft.items.filter((_: any, i: number) => i !== index)
-                          saveSourceExcerptDraft({ ...sourceDraft, items })
-                        }}
-                        disabled={sourceDraft.items.length === 0}
-                        style={pillBase}
-                      >
-                        remove
-                      </button>
-                    </div>
-                  </div>
-                  {renderSourceItemFields(item, index)}
+                <div className="mt-4 flex items-center justify-between gap-3">
+                  <span style={rowLabel}>items</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const items = [...sourceDraft.items, blankSourceItem()].slice(0, 12)
+                      saveSourceExcerptDraft({ ...sourceDraft, items, kind: sourceDraft.kind === 'portal' ? 'feed' : sourceDraft.kind })
+                    }}
+                    disabled={sourceDraft.items.length >= 12}
+                    style={pillBase}
+                  >
+                    add row
+                  </button>
                 </div>
-              ))}
-            </div>
+                <div className="mt-2 space-y-3">
+                  {(sourceDraft.items.length ? sourceDraft.items : [blankSourceItem()]).map((item: ReturnType<typeof blankSourceItem>, index: number) => (
+                    <div
+                      key={index}
+                      style={{
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        borderRadius: 12,
+                        padding: 10,
+                        background: 'rgba(255,255,255,0.025)',
+                      }}
+                    >
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <span style={rowLabel}>row {index + 1}</span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (index === 0) return
+                              const items = [...sourceDraft.items]
+                              ;[items[index - 1], items[index]] = [items[index], items[index - 1]]
+                              saveSourceExcerptDraft({ ...sourceDraft, items })
+                            }}
+                            disabled={index === 0 || sourceDraft.items.length === 0}
+                            style={pillBase}
+                          >
+                            up
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const items = sourceDraft.items.filter((_: any, i: number) => i !== index)
+                              saveSourceExcerptDraft({ ...sourceDraft, items })
+                            }}
+                            disabled={sourceDraft.items.length === 0}
+                            style={pillBase}
+                          >
+                            remove
+                          </button>
+                        </div>
+                      </div>
+                      {renderSourceItemFields(item, index)}
+                    </div>
+                  ))}
+                </div>
               </>
             ) : null}
 
             {!isProductSourceExcerpt ? (
               <>
-            <div className="mt-4 flex items-center justify-between gap-3">
-              <span style={rowLabel}>product</span>
-              <button
-                type="button"
-                onClick={() => saveSourceExcerptDraft({ ...sourceDraft, kind: 'product' })}
-                style={sourceDraft.kind === 'product' ? pillActive : pillBase}
-              >
-                use product
-              </button>
-            </div>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <input type="text" value={sourceDraft.product.name} onChange={(e) => updateSourceProduct({ name: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="name" />
-              <input type="url" value={sourceDraft.product.image} onChange={(e) => updateSourceProduct({ image: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="image url" />
-              <input type="text" value={sourceDraft.product.price} onChange={(e) => updateSourceProduct({ price: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="price" />
-              <input type="text" value={sourceDraft.product.currency} onChange={(e) => updateSourceProduct({ currency: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="currency" />
-              <input type="text" value={sourceDraft.product.seller} onChange={(e) => updateSourceProduct({ seller: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="seller" />
-              <input type="text" value={sourceDraft.product.brand} onChange={(e) => updateSourceProduct({ brand: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="brand" />
-              <input type="text" value={sourceDraft.product.condition} onChange={(e) => updateSourceProduct({ condition: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="condition" />
-              <input type="text" value={sourceDraft.product.availability} onChange={(e) => updateSourceProduct({ availability: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="availability" />
-            </div>
-            <textarea
-              value={sourceDraft.product.description}
-              onChange={(e) => updateSourceProduct({ description: e.target.value })}
-              onBlur={() => saveSourceExcerptDraft(sourceDraft)}
-              rows={2}
-              style={{ ...sourceInputStyle, resize: 'none' }}
-              placeholder="product description"
-            />
+                <div className="mt-4 flex items-center justify-between gap-3">
+                  <span style={rowLabel}>product</span>
+                  <button
+                    type="button"
+                    onClick={() => saveSourceExcerptDraft({ ...sourceDraft, kind: 'product' })}
+                    style={sourceDraft.kind === 'product' ? pillActive : pillBase}
+                  >
+                    use product
+                  </button>
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <input type="text" value={sourceDraft.product.name} onChange={(e) => updateSourceProduct({ name: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="name" />
+                  <input type="url" value={sourceDraft.product.image} onChange={(e) => updateSourceProduct({ image: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="image url" />
+                  <input type="text" value={sourceDraft.product.price} onChange={(e) => updateSourceProduct({ price: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="price" />
+                  <input type="text" value={sourceDraft.product.currency} onChange={(e) => updateSourceProduct({ currency: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="currency" />
+                  <input type="text" value={sourceDraft.product.seller} onChange={(e) => updateSourceProduct({ seller: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="seller" />
+                  <input type="text" value={sourceDraft.product.brand} onChange={(e) => updateSourceProduct({ brand: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="brand" />
+                  <input type="text" value={sourceDraft.product.condition} onChange={(e) => updateSourceProduct({ condition: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="condition" />
+                  <input type="text" value={sourceDraft.product.availability} onChange={(e) => updateSourceProduct({ availability: e.target.value })} onBlur={() => saveSourceExcerptDraft(sourceDraft)} style={sourceInputStyle} placeholder="availability" />
+                </div>
+                <textarea
+                  value={sourceDraft.product.description}
+                  onChange={(e) => updateSourceProduct({ description: e.target.value })}
+                  onBlur={() => saveSourceExcerptDraft(sourceDraft)}
+                  rows={2}
+                  style={{ ...sourceInputStyle, resize: 'none' }}
+                  placeholder="product description"
+                />
               </>
             ) : null}
           </div>

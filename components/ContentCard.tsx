@@ -811,7 +811,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     const rows = (sourceExcerpt?.items || []).filter((item) => item?.title || item?.description || item?.text || item?.image)
     if (!rows.length) return null
     const kind = sourceExcerpt?.kind || 'portal'
-    const visualMode = kind === 'media' || (sourceExcerpt?.source || '').toLowerCase().includes('instagram')
+    const visualSource = `${sourceExcerpt?.source || ''} ${sourceExcerpt?.domain || ''}`.toLowerCase()
+    const visualMode = kind === 'media' || visualSource.includes('instagram')
     const textMode = kind === 'profile' || kind === 'post'
     const productMode = kind === 'product'
     const mediaMode = kind === 'media'

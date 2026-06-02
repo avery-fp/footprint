@@ -126,6 +126,8 @@ const summary = {
   generic: 0,
   withProductImage: 0,
   withProductPrice: 0,
+  productDomains: new Map(),
+  productDetails: [],
   fallback: 0,
   failed: 0,
   feedSources: 0,
@@ -183,6 +185,19 @@ for (const row of links) {
   summary[resolved.category] += 1
   if (resolved.product?.image) summary.withProductImage += 1
   if (resolved.product?.price) summary.withProductPrice += 1
+  if (resolved.product) {
+    const productDomain = sourceExcerpt.domain || domain || 'unknown'
+    summary.productDomains.set(productDomain, (summary.productDomains.get(productDomain) || 0) + 1)
+    summary.productDetails.push({
+      domain: productDomain,
+      title: sourceExcerpt.title,
+      image: !!resolved.product.image,
+      price: resolved.product.price,
+      currency: resolved.product.priceCurrency,
+      brand: resolved.product.brand,
+      seller: resolved.product.seller,
+    })
+  }
   if (resolved.fallback_reason) summary.fallback += 1
   if (updateError) summary.failed += 1
   summary.sourceKinds.set(sourceExcerpt.kind, (summary.sourceKinds.get(sourceExcerpt.kind) || 0) + 1)
@@ -235,9 +250,15 @@ console.log('\nProduct summary')
 console.log(`  products detected:      ${summary.product}`)
 console.log(`  product images:         ${summary.withProductImage}`)
 console.log(`  product prices:         ${summary.withProductPrice}`)
+console.log(`  product domains:        ${Array.from(summary.productDomains.entries()).map(([domain, count]) => `${domain}=${count}`).join(', ') || 'none'}`)
 console.log(`  feed/article/generic:   ${summary.feed}/${summary.article}/${summary.generic}`)
 console.log(`  fallback reasons:       ${summary.fallback}`)
 console.log(`  update failures:        ${summary.failed}`)
+for (const detail of summary.productDetails) {
+  console.log(
+    `  product: ${detail.domain} title=${yesNo(detail.title)} image=${yesNo(detail.image)} price=${logValue(detail.price)} currency=${logValue(detail.currency)} brand=${logValue(detail.brand)} seller=${logValue(detail.seller)}`
+  )
+}
 
 console.log('\nSource summary')
 console.log(`  feed sources:           ${summary.feedSources}`)
