@@ -97,6 +97,22 @@ function extractPrice(text: string): string | null {
   return text.match(/(?:[$£€]\s?\d[\d,.]*(?:\.\d{2})?)/)?.[0] || null
 }
 
+function isPlatformLogoImage(url: string | null | undefined): boolean {
+  return /(?:static\.cdninstagram\.com\/rsrc|abs\.twimg\.com|abs-0\.twimg\.com|tiktokcdn[^?]*logo|\/apple-touch-icon|\/favicon)/i.test(url || '')
+}
+
+function sourceExcerptImage(metadata: ContentCardProps['content']['metadata'] | null | undefined): string | null {
+  const sourceExcerpt = metadata?.source_excerpt || null
+  const itemImage = sourceExcerpt?.items?.find((item) => item?.image)?.image || null
+  const productImage = sourceExcerpt?.product?.image || metadata?.product?.image || null
+  const sourceImage = sourceExcerpt?.image || null
+  return (
+    sourceImage && !isPlatformLogoImage(sourceImage)
+      ? sourceImage
+      : itemImage || productImage || null
+  )
+}
+
 interface ContentCardProps {
   content: {
     id: string
@@ -1266,6 +1282,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       content.thumbnail_url_hq ||
       content.thumbnail_url ||
       ''
+    const sourcePreviewImage = sourceExcerptImage(content.metadata)
+    const tileSurfaceImage = content.thumbnail_url_override || sourcePreviewImage || thumbSrc
 
     const host = getExternalHost(content.url)
 
@@ -1284,7 +1302,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           }))
         : content.metadata?.excerpt_items || []
     ).filter((item) => item?.title)
-    const artifactImage = productMeta?.image || sourceExcerpt?.image || thumbSrc
+    const artifactImage = productMeta?.image || sourcePreviewImage || thumbSrc
     const hasArtifactImage = !!artifactImage && !socialThumbFailed
     const sourceKind = sourceExcerpt?.kind || content.metadata?.source_excerpt_category || null
     const productArtifact = sourceKind === 'product' || !!productMeta || isProductSource(content.url)
@@ -1391,7 +1409,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           {hasArtifactImage ? (
             <div className="fp-resting-video-frame z-[1]">
               <img
-                src={thumbSrc}
+                src={tileSurfaceImage}
                 alt=""
                 className={`fp-resting-video-media${publicPosterClass}`}
                 loading={isPriorityPoster ? 'eager' : 'lazy'}

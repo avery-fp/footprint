@@ -55,6 +55,26 @@ function getPreviewThumbnailCandidates(item: Pick<UnifiedTileProps['item'], 'typ
   })
 }
 
+function isPlatformLogoImage(url: string | null | undefined): boolean {
+  return /(?:static\.cdninstagram\.com\/rsrc|abs\.twimg\.com|abs-0\.twimg\.com|tiktokcdn[^?]*logo|\/apple-touch-icon|\/favicon)/i.test(url || '')
+}
+
+function getSourceExcerptSurface(metadata: UnifiedTileProps['item']['metadata'] | null | undefined): string | null {
+  const sourceExcerpt = metadata?.source_excerpt || null
+  const itemImage = sourceExcerpt?.items?.find((item: any) => item?.image)?.image || null
+  const productImage = sourceExcerpt?.product?.image || metadata?.product?.image || null
+  const sourceImage = sourceExcerpt?.image || null
+  return (
+    sourceImage && !isPlatformLogoImage(sourceImage)
+      ? sourceImage
+      : itemImage || productImage || null
+  )
+}
+
+function getPreviewSurface(item: UnifiedTileProps['item']): string | null {
+  return item.thumbnail_url_override || getSourceExcerptSurface(item.metadata) || item.thumbnail_url_hq || item.thumbnail_url || null
+}
+
 export type TileMode = 'public' | 'editor' | 'sandbox'
 
 interface UnifiedTileProps {
@@ -347,7 +367,7 @@ export default function UnifiedTile({
         <div className="w-full h-full" data-tile-id={item.id} data-tile-type="payment-authored">
           <PreviewCardTileBase
             url={item.url}
-            thumbnailUrl={item.thumbnail_url_override || item.thumbnail_url || null}
+            thumbnailUrl={getPreviewSurface(item)}
             title={item.title || null}
             subtitle={null}
             isPublicView={mode === 'public'}
@@ -523,7 +543,7 @@ export default function UnifiedTile({
           <div className="w-full h-full" data-tile-id={item.id} data-tile-type="link-only">
             <PreviewCardTileBase
               url={item.url}
-              thumbnailUrl={item.thumbnail_url_override || item.thumbnail_url || null}
+              thumbnailUrl={getPreviewSurface(item)}
               title={linkMeta.title}
               subtitle={null}
               isPublicView={mode === 'public'}
@@ -701,7 +721,7 @@ export default function UnifiedTile({
         <div className="w-full h-full" data-tile-id={item.id} data-tile-type="payment-authored">
           <PreviewCardTileBase
             url={item.url}
-            thumbnailUrl={item.thumbnail_url_override || item.thumbnail_url || null}
+            thumbnailUrl={getPreviewSurface(item)}
             title={item.title || null}
             subtitle={null}
             isPublicView={mode === 'public'}

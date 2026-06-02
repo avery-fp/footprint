@@ -58,6 +58,41 @@ function yesNo(value) {
   return value ? 'yes' : 'no'
 }
 
+function hasSourceRows(sourceExcerpt) {
+  return Array.isArray(sourceExcerpt?.items) && sourceExcerpt.items.some((item) =>
+    item?.title || item?.text || item?.description || item?.image || item?.url || item?.date
+  )
+}
+
+function hasProductValue(product) {
+  return !!product && typeof product === 'object' && Object.values(product).some(Boolean)
+}
+
+function isPlatformLogoImage(url) {
+  return /(?:static\.cdninstagram\.com\/rsrc|abs\.twimg\.com|abs-0\.twimg\.com|tiktokcdn[^?]*logo|\/apple-touch-icon|\/favicon)/i.test(url || '')
+}
+
+function sourceImage(sourceExcerpt, metadata) {
+  const itemImage = sourceExcerpt?.items?.find((item) => item?.image)?.image || null
+  const productImage = sourceExcerpt?.product?.image || metadata?.product?.image || null
+  const excerptImage = sourceExcerpt?.image || null
+  return (
+    excerptImage && !isPlatformLogoImage(excerptImage)
+      ? excerptImage
+      : itemImage || productImage || null
+  )
+}
+
+function tileSurfaceSource(row, sourceExcerpt, metadata) {
+  if (sourceExcerpt?.image && !isPlatformLogoImage(sourceExcerpt.image)) return 'source_excerpt.image'
+  if (sourceExcerpt?.items?.some((item) => item?.image)) return 'source_excerpt.items.image'
+  if (sourceExcerpt?.product?.image) return 'source_excerpt.product.image'
+  if (metadata?.product?.image) return 'metadata.product.image'
+  if (row.thumbnail) return 'thumbnail'
+  if (sourceExcerpt?.image) return 'platform_logo_fallback'
+  return 'platform_or_text_fallback'
+}
+
 function hardPlatformFor(row) {
   const url = row.url || ''
   const platform = row.platform || ''
@@ -65,6 +100,15 @@ function hardPlatformFor(row) {
   if (platform === 'instagram' || /instagram\.com/i.test(url)) return 'Instagram'
   if (platform === 'tiktok' || /tiktok\.com/i.test(url)) return 'TikTok'
   return null
+}
+
+function isInstagramProfileUrl(url) {
+  try {
+    const parsed = new URL(url)
+    return /(^|\.)instagram\.com$/i.test(parsed.hostname.replace(/^www\./, '')) && !/\/(?:p|reel)\//i.test(parsed.pathname)
+  } catch {
+    return false
+  }
 }
 
 loadDotEnvLocal()
@@ -151,6 +195,9 @@ for (const row of links) {
 
   const resolved = await resolveSourceExcerpt(row.url)
   const sourceExcerpt = buildSourceExcerptPayload(row.url, resolved)
+  const currentSourceExcerpt = row.metadata?.source_excerpt || null
+  const preserveManualRows = hasSourceRows(currentSourceExcerpt)
+  const preserveManualProduct = hasProductValue(currentSourceExcerpt?.product)
   const preview = resolved.preview
   const domain = domainFor(row.url)
   sourceExcerpt.title = cleanString(sourceExcerpt.title, 240) || row.title || domain
@@ -158,6 +205,15 @@ for (const row of links) {
   sourceExcerpt.image = cleanString(sourceExcerpt.image, 2048) || row.thumbnail || null
   sourceExcerpt.source = sourceExcerpt.source || row.metadata?.site_name || domain
   sourceExcerpt.domain = sourceExcerpt.domain || domain
+  if (preserveManualRows) {
+    sourceExcerpt.items = currentSourceExcerpt.items
+    sourceExcerpt.kind = currentSourceExcerpt.kind || sourceExcerpt.kind
+    if (isInstagramProfileUrl(row.url)) sourceExcerpt.kind = 'media'
+  }
+  if (preserveManualProduct) {
+    sourceExcerpt.product = currentSourceExcerpt.product
+    sourceExcerpt.kind = 'product'
+  }
   const metadata = {
     ...(row.metadata || {}),
     description: cleanString(preview?.description, 320) || row.metadata?.description || null,
@@ -168,34 +224,36 @@ for (const row of links) {
     source_excerpt_category: resolved.category,
     source_excerpt_fallback_reason: resolved.fallback_reason,
     excerpt_items: resolved.excerpt_items,
-    product: resolved.product,
+    product: preserveManualProduct ? currentSourceExcerpt.product : resolved.product,
     source_excerpt: sourceExcerpt,
   }
   const updates = {
-    title: cleanString(resolved.product?.name, 180) || cleanString(preview?.title, 180) || row.title || domain,
+    title: row.title || cleanString(resolved.product?.name, 180) || cleanString(preview?.title, 180) || domain,
     thumbnail: cleanString(resolved.product?.image, 2048) || cleanString(preview?.image, 2048) || row.thumbnail || null,
     metadata,
   }
+  const surfaceSource = tileSurfaceSource(row, sourceExcerpt, metadata)
 
   const { error: updateError } = await supabase
     .from('links')
     .update(updates)
     .eq('id', row.id)
 
-  summary[resolved.category] += 1
-  if (resolved.product?.image) summary.withProductImage += 1
-  if (resolved.product?.price) summary.withProductPrice += 1
-  if (resolved.product) {
+  const effectiveProduct = sourceExcerpt.product
+  summary[sourceExcerpt.kind === 'product' ? 'product' : resolved.category] += 1
+  if (effectiveProduct?.image) summary.withProductImage += 1
+  if (effectiveProduct?.price) summary.withProductPrice += 1
+  if (effectiveProduct) {
     const productDomain = sourceExcerpt.domain || domain || 'unknown'
     summary.productDomains.set(productDomain, (summary.productDomains.get(productDomain) || 0) + 1)
     summary.productDetails.push({
       domain: productDomain,
       title: sourceExcerpt.title,
-      image: !!resolved.product.image,
-      price: resolved.product.price,
-      currency: resolved.product.priceCurrency,
-      brand: resolved.product.brand,
-      seller: resolved.product.seller,
+      image: !!effectiveProduct.image,
+      price: effectiveProduct.price,
+      currency: effectiveProduct.priceCurrency || effectiveProduct.currency,
+      brand: effectiveProduct.brand,
+      seller: effectiveProduct.seller,
     })
   }
   if (resolved.fallback_reason) summary.fallback += 1
@@ -222,22 +280,23 @@ for (const row of links) {
   console.log(`  new domain: ${logValue(metadata.domain)}`)
   console.log(`  new date:   ${logValue(metadata.published_at)}`)
   console.log(`  source_excerpt: kind=${sourceExcerpt.kind} title=${yesNo(sourceExcerpt.title)} image=${yesNo(sourceExcerpt.image)} items=${sourceExcerpt.items.length} product=${yesNo(sourceExcerpt.product)} fallback=${logValue(sourceExcerpt.fallback_reason)}`)
+  console.log(`  tile surface: ${surfaceSource} image=${yesNo(sourceImage(sourceExcerpt, metadata) || updates.thumbnail)}`)
   console.log('  summary:')
   console.log(`    category:            ${resolved.category}`)
   console.log(`    title present:       ${yesNo(updates.title)}`)
   console.log(`    image present:       ${yesNo(updates.thumbnail)}`)
-  console.log(`    description present: ${yesNo(metadata.description || resolved.product?.description)}`)
-  console.log(`    excerpt_items count: ${resolved.excerpt_items.length}`)
-  console.log(`    product present:     ${yesNo(resolved.product)}`)
-  if (resolved.product) {
-    console.log(`    product name:        ${logValue(resolved.product.name)}`)
-    console.log(`    product image:       ${yesNo(resolved.product.image)}`)
-    console.log(`    product price:       ${logValue(resolved.product.price)}`)
-    console.log(`    product currency:    ${logValue(resolved.product.priceCurrency)}`)
-    console.log(`    product brand:       ${logValue(resolved.product.brand)}`)
-    console.log(`    product seller:      ${logValue(resolved.product.seller)}`)
-    console.log(`    product availability:${logValue(resolved.product.availability)}`)
-    console.log(`    product condition:   ${logValue(resolved.product.condition)}`)
+  console.log(`    description present: ${yesNo(metadata.description || effectiveProduct?.description)}`)
+  console.log(`    excerpt_items count: ${sourceExcerpt.items.length}`)
+  console.log(`    product present:     ${yesNo(effectiveProduct)}`)
+  if (effectiveProduct) {
+    console.log(`    product name:        ${logValue(effectiveProduct.name)}`)
+    console.log(`    product image:       ${yesNo(effectiveProduct.image)}`)
+    console.log(`    product price:       ${logValue(effectiveProduct.price)}`)
+    console.log(`    product currency:    ${logValue(effectiveProduct.priceCurrency || effectiveProduct.currency)}`)
+    console.log(`    product brand:       ${logValue(effectiveProduct.brand)}`)
+    console.log(`    product seller:      ${logValue(effectiveProduct.seller)}`)
+    console.log(`    product availability:${logValue(effectiveProduct.availability)}`)
+    console.log(`    product condition:   ${logValue(effectiveProduct.condition)}`)
   }
   console.log(`    fallback reason:     ${logValue(resolved.fallback_reason)}`)
   for (const item of resolved.excerpt_items) {

@@ -921,7 +921,7 @@ export default function OwnerTileSheet({
               <div>
                 <div style={rowLabel}>preview</div>
                 <p className="mt-1 text-[11px] leading-snug text-white/32">
-                  Use this when a site gives a weak preview.
+                  Preview is weak. Add image/title/rows manually.
                 </p>
               </div>
               <div className="flex shrink-0 gap-2">
