@@ -12,8 +12,9 @@ export interface PublicTileGeometry {
 }
 
 function publicAspectCss(item: any): string {
-  const isMusic = item.type === 'spotify' || item.type === 'apple_music'
-  if (isMusic) return item.aspect === 'square' ? '1 / 1' : '9 / 2'
+  const isMusic = item.type === 'spotify' || item.type === 'apple_music' || item.type === 'soundcloud' ||
+    /(?:open\.spotify\.com|music\.apple\.com|soundcloud\.com)/i.test(item.url || '')
+  if (isMusic) return item.aspect === 'wide' || item.aspect === 'landscape' ? '9 / 2' : '1 / 1'
 
   if (item.aspect === 'square' || item.aspect === 'wide' || item.aspect === 'tall' || item.aspect === 'portrait') {
     return tileAspectRatio(item.aspect)

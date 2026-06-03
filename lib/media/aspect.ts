@@ -23,14 +23,14 @@ export function resolveAspect(
   type: string,
   url?: string
 ): string {
-  const isMusic = type === 'spotify' || type === 'apple_music'
+  const isMusic = type === 'spotify' || type === 'apple_music' || type === 'soundcloud' ||
+    /(?:open\.spotify\.com|music\.apple\.com|soundcloud\.com)/i.test(url || '')
 
-  // Music intentionally has only two useful forms: compact bar or square
-  // cover. Legacy tall values collapse to the bar instead of creating
-  // cropped provider-player states.
+  // Music has two useful forms: square cover by default, or wide only when
+  // the stored tile shape explicitly asks for it.
   if (isMusic) {
-    if (stored === 'square') return 'square'
-    return 'wide'
+    if (stored === 'wide' || stored === 'landscape') return 'wide'
+    return 'square'
   }
 
   // User-set shape wins.

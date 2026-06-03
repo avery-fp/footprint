@@ -1417,9 +1417,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // tileAspectRatio. SAspectShell still refines image tiles at runtime
   // when their natural dimensions arrive — see renderImageWrapped below.
   const tileAspectCss = (item: any): string => {
-    const isMusic = item.type === 'spotify' || item.type === 'apple_music'
+    const isMusic = item.type === 'spotify' || item.type === 'apple_music' || item.type === 'soundcloud' ||
+      /(?:open\.spotify\.com|music\.apple\.com|soundcloud\.com)/i.test(item.url || '')
     if (isMusic) {
-      return item.aspect === 'square' ? '1 / 1' : '9 / 2'
+      return item.aspect === 'wide' || item.aspect === 'landscape' ? '9 / 2' : '1 / 1'
     }
 
     // Explicit user shape wins, and URL-derived vertical video signals
