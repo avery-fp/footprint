@@ -61,14 +61,7 @@ export default function ContainerTile({ label, coverUrl, childCount, firstChildT
         >
           {label}
         </span>
-        {childCount !== undefined && childCount > 0 ? (
-          <span
-            className="text-white/45 font-mono"
-            style={{ fontSize: '11px', fontWeight: 500, letterSpacing: '0.1em' }}
-          >
-            {childCount} {childCount === 1 ? 'item' : 'items'}
-          </span>
-        ) : (
+        {!(childCount !== undefined && childCount > 0) && (
           <span
             className="text-white/30 font-mono"
             style={{ fontSize: '10px', fontWeight: 500, letterSpacing: '0.14em', textTransform: 'uppercase' }}
