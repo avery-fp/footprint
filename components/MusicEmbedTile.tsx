@@ -25,60 +25,6 @@ const MUSIC_SHELL_STYLE: React.CSSProperties = {
     'inset 0 1px 0 rgba(255,255,255,0.16), inset 0 0 0 1px rgba(255,255,255,0.12), 0 18px 42px rgba(0,0,0,0.28)',
 }
 
-type SpotifyController = {
-  play: () => void
-  pause: () => void
-  togglePlay: () => void
-  addListener: (event: string, callback: (event?: { data?: { isPaused?: boolean } }) => void) => void
-  destroy: () => void
-}
-
-type SpotifyIframeApi = {
-  createController: (
-    element: HTMLElement,
-    options: { uri: string; width: number; height: number },
-    callback: (controller: SpotifyController) => void
-  ) => void
-}
-
-declare global {
-  interface Window {
-    onSpotifyIframeApiReady?: (api: SpotifyIframeApi) => void
-    SpotifyIframeApi?: SpotifyIframeApi
-  }
-}
-
-let spotifyApiPromise: Promise<SpotifyIframeApi> | null = null
-
-function loadSpotifyIframeApi(): Promise<SpotifyIframeApi> {
-  if (typeof window === 'undefined') {
-    return Promise.reject(new Error('spotify api unavailable'))
-  }
-  if (window.SpotifyIframeApi) return Promise.resolve(window.SpotifyIframeApi)
-  if (spotifyApiPromise) return spotifyApiPromise
-
-  spotifyApiPromise = new Promise((resolve, reject) => {
-    const existing = document.querySelector<HTMLScriptElement>('script[data-spotify-iframe-api]')
-    window.onSpotifyIframeApiReady = (api) => {
-      window.SpotifyIframeApi = api
-      resolve(api)
-    }
-    if (existing) return
-    const script = document.createElement('script')
-    script.src = 'https://open.spotify.com/embed/iframe-api/v1'
-    script.async = true
-    script.dataset.spotifyIframeApi = 'true'
-    script.onerror = () => reject(new Error('spotify api failed to load'))
-    document.body.appendChild(script)
-  })
-  return spotifyApiPromise
-}
-
-function getSpotifyUri(url: string): string | null {
-  const match = url.match(/open\.spotify\.com\/(track|album|playlist|artist|episode|show)\/([a-zA-Z0-9]+)/)
-  return match ? `spotify:${match[1]}:${match[2]}` : null
-}
-
 function getAppleMusicTrackId(url: string): string | null {
   try {
     const parsed = new URL(url)
@@ -173,10 +119,17 @@ export default function MusicEmbedTile({
         if (nextPreviewUrl) {
           const audio = new Audio(nextPreviewUrl)
           audio.preload = 'auto'
+          audio.addEventListener('play', () => {
+            previewPlayingRef.current = true
+            setIsPlaying(true)
+          })
+          audio.addEventListener('pause', () => {
+            previewPlayingRef.current = false
+            setIsPlaying(false)
+          })
           audio.addEventListener('ended', () => {
             previewPlayingRef.current = false
             setIsPlaying(false)
-            previewAudioRef.current = null
           })
           previewAudioRef.current = audio
         }
@@ -250,6 +203,8 @@ export default function MusicEmbedTile({
           isPlaying={isPlaying}
           onPlayingChange={setIsPlaying}
           tileId={tileIdRef.current}
+          spotifyPreviewAudio={previewAudioRef.current}
+          spotifyPreviewResolved={previewResolved}
         >
           <MusicFacade
             provider={provider}
@@ -341,6 +296,8 @@ function MusicSurface({
   isPlaying,
   onPlayingChange,
   tileId,
+  spotifyPreviewAudio,
+  spotifyPreviewResolved = false,
   children,
 }: {
   url: string
@@ -348,52 +305,16 @@ function MusicSurface({
   isPlaying: boolean
   onPlayingChange: (next: boolean) => void
   tileId: string
+  spotifyPreviewAudio?: HTMLAudioElement | null
+  spotifyPreviewResolved?: boolean
   children: ReactNode
 }) {
-  const spotifyHostRef = useRef<HTMLDivElement>(null)
-  const spotifyControllerRef = useRef<SpotifyController | null>(null)
   const appleAudioRef = useRef<HTMLAudioElement | null>(null)
   const pendingPlayRef = useRef(false)
   const setPlaybackState = useCallback((next: boolean) => {
     onPlayingChange(next)
     if (!next) audioManager.release(tileId)
   }, [onPlayingChange, tileId])
-
-  useEffect(() => {
-    if (provider !== 'spotify') return
-    const uri = getSpotifyUri(url)
-    const host = spotifyHostRef.current
-    if (!uri || !host) return
-    let active = true
-    loadSpotifyIframeApi().then((api) => {
-      if (!active || !spotifyHostRef.current) return
-      api.createController(
-        spotifyHostRef.current,
-        { uri, width: 400, height: 152 },
-        (controller) => {
-          if (!active) {
-            controller.destroy()
-            return
-          }
-          spotifyControllerRef.current = controller
-          controller.addListener('playback_started', () => setPlaybackState(true))
-          controller.addListener('playback_update', (event) => {
-            if (typeof event?.data?.isPaused === 'boolean') setPlaybackState(!event.data.isPaused)
-          })
-          if (pendingPlayRef.current) {
-            pendingPlayRef.current = false
-            controller.play()
-          }
-        }
-      )
-    }).catch(() => {})
-    return () => {
-      active = false
-      pendingPlayRef.current = false
-      spotifyControllerRef.current?.destroy()
-      spotifyControllerRef.current = null
-    }
-  }, [provider, setPlaybackState, url])
 
   useEffect(() => {
     if (provider !== 'apple_music') return
@@ -427,10 +348,24 @@ function MusicSurface({
   }, [provider, setPlaybackState, tileId, url])
 
   useEffect(() => {
+    if (provider !== 'spotify') return
+    if (!pendingPlayRef.current || !spotifyPreviewResolved) return
+    pendingPlayRef.current = false
+
+    if (!spotifyPreviewAudio) {
+      setPlaybackState(false)
+      return
+    }
+
+    audioManager.playNative(tileId, spotifyPreviewAudio)
+    void spotifyPreviewAudio.play().catch(() => setPlaybackState(false))
+  }, [provider, setPlaybackState, spotifyPreviewAudio, spotifyPreviewResolved, tileId])
+
+  useEffect(() => {
     if (isPlaying) return
-    spotifyControllerRef.current?.pause()
+    if (spotifyPreviewAudio) audioManager.silenceNativeMedia(spotifyPreviewAudio, true)
     if (appleAudioRef.current) audioManager.silenceNativeMedia(appleAudioRef.current, true)
-  }, [isPlaying])
+  }, [isPlaying, spotifyPreviewAudio])
 
   const handleToggle = useCallback(() => {
     if (provider === 'spotify' || provider === 'apple_music') audioManager.activateProvider(tileId)
@@ -438,12 +373,23 @@ function MusicSurface({
       onPlayingChange(true)
     }
     if (provider === 'spotify') {
-      const controller = spotifyControllerRef.current
-      if (!controller) {
+      if (!spotifyPreviewResolved) {
         pendingPlayRef.current = true
         return
       }
-      controller.togglePlay()
+
+      const audio = spotifyPreviewAudio
+      if (!audio) {
+        setPlaybackState(false)
+        return
+      }
+      if (audio.paused) {
+        audioManager.playNative(tileId, audio)
+        void audio.play().catch(() => setPlaybackState(false))
+      } else {
+        setPlaybackState(false)
+        audioManager.silenceNativeMedia(audio, true)
+      }
       return
     }
     const audio = appleAudioRef.current
@@ -458,19 +404,11 @@ function MusicSurface({
       audioManager.release(tileId)
       audioManager.silenceNativeMedia(audio, true)
     }
-  }, [isPlaying, onPlayingChange, provider, setPlaybackState, tileId])
+  }, [isPlaying, onPlayingChange, provider, setPlaybackState, spotifyPreviewAudio, spotifyPreviewResolved, tileId])
 
   return (
     <div className="relative h-full w-full" onClick={handleToggle}>
       {children}
-      {provider === 'spotify' && (
-        <div
-          ref={spotifyHostRef}
-          aria-hidden="true"
-          className="pointer-events-none absolute opacity-0"
-          style={{ left: -9999, top: 0, width: 400, height: 152 }}
-        />
-      )}
     </div>
   )
 }
