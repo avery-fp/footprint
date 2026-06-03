@@ -23,8 +23,8 @@ export function resolveAspect(
   type: string,
   url?: string
 ): string {
-  const isMusic = type === 'spotify' || type === 'apple_music' || type === 'soundcloud' ||
-    /(?:open\.spotify\.com|music\.apple\.com|soundcloud\.com)/i.test(url || '')
+  const isMusic = type === 'spotify' || type === 'apple_music' || type === 'soundcloud' || type === 'bandcamp' ||
+    /(?:open\.spotify\.com|music\.apple\.com|soundcloud\.com|\.bandcamp\.com\/(?:album|track)\/)/i.test(url || '')
 
   // Music has two useful forms: square cover by default, or wide only when
   // the stored tile shape explicitly asks for it.

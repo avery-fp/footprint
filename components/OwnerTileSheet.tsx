@@ -162,7 +162,7 @@ function sourceHost(url?: string | null) {
 }
 
 function isFirstClassObjectUrl(url?: string | null) {
-  return /(?:youtube\.com|youtu\.be|open\.spotify\.com|music\.apple\.com|soundcloud\.com)/i.test(url || '')
+  return /(?:youtube\.com|youtu\.be|open\.spotify\.com|music\.apple\.com|soundcloud\.com|\.bandcamp\.com\/(?:album|track)\/)/i.test(url || '')
 }
 
 function isInstagramPostUrl(url?: string | null) {
@@ -358,6 +358,7 @@ export default function OwnerTileSheet({
     tile.type === 'spotify' ||
     tile.type === 'apple_music' ||
     tile.type === 'soundcloud' ||
+    tile.type === 'bandcamp' ||
     tile.type === 'video' ||
     tile.type === 'image' ||
     tile.type === 'thought' ||
