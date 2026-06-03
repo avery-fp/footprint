@@ -522,17 +522,29 @@ export default function UnifiedTile({
         )
       }
       case 'native_music': {
-        // Future: native music player. For now, preview card.
-        const musicMeta = sanitizeLinkMeta({ title: item.title, creator: item.artist }, item.url || '')
         return (
           <div className="w-full h-full" data-tile-id={item.id} data-tile-type="native-music">
-            <PreviewCardTileBase
-              url={item.url}
-              thumbnailUrl={item.thumbnail_url_hq || item.thumbnail_url}
-              title={musicMeta.title}
-              subtitle={musicMeta.creator}
+            <ContentCard
+              content={{
+                id: item.id,
+                url: item.url,
+                type: item.type,
+                title: item.title,
+                description: item.description,
+                thumbnail_url: item.thumbnail_url,
+                embed_html: item.embed_html,
+                artist: item.artist,
+                thumbnail_url_hq: item.thumbnail_url_hq,
+                thumbnail_url_override: item.thumbnail_url_override,
+                metadata: item.metadata,
+              }}
+              tileSize={size}
+              aspect={aspect}
               isPublicView={mode === 'public'}
               index={index}
+              isExpanded={isExpanded}
+              isMobile={isMobile}
+              isSoundRoom={isSoundRoom}
             />
           </div>
         )

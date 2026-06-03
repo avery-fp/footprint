@@ -100,6 +100,10 @@ function musicProviderFromUrl(url: string): 'spotify' | 'apple_music' | 'soundcl
   return null
 }
 
+function isMusicProviderUrl(url: string): boolean {
+  return !!musicProviderFromUrl(url) || /(?:^https?:\/\/)?[a-z0-9-]+\.bandcamp\.com\/(?:album|track)\//i.test(url)
+}
+
 function isInstagramPostUrl(url: string): boolean {
   return /instagram\.com\/(?:p|reel|tv)\//i.test(url)
 }
@@ -1311,7 +1315,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     Boolean(content.url) &&
     content.type !== 'tiktok' &&
     content.type !== 'native_music' &&
-    !musicProvider
+    !isMusicProviderUrl(content.url)
 
   if (isGenericExternalArtifact) {
     const thumbSrc =
