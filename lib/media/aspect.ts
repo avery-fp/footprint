@@ -23,12 +23,26 @@ export function resolveAspect(
   type: string,
   url?: string
 ): string {
-  const isMusic = type === 'spotify' || type === 'apple_music' || type === 'soundcloud' || type === 'bandcamp' ||
-    /(?:open\.spotify\.com|music\.apple\.com|soundcloud\.com|\.bandcamp\.com\/(?:album|track)\/)/i.test(url || '')
+  const isSpotify = type === 'spotify' || /open\.spotify\.com/i.test(url || '')
+  const isAppleMusic = type === 'apple_music' || /music\.apple\.com/i.test(url || '')
+  const isOtherMusic = type === 'soundcloud' || type === 'bandcamp' ||
+    /(?:soundcloud\.com|\.bandcamp\.com\/(?:album|track)\/)/i.test(url || '')
 
-  // Music has two useful forms: square cover by default, or wide only when
-  // the stored tile shape explicitly asks for it.
-  if (isMusic) {
+  // Provider-specific music geometry:
+  // Spotify defaults wide; Apple Music defaults square.
+  // Explicit user shape still wins.
+  if (isSpotify) {
+    if (stored === 'square') return 'square'
+    if (stored === 'wide' || stored === 'landscape') return 'wide'
+    return 'wide'
+  }
+
+  if (isAppleMusic) {
+    if (stored === 'wide' || stored === 'landscape') return 'wide'
+    return 'square'
+  }
+
+  if (isOtherMusic) {
     if (stored === 'wide' || stored === 'landscape') return 'wide'
     return 'square'
   }
