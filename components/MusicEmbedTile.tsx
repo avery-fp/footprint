@@ -368,10 +368,6 @@ function MusicSurface({
   }, [isPlaying, spotifyPreviewAudio])
 
   const handleToggle = useCallback(() => {
-    if (provider === 'spotify' || provider === 'apple_music') audioManager.activateProvider(tileId)
-    if (!isPlaying) {
-      onPlayingChange(true)
-    }
     if (provider === 'spotify') {
       if (!spotifyPreviewResolved) {
         pendingPlayRef.current = true
@@ -379,11 +375,20 @@ function MusicSurface({
       }
 
       const audio = spotifyPreviewAudio
+
+      // Spotify only gets to claim audio if it actually has preview audio.
+      // No preview = keep the clean Footprint surface and open Spotify.
       if (!audio) {
+        pendingPlayRef.current = false
         setPlaybackState(false)
+        window.open(url, '_blank', 'noopener,noreferrer')
         return
       }
+
+      audioManager.activateProvider(tileId)
+
       if (audio.paused) {
+        onPlayingChange(true)
         audioManager.playNative(tileId, audio)
         void audio.play().catch(() => setPlaybackState(false))
       } else {
@@ -392,6 +397,12 @@ function MusicSurface({
       }
       return
     }
+
+    if (provider === 'apple_music') audioManager.activateProvider(tileId)
+    if (!isPlaying) {
+      onPlayingChange(true)
+    }
+
     const audio = appleAudioRef.current
     if (!audio) {
       pendingPlayRef.current = true
@@ -404,7 +415,7 @@ function MusicSurface({
       audioManager.release(tileId)
       audioManager.silenceNativeMedia(audio, true)
     }
-  }, [isPlaying, onPlayingChange, provider, setPlaybackState, spotifyPreviewAudio, spotifyPreviewResolved, tileId])
+  }, [isPlaying, onPlayingChange, provider, setPlaybackState, spotifyPreviewAudio, spotifyPreviewResolved, tileId, url])
 
   return (
     <div className="relative h-full w-full" onClick={handleToggle}>
