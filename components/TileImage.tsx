@@ -7,6 +7,22 @@ import { useAspectDetection } from '@/lib/aspectDetection'
 import { audioManager } from '@/lib/audio-manager'
 import { beginInvocation, isIntentionalInvocation, type InvocationPoint } from '@/lib/media-invocation'
 
+
+function shouldContainUploadedImage(aspect?: string | null, layout?: string | null, size?: string | null) {
+  const a = String(aspect || '').toLowerCase()
+  const l = String(layout || '').toLowerCase()
+  const z = String(size || '').toLowerCase()
+
+  return (
+    a.includes('wide') ||
+    a.includes('tall') ||
+    a.includes('portrait') ||
+    a.includes('panoramic') ||
+    l.includes('screenshot') ||
+    z.includes('screenshot')
+  )
+}
+
 interface TileImageProps {
   src: string
   alt: string
@@ -168,7 +184,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
           src={src}
           alt={alt}
           sizes={sizes}
-          className="absolute inset-0 h-full w-full object-cover fp-public-poster"
+          className={`absolute inset-0 h-full w-full ${shouldContainUploadedImage(aspect, layout, size) ? 'object-contain fp-public-poster fp-public-poster--contain' : 'object-cover fp-public-poster'}`}
           loading={isPriority ? 'eager' : 'lazy'}
           fetchPriority={isPriority ? 'high' : 'auto'}
           decoding={isSyncDecode ? 'sync' : 'async'}
@@ -187,7 +203,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
         fill
         sizes={sizes}
         className={isPublicView
-          ? 'object-cover fp-public-poster'
+          ? (shouldContainUploadedImage(aspect, layout, size) ? 'object-contain fp-public-poster fp-public-poster--contain' : 'object-cover fp-public-poster')
           : `object-cover transition-opacity duration-700 ease-out ${loaded ? 'opacity-100' : 'opacity-0'}`}
         loading="lazy"
         quality={90}
