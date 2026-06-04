@@ -45,6 +45,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
   const [loaded, setLoaded] = useState(false)
   const [videoMuted, setVideoMuted] = useState(true)
   const [videoPressActive, setVideoPressActive] = useState(false)
+  const [fallbackVideoResting, setFallbackVideoResting] = useState(false)
   const onAspectDetected = useAspectDetection()
   const fallbackVideoRef = useRef<HTMLVideoElement>(null)
   const audioIdRef = useRef(`tile-image-video-${src}`)
@@ -55,6 +56,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
     setVideoFailed(false)
     setLoaded(false)
     setVideoMuted(true)
+    setFallbackVideoResting(false)
   }, [src])
 
   // Ref for the grid-mode wrapper div. Used in the mount-time fallback to detect
@@ -67,6 +69,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
       const video = fallbackVideoRef.current
       if (video) audioManager.silenceNativeMedia(video)
       setVideoMuted(true)
+      setFallbackVideoResting(true)
     })
     return () => {
       audioManager.release(audioId)
@@ -80,11 +83,13 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
     if (video.muted) {
       audioManager.playNative(audioIdRef.current, video)
       setVideoMuted(false)
+      setFallbackVideoResting(false)
       video.play().catch(() => {})
     } else {
       audioManager.release(audioIdRef.current)
       audioManager.silenceNativeMedia(video)
       setVideoMuted(true)
+      setFallbackVideoResting(true)
     }
   }, [])
 
@@ -134,11 +139,25 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
           ref={fallbackVideoRef}
           src={rawSrc}
           className="w-full h-full object-cover"
+          style={{
+            opacity: fallbackVideoResting && videoMuted ? 0 : 1,
+            transition: 'opacity 180ms ease-out',
+          }}
           muted
           loop
           playsInline
           autoPlay
           preload="metadata"
+          onPlay={() => setFallbackVideoResting(false)}
+          onPause={(e) => {
+            if (e.currentTarget.muted) setFallbackVideoResting(true)
+          }}
+          onWaiting={() => {
+            if (videoMuted) setFallbackVideoResting(true)
+          }}
+          onStalled={() => {
+            if (videoMuted) setFallbackVideoResting(true)
+          }}
           onLoadedMetadata={(e) => {
             if (!isPublicView && onAspectDetected) {
               const v = e.currentTarget
@@ -149,6 +168,15 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
           }}
           onError={() => {
             setVideoFailed(true)
+          }}
+        />
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background: 'rgba(0,0,0,0.30)',
+            opacity: fallbackVideoResting && videoMuted ? 1 : 0,
+            transition: 'opacity 180ms ease-out',
+            zIndex: 2,
           }}
         />
         <button

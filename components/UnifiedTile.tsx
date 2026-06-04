@@ -115,7 +115,7 @@ interface UnifiedTileProps {
   firstChildThumb?: string | null
 }
 
-function VideoTile({ url, id }: { url: string; id: string }) {
+function VideoTile({ url, id, posterUrl }: { url: string; id: string; posterUrl?: string | null }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isInView, setIsInView] = useState(false)
@@ -131,6 +131,7 @@ function VideoTile({ url, id }: { url: string; id: string }) {
   const [chipRevealed, setChipRevealed] = useState(false)
   const [isMuted, setIsMuted] = useState(true)
   const [isUserActivated, setIsUserActivated] = useState(false)
+  const [isVideoResting, setIsVideoResting] = useState(false)
   const chipFadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const audioIdRef = useRef(`unified-video-${id}`)
   const invocationPointRef = useRef<InvocationPoint | null>(null)
@@ -173,8 +174,14 @@ function VideoTile({ url, id }: { url: string; id: string }) {
   useEffect(() => {
     const v = videoRef.current
     if (!v) return
-    if (isPlayable || isUserActivated) v.play().catch(() => {})
-    else v.pause()
+    if (isPlayable || isUserActivated) {
+      v.play().catch(() => {
+        if (!isUserActivated) setIsVideoResting(true)
+      })
+    } else {
+      v.pause()
+      setIsVideoResting(true)
+    }
   }, [isPlayable, isUserActivated])
 
   useEffect(() => {
@@ -183,6 +190,7 @@ function VideoTile({ url, id }: { url: string; id: string }) {
       const v = videoRef.current
       if (v) audioManager.silenceNativeMedia(v)
       setIsMuted(true)
+      setIsVideoResting(true)
     })
     return () => {
       audioManager.release(audioId)
@@ -201,12 +209,14 @@ function VideoTile({ url, id }: { url: string; id: string }) {
       setIsUserActivated(true)
       audioManager.playNative(audioIdRef.current, v)
       setIsMuted(false)
+      setIsVideoResting(false)
       v.play().catch(() => {})
     } else {
       setIsUserActivated(false)
       audioManager.release(audioIdRef.current)
       audioManager.silenceNativeMedia(v)
       setIsMuted(true)
+      setIsVideoResting(true)
     }
   }, [url])
 
@@ -252,7 +262,38 @@ function VideoTile({ url, id }: { url: string; id: string }) {
           playsInline
           autoPlay={isPlayable}
           preload={isInView ? 'metadata' : 'none'}
+          poster={posterUrl || undefined}
+          onCanPlay={(e) => {
+            if (!isUserActivated && isPlayable && !e.currentTarget.paused) {
+              setIsVideoResting(false)
+            }
+          }}
+          onPlay={() => setIsVideoResting(false)}
+          onPause={(e) => {
+            if (e.currentTarget.muted && !isUserActivated) setIsVideoResting(true)
+          }}
+          onWaiting={() => {
+            if (!isUserActivated) setIsVideoResting(true)
+          }}
+          onStalled={() => {
+            if (!isUserActivated) setIsVideoResting(true)
+          }}
         />
+        {posterUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={posterUrl}
+            alt=""
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+            style={{
+              opacity: !isUserActivated && isVideoResting ? 1 : 0,
+              transition: 'opacity 220ms ease-out',
+              zIndex: 2,
+            }}
+            loading="lazy"
+            decoding="async"
+          />
+        )}
         <button
           type="button"
           aria-label={isMuted ? 'Play audio' : 'Mute audio'}
@@ -431,7 +472,7 @@ export default function UnifiedTile({
       case 'native_video':
         return (
           <div className="w-full h-full" data-tile-id={item.id} data-tile-type="native-video">
-            {item.url ? <VideoTile url={item.url} id={item.id} /> : null}
+            {item.url ? <VideoTile url={item.url} id={item.id} posterUrl={getPreviewSurface(item) || item.poster_url || null} /> : null}
           </div>
         )
       case 'embed':
@@ -649,7 +690,7 @@ export default function UnifiedTile({
         />
       )
     }
-    return <VideoTile url={item.url} id={item.id} />
+    return <VideoTile url={item.url} id={item.id} posterUrl={getPreviewSurface(item) || item.poster_url || null} />
   }
 
   // ── Image ──

@@ -251,6 +251,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const [isNativeVideoActivated, setIsNativeVideoActivated] = useState(false)
   // Decoder cap: only autoplay when ≥50% visible. See videoRef effect below.
   const [isVideoPlayable, setIsVideoPlayable] = useState(false)
+  const [nativeVideoResting, setNativeVideoResting] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const youtubeIframeRef = useRef<HTMLIFrameElement>(null)
@@ -298,8 +299,14 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   useEffect(() => {
     const v = videoRef.current
     if (!v) return
-    if (isVideoPlayable || isNativeVideoActivated) v.play().catch(() => {})
-    else v.pause()
+    if (isVideoPlayable || isNativeVideoActivated) {
+      v.play().catch(() => {
+        if (!isNativeVideoActivated) setNativeVideoResting(true)
+      })
+    } else {
+      v.pause()
+      setNativeVideoResting(true)
+    }
   }, [isVideoPlayable, isNativeVideoActivated])
 
   const stopCardAudio = useCallback(() => {
@@ -790,6 +797,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     // Append #t=0.1 so the first frame renders as poster instead of a black square.
     // Skips if URL already has a fragment.
     const videoSrc = content.url && !content.url.includes('#') ? `${content.url}#t=0.1` : content.url
+    const nativePosterUrl = content.thumbnail_url ? transformImageUrl(content.thumbnail_url) : null
+    const shouldShowNativePosterVeil = !!nativePosterUrl && !isNativeVideoActivated && nativeVideoResting
     return (
       <div ref={containerRef} className="fp-tile overflow-hidden relative group">
         {isVideoError ? (
@@ -807,13 +816,47 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               poster={content.thumbnail_url || undefined}
               className={`block w-full ${aspectClass || 'aspect-video'} ${fitClass} cursor-pointer`}
               onLoadedData={() => setIsLoaded(true)}
-              onPlay={() => setIsVideoPlaying(true)}
+              onCanPlay={(e) => {
+                if (!isNativeVideoActivated && isVideoPlayable && !e.currentTarget.paused) {
+                  setNativeVideoResting(false)
+                }
+              }}
+              onPlay={() => {
+                setIsVideoPlaying(true)
+                setNativeVideoResting(false)
+              }}
               onPause={(e) => {
                 setIsVideoPlaying(false)
+                if (e.currentTarget.muted && !isNativeVideoActivated) setNativeVideoResting(true)
                 if (!e.currentTarget.muted) audioManager.release(audioIdRef.current)
+              }}
+              onWaiting={() => {
+                if (!isNativeVideoActivated) setNativeVideoResting(true)
+              }}
+              onStalled={() => {
+                if (!isNativeVideoActivated) setNativeVideoResting(true)
+              }}
+              onEnded={() => {
+                if (!isNativeVideoActivated) setNativeVideoResting(true)
               }}
               onError={() => setIsVideoError(true)}
             />
+            {nativePosterUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={nativePosterUrl}
+                alt=""
+                className={`pointer-events-none absolute inset-0 h-full w-full ${fitClass}`}
+                style={{
+                  opacity: shouldShowNativePosterVeil ? 1 : 0,
+                  transition: 'opacity 220ms ease-out',
+                  zIndex: 2,
+                }}
+                loading={isPriorityPoster ? 'eager' : 'lazy'}
+                fetchPriority={isPriorityPoster ? 'high' : 'auto'}
+                decoding={posterDecoding}
+              />
+            )}
             <button
               type="button"
               aria-label={isVideoMuted ? 'Play audio' : 'Mute audio'}
