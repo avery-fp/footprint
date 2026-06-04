@@ -9,6 +9,7 @@ import { beginInvocation, isIntentionalInvocation, type InvocationPoint } from '
 const PUBLIC_EAGER_IMAGE_COUNT = 16
 const PUBLIC_SYNC_DECODE_COUNT = 8
 const PUBLIC_NEAR_VIEWPORT_MARGIN = '1200px 0px 1200px 0px'
+const settledPublicMedia = new Set<string>()
 
 interface TileImageProps {
   src: string
@@ -29,7 +30,8 @@ function inferAspect(r: number): 'portrait' | 'landscape' | 'square' {
 export default function TileImage({ src, alt, sizes, index, aspect, layout, size, isPublicView = false }: TileImageProps) {
   const [failed, setFailed] = useState(false)
   const [videoFailed, setVideoFailed] = useState(false)
-  const [loaded, setLoaded] = useState(false)
+  const [loaded, setLoaded] = useState(() => isPublicView && settledPublicMedia.has(src))
+  const [shouldSettlePublicMedia, setShouldSettlePublicMedia] = useState(false)
   const [videoMuted, setVideoMuted] = useState(true)
   const [videoPressActive, setVideoPressActive] = useState(false)
   const [fallbackVideoResting, setFallbackVideoResting] = useState(false)
@@ -42,11 +44,12 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
   useEffect(() => {
     setFailed(false)
     setVideoFailed(false)
-    setLoaded(false)
+    setLoaded(isPublicView && settledPublicMedia.has(src))
+    setShouldSettlePublicMedia(false)
     setVideoMuted(true)
     setFallbackVideoResting(false)
     setIsNearPublicViewport(false)
-  }, [src])
+  }, [isPublicView, src])
 
   // Ref for the grid-mode wrapper div. Used in the mount-time fallback to detect
   // images that were already complete (cached/priority) before onLoad could fire.
@@ -112,6 +115,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
     const img = containerRef.current.querySelector('img')
     if (!img || !img.complete || !img.naturalWidth) return
     setLoaded(true)
+    if (isPublicView) settledPublicMedia.add(src)
     if (!isPublicView && onAspectDetected && img.naturalHeight) {
       onAspectDetected(inferAspect(img.naturalWidth / img.naturalHeight))
     }
@@ -215,6 +219,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
     const isPriority = index < PUBLIC_EAGER_IMAGE_COUNT
     const isSyncDecode = index < PUBLIC_SYNC_DECODE_COUNT
     const shouldLoadNow = isPriority || isNearPublicViewport
+    const publicPosterClass = `absolute inset-0 h-full w-full object-cover fp-public-poster${shouldSettlePublicMedia ? ' fp-media-settle' : ''}`
     return (
       <div ref={containerRef} className="absolute inset-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -222,10 +227,17 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
           src={src}
           alt={alt}
           sizes={sizes}
-          className="absolute inset-0 h-full w-full object-cover fp-public-poster"
+          className={publicPosterClass}
           loading={shouldLoadNow ? 'eager' : 'lazy'}
           fetchPriority={isPriority ? 'high' : 'auto'}
           decoding={isSyncDecode ? 'sync' : 'async'}
+          onLoad={() => {
+            setLoaded(true)
+            if (!settledPublicMedia.has(src)) {
+              settledPublicMedia.add(src)
+              setShouldSettlePublicMedia(true)
+            }
+          }}
           onError={() => setFailed(true)}
         />
       </div>
