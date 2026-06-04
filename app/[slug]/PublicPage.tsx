@@ -424,6 +424,17 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // per-room atmosphere.
   const { filter: wallpaperFilter, overlay: overlayColor } = getRoomAtmosphere(activeRoomIndex, isSoundRoom)
 
+  useEffect(() => {
+    if (!isOwner) return
+    const warmOwnerEditor = () => { void import('@/components/OwnerDndKit') }
+    if ('requestIdleCallback' in window) {
+      const idleId = window.requestIdleCallback(warmOwnerEditor, { timeout: 1500 })
+      return () => window.cancelIdleCallback(idleId)
+    }
+    const timer = window.setTimeout(warmOwnerEditor, 250)
+    return () => window.clearTimeout(timer)
+  }, [isOwner])
+
   const continuityRestoredRef = useRef(false)
   const scrollRestoreAttemptedRef = useRef(false)
   const explicitRoomSwitchRef = useRef(false)
@@ -1538,9 +1549,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
 
   const fadeStyle = {
-    opacity: roomFade === 'out' ? 0 : 1,
-    transform: roomFade === 'out' ? 'translateY(6px)' : roomFade === 'in' ? 'translateY(-6px)' : 'translateY(0)',
-    transition: 'opacity 250ms ease-out, transform 350ms ease-out',
+    opacity: roomFade === 'out' ? 0.18 : 1,
+    transform: roomFade === 'out' ? 'translateY(4px)' : roomFade === 'in' ? 'translateY(-4px)' : 'translateY(0)',
+    transition: 'opacity 220ms ease-out, transform 320ms ease-out',
   }
 
   // Persist a layout pick from the toggle. Optimistic update on the
@@ -2109,8 +2120,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             WebkitUserSelect: 'none',
             WebkitTapHighlightColor: 'transparent',
             boxShadow: 'none',
-            opacity: editTogglePressed ? 0.82 : 1,
-            transform: editTogglePressed ? 'scale(0.97)' : 'scale(1)',
+            opacity: editTogglePressed ? 0.9 : 1,
+            transform: editTogglePressed ? 'scale(0.985)' : 'scale(1)',
             transition: 'opacity 120ms ease-out, transform 120ms ease-out',
           }}
         >
