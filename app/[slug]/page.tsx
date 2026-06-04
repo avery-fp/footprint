@@ -66,6 +66,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!footprint) return { title: 'Footprint' }
 
+  const manifest = `/${encodeURIComponent(params.slug)}/manifest.webmanifest`
+
   // Drafts are pre-purchase previews — never expose the serial number in
   // titles or OG cards. The number is the scarcity hook that lights up at
   // claim, not before.
@@ -74,6 +76,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
       title: displayTitle ? `${displayTitle} · preview` : 'preview · footprint',
       description: footprint.bio || 'one page for everything.',
+      manifest,
+      appleWebApp: {
+        capable: true,
+        title: 'Footprint',
+        statusBarStyle: 'black-translucent',
+      },
     }
   }
 
@@ -86,6 +94,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title,
     description: footprint.bio || 'one page for everything.',
+    manifest,
+    appleWebApp: {
+      capable: true,
+      title: 'Footprint',
+      statusBarStyle: 'black-translucent',
+    },
     openGraph: {
       title,
       description: footprint.bio || 'one page for everything.',

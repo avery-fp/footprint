@@ -2,10 +2,15 @@
   "name": "Footprint",
   "short_name": "Footprint",
   "description": "one page for everything.",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#050505",
   "theme_color": "#050505",
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
   "icons": [
     {
       "src": "/apple-touch-icon-180x180.png",

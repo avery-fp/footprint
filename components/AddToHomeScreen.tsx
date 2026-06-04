@@ -54,7 +54,25 @@ function ShareIcon() {
 
 // ── Component ──────────────────────────────────────────────────
 
-export default function AddToHomeScreen({ enabled = true }: { enabled?: boolean }) {
+const LAST_COORDINATE_KEY = 'fp_pwa:last_coordinate'
+const LAST_PATH_KEY = 'fp_pwa:last_path'
+
+function keyFor(slug: string | undefined, suffix: string) {
+  return slug ? `fp:${slug}:${suffix}` : suffix
+}
+
+function currentPath() {
+  if (typeof window === 'undefined') return '/'
+  return `${window.location.pathname}${window.location.search}${window.location.hash}`
+}
+
+export default function AddToHomeScreen({
+  enabled = true,
+  slug,
+}: {
+  enabled?: boolean
+  slug?: string
+}) {
   const [mounted, setMounted] = useState(false)
   const [dismissed, setDismissed] = useState(false)
   const [installed, setInstalled] = useState(false)
@@ -68,26 +86,35 @@ export default function AddToHomeScreen({ enabled = true }: { enabled?: boolean 
     setMounted(true)
     setPlatform(getPlatform())
 
+    try {
+      if (slug) localStorage.setItem(LAST_COORDINATE_KEY, slug)
+      localStorage.setItem(LAST_PATH_KEY, currentPath())
+    } catch {}
+
     if (isStandalone()) {
       setInstalled(true)
       return
     }
 
-    // Already installed / dismissed
-    if (localStorage.getItem('fp_installed') === 'true') {
+    const installedKey = keyFor(slug, 'installed')
+    const dismissedKey = keyFor(slug, 'a2hs_dismissed')
+    const iosSeenKey = keyFor(slug, 'ios_a2hs_seen')
+
+    // Already installed / dismissed for this coordinate.
+    if (localStorage.getItem(installedKey) === 'true') {
       setInstalled(true)
       return
     }
-    if (localStorage.getItem('fp_a2hs_dismissed') === 'true') {
+    if (localStorage.getItem(dismissedKey) === 'true') {
       setDismissed(true)
       return
     }
     // iOS: already seen prompt
-    if (localStorage.getItem('fp_ios_a2hs_seen') === 'true') {
+    if (localStorage.getItem(iosSeenKey) === 'true') {
       setDismissed(true)
       return
     }
-  }, [])
+  }, [slug])
 
   // ── beforeinstallprompt (Android/Chromium) ──
   useEffect(() => {
@@ -100,7 +127,9 @@ export default function AddToHomeScreen({ enabled = true }: { enabled?: boolean 
     window.addEventListener('beforeinstallprompt', handler)
 
     const installedHandler = () => {
-      localStorage.setItem('fp_installed', 'true')
+      localStorage.setItem(keyFor(slug, 'installed'), 'true')
+      if (slug) localStorage.setItem(LAST_COORDINATE_KEY, slug)
+      localStorage.setItem(LAST_PATH_KEY, currentPath())
       setInstalled(true)
       toast('Your door is pinned.', {
         style: {
@@ -118,7 +147,7 @@ export default function AddToHomeScreen({ enabled = true }: { enabled?: boolean 
       window.removeEventListener('beforeinstallprompt', handler)
       window.removeEventListener('appinstalled', installedHandler)
     }
-  }, [])
+  }, [slug])
 
   // ── iOS: detect return from Safari share flow ──
   useEffect(() => {
@@ -127,7 +156,9 @@ export default function AddToHomeScreen({ enabled = true }: { enabled?: boolean 
     const handler = () => {
       if (document.visibilityState === 'visible' && iosModalShown.current) {
         iosModalShown.current = false
-        localStorage.setItem('fp_ios_a2hs_seen', 'true')
+        localStorage.setItem(keyFor(slug, 'ios_a2hs_seen'), 'true')
+        if (slug) localStorage.setItem(LAST_COORDINATE_KEY, slug)
+        localStorage.setItem(LAST_PATH_KEY, currentPath())
         setShowModal(false)
         setDismissed(true)
         toast('Your door is pinned.', {
@@ -143,7 +174,7 @@ export default function AddToHomeScreen({ enabled = true }: { enabled?: boolean 
     }
     document.addEventListener('visibilitychange', handler)
     return () => document.removeEventListener('visibilitychange', handler)
-  }, [platform])
+  }, [platform, slug])
 
   // ── CTA click ──
   const handleClick = useCallback(async () => {
@@ -154,7 +185,9 @@ export default function AddToHomeScreen({ enabled = true }: { enabled?: boolean 
       const { outcome } = await deferredPrompt.current.userChoice
       deferredPrompt.current = null
       if (outcome === 'accepted') {
-        localStorage.setItem('fp_installed', 'true')
+        localStorage.setItem(keyFor(slug, 'installed'), 'true')
+        if (slug) localStorage.setItem(LAST_COORDINATE_KEY, slug)
+        localStorage.setItem(LAST_PATH_KEY, currentPath())
         setInstalled(true)
       }
       return
@@ -163,16 +196,16 @@ export default function AddToHomeScreen({ enabled = true }: { enabled?: boolean 
     // iOS or unsupported: show modal
     setShowModal(true)
     if (p === 'ios') iosModalShown.current = true
-  }, [])
+  }, [slug])
 
   // ── Modal dismiss ──
   const closeModal = useCallback(() => {
     setShowModal(false)
     if (platform === 'ios') {
-      localStorage.setItem('fp_ios_a2hs_seen', 'true')
+      localStorage.setItem(keyFor(slug, 'ios_a2hs_seen'), 'true')
       setDismissed(true)
     }
-  }, [platform])
+  }, [platform, slug])
 
   // ── Don't render on server, when installed, dismissed, or on desktop ──
   if (!enabled || !mounted || installed || dismissed || platform === 'unsupported') return null

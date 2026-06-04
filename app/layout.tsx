@@ -1,10 +1,17 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { Toaster } from 'sonner'
+import PwaLaunchRestore from '@/components/PwaLaunchRestore'
 
 export const metadata: Metadata = {
   title: 'footprint',
   description: 'one page for everything.',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    title: 'Footprint',
+    statusBarStyle: 'black-translucent',
+  },
   openGraph: {
     title: 'footprint',
     description: 'one page for everything.',
@@ -34,10 +41,15 @@ export default function RootLayout({
   return (
     <html lang="en" style={{ backgroundColor: '#080808' }}>
       <head>
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-title" content="Footprint" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-180x180.png" />
         <link rel="apple-touch-icon" sizes="512x512" href="/apple-touch-icon.png" />
       </head>
       <body className="font-sans" style={{ backgroundColor: '#080808' }}>
+        <PwaLaunchRestore />
         {children}
         <Toaster
           position="bottom-center"

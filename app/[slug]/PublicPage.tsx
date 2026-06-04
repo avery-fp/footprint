@@ -1931,7 +1931,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         onNavigateToRoom={goToRoom}
       />
 
-      <AddToHomeScreen enabled={!isDraft && isOwner && !expanded} />
+      <AddToHomeScreen enabled={!isDraft && isOwner && !expanded} slug={footprint.username} />
 
       {/* Draft banner */}
       {isDraft && (
