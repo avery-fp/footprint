@@ -96,7 +96,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
     const img = containerRef.current.querySelector('img')
     if (!img || !img.complete || !img.naturalWidth) return
     setLoaded(true)
-    if (onAspectDetected && img.naturalHeight) {
+    if (!isPublicView && onAspectDetected && img.naturalHeight) {
       onAspectDetected(inferAspect(img.naturalWidth / img.naturalHeight))
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -118,7 +118,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
           autoPlay
           preload="metadata"
           onLoadedMetadata={(e) => {
-            if (onAspectDetected) {
+            if (!isPublicView && onAspectDetected) {
               const v = e.currentTarget
               if (v.videoWidth && v.videoHeight) {
                 onAspectDetected(inferAspect(v.videoWidth / v.videoHeight))

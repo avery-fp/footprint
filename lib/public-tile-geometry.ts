@@ -1,11 +1,15 @@
 import { tileAspectRatio } from '@/lib/grid-layouts'
+import { transformImageUrl } from '@/lib/image'
 import { getGridClass, isVideoTile, resolveAspect } from '@/lib/media/aspect'
+import { getYouTubeThumbnailCandidates } from '@/lib/media/thumbnails'
+import { extractYouTubeId } from '@/lib/parseEmbed'
 
 export interface PublicTileGeometry {
   resolvedAspect: string
   gridClass: string
   fitClass: string
   aspectCss: string
+  posterUrl: string | null
   railHeightMobile: string
   railHeightDesktop: string
   viewportFitHeight: string
@@ -65,7 +69,48 @@ function railHeights(size: number) {
   }
 }
 
-export function getPublicTileGeometry(item: any): PublicTileGeometry {
+export function getPublicPosterUrl(
+  item: any,
+  containerMeta?: Record<string, { childCount: number; firstThumb: string | null }>
+): string | null {
+  const youtubeId = extractYouTubeId(item?.url || '')
+  if (youtubeId) {
+    const cachedYouTubeThumb = item.thumbnail_url ? transformImageUrl(item.thumbnail_url) : null
+    const candidates = [
+      cachedYouTubeThumb,
+      item.thumbnail_url_override ? transformImageUrl(item.thumbnail_url_override) : null,
+      item.thumbnail_url_hq ? transformImageUrl(item.thumbnail_url_hq) : null,
+      ...getYouTubeThumbnailCandidates({
+        url: item.url,
+        media_id: youtubeId,
+        thumbnail_url_override: item.thumbnail_url_override,
+        thumbnail_url: item.thumbnail_url,
+        thumbnail_url_hq: item.thumbnail_url_hq,
+      }),
+    ].filter(Boolean) as string[]
+    return candidates[0] || null
+  }
+
+  if (item.type === 'image') return item.url || null
+  if (item.type === 'container') {
+    return item.container_cover_url || containerMeta?.[item.id]?.firstThumb || null
+  }
+
+  const raw =
+    item.thumbnail_url_override ||
+    item.thumbnail_url_hq ||
+    item.thumbnail_url ||
+    item.poster_url ||
+    containerMeta?.[item.id]?.firstThumb ||
+    null
+
+  return raw
+}
+
+export function getPublicTileGeometry(
+  item: any,
+  containerMeta?: Record<string, { childCount: number; firstThumb: string | null }>
+): PublicTileGeometry {
   const size = Number(item.size || 1)
   const resolvedAspect = resolveAspect(item.aspect, item.type, item.url)
   const aspectCss = publicAspectCss(item)
@@ -83,14 +128,18 @@ export function getPublicTileGeometry(item: any): PublicTileGeometry {
     gridClass,
     fitClass,
     aspectCss,
+    posterUrl: getPublicPosterUrl(item, containerMeta),
     ...railHeights(size),
     viewportFitHeight: `calc(${100 / aspectRatioValue}vw - ${32 / aspectRatioValue}px)`,
   }
 }
 
-export function withPublicTileGeometry<T extends Record<string, any>>(item: T): T & { public_geometry: PublicTileGeometry } {
+export function withPublicTileGeometry<T extends Record<string, any>>(
+  item: T,
+  containerMeta?: Record<string, { childCount: number; firstThumb: string | null }>
+): T & { public_geometry: PublicTileGeometry } {
   return {
     ...item,
-    public_geometry: getPublicTileGeometry(item),
+    public_geometry: getPublicTileGeometry(item, containerMeta),
   }
 }

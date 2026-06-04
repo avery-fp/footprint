@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Image from 'next/image'
 import UnifiedTile from '@/components/UnifiedTile'
-import SAspectShell from '@/components/SAspectShell'
 import PublicRoomSurface from '@/components/PublicRoomSurface'
 
 import WeatherEffect from '@/components/WeatherEffect'
@@ -1414,8 +1413,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
   // Map any tile to a CSS aspect-ratio string. Provider embeds use their
   // content-native ratio; everything else routes through resolveAspect →
-  // tileAspectRatio. SAspectShell still refines image tiles at runtime
-  // when their natural dimensions arrive — see renderImageWrapped below.
+  // tileAspectRatio. Public tile geometry is fixed before media bytes load.
   const tileAspectCss = (item: any): string => {
     const isSpotify = item.type === 'spotify' || /open\.spotify\.com/i.test(item.url || '')
     const isAppleMusic = item.type === 'apple_music' || /music\.apple\.com/i.test(item.url || '')

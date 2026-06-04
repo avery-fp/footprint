@@ -9,7 +9,7 @@ import EventTracker from '@/components/EventTracker'
 import ReferralBanner from '@/components/ReferralBanner'
 import ClaimOverlay from '@/components/ClaimOverlay'
 import PublicPage from './PublicPage'
-import { withPublicTileGeometry } from '@/lib/public-tile-geometry'
+import { getPublicPosterUrl, withPublicTileGeometry } from '@/lib/public-tile-geometry'
 
 function collectPublicPosterPreloads(
   rooms: Array<{ content: any[] }>,
@@ -23,12 +23,7 @@ function collectPublicPosterPreloads(
   const urls: string[] = []
 
   for (const item of ordered) {
-    const url =
-      item?.thumbnail_url_override ||
-      item?.thumbnail_url_hq ||
-      item?.thumbnail_url ||
-      containerMeta[item?.id]?.firstThumb ||
-      (item?.type === 'image' || item?.type === 'video' ? item?.url : null)
+    const url = item?.public_geometry?.posterUrl || getPublicPosterUrl(item, containerMeta)
     if (!url || seen.has(url)) continue
     seen.add(url)
     urls.push(url)
@@ -128,7 +123,7 @@ export default async function FootprintPage({ params }: Props) {
   if (!result) notFound()
 
   const { footprint, content, rooms: roomsFlat, containerMeta } = result
-  const contentWithGeometry = content.map(withPublicTileGeometry)
+  const contentWithGeometry = content.map((item) => withPublicTileGeometry(item, containerMeta))
 
   // Public page expects rooms with their content already grouped in.
   // Tiles with room_id=null (orphans — typically uploads that landed before

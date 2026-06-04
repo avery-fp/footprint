@@ -126,7 +126,7 @@ export default function PublicRoomSurface({
     transition: 'opacity 250ms ease-out, transform 350ms ease-out',
   }
 
-  const tileGeometry = (item: any): PublicTileGeometry => item.public_geometry || getPublicTileGeometry(item)
+  const tileGeometry = (item: any): PublicTileGeometry => item.public_geometry || getPublicTileGeometry(item, containerMeta)
 
   const getDepthStyle = (tileId: string): React.CSSProperties => {
     if (!expanded) return { transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease' }
@@ -221,7 +221,7 @@ export default function PublicRoomSurface({
   )
 
   const renderCollectionTilePlaceholder = (child: any) => {
-    const previewUrl = transformImageUrl(
+    const previewUrl = tileGeometry(child).posterUrl || transformImageUrl(
       child.thumbnail_url_override ||
       child.thumbnail_url_hq ||
       child.thumbnail_url ||
@@ -240,6 +240,8 @@ export default function PublicRoomSurface({
             <img
               src={previewUrl}
               alt=""
+              width={640}
+              height={640}
               loading="eager"
               fetchPriority="high"
               decoding="async"

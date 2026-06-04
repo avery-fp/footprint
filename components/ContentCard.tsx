@@ -817,12 +817,14 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   if (content.type === 'image') {
     return (
-      <div ref={containerRef} className="fp-tile overflow-hidden relative">
-        <a href={content.url} target="_blank" rel="noopener noreferrer">
+      <div ref={containerRef} className="fp-tile overflow-hidden relative w-full h-full">
+        <a href={content.url} target="_blank" rel="noopener noreferrer" className="absolute inset-0 block">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={transformImageUrl(content.url)}
             alt={content.title || ''}
+            width={640}
+            height={640}
             sizes="(max-width: 768px) 50vw, 25vw"
             className={`w-full h-full object-cover${publicPosterClass}`}
             loading={isPriorityPoster ? 'eager' : 'lazy'}
