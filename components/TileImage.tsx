@@ -28,6 +28,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
   const [videoFailed, setVideoFailed] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const [videoMuted, setVideoMuted] = useState(true)
+  const [videoPressActive, setVideoPressActive] = useState(false)
   const onAspectDetected = useAspectDetection()
   const fallbackVideoRef = useRef<HTMLVideoElement>(null)
   const audioIdRef = useRef(`tile-image-video-${src}`)
@@ -73,6 +74,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
 
   const handleInvocationPointerDown = useCallback((e: PointerEvent<HTMLElement>) => {
     e.stopPropagation()
+    setVideoPressActive(true)
     if (e.pointerType === 'mouse') {
       toggleFallbackVideoAudio()
       return
@@ -82,9 +84,13 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
 
   const handleInvocationPointerUp = useCallback((e: PointerEvent<HTMLElement>) => {
     e.stopPropagation()
-    if (e.pointerType === 'mouse') return
+    if (e.pointerType === 'mouse') {
+      setVideoPressActive(false)
+      return
+    }
     const shouldInvoke = isIntentionalInvocation(invocationPointRef.current, e.pointerId, e.clientX, e.clientY)
     invocationPointRef.current = null
+    setVideoPressActive(false)
     if (shouldInvoke) toggleFallbackVideoAudio()
   }, [toggleFallbackVideoAudio])
 
@@ -134,13 +140,14 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
           aria-label={videoMuted ? 'Play audio' : 'Mute audio'}
           onPointerDown={handleInvocationPointerDown}
           onPointerUp={handleInvocationPointerUp}
-          onPointerCancel={() => { invocationPointRef.current = null }}
+          onPointerCancel={() => { invocationPointRef.current = null; setVideoPressActive(false) }}
+          onPointerLeave={() => setVideoPressActive(false)}
           className="absolute inset-0 [@media(pointer:coarse)]:inset-auto [@media(pointer:coarse)]:left-1/2 [@media(pointer:coarse)]:top-1/2 [@media(pointer:coarse)]:flex [@media(pointer:coarse)]:h-24 [@media(pointer:coarse)]:w-24 [@media(pointer:coarse)]:-translate-x-1/2 [@media(pointer:coarse)]:-translate-y-1/2 [@media(pointer:coarse)]:items-center [@media(pointer:coarse)]:justify-center [@media(pointer:coarse)]:rounded-full"
           style={{
             zIndex: 3,
             border: 'none',
-            background: 'transparent',
-            opacity: 0,
+            background: videoPressActive ? 'rgba(255,255,255,0.06)' : 'transparent',
+            opacity: videoPressActive ? 1 : 0,
             transition: 'opacity 180ms ease',
           }}
         />

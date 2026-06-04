@@ -208,6 +208,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [isOwner, setIsOwner] = useState(false)
   const [authChecked, setAuthChecked] = useState(false)
   const [showToast, setShowToast] = useState(false)
+  const [toastMessage, setToastMessage] = useState('copied.')
+  const [editTogglePressed, setEditTogglePressed] = useState(false)
   const [serialFlyout, setSerialFlyout] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [roomFade, setRoomFade] = useState<'visible' | 'out' | 'in'>('visible')
@@ -589,8 +591,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
   const handleShare = () => {
     navigator.clipboard.writeText(pageUrl)
+    setToastMessage('copied.')
     setShowToast(true)
   }
+
+  const showQuietToast = useCallback((message: string) => {
+    setToastMessage(message)
+    setShowToast(true)
+  }, [])
 
   // Mobile detection (debounced)
   useEffect(() => {
@@ -1219,10 +1227,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ slug: footprint.username, positions }),
     }).then((res) => {
-      if (!res.ok) console.error('Failed to save tile order:', res.status)
+      if (!res.ok) {
+        console.error('Failed to save tile order:', res.status)
+        showQuietToast('order not saved.')
+      }
       return res.ok
     }).catch(e => {
       console.error('Failed to save tile order:', e)
+      showQuietToast('order not saved.')
       return false
     })
 
@@ -1306,10 +1318,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         positions: reordered.map((c: any) => ({ id: c.id, source: c.source, position: c.position })),
       }),
     }).then((res) => {
-      if (!res.ok) console.error('Failed to reorder child tiles:', res.status)
+      if (!res.ok) {
+        console.error('Failed to reorder child tiles:', res.status)
+        showQuietToast('order not saved.')
+      }
       return res.ok
     }).catch(e => {
       console.error('Failed to reorder child tiles:', e)
+      showQuietToast('order not saved.')
       return false
     })
 
@@ -2137,7 +2153,15 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           type="button"
           aria-label={editorMode ? 'done editing' : 'edit page'}
           aria-pressed={editorMode}
-          onClick={editorMode ? handleDoneEditing : () => setEditorMode(true)}
+          onPointerDown={() => setEditTogglePressed(true)}
+          onPointerUp={() => setEditTogglePressed(false)}
+          onPointerCancel={() => setEditTogglePressed(false)}
+          onPointerLeave={() => setEditTogglePressed(false)}
+          onClick={() => {
+            setEditTogglePressed(false)
+            if (editorMode) void handleDoneEditing()
+            else setEditorMode(true)
+          }}
           className="fixed z-30 flex items-center justify-center touch-manipulation"
           style={{
             top: 'calc(env(safe-area-inset-top, 0px) + 16px)',
@@ -2154,6 +2178,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             userSelect: 'none',
             WebkitUserSelect: 'none',
             boxShadow: 'none',
+            opacity: editTogglePressed ? 0.68 : 1,
+            transform: editTogglePressed ? 'scale(0.94)' : 'scale(1)',
+            transition: 'opacity 120ms ease-out, transform 120ms ease-out',
           }}
         >
           {editorMode ? (
@@ -2849,7 +2876,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       {/* Copied toast */}
       {showToast && (
         <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-white/[0.08] backdrop-blur-sm rounded-md px-5 py-2 text-white/60 text-sm materialize">
-          copied.
+          {toastMessage}
         </div>
       )}
 

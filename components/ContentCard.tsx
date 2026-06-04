@@ -261,6 +261,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const youtubeRevealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const invocationPointRef = useRef<InvocationPoint | null>(null)
   const [youtubeRevealSettled, setYoutubeRevealSettled] = useState(false)
+  const [pressActive, setPressActive] = useState(false)
   // FIDELIO: Detect post vs profile for social embeds
   const socialVariant = detectVariant(content.type, content.url)
   const hasSocialEmbed = ['twitter', 'tiktok', 'instagram'].includes(content.type)
@@ -375,6 +376,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
 
   const handleInvocationPointerDown = (e: PointerEvent<HTMLElement>, invoke: () => void) => {
     e.stopPropagation()
+    setPressActive(true)
     if (e.pointerType === 'mouse') {
       invoke()
       return
@@ -384,10 +386,29 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
 
   const handleInvocationPointerUp = (e: PointerEvent<HTMLElement>, invoke: () => void) => {
     e.stopPropagation()
-    if (e.pointerType === 'mouse') return
+    if (e.pointerType === 'mouse') {
+      setPressActive(false)
+      return
+    }
     const shouldInvoke = isIntentionalInvocation(invocationPointRef.current, e.pointerId, e.clientX, e.clientY)
     invocationPointRef.current = null
+    setPressActive(false)
     if (shouldInvoke) invoke()
+  }
+
+  const handleInvocationPointerCancel = () => {
+    invocationPointRef.current = null
+    setPressActive(false)
+  }
+
+  const handlePressStart = () => setPressActive(true)
+  const handlePressEnd = () => setPressActive(false)
+
+  const tapResponseStyle: React.CSSProperties = {
+    transform: pressActive ? 'scale(0.992)' : 'scale(1)',
+    filter: pressActive ? 'brightness(0.9)' : 'none',
+    transition: 'transform 120ms ease-out, filter 120ms ease-out',
+    willChange: pressActive ? 'transform, filter' : undefined,
   }
 
   useEffect(() => {
@@ -508,7 +529,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         <div
           ref={containerRef}
           className="w-full h-full fp-tile overflow-hidden relative group"
-          style={{ background: 'transparent' }}
+          style={{ background: 'transparent', ...tapResponseStyle }}
         >
           <div className="fp-resting-video-frame">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -537,7 +558,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             aria-label="Play video"
             onPointerDown={(e) => handleInvocationPointerDown(e, handleActivate)}
             onPointerUp={(e) => handleInvocationPointerUp(e, handleActivate)}
-            onPointerCancel={() => { invocationPointRef.current = null }}
+            onPointerCancel={handleInvocationPointerCancel}
+            onPointerLeave={handlePressEnd}
             className="absolute inset-0"
             style={{ zIndex: 3, border: 'none', background: 'transparent', padding: 0, cursor: 'pointer' }}
           />
@@ -557,7 +579,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       <div
         ref={containerRef}
         className="w-full max-w-full h-full fp-tile overflow-hidden relative group"
-        style={{ background: 'transparent' }}
+        style={{ background: 'transparent', ...tapResponseStyle }}
       >
         <div
           className="absolute inset-0 w-full h-full [&_iframe]:!w-full [&_iframe]:!max-w-full [&_iframe]:!h-full"
@@ -591,7 +613,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             aria-label="Play video"
             onPointerDown={!isActivated ? (e) => handleInvocationPointerDown(e, handleActivate) : undefined}
             onPointerUp={!isActivated ? (e) => handleInvocationPointerUp(e, handleActivate) : undefined}
-            onPointerCancel={() => { invocationPointRef.current = null }}
+            onPointerCancel={handleInvocationPointerCancel}
+            onPointerLeave={handlePressEnd}
             className="absolute inset-0 cursor-pointer"
             style={{
               zIndex: 3,
@@ -1129,7 +1152,12 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         <div
           role="button"
           tabIndex={0}
+          onPointerDown={handlePressStart}
+          onPointerUp={handlePressEnd}
+          onPointerCancel={handlePressEnd}
+          onPointerLeave={handlePressEnd}
           onClick={() => {
+            setPressActive(false)
             audioManager.activateProvider(audioIdRef.current)
             canPlayInline && !hasManualSourceRows ? setIsActivated(true) : setShellOpen(true)
           }}
@@ -1141,7 +1169,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           }}
           ref={containerRef as any}
           className={`block w-full h-full fp-tile overflow-hidden relative cursor-pointer ${aspectClass}`}
-          style={{ background: 'transparent' }}
+          style={{ background: 'transparent', ...tapResponseStyle }}
         >
           {thumbSrc && (
             <div className="fp-resting-video-frame z-[1]">
@@ -1247,11 +1275,18 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         <div
           role="button"
           tabIndex={0}
-          onClick={() => setShellOpen(true)}
+          onPointerDown={handlePressStart}
+          onPointerUp={handlePressEnd}
+          onPointerCancel={handlePressEnd}
+          onPointerLeave={handlePressEnd}
+          onClick={() => {
+            setPressActive(false)
+            setShellOpen(true)
+          }}
           onKeyDown={(e) => { if (e.key === 'Enter') setShellOpen(true) }}
           ref={containerRef as any}
           className={`block w-full h-full fp-tile overflow-hidden relative cursor-pointer ${aspectClass}`}
-          style={{ background: 'transparent' }}
+          style={{ background: 'transparent', ...tapResponseStyle }}
         >
           {thumbSrc && (
             <div className="fp-resting-video-frame z-[1]">
@@ -1441,13 +1476,20 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         <div
           role="button"
           tabIndex={0}
-          onClick={() => setShellOpen(true)}
+          onPointerDown={handlePressStart}
+          onPointerUp={handlePressEnd}
+          onPointerCancel={handlePressEnd}
+          onPointerLeave={handlePressEnd}
+          onClick={() => {
+            setPressActive(false)
+            setShellOpen(true)
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Enter') setShellOpen(true)
           }}
           ref={containerRef as any}
           className={`block w-full h-full fp-tile overflow-hidden relative cursor-pointer ${aspectClass}`}
-          style={{ background: 'transparent' }}
+          style={{ background: 'transparent', ...tapResponseStyle }}
         >
           {hasArtifactImage ? (
             <div className="fp-resting-video-frame z-[1]">

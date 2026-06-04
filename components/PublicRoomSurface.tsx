@@ -73,6 +73,8 @@ export default function PublicRoomSurface({
 }: PublicRoomSurfaceProps) {
   const collectionRailRef = useRef<HTMLDivElement | null>(null)
   const [collectionActiveIndex, setCollectionActiveIndex] = useState(0)
+  const [pressedRoomId, setPressedRoomId] = useState<string | null>(null)
+  const [pressedContainerId, setPressedContainerId] = useState<string | null>(null)
   const layoutConfig = getGridLayout(roomLayout)
   const isHorizontal = roomLayout === 'horizontal'
 
@@ -149,6 +151,7 @@ export default function PublicRoomSurface({
   const renderTileBody = (item: any, idx: number) => {
     const isContainer = item.type === 'container'
     const isThisExpanded = expanded?.id === item.id
+    const isPressedContainer = pressedContainerId === item.id
     return (
       <div
         ref={(el: HTMLDivElement | null) => registerRef(item.id, el)}
@@ -174,7 +177,22 @@ export default function PublicRoomSurface({
           />
         </div>
         {isContainer && !expanded && (
-          <div className="absolute inset-0 z-10 cursor-pointer" onClick={() => expand(item.id)} />
+          <div
+            className="absolute inset-0 z-10 cursor-pointer touch-manipulation"
+            onPointerDown={() => setPressedContainerId(item.id)}
+            onPointerUp={() => setPressedContainerId(null)}
+            onPointerCancel={() => setPressedContainerId(null)}
+            onPointerLeave={() => setPressedContainerId(null)}
+            onClick={() => {
+              setPressedContainerId(null)
+              expand(item.id)
+            }}
+            style={{
+              background: isPressedContainer ? 'rgba(255,255,255,0.045)' : 'transparent',
+              boxShadow: isPressedContainer ? 'inset 0 0 0 1px rgba(255,255,255,0.08)' : 'none',
+              transition: 'background 120ms ease-out, box-shadow 120ms ease-out',
+            }}
+          />
         )}
       </div>
     )
@@ -337,7 +355,14 @@ export default function PublicRoomSurface({
                 return (
                   <div key={room.id} className="relative flex items-center">
                     <button
-                      onClick={() => onNavigateRoom(room.id)}
+                      onPointerDown={() => setPressedRoomId(room.id)}
+                      onPointerUp={() => setPressedRoomId(null)}
+                      onPointerCancel={() => setPressedRoomId(null)}
+                      onPointerLeave={() => setPressedRoomId(null)}
+                      onClick={() => {
+                        setPressedRoomId(null)
+                        onNavigateRoom(room.id)
+                      }}
                       className="transition-all duration-300 touch-manipulation flex items-center gap-1"
                       style={{
                         fontSize: '11px',
@@ -351,6 +376,8 @@ export default function PublicRoomSurface({
                         padding: '8px 2px',
                         margin: '-8px -2px',
                         cursor: 'pointer',
+                        opacity: pressedRoomId === room.id ? 0.72 : 1,
+                        transform: pressedRoomId === room.id ? 'translateY(1px)' : 'translateY(0)',
                       }}
                     >
                       {room.name}
