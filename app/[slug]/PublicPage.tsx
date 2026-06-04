@@ -2649,8 +2649,12 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           before auth resolves. */}
       {!isDraft && authChecked && !isOwner && !claimActive && !collectionOverlayOpen && (
         <div
-          className="fixed top-4 left-4"
-          style={{ zIndex: expanded ? 60 : 20 }}
+          className="fixed"
+          style={{
+            top: 'calc(env(safe-area-inset-top, 0px) + 16px)',
+            left: 'calc(env(safe-area-inset-left, 0px) + 16px)',
+            zIndex: expanded ? 60 : 20,
+          }}
         >
           <PlusButton slug={footprint.username} />
         </div>

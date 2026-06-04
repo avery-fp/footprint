@@ -85,8 +85,10 @@ export default function ArtifactShell({ onDismiss, fallbackUrl, children, wide =
       {/* Close button */}
       <button
         onClick={onDismiss}
-        className="absolute top-4 right-4 z-20 w-9 h-9 rounded-full flex items-center justify-center transition-colors"
+        className="absolute z-20 w-9 h-9 rounded-full flex items-center justify-center transition-colors"
         style={{
+          top: 'calc(env(safe-area-inset-top, 0px) + 16px)',
+          right: 'calc(env(safe-area-inset-right, 0px) + 16px)',
           background: 'rgba(255, 255, 255, 0.08)',
           backdropFilter: 'blur(8px)',
           WebkitBackdropFilter: 'blur(8px)',

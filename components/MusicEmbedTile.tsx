@@ -164,6 +164,7 @@ export default function MusicEmbedTile({
   const previewPlayingRef = useRef(false)
   const [resolvedPreviewUrl, setResolvedPreviewUrl] = useState<string | null>(null)
   const [previewResolved, setPreviewResolved] = useState(false)
+  const [spotifyEmbedActive, setSpotifyEmbedActive] = useState(false)
 
   const stopPlayback = useCallback(() => {
     setIsPlaying(false)
@@ -279,6 +280,9 @@ export default function MusicEmbedTile({
 
   if (displayMode === 'player') {
     if (provider === 'spotify') {
+      if (spotifyEmbedActive) {
+        return <NativeMusicBar src={embed.embedUrl} title={title} provider={provider} audioId={tileIdRef.current} />
+      }
       return (
         <MusicSurface
           url={url}
@@ -288,6 +292,7 @@ export default function MusicEmbedTile({
           tileId={tileIdRef.current}
           spotifyPreviewAudio={previewAudioRef.current}
           spotifyPreviewResolved={previewResolved}
+          onSpotifyEmbedFallback={() => setSpotifyEmbedActive(true)}
         >
           <MusicFacade
             provider={provider}
@@ -381,6 +386,7 @@ function MusicSurface({
   tileId,
   spotifyPreviewAudio,
   spotifyPreviewResolved = false,
+  onSpotifyEmbedFallback,
   children,
 }: {
   url: string
@@ -390,6 +396,7 @@ function MusicSurface({
   tileId: string
   spotifyPreviewAudio?: HTMLAudioElement | null
   spotifyPreviewResolved?: boolean
+  onSpotifyEmbedFallback?: () => void
   children: ReactNode
 }) {
   const appleAudioRef = useRef<HTMLAudioElement | null>(null)
@@ -436,13 +443,15 @@ function MusicSurface({
     pendingPlayRef.current = false
 
     if (!spotifyPreviewAudio) {
-      setPlaybackState(false)
+      audioManager.activateProvider(tileId)
+      onPlayingChange(true)
+      onSpotifyEmbedFallback?.()
       return
     }
 
     audioManager.playNative(tileId, spotifyPreviewAudio)
     void spotifyPreviewAudio.play().catch(() => setPlaybackState(false))
-  }, [provider, setPlaybackState, spotifyPreviewAudio, spotifyPreviewResolved, tileId])
+  }, [onPlayingChange, provider, setPlaybackState, spotifyPreviewAudio, spotifyPreviewResolved, tileId])
 
   useEffect(() => {
     if (isPlaying) return
@@ -459,12 +468,13 @@ function MusicSurface({
 
       const audio = spotifyPreviewAudio
 
-      // Spotify only gets to claim audio if it actually has preview audio.
-      // No preview = keep the clean Footprint surface and open Spotify.
+      // Spotify only gets to claim native audio if it actually has preview
+      // audio. No preview = keep playback inline with the provider embed.
       if (!audio) {
         pendingPlayRef.current = false
-        setPlaybackState(false)
-        window.open(url, '_blank', 'noopener,noreferrer')
+        audioManager.activateProvider(tileId)
+        onPlayingChange(true)
+        onSpotifyEmbedFallback?.()
         return
       }
 
@@ -498,7 +508,7 @@ function MusicSurface({
       audioManager.release(tileId)
       audioManager.silenceNativeMedia(audio, true)
     }
-  }, [isPlaying, onPlayingChange, provider, setPlaybackState, spotifyPreviewAudio, spotifyPreviewResolved, tileId, url])
+  }, [isPlaying, onPlayingChange, onSpotifyEmbedFallback, provider, setPlaybackState, spotifyPreviewAudio, spotifyPreviewResolved, tileId])
 
   return (
     <div className="relative h-full w-full" onClick={handleToggle}>
