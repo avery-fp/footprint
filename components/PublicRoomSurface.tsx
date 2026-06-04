@@ -122,8 +122,10 @@ export default function PublicRoomSurface({
 
   const fadeStyle = {
     opacity: roomFade === 'out' ? 0 : 1,
-    transform: roomFade === 'out' ? 'translateY(6px)' : roomFade === 'in' ? 'translateY(-6px)' : 'translateY(0)',
-    transition: 'opacity 250ms ease-out, transform 350ms ease-out',
+    filter: roomFade === 'out' ? 'saturate(0.92) brightness(0.82)' : 'none',
+    transform: roomFade === 'out' ? 'translate3d(0, 8px, 0) scale(0.995)' : roomFade === 'in' ? 'translate3d(0, -8px, 0) scale(0.998)' : 'translate3d(0, 0, 0) scale(1)',
+    transition: 'opacity 220ms ease-out, filter 220ms ease-out, transform 320ms cubic-bezier(0.22, 1, 0.36, 1)',
+    willChange: roomFade === 'visible' ? undefined : 'opacity, transform, filter',
   }
 
   const tileGeometry = (item: any): PublicTileGeometry => item.public_geometry || getPublicTileGeometry(item, containerMeta)
@@ -383,7 +385,7 @@ export default function PublicRoomSurface({
             style={{
               backgroundColor: 'rgba(3, 3, 3, 0.96)',
               opacity: expanded ? 1 : 0,
-              transition: 'opacity 0.4s ease',
+              transition: 'opacity 360ms cubic-bezier(0.22, 1, 0.36, 1)',
               willChange: 'opacity',
               touchAction: 'none',
             }}
@@ -395,11 +397,13 @@ export default function PublicRoomSurface({
             <div
               className="fixed inset-0 z-[90] flex flex-col pointer-events-none"
               style={{
-                opacity: loadingChildren ? 0 : 1,
-                transition: 'opacity 0.3s ease 0.3s',
+                opacity: expanded ? 1 : 0,
+                transform: expanded ? 'translate3d(0, 0, 0)' : 'translate3d(0, 10px, 0)',
+                transition: 'opacity 260ms ease-out 80ms, transform 360ms cubic-bezier(0.22, 1, 0.36, 1) 80ms',
                 background: 'rgba(3,3,3,0.98)',
                 touchAction: 'pan-x',
                 overscrollBehavior: 'contain',
+                willChange: 'opacity, transform',
               }}
             >
               <div
@@ -458,7 +462,19 @@ export default function PublicRoomSurface({
                   <div className="flex items-center justify-center w-full py-12">
                     <span className="text-white/20 font-mono text-xs tracking-widest uppercase">empty</span>
                   </div>
-                ) : null}
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center px-8">
+                    <div
+                      aria-hidden="true"
+                      className="h-full w-full max-w-[620px] rounded-2xl"
+                      style={{
+                        maxHeight: 'min(58vh, 420px)',
+                        background: 'rgba(255,255,255,0.025)',
+                        boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.04)',
+                      }}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           )}

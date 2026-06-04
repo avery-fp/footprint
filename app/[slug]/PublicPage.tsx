@@ -86,6 +86,8 @@ function firstVisibleRoomId(rooms: Room[]): string | null {
 }
 
 const CONTINUITY_TTL_MS = 1000 * 60 * 60 * 2
+const ROOM_SWITCH_HIDE_MS = 180
+const ROOM_SWITCH_REVEAL_MS = 320
 
 function continuityKey(slug: string, key: string) {
   return `fp:${slug}:${key}`
@@ -500,6 +502,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const explicitRoomSwitchRef = useRef(false)
   const lastActiveRoomIdRef = useRef<string | null>(activeRoomId)
   const saveContinuityRef = useRef<() => void>(() => {})
+  const roomSwitchTimersRef = useRef<ReturnType<typeof setTimeout>[]>([])
 
   useEffect(() => {
     lastActiveRoomIdRef.current = activeRoomId
@@ -574,6 +577,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       window.removeEventListener('pagehide', saveNow)
       window.removeEventListener('beforeunload', saveNow)
       document.removeEventListener('visibilitychange', saveOnVisibility)
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      roomSwitchTimersRef.current.forEach(clearTimeout)
+      roomSwitchTimersRef.current = []
     }
   }, [])
 
@@ -658,12 +668,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const goToRoom = useCallback((roomId: string | null) => {
     if (roomId === activeRoomId || roomFade !== 'visible') return
 
+    roomSwitchTimersRef.current.forEach(clearTimeout)
+    roomSwitchTimersRef.current = []
     saveContinuityRef.current()
     explicitRoomSwitchRef.current = true
     scrollRestoreAttemptedRef.current = true
     setRoomFade('out')
 
-    setTimeout(() => {
+    const hideTimer = setTimeout(() => {
       // Hide the jump during fade-out, then reveal the next room from its entrance.
       window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
       document.documentElement.scrollTop = 0
@@ -677,12 +689,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
       requestAnimationFrame(() => {
         setRoomFade('in')
-        setTimeout(() => {
+        const revealTimer = setTimeout(() => {
           explicitRoomSwitchRef.current = false
           setRoomFade('visible')
-        }, 300)
+        }, ROOM_SWITCH_REVEAL_MS)
+        roomSwitchTimersRef.current.push(revealTimer)
       })
-    }, 200)
+    }, ROOM_SWITCH_HIDE_MS)
+    roomSwitchTimersRef.current.push(hideTimer)
   }, [activeRoomId, footprint.username, roomFade])
 
   useEffect(() => {

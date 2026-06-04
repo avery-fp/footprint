@@ -57,6 +57,25 @@ export function useDepthExpansion() {
     overscrollBehavior: string
   } | null>(null)
 
+  const restoreDocumentScroll = useCallback(() => {
+    const bodyStyle = originalBodyStyleRef.current
+    const htmlStyle = originalHtmlStyleRef.current
+    if (bodyStyle) {
+      document.body.style.overflow = bodyStyle.overflow
+      document.body.style.position = bodyStyle.position
+      document.body.style.top = bodyStyle.top
+      document.body.style.width = bodyStyle.width
+      document.body.style.overscrollBehavior = bodyStyle.overscrollBehavior
+    }
+    if (htmlStyle) {
+      document.documentElement.style.overflow = htmlStyle.overflow
+      document.documentElement.style.overscrollBehavior = htmlStyle.overscrollBehavior
+    }
+    window.scrollTo({ top: scrollYRef.current, behavior: 'auto' })
+    originalBodyStyleRef.current = null
+    originalHtmlStyleRef.current = null
+  }, [])
+
   const registerRef = useCallback((id: string, el: HTMLDivElement | null) => {
     if (el) tileRefs.current.set(id, el)
     else tileRefs.current.delete(id)
@@ -121,28 +140,13 @@ export function useDepthExpansion() {
     if (!expanded) return
     animatingRef.current = true
     setExpanded(null)
-    const bodyStyle = originalBodyStyleRef.current
-    const htmlStyle = originalHtmlStyleRef.current
-    if (bodyStyle) {
-      document.body.style.overflow = bodyStyle.overflow
-      document.body.style.position = bodyStyle.position
-      document.body.style.top = bodyStyle.top
-      document.body.style.width = bodyStyle.width
-      document.body.style.overscrollBehavior = bodyStyle.overscrollBehavior
-    }
-    if (htmlStyle) {
-      document.documentElement.style.overflow = htmlStyle.overflow
-      document.documentElement.style.overscrollBehavior = htmlStyle.overscrollBehavior
-    }
-    window.scrollTo({ top: scrollYRef.current, behavior: 'auto' })
-    originalBodyStyleRef.current = null
-    originalHtmlStyleRef.current = null
     setTimeout(() => {
+      restoreDocumentScroll()
       setShowOverlay(false)
       setChildren([])
       animatingRef.current = false
     }, 400)
-  }, [expanded])
+  }, [expanded, restoreDocumentScroll])
 
   // Escape key
   useEffect(() => {
@@ -152,10 +156,10 @@ export function useDepthExpansion() {
     return () => window.removeEventListener('keydown', onKey)
   }, [expanded, collapse])
 
-  // Back button (push fake history entry)
+  // Back button: close if navigation happens while depth is open, but do not
+  // push a synthetic history entry for every collection tap.
   useEffect(() => {
     if (!expanded) return
-    history.pushState({ depth: 1 }, '')
     const onPop = () => collapse()
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
