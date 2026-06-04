@@ -1,6 +1,7 @@
 const YOUTUBE_PLAY_RETRY_MS = [250, 700, 1200] as const
 export const YOUTUBE_READY_SETTLE_MS = 800
 export const YOUTUBE_MOBILE_REVEAL_SETTLE_MS = 900
+export const YOUTUBE_REVEAL_FALLBACK_MS = 1200
 
 function postYouTubeMessage(
   iframe: HTMLIFrameElement | null,
@@ -81,8 +82,7 @@ export function shouldRevealYouTubePlayer(
   readyAfterActivation = false,
   hasSettled = false,
 ) {
-  void hasStarted
-  return !isPosterLocked && isActivated && (hasSettled || readyAfterActivation)
+  return !isPosterLocked && isActivated && readyAfterActivation && (hasStarted || hasSettled)
 }
 
 export function shouldShowYouTubePosterVeil(
