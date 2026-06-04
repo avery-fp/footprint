@@ -427,9 +427,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   useEffect(() => {
     if (!isOwner) return
     const warmOwnerEditor = () => { void import('@/components/OwnerDndKit') }
-    if ('requestIdleCallback' in window) {
-      const idleId = window.requestIdleCallback(warmOwnerEditor, { timeout: 1500 })
-      return () => window.cancelIdleCallback(idleId)
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number
+      cancelIdleCallback?: (handle: number) => void
+    }
+    if (idleWindow.requestIdleCallback) {
+      const idleId = idleWindow.requestIdleCallback(warmOwnerEditor, { timeout: 1500 })
+      return () => idleWindow.cancelIdleCallback?.(idleId)
     }
     const timer = window.setTimeout(warmOwnerEditor, 250)
     return () => window.clearTimeout(timer)

@@ -123,9 +123,9 @@ export default function PublicRoomSurface({
   }, [expanded, collectionChildren, syncCollectionActiveIndex])
 
   const fadeStyle = {
-    opacity: roomFade === 'out' ? 0 : 1,
-    filter: roomFade === 'out' ? 'saturate(0.92) brightness(0.82)' : 'none',
-    transform: roomFade === 'out' ? 'translate3d(0, 8px, 0) scale(0.995)' : roomFade === 'in' ? 'translate3d(0, -8px, 0) scale(0.998)' : 'translate3d(0, 0, 0) scale(1)',
+    opacity: roomFade === 'out' ? 0.18 : 1,
+    filter: roomFade === 'out' ? 'saturate(0.98) brightness(0.96)' : 'none',
+    transform: roomFade === 'out' ? 'translate3d(0, 5px, 0) scale(0.998)' : roomFade === 'in' ? 'translate3d(0, -5px, 0) scale(0.999)' : 'translate3d(0, 0, 0) scale(1)',
     transition: 'opacity 220ms ease-out, filter 220ms ease-out, transform 320ms cubic-bezier(0.22, 1, 0.36, 1)',
     willChange: roomFade === 'visible' ? undefined : 'opacity, transform, filter',
   }
@@ -188,8 +188,8 @@ export default function PublicRoomSurface({
               expand(item.id)
             }}
             style={{
-              background: isPressedContainer ? 'rgba(255,255,255,0.045)' : 'transparent',
-              boxShadow: isPressedContainer ? 'inset 0 0 0 1px rgba(255,255,255,0.08)' : 'none',
+              background: isPressedContainer ? 'rgba(255,255,255,0.024)' : 'transparent',
+              boxShadow: isPressedContainer ? 'inset 0 0 0 1px rgba(255,255,255,0.045)' : 'none',
               transition: 'background 120ms ease-out, box-shadow 120ms ease-out',
             }}
           />
@@ -376,7 +376,7 @@ export default function PublicRoomSurface({
                         padding: '8px 2px',
                         margin: '-8px -2px',
                         cursor: 'pointer',
-                        opacity: pressedRoomId === room.id ? 0.72 : 1,
+                        opacity: pressedRoomId === room.id ? 0.86 : 1,
                         transform: pressedRoomId === room.id ? 'translateY(1px)' : 'translateY(0)',
                       }}
                     >

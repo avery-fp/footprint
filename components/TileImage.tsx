@@ -162,9 +162,9 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
           style={{
             zIndex: 3,
             border: 'none',
-            background: videoPressActive ? 'rgba(255,255,255,0.06)' : 'transparent',
-            opacity: videoPressActive ? 1 : 0,
-            transition: 'opacity 180ms ease',
+            background: videoPressActive ? 'rgba(255,255,255,0.025)' : 'transparent',
+            opacity: videoPressActive ? 0.7 : 0,
+            transition: 'opacity 140ms ease',
           }}
         />
       </div>
