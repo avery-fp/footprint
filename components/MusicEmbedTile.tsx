@@ -25,6 +25,94 @@ const MUSIC_SHELL_STYLE: React.CSSProperties = {
     'inset 0 1px 0 rgba(255,255,255,0.16), inset 0 0 0 1px rgba(255,255,255,0.12), 0 18px 42px rgba(0,0,0,0.28)',
 }
 
+type PreviewResolution = { previewUrl: string | null }
+
+type PreviewCacheEntry = {
+  value: PreviewResolution
+  expiresAt: number | null
+}
+
+const PREVIEW_MISS_TTL_MS = 1000 * 60 * 5
+const previewResolutionCache = new Map<string, PreviewCacheEntry>()
+const previewResolutionInflight = new Map<string, Promise<PreviewResolution>>()
+
+function normalizePreviewInput(value: string | null | undefined) {
+  return (value || '').trim().replace(/\s+/g, ' ').toLowerCase()
+}
+
+function normalizePreviewUrl(value: string) {
+  const trimmed = value.trim()
+  try {
+    const parsed = new URL(trimmed)
+    parsed.hash = ''
+    parsed.searchParams.sort()
+    return parsed.toString().toLowerCase()
+  } catch {
+    return normalizePreviewInput(trimmed)
+  }
+}
+
+function previewResolutionKey({
+  url,
+  artist,
+  title,
+}: {
+  url: string
+  artist?: string
+  title: string
+}) {
+  return [
+    normalizePreviewUrl(url),
+    normalizePreviewInput(artist),
+    normalizePreviewInput(title),
+  ].join('|')
+}
+
+async function resolveMusicPreviewOnce({
+  key,
+  url,
+  artist,
+  title,
+}: {
+  key: string
+  url: string
+  artist?: string
+  title: string
+}) {
+  const cached = previewResolutionCache.get(key)
+  if (cached && (!cached.expiresAt || cached.expiresAt > Date.now())) {
+    return cached.value
+  }
+  if (cached?.expiresAt && cached.expiresAt <= Date.now()) {
+    previewResolutionCache.delete(key)
+  }
+
+  const inflight = previewResolutionInflight.get(key)
+  if (inflight) return inflight
+
+  const promise = fetch('/api/music/resolve-preview', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ artist: artist || '', title, url }),
+  })
+    .then(async (res) => {
+      if (!res.ok) throw new Error(`resolve-preview failed: ${res.status}`)
+      const data = (await res.json()) as { previewUrl?: string | null }
+      const value = { previewUrl: data.previewUrl || null }
+      previewResolutionCache.set(key, {
+        value,
+        expiresAt: value.previewUrl ? null : Date.now() + PREVIEW_MISS_TTL_MS,
+      })
+      return value
+    })
+    .finally(() => {
+      previewResolutionInflight.delete(key)
+    })
+
+  previewResolutionInflight.set(key, promise)
+  return promise
+}
+
 function getAppleMusicTrackId(url: string): string | null {
   try {
     const parsed = new URL(url)
@@ -96,16 +184,11 @@ export default function MusicEmbedTile({
 
   useEffect(() => {
     let cancelled = false
+    const key = previewResolutionKey({ url, artist, title })
 
     async function resolvePreview() {
       try {
-        const res = await fetch('/api/music/resolve-preview', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ artist: artist || '', title, url }),
-        })
-
-        const data = (await res.json()) as { previewUrl?: string | null }
+        const data = await resolveMusicPreviewOnce({ key, url, artist, title })
         if (cancelled) return
 
         const nextPreviewUrl = data.previewUrl || null
