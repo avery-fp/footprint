@@ -165,6 +165,9 @@ export default function MusicEmbedTile({
   const [resolvedPreviewUrl, setResolvedPreviewUrl] = useState<string | null>(null)
   const [previewResolved, setPreviewResolved] = useState(false)
   const [spotifyEmbedActive, setSpotifyEmbedActive] = useState(false)
+  const [spotifyEmbedWarming, setSpotifyEmbedWarming] = useState(false)
+  const [spotifyEmbedReady, setSpotifyEmbedReady] = useState(false)
+  const spotifyTapPendingRef = useRef(false)
 
   const stopPlayback = useCallback(() => {
     setIsPlaying(false)
@@ -216,12 +219,28 @@ export default function MusicEmbedTile({
             setIsPlaying(false)
           })
           previewAudioRef.current = audio
+          if (spotifyTapPendingRef.current) {
+            spotifyTapPendingRef.current = false
+            setSpotifyEmbedWarming(false)
+            setSpotifyEmbedActive(false)
+            audioManager.playNative(tileIdRef.current, audio)
+            void audio.play().catch(() => setIsPlaying(false))
+          }
+        } else if (spotifyTapPendingRef.current) {
+          spotifyTapPendingRef.current = false
+          setSpotifyEmbedActive(true)
+          setIsPlaying(true)
         }
 
         setPreviewResolved(true)
       } catch {
         if (!cancelled) {
           setResolvedPreviewUrl(null)
+          if (spotifyTapPendingRef.current) {
+            spotifyTapPendingRef.current = false
+            setSpotifyEmbedActive(true)
+            setIsPlaying(true)
+          }
           setPreviewResolved(true)
         }
       }
@@ -280,8 +299,26 @@ export default function MusicEmbedTile({
 
   if (displayMode === 'player') {
     if (provider === 'spotify') {
-      if (spotifyEmbedActive) {
-        return <NativeMusicBar src={embed.embedUrl} title={title} provider={provider} audioId={tileIdRef.current} />
+      if (spotifyEmbedActive || spotifyEmbedWarming) {
+        return (
+          <SpotifyInlineDissolve
+            src={embed.embedUrl}
+            title={title}
+            audioId={tileIdRef.current}
+            ready={spotifyEmbedReady}
+            onReady={() => setSpotifyEmbedReady(true)}
+          >
+            <MusicFacade
+              provider={provider}
+              title={title}
+              artist={artist}
+              image={showArtwork ? image : null}
+              displayMode="player"
+              isPlaying={isPlaying}
+              onImageError={() => setImgFailed(true)}
+            />
+          </SpotifyInlineDissolve>
+        )
       }
       return (
         <MusicSurface
@@ -293,6 +330,11 @@ export default function MusicEmbedTile({
           spotifyPreviewAudio={previewAudioRef.current}
           spotifyPreviewResolved={previewResolved}
           onSpotifyEmbedFallback={() => setSpotifyEmbedActive(true)}
+          onSpotifyEmbedWarm={() => {
+            spotifyTapPendingRef.current = true
+            setSpotifyEmbedReady(false)
+            setSpotifyEmbedWarming(true)
+          }}
         >
           <MusicFacade
             provider={provider}
@@ -345,7 +387,21 @@ export default function MusicEmbedTile({
   )
 }
 
-function NativeMusicBar({ src, title, provider, audioId }: { src: string; title: string; provider: MusicProvider; audioId?: string }) {
+function NativeMusicBar({
+  src,
+  title,
+  provider,
+  audioId,
+  loading = 'lazy',
+  onReady,
+}: {
+  src: string
+  title: string
+  provider: MusicProvider
+  audioId?: string
+  loading?: 'eager' | 'lazy'
+  onReady?: () => void
+}) {
   const audioIdRef = useRef(audioId ?? `music-native-${provider}-${src}`)
 
   return (
@@ -365,7 +421,8 @@ function NativeMusicBar({ src, title, provider, audioId }: { src: string; title:
           ? 'autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture'
           : 'autoplay *; encrypted-media *; fullscreen *'}
         sandbox={provider === 'apple_music' ? 'allow-forms allow-scripts allow-same-origin allow-popups' : undefined}
-        loading="lazy"
+        loading={loading}
+        onLoad={onReady}
       />
       {provider === 'spotify' && (
         <span
@@ -374,6 +431,55 @@ function NativeMusicBar({ src, title, provider, audioId }: { src: string; title:
           style={{ background: '#202020' }}
         />
       )}
+    </div>
+  )
+}
+
+function SpotifyInlineDissolve({
+  src,
+  title,
+  audioId,
+  ready,
+  onReady,
+  children,
+}: {
+  src: string
+  title: string
+  audioId: string
+  ready: boolean
+  onReady: () => void
+  children: ReactNode
+}) {
+  return (
+    <div className="relative h-full w-full overflow-hidden fp-tile" style={{ borderRadius: 'inherit' }}>
+      <div
+        className="absolute inset-0"
+        style={{
+          opacity: ready ? 1 : 0,
+          transition: 'opacity 260ms ease-out',
+          zIndex: 1,
+        }}
+      >
+        <NativeMusicBar
+          src={src}
+          title={title}
+          provider="spotify"
+          audioId={audioId}
+          loading="eager"
+          onReady={onReady}
+        />
+      </div>
+      <div
+        className="absolute inset-0"
+        style={{
+          opacity: ready ? 0 : 1,
+          transition: 'opacity 260ms ease-out',
+          pointerEvents: 'none',
+          zIndex: 2,
+        }}
+      >
+        {children}
+      </div>
     </div>
   )
 }
@@ -387,6 +493,7 @@ function MusicSurface({
   spotifyPreviewAudio,
   spotifyPreviewResolved = false,
   onSpotifyEmbedFallback,
+  onSpotifyEmbedWarm,
   children,
 }: {
   url: string
@@ -397,6 +504,7 @@ function MusicSurface({
   spotifyPreviewAudio?: HTMLAudioElement | null
   spotifyPreviewResolved?: boolean
   onSpotifyEmbedFallback?: () => void
+  onSpotifyEmbedWarm?: () => void
   children: ReactNode
 }) {
   const appleAudioRef = useRef<HTMLAudioElement | null>(null)
@@ -463,6 +571,9 @@ function MusicSurface({
     if (provider === 'spotify') {
       if (!spotifyPreviewResolved) {
         pendingPlayRef.current = true
+        audioManager.activateProvider(tileId)
+        onPlayingChange(true)
+        onSpotifyEmbedWarm?.()
         return
       }
 
@@ -508,7 +619,7 @@ function MusicSurface({
       audioManager.release(tileId)
       audioManager.silenceNativeMedia(audio, true)
     }
-  }, [isPlaying, onPlayingChange, onSpotifyEmbedFallback, provider, setPlaybackState, spotifyPreviewAudio, spotifyPreviewResolved, tileId])
+  }, [isPlaying, onPlayingChange, onSpotifyEmbedFallback, onSpotifyEmbedWarm, provider, setPlaybackState, spotifyPreviewAudio, spotifyPreviewResolved, tileId])
 
   return (
     <div className="relative h-full w-full" onClick={handleToggle}>
