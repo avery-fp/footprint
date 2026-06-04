@@ -2033,8 +2033,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         <div
           className="fixed z-30"
           style={{
-            top: 'calc(env(safe-area-inset-top, 0px) + 16px)',
-            right: '16px',
+            top: 'var(--fp-top-control-y)',
+            right: 'var(--fp-top-control-right)',
           }}
         >
           <ClaimPlaque onClick={() => setDraftClaimOpen(true)} />
@@ -2094,10 +2094,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           }}
           className="fixed z-30 flex items-center justify-center touch-manipulation"
           style={{
-            top: 'calc(env(safe-area-inset-top, 0px) + 16px)',
-            right: '16px',
-            width: 36,
-            height: 36,
+            top: 'var(--fp-top-control-y)',
+            right: 'var(--fp-top-control-right)',
+            width: 44,
+            height: 44,
             background: 'transparent',
             backdropFilter: 'none',
             WebkitBackdropFilter: 'none',
@@ -2107,9 +2107,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             cursor: 'pointer',
             userSelect: 'none',
             WebkitUserSelect: 'none',
+            WebkitTapHighlightColor: 'transparent',
             boxShadow: 'none',
-            opacity: editTogglePressed ? 0.68 : 1,
-            transform: editTogglePressed ? 'scale(0.94)' : 'scale(1)',
+            opacity: editTogglePressed ? 0.82 : 1,
+            transform: editTogglePressed ? 'scale(0.97)' : 'scale(1)',
             transition: 'opacity 120ms ease-out, transform 120ms ease-out',
           }}
         >
@@ -2134,8 +2135,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         <div
           className="fixed z-30 flex flex-col items-center gap-2"
           style={{
-            top: 'calc(env(safe-area-inset-top, 0px) + 108px)',
-            right: '16px',
+            top: 'var(--fp-editor-panel-y)',
+            right: 'var(--fp-top-control-right)',
           }}
           data-no-wp-press
         >
@@ -2170,7 +2171,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             data-no-wp-press
             className="fixed z-40 flex flex-col font-mono"
             style={{
-              top: 'calc(env(safe-area-inset-top, 0px) + 108px)',
+              top: 'var(--fp-editor-panel-y)',
               right: 56,
               background: 'rgba(0,0,0,0.72)',
               backdropFilter: 'blur(20px)',
@@ -2336,7 +2337,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           <div className="relative mb-4 h-12 md:mb-6">
             <div
               className={`${roomNavDocked ? 'fixed inset-x-0' : 'absolute inset-x-0'} z-30 flex items-center justify-center px-4 py-2 transition-[top] duration-300`}
-              style={{ top: roomNavDocked ? 'calc(env(safe-area-inset-top, 0px) + 60px)' : 0 }}
+              style={{ top: roomNavDocked ? 'var(--fp-room-strip-y)' : 'var(--fp-room-strip-inline-y)' }}
             >
               <div className="flex max-w-full items-center gap-3 overflow-x-auto hide-scrollbar px-1 font-mono" data-no-wp-press>
                 {visibleRooms.map((room, index) => (
@@ -2391,7 +2392,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                     data-no-wp-press
                     className="absolute z-40 flex flex-col font-mono"
                     style={{
-                      top: roomNavDocked ? 'calc(env(safe-area-inset-top, 0px) + 60px)' : 44,
+                      top: roomNavDocked ? 'var(--fp-room-strip-y)' : 44,
                       left: '50%',
                       transform: 'translateX(-50%)',
                       background: 'rgba(0,0,0,0.72)',
@@ -2512,7 +2513,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 <div
                   className="pointer-events-auto flex items-center justify-between px-5 flex-shrink-0 relative z-[2]"
                   style={{
-                    height: '52px',
+                    height: 'var(--fp-collection-header-height)',
+                    paddingTop: 'var(--fp-collection-header-padding-top)',
                     ...glassStyle,
                     border: 'none',
                     borderBottom: '1px solid rgba(255,255,255,0.025)',
@@ -2651,9 +2653,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         <div
           className="fixed"
           style={{
-            top: 'calc(env(safe-area-inset-top, 0px) + 16px)',
-            left: 'calc(env(safe-area-inset-left, 0px) + 16px)',
-            zIndex: expanded ? 60 : 20,
+            top: 'var(--fp-top-control-y)',
+            left: 'var(--fp-top-control-left)',
+            zIndex: expanded ? 60 : 32,
           }}
         >
           <PlusButton slug={footprint.username} />

@@ -23,6 +23,28 @@
   --shadow-md: 0 4px 12px rgba(0,0,0,0.6);
   --shadow-lg: 0 8px 32px rgba(0,0,0,0.7);
   --glow-subtle: 0 0 40px rgba(255,255,255,0.02);
+
+  /* Top control lanes: shared safe-area coordinates for iOS PWA + Safari. */
+  --fp-safe-top: env(safe-area-inset-top, 0px);
+  --fp-safe-left: env(safe-area-inset-left, 0px);
+  --fp-safe-right: env(safe-area-inset-right, 0px);
+  --fp-top-control-y: calc(var(--fp-safe-top) + 16px);
+  --fp-top-control-left: calc(var(--fp-safe-left) + 18px);
+  --fp-top-control-right: calc(var(--fp-safe-right) + 16px);
+  --fp-room-strip-y: calc(var(--fp-safe-top) + 64px);
+  --fp-room-strip-inline-y: 0px;
+  --fp-editor-panel-y: calc(var(--fp-room-strip-y) + 48px);
+  --fp-collection-header-height: calc(var(--fp-safe-top) + 52px);
+  --fp-collection-header-padding-top: var(--fp-safe-top);
+}
+
+@media (display-mode: standalone) {
+  :root {
+    --fp-top-control-y: calc(var(--fp-safe-top) + 18px);
+    --fp-top-control-left: calc(var(--fp-safe-left) + 20px);
+    --fp-top-control-right: calc(var(--fp-safe-right) + 18px);
+    --fp-room-strip-y: calc(var(--fp-safe-top) + 68px);
+  }
 }
 
 * {

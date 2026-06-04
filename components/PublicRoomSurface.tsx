@@ -347,7 +347,7 @@ export default function PublicRoomSurface({
         <div className="relative mb-4 h-12 md:mb-6">
           <div
             className={`${roomNavDocked ? 'fixed inset-x-0' : 'absolute inset-x-0'} z-30 flex items-center justify-center px-4 py-2 transition-[top] duration-300`}
-            style={{ top: roomNavDocked ? 'calc(env(safe-area-inset-top, 0px) + 60px)' : 0 }}
+            style={{ top: roomNavDocked ? 'var(--fp-room-strip-y)' : 'var(--fp-room-strip-inline-y)' }}
           >
             <div className="flex max-w-full items-center gap-3 overflow-x-auto hide-scrollbar px-1 font-mono" data-no-wp-press>
               {visibleRooms.map((room) => {
@@ -436,7 +436,8 @@ export default function PublicRoomSurface({
               <div
                 className="pointer-events-auto flex items-center justify-between px-5 flex-shrink-0 relative z-[2]"
                 style={{
-                  height: '52px',
+                  height: 'var(--fp-collection-header-height)',
+                  paddingTop: 'var(--fp-collection-header-padding-top)',
                   ...glassStyle,
                   border: 'none',
                   borderBottom: '1px solid rgba(255,255,255,0.06)',
