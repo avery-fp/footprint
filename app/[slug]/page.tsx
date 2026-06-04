@@ -6,8 +6,7 @@ import { getFootprintDisplayTitle } from '@/lib/footprint'
 import { loadFootprint } from '@/lib/loadFootprint'
 import AnalyticsTracker from '@/components/AnalyticsTracker'
 import EventTracker from '@/components/EventTracker'
-import ReferralBanner from '@/components/ReferralBanner'
-import ClaimOverlay from '@/components/ClaimOverlay'
+import PublicAcquisitionOverlays from '@/components/PublicAcquisitionOverlays'
 import PublicPage from './PublicPage'
 import { getPublicPosterUrl, withPublicTileGeometry } from '@/lib/public-tile-geometry'
 
@@ -170,8 +169,7 @@ export default async function FootprintPage({ params }: Props) {
               UUID type so we send user_id there. */}
           <AnalyticsTracker footprintId={footprint.user_id} serialNumber={footprint.serial_number} />
           <EventTracker footprintId={footprint.user_id} />
-          <ReferralBanner serial={serial} />
-          <ClaimOverlay slug={params.slug} />
+          <PublicAcquisitionOverlays serial={serial} slug={params.slug} />
         </>
       )}
       <PublicPage

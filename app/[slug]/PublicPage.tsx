@@ -10,8 +10,6 @@ import WeatherEffect from '@/components/WeatherEffect'
 import { RemoveBubble } from '@/components/RemoveBubble'
 import { PlusButton } from '@/components/PlusButton'
 import FloatingCtaBar from '@/components/FloatingCtaBar'
-import SovereignTile from '@/components/SovereignTile'
-import CommandLayer from '@/components/CommandLayer'
 import AddToHomeScreen from '@/components/AddToHomeScreen'
 import { getGridLayout, tileAspectRatio, LAYOUT_LABELS, type RoomLayout } from '@/lib/grid-layouts'
 import LayoutToggle from '@/components/LayoutToggle'
@@ -32,6 +30,8 @@ const EditAccessScreen = dynamic(() => import('@/components/EditAccessScreen'), 
 const ClaimPlaque = dynamic(() => import('@/components/ClaimPlaque'), { ssr: false })
 const DraftClaimForm = dynamic(() => import('@/components/DraftClaimForm'), { ssr: false })
 const GiftModal = dynamic(() => import('@/components/GiftModal'), { ssr: false })
+const CommandLayer = dynamic(() => import('@/components/CommandLayer'), { ssr: false })
+const SovereignTile = dynamic(() => import('@/components/SovereignTile'), { ssr: false })
 const OwnerDndFrame = dynamic(() => import('@/components/OwnerDndKit').then((m) => m.OwnerDndFrame), { ssr: false })
 const OwnerSortableContext = dynamic(() => import('@/components/OwnerDndKit').then((m) => m.OwnerSortableContext), { ssr: false })
 const SortableTileWrapper = dynamic(() => import('@/components/OwnerDndKit').then((m) => m.SortableTileWrapper), { ssr: false })
