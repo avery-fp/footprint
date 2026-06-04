@@ -85,6 +85,40 @@ function firstVisibleRoomId(rooms: Room[]): string | null {
   return rooms.find(r => r.name && r.name.trim().length > 0)?.id ?? null
 }
 
+const CONTINUITY_TTL_MS = 1000 * 60 * 60 * 2
+
+function continuityKey(slug: string, key: string) {
+  return `fp:${slug}:${key}`
+}
+
+function roomScrollKey(slug: string, roomId: string) {
+  return `fp:${slug}:room:${roomId}:scroll`
+}
+
+function readFreshLocalValue<T>(key: string): T | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.localStorage.getItem(key)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as { value: T; ts: number }
+    if (!parsed || typeof parsed.ts !== 'number') return null
+    if (Date.now() - parsed.ts > CONTINUITY_TTL_MS) {
+      window.localStorage.removeItem(key)
+      return null
+    }
+    return parsed.value
+  } catch {
+    return null
+  }
+}
+
+function writeFreshLocalValue<T>(key: string, value: T) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(key, JSON.stringify({ value, ts: Date.now() }))
+  } catch {}
+}
+
 // Room subtitles removed — the rooms speak for themselves
 // Wallpaper filter + overlay per room live in lib/roomAtmosphere.ts so
 // the editor and public render the same room with the same atmosphere.
@@ -461,6 +495,88 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // per-room atmosphere.
   const { filter: wallpaperFilter, overlay: overlayColor } = getRoomAtmosphere(activeRoomIndex, isSoundRoom)
 
+  const continuityRestoredRef = useRef(false)
+  const scrollRestoreAttemptedRef = useRef(false)
+  const explicitRoomSwitchRef = useRef(false)
+  const lastActiveRoomIdRef = useRef<string | null>(activeRoomId)
+  const saveContinuityRef = useRef<() => void>(() => {})
+
+  useEffect(() => {
+    lastActiveRoomIdRef.current = activeRoomId
+  }, [activeRoomId])
+
+  useEffect(() => {
+    if (continuityRestoredRef.current) return
+    if (!visibleRooms.length) return
+    continuityRestoredRef.current = true
+
+    const savedRoomId = readFreshLocalValue<string>(continuityKey(footprint.username, 'activeRoom'))
+    if (savedRoomId && visibleRooms.some((room) => room.id === savedRoomId)) {
+      setActiveRoomId(savedRoomId)
+      return
+    }
+
+    const first = firstVisibleRoomId(visibleRooms)
+    if (activeRoomId && !visibleRooms.some((room) => room.id === activeRoomId)) {
+      setActiveRoomId(first)
+    }
+  }, [activeRoomId, footprint.username, visibleRooms])
+
+  useEffect(() => {
+    if (!continuityRestoredRef.current) return
+    if (scrollRestoreAttemptedRef.current) return
+    if (explicitRoomSwitchRef.current) return
+    if (!activeRoomId) return
+
+    scrollRestoreAttemptedRef.current = true
+    const savedScroll = readFreshLocalValue<number>(roomScrollKey(footprint.username, activeRoomId))
+    if (typeof savedScroll !== 'number' || savedScroll <= 16) return
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight)
+        if (maxScroll <= 0) return
+        window.scrollTo({ top: Math.min(savedScroll, maxScroll), left: 0, behavior: 'auto' })
+      })
+    })
+  }, [activeRoomId, footprint.username])
+
+  useEffect(() => {
+    saveContinuityRef.current = () => {
+      const roomId = lastActiveRoomIdRef.current
+      if (!roomId || isEditorActive || collectionOverlayOpen) return
+      writeFreshLocalValue(continuityKey(footprint.username, 'activeRoom'), roomId)
+      writeFreshLocalValue(roomScrollKey(footprint.username, roomId), Math.max(0, Math.round(window.scrollY || 0)))
+    }
+  }, [collectionOverlayOpen, footprint.username, isEditorActive])
+
+  useEffect(() => {
+    let rafId = 0
+    const scheduleSave = () => {
+      if (rafId) return
+      rafId = requestAnimationFrame(() => {
+        rafId = 0
+        saveContinuityRef.current()
+      })
+    }
+    const saveNow = () => saveContinuityRef.current()
+    const saveOnVisibility = () => {
+      if (document.visibilityState === 'hidden') saveNow()
+    }
+
+    window.addEventListener('scroll', scheduleSave, { passive: true })
+    window.addEventListener('pagehide', saveNow)
+    window.addEventListener('beforeunload', saveNow)
+    document.addEventListener('visibilitychange', saveOnVisibility)
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId)
+      window.removeEventListener('scroll', scheduleSave)
+      window.removeEventListener('pagehide', saveNow)
+      window.removeEventListener('beforeunload', saveNow)
+      document.removeEventListener('visibilitychange', saveOnVisibility)
+    }
+  }, [])
+
   const handleShare = () => {
     navigator.clipboard.writeText(pageUrl)
     setShowToast(true)
@@ -542,6 +658,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const goToRoom = useCallback((roomId: string | null) => {
     if (roomId === activeRoomId || roomFade !== 'visible') return
 
+    saveContinuityRef.current()
+    explicitRoomSwitchRef.current = true
+    scrollRestoreAttemptedRef.current = true
     setRoomFade('out')
 
     setTimeout(() => {
@@ -551,13 +670,20 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       document.body.scrollTop = 0
 
       setActiveRoomId(roomId)
+      if (roomId) {
+        writeFreshLocalValue(continuityKey(footprint.username, 'activeRoom'), roomId)
+        writeFreshLocalValue(roomScrollKey(footprint.username, roomId), 0)
+      }
 
       requestAnimationFrame(() => {
         setRoomFade('in')
-        setTimeout(() => setRoomFade('visible'), 300)
+        setTimeout(() => {
+          explicitRoomSwitchRef.current = false
+          setRoomFade('visible')
+        }, 300)
       })
     }, 200)
-  }, [activeRoomId, roomFade])
+  }, [activeRoomId, footprint.username, roomFade])
 
   useEffect(() => {
     if (!showToast) return
