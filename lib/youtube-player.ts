@@ -81,7 +81,8 @@ export function shouldRevealYouTubePlayer(
   readyAfterActivation = false,
   hasSettled = false,
 ) {
-  return !isPosterLocked && isActivated && (hasSettled || hasStarted || readyAfterActivation)
+  void hasStarted
+  return !isPosterLocked && isActivated && (hasSettled || readyAfterActivation)
 }
 
 export function shouldShowYouTubePosterVeil(

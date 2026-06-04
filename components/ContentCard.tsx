@@ -607,7 +607,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             onLoad={handleYTLoad}
           />
         </div>
-        {shouldShowPosterVeil && (
+        {(shouldShowPosterVeil || isActivated) && (
           <button
             type="button"
             aria-label="Play video"
@@ -621,6 +621,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               border: 'none',
               padding: 0,
               background: 'transparent',
+              opacity: shouldShowPosterVeil ? 1 : 0,
+              transition: 'opacity 240ms ease-out',
               pointerEvents: isActivated ? 'none' : 'auto',
             }}
           >

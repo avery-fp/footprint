@@ -42,7 +42,7 @@ describe('mobile youtube prewarm contract', () => {
 
   it('keeps the poster visible until playback is confirmed', () => {
     expect(shouldRevealYouTubePlayer(true, false)).toBe(false)
-    expect(shouldRevealYouTubePlayer(true, true)).toBe(true)
+    expect(shouldRevealYouTubePlayer(true, true)).toBe(false)
     expect(shouldRevealYouTubePlayer(true, true, true)).toBe(false)
     expect(shouldRevealYouTubePlayer(true, false, false, true)).toBe(true)
     expect(shouldRevealYouTubePlayer(true, false, true, true)).toBe(false)
@@ -174,7 +174,7 @@ describe('mobile youtube prewarm contract', () => {
   })
 
   it('reveals normal youtube only after the play settle condition when ready-state reveal is disabled', () => {
-    expect(shouldRevealYouTubePlayer(true, true, false, false, false)).toBe(true)
+    expect(shouldRevealYouTubePlayer(true, true, false, false, false)).toBe(false)
     expect(shouldRevealYouTubePlayer(true, false, false, false, true)).toBe(true)
   })
 
