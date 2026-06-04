@@ -7,6 +7,9 @@ import { useAspectDetection } from '@/lib/aspectDetection'
 import { audioManager } from '@/lib/audio-manager'
 import { beginInvocation, isIntentionalInvocation, type InvocationPoint } from '@/lib/media-invocation'
 
+const PUBLIC_EAGER_IMAGE_COUNT = 16
+const PUBLIC_SYNC_DECODE_COUNT = 8
+const PUBLIC_NEAR_VIEWPORT_MARGIN = '1200px 0px 1200px 0px'
 
 function shouldContainUploadedImage(aspect?: unknown, layout?: unknown, size?: unknown) {
   const a = String(aspect || '').toLowerCase()
@@ -46,6 +49,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
   const [videoMuted, setVideoMuted] = useState(true)
   const [videoPressActive, setVideoPressActive] = useState(false)
   const [fallbackVideoResting, setFallbackVideoResting] = useState(false)
+  const [isNearPublicViewport, setIsNearPublicViewport] = useState(false)
   const onAspectDetected = useAspectDetection()
   const fallbackVideoRef = useRef<HTMLVideoElement>(null)
   const audioIdRef = useRef(`tile-image-video-${src}`)
@@ -57,6 +61,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
     setLoaded(false)
     setVideoMuted(true)
     setFallbackVideoResting(false)
+    setIsNearPublicViewport(false)
   }, [src])
 
   // Ref for the grid-mode wrapper div. Used in the mount-time fallback to detect
@@ -128,6 +133,26 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // intentionally empty — one-time mount check only
+
+  useEffect(() => {
+    if (!isPublicView) return
+    const el = containerRef.current
+    if (!el) return
+    if (index < PUBLIC_EAGER_IMAGE_COUNT) {
+      setIsNearPublicViewport(true)
+      return
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return
+        setIsNearPublicViewport(true)
+        observer.disconnect()
+      },
+      { rootMargin: PUBLIC_NEAR_VIEWPORT_MARGIN }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [index, isPublicView])
 
   if (failed && videoFailed) return null
 
@@ -203,8 +228,9 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
   // browser-native scheduling owns loading. Player/video depth still sleeps
   // elsewhere; this is only the visual surface.
   if (isPublicView) {
-    const isPriority = index < 10
-    const isSyncDecode = index < 6
+    const isPriority = index < PUBLIC_EAGER_IMAGE_COUNT
+    const isSyncDecode = index < PUBLIC_SYNC_DECODE_COUNT
+    const shouldLoadNow = isPriority || isNearPublicViewport
     return (
       <div ref={containerRef} className="absolute inset-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -213,7 +239,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
           alt={alt}
           sizes={sizes}
           className={`absolute inset-0 h-full w-full ${shouldContainUploadedImage(aspect, layout, size) ? 'object-contain fp-public-poster fp-public-poster--contain' : 'object-cover fp-public-poster'}`}
-          loading={isPriority ? 'eager' : 'lazy'}
+          loading={shouldLoadNow ? 'eager' : 'lazy'}
           fetchPriority={isPriority ? 'high' : 'auto'}
           decoding={isSyncDecode ? 'sync' : 'async'}
           onError={() => setFailed(true)}

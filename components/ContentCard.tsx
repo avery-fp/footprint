@@ -40,6 +40,9 @@ import { beginInvocation, isIntentionalInvocation, type InvocationPoint } from '
 
 const GlassEmbedFrame = GlassEmbedFrameExtracted
 const GlassPlaceholder = GlassPlaceholderExtracted
+const PUBLIC_EAGER_POSTER_COUNT = 16
+const PUBLIC_SYNC_POSTER_COUNT = 8
+const PUBLIC_MEDIA_ROOT_MARGIN = '1200px 0px 1200px 0px'
 
 // ════════════════════════════════════════
 // AE Embed Heights — stable per-provider defaults
@@ -233,8 +236,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const aspectClass = effectiveAspect === 'wide' ? 'aspect-video' : effectiveAspect === 'tall' ? 'aspect-[9/16]' : effectiveAspect === 'portrait' ? 'aspect-[3/4]' : 'aspect-square'
   const fitClass = 'object-cover'
   const publicPosterClass = isPublicView ? ' fp-public-poster' : ''
-  const isPriorityPoster = isPublicView && index < 10
-  const posterDecoding = isPublicView && index < 6 ? 'sync' : 'async'
+  const isPriorityPoster = isPublicView && index < PUBLIC_EAGER_POSTER_COUNT
+  const posterDecoding = isPublicView && index < PUBLIC_SYNC_POSTER_COUNT ? 'sync' : 'async'
   const [isActivated, setIsActivated] = useState(false)
   const [youtubeHasStarted, setYoutubeHasStarted] = useState(false)
   const [isCoarsePointer, setIsCoarsePointer] = useState(false)
@@ -276,7 +279,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         setIsNearViewport(entry.isIntersecting)
         if (entry.isIntersecting) setIsInView(true)
       },
-      { rootMargin: '900px 0px 900px 0px' }
+      { rootMargin: PUBLIC_MEDIA_ROOT_MARGIN }
     )
     observer.observe(el)
     return () => observer.disconnect()
