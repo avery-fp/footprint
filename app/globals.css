@@ -368,12 +368,6 @@ input:-webkit-autofill:focus {
 }
 
 
-.fp-public-poster--contain {
-  object-fit: contain;
-  object-position: center center;
-  background: rgba(0, 0, 0, 0.28);
-}
-
 .fp-public-horizontal-tile {
   height: var(--fp-rail-height-desktop);
 }

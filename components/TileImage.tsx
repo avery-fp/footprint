@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect, useCallback, type PointerEvent } from 'react'
 import Image from 'next/image'
-import { getObjectFit } from '@/lib/media/aspect'
 import { useAspectDetection } from '@/lib/aspectDetection'
 import { audioManager } from '@/lib/audio-manager'
 import { beginInvocation, isIntentionalInvocation, type InvocationPoint } from '@/lib/media-invocation'
@@ -10,21 +9,6 @@ import { beginInvocation, isIntentionalInvocation, type InvocationPoint } from '
 const PUBLIC_EAGER_IMAGE_COUNT = 16
 const PUBLIC_SYNC_DECODE_COUNT = 8
 const PUBLIC_NEAR_VIEWPORT_MARGIN = '1200px 0px 1200px 0px'
-
-function shouldContainUploadedImage(aspect?: unknown, layout?: unknown, size?: unknown) {
-  const a = String(aspect || '').toLowerCase()
-  const l = String(layout || '').toLowerCase()
-  const z = String(size || '').toLowerCase()
-
-  return (
-    a.includes('wide') ||
-    a.includes('tall') ||
-    a.includes('portrait') ||
-    a.includes('panoramic') ||
-    l.includes('screenshot') ||
-    z.includes('screenshot')
-  )
-}
 
 interface TileImageProps {
   src: string
@@ -238,7 +222,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
           src={src}
           alt={alt}
           sizes={sizes}
-          className={`absolute inset-0 h-full w-full ${shouldContainUploadedImage(aspect, layout, size) ? 'object-contain fp-public-poster fp-public-poster--contain' : 'object-cover fp-public-poster'}`}
+          className="absolute inset-0 h-full w-full object-cover fp-public-poster"
           loading={shouldLoadNow ? 'eager' : 'lazy'}
           fetchPriority={isPriority ? 'high' : 'auto'}
           decoding={isSyncDecode ? 'sync' : 'async'}
@@ -257,7 +241,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
         fill
         sizes={sizes}
         className={isPublicView
-          ? (shouldContainUploadedImage(aspect, layout, size) ? 'object-contain fp-public-poster fp-public-poster--contain' : 'object-cover fp-public-poster')
+          ? 'object-cover fp-public-poster'
           : `object-cover transition-opacity duration-700 ease-out ${loaded ? 'opacity-100' : 'opacity-0'}`}
         loading="lazy"
         quality={90}
