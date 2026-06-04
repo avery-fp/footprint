@@ -5,6 +5,7 @@ function media(overrides: Partial<HTMLMediaElement> = {}) {
   return {
     volume: 1,
     muted: false,
+    play: vi.fn().mockResolvedValue(undefined),
     pause: vi.fn(),
     ...overrides,
   } as unknown as HTMLMediaElement

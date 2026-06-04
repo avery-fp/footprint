@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { getGridClass, resolveAspect } from '@/lib/media/aspect'
 
 describe('music aspect rules', () => {
-  it('defaults music tiles to the compact bar', () => {
+  it('uses provider-native default music geometry', () => {
     expect(resolveAspect(null, 'spotify')).toBe('wide')
-    expect(resolveAspect(undefined, 'apple_music')).toBe('wide')
+    expect(resolveAspect(undefined, 'apple_music')).toBe('square')
   })
 
   it('only preserves square as an alternate music shape', () => {
