@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Image from 'next/image'
+import dynamic from 'next/dynamic'
 import UnifiedTile from '@/components/UnifiedTile'
 import PublicRoomSurface from '@/components/PublicRoomSurface'
 
@@ -10,16 +11,8 @@ import { RemoveBubble } from '@/components/RemoveBubble'
 import { PlusButton } from '@/components/PlusButton'
 import FloatingCtaBar from '@/components/FloatingCtaBar'
 import SovereignTile from '@/components/SovereignTile'
-import ClaimPlaque from '@/components/ClaimPlaque'
-import DraftClaimForm from '@/components/DraftClaimForm'
-import GiftModal from '@/components/GiftModal'
 import CommandLayer from '@/components/CommandLayer'
-import OwnerActionBar from '@/components/OwnerActionBar'
-import OwnerTileSheet from '@/components/OwnerTileSheet'
-import RoomLockOverlay from '@/components/RoomLockOverlay'
-import EditAccessScreen from '@/components/EditAccessScreen'
 import AddToHomeScreen from '@/components/AddToHomeScreen'
-import { uploadWithProgress as uploadShared, resizeImage as resizeShared, detectImageAspect as detectAspectShared } from '@/lib/upload'
 import { getGridLayout, tileAspectRatio, LAYOUT_LABELS, type RoomLayout } from '@/lib/grid-layouts'
 import LayoutToggle from '@/components/LayoutToggle'
 import { glassStyle } from '@/lib/glass'
@@ -31,26 +24,17 @@ import { getFootprintDisplayTitle } from '@/lib/footprint'
 import { getRoomAtmosphere } from '@/lib/roomAtmosphere'
 import { wallpaperSourceFromTile } from '@/lib/tile-rendering'
 import { transformImageUrl } from '@/lib/image'
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  MouseSensor,
-  TouchSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-  DragStartEvent,
-} from '@dnd-kit/core'
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  rectSortingStrategy,
-  horizontalListSortingStrategy,
-  useSortable,
-} from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
+
+const OwnerActionBar = dynamic(() => import('@/components/OwnerActionBar'), { ssr: false })
+const OwnerTileSheet = dynamic(() => import('@/components/OwnerTileSheet'), { ssr: false })
+const RoomLockOverlay = dynamic(() => import('@/components/RoomLockOverlay'), { ssr: false })
+const EditAccessScreen = dynamic(() => import('@/components/EditAccessScreen'), { ssr: false })
+const ClaimPlaque = dynamic(() => import('@/components/ClaimPlaque'), { ssr: false })
+const DraftClaimForm = dynamic(() => import('@/components/DraftClaimForm'), { ssr: false })
+const GiftModal = dynamic(() => import('@/components/GiftModal'), { ssr: false })
+const OwnerDndFrame = dynamic(() => import('@/components/OwnerDndKit').then((m) => m.OwnerDndFrame), { ssr: false })
+const OwnerSortableContext = dynamic(() => import('@/components/OwnerDndKit').then((m) => m.OwnerSortableContext), { ssr: false })
+const SortableTileWrapper = dynamic(() => import('@/components/OwnerDndKit').then((m) => m.SortableTileWrapper), { ssr: false })
 
 interface Room {
   id: string
@@ -83,6 +67,13 @@ interface PublicPageProps {
 
 function firstVisibleRoomId(rooms: Room[]): string | null {
   return rooms.find(r => r.name && r.name.trim().length > 0)?.id ?? null
+}
+
+function arrayMoveLocal<T>(items: T[], from: number, to: number): T[] {
+  const next = items.slice()
+  const [item] = next.splice(from, 1)
+  next.splice(to, 0, item)
+  return next
 }
 
 const CONTINUITY_TTL_MS = 1000 * 60 * 60 * 2
@@ -124,72 +115,6 @@ function writeFreshLocalValue<T>(key: string, value: T) {
 // Room subtitles removed — the rooms speak for themselves
 // Wallpaper filter + overlay per room live in lib/roomAtmosphere.ts so
 // the editor and public render the same room with the same atmosphere.
-
-// Module-scope component. Defined inside PublicPage it became a fresh
-// function reference each render — React saw a new component type for
-// every tile and unmounted/remounted the entire tile subtree (iframes,
-// videos, IntersectionObservers) on every parent state change. Hoisting
-// keeps each tile's instance stable across re-renders.
-function SortableTileWrapper({ item, idx, children, className, style: extraStyle, disabled, dataCollectionChildId }: { item: any; idx: number; children: React.ReactNode; className?: string; style?: React.CSSProperties; disabled?: boolean; dataCollectionChildId?: string }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id, disabled })
-  // Desktop drag activation used to paint the wrapper on a new
-  // compositor layer at the same instant it gained a translate3d, a
-  // shadow, and a zIndex bump. Promoting the layer at that moment
-  // recentered its paint box around the freshly-added shadow and
-  // read as an upward pop, because the shadow extends downward and
-  // MouseSensor's 4px distance threshold fires mid-motion. Removing
-  // scale(1.04) in #410 was correct but not sufficient. We now
-  // pre-promote the layer (baseline translate3d(0,0,0) + will-change)
-  // and keep the boxShadow property present at all times (none → real)
-  // so neither the transform stack nor the paint bounds change
-  // discontinuously at activation. Mobile uses delay:200, so any
-  // layer settling completes during the hold — the pop wasn't visible
-  // there. Transition stays suppressed while dragging so the active
-  // tile tracks the cursor 1:1.
-  const baseTransform = CSS.Transform.toString(transform) || 'translate3d(0,0,0)'
-  const style: React.CSSProperties = {
-    transform: baseTransform,
-    transition: isDragging ? 'none' : (transition || 'transform 220ms cubic-bezier(0.2, 0.9, 0.3, 1)'),
-    willChange: 'transform',
-    boxShadow: isDragging ? '0 18px 48px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.35)' : 'none',
-    ...(isDragging ? {
-      zIndex: 50,
-      cursor: 'grabbing',
-    } : null),
-    ...extraStyle,
-  }
-  return (
-    <div ref={setNodeRef} style={style} className={className} data-collection-child-id={dataCollectionChildId} {...attributes} {...listeners}>
-      {children}
-    </div>
-  )
-}
-
-function OwnerDndFrame({
-  children,
-  onDragStart,
-  onDragEnd,
-}: {
-  children: React.ReactNode
-  onDragStart: (event: DragStartEvent) => void
-  onDragEnd: (event: DragEndEvent) => void
-}) {
-  const mouseSensor = useSensor(MouseSensor, { activationConstraint: { distance: 4 } })
-  const touchSensor = useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } })
-  const keyboardSensor = useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  const ownerSensors = useSensors(mouseSensor, touchSensor, keyboardSensor)
-
-  return (
-    <DndContext
-      sensors={ownerSensors}
-      collisionDetection={closestCenter}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-    >
-      {children}
-    </DndContext>
-  )
-}
 
 export default function PublicPage({ footprint, content: allContent, rooms, theme, serial, pageUrl, isDraft, isOwnerHinted = false, containerMeta = {}, ownerEmail = null, wantsEditOverlay = false }: PublicPageProps) {
   const [activeRoomId, setActiveRoomId] = useState<string | null>(() => firstVisibleRoomId(rooms))
@@ -1185,11 +1110,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     }
   }
 
-  function handleDragStart(event: DragStartEvent) {
+  function handleDragStart(event: any) {
     setDraggingTileId(String(event.active.id))
   }
 
-  function handleDragEnd(event: DragEndEvent) {
+  function handleDragEnd(event: any) {
     setDraggingTileId(null)
     const { active, over } = event
     if (!over || active.id === over.id) return
@@ -1206,7 +1131,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     const newIndex = localContent.findIndex((item: any) => item.id === over.id)
     if (oldIndex === -1 || newIndex === -1) return
 
-    const reordered = arrayMove(localContent, oldIndex, newIndex).map((item: any, index: number) => ({ ...item, position: index }))
+    const reordered = arrayMoveLocal(localContent, oldIndex, newIndex).map((item: any, index: number) => ({ ...item, position: index }))
     setLocalContent(reordered)
     setRoomsLocal((prev) =>
       prev.map((room: any) =>
@@ -1298,7 +1223,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     }).catch(e => console.error('Failed to reorder child tiles:', e))
   }
 
-  function handleChildDragEnd(event: DragEndEvent) {
+  function handleChildDragEnd(event: any) {
     setDraggingTileId(null)
     const { active, over } = event
     if (!over || active.id === over.id) return
@@ -1307,7 +1232,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     const newIndex = localChildren.findIndex((item: any) => item.id === over.id)
     if (oldIndex === -1 || newIndex === -1) return
 
-    const reordered = arrayMove(localChildren, oldIndex, newIndex).map((item: any, index: number) => ({ ...item, position: index }))
+    const reordered = arrayMoveLocal(localChildren, oldIndex, newIndex).map((item: any, index: number) => ({ ...item, position: index }))
     pendingCollectionFocusId.current = String(active.id)
     setLocalChildren(reordered)
     const save = fetch('/api/tiles', {
@@ -1375,6 +1300,11 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     let previewUrl: string | null = null
     const tempId = `temp-child-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
     try {
+      const {
+        uploadWithProgress: uploadShared,
+        resizeImage: resizeShared,
+        detectImageAspect: detectAspectShared,
+      } = await import('@/lib/upload')
       const aspect = await detectAspectShared(file).catch(() => 'square')
       previewUrl = URL.createObjectURL(file)
       const tempChild = {
@@ -2032,9 +1962,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // for the send-to-room gesture. Here we just hand back the grid
   // wrapped in a SortableContext for tile reorder.
   const activeGrid = isEditorActive ? (
-    <SortableContext items={displayContent.map((item: any) => item.id)} strategy={rectSortingStrategy}>
+    <OwnerSortableContext items={displayContent.map((item: any) => item.id)} orientation="grid">
       {gridInner}
-    </SortableContext>
+    </OwnerSortableContext>
   ) : gridInner
 
   return (
@@ -2621,9 +2551,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                         onDragStart={handleDragStart}
                         onDragEnd={handleChildDragEnd}
                       >
-                        <SortableContext items={localChildren.map((item: any) => item.id)} strategy={horizontalListSortingStrategy}>
+                        <OwnerSortableContext items={localChildren.map((item: any) => item.id)} orientation="horizontal">
                           {renderHorizontalTiles(localChildren, renderCollectionTileBody, renderCollectionOwnerControls, false, false, true)}
-                        </SortableContext>
+                        </OwnerSortableContext>
                       </OwnerDndFrame>
                     ) : (
                       renderHorizontalTiles(localChildren, renderCollectionTileBody, renderCollectionOwnerControls, false, false, true)
