@@ -8,7 +8,7 @@ import { audioManager } from '@/lib/audio-manager'
 import { beginInvocation, isIntentionalInvocation, type InvocationPoint } from '@/lib/media-invocation'
 
 
-function shouldContainUploadedImage(aspect?: string | null, layout?: string | null, size?: string | null) {
+function shouldContainUploadedImage(aspect?: unknown, layout?: unknown, size?: unknown) {
   const a = String(aspect || '').toLowerCase()
   const l = String(layout || '').toLowerCase()
   const z = String(size || '').toLowerCase()
