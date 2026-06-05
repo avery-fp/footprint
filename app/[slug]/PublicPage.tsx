@@ -247,20 +247,28 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [titleEditing, setTitleEditing] = useState(false)
   const pendingSavesRef = useRef<Promise<unknown>[]>([])
 
-  const handleDoneEditing = async () => {
+  const handleDoneEditing = () => {
+    setPillMenuOpenForId(null)
+    setPageSettingsOpen(false)
+    setSelectedTileId(null)
+    setTitleEditing(false)
+    setEditorMode(false)
+
+    let titleSave: Promise<unknown> | null = null
     if (titleEditing) {
-      await commitTitleEdit()
-      setTitleEditing(false)
+      titleSave = commitTitleEdit().catch((error) => {
+        console.error('title save failed while leaving edit mode:', error)
+        showQuietToast('title not saved.')
+      })
     }
 
     const pending = pendingSavesRef.current
-    if (pending.length) {
-      await Promise.allSettled(pending)
+    if (titleSave || pending.length) {
+      void Promise.allSettled([
+        ...(titleSave ? [titleSave] : []),
+        ...pending,
+      ])
     }
-
-    setPillMenuOpenForId(null)
-    setSelectedTileId(null)
-    setEditorMode(false)
   }
   const titleInputRef = useRef<HTMLInputElement>(null)
   // Wallpaper local state — mirrors the prop so blur and replace-image
@@ -2046,7 +2054,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           toggle behavior. */}
       {isDraft && isOwner && !expanded && (
         <div
-          className="fixed z-30"
+          className="fixed z-50"
           style={{
             top: 'var(--fp-top-control-y)',
             right: 'var(--fp-top-control-right)',
@@ -2104,10 +2112,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           onPointerLeave={() => setEditTogglePressed(false)}
           onClick={() => {
             setEditTogglePressed(false)
-            if (editorMode) void handleDoneEditing()
+            if (editorMode) handleDoneEditing()
             else setEditorMode(true)
           }}
-          className="fixed z-30 flex items-center justify-center touch-manipulation"
+          className="fixed z-50 flex items-center justify-center touch-manipulation"
           style={{
             top: 'var(--fp-top-control-y)',
             right: 'var(--fp-top-control-right)',
@@ -2148,9 +2156,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           top. */}
       {isOwner && editorMode && !expanded && (
         <div
-          className="fixed z-30 flex flex-col items-center gap-2"
+          className="fixed z-40 flex flex-col items-center gap-2"
           style={{
-            top: 'var(--fp-editor-panel-y)',
+            top: 'var(--fp-owner-editor-panel-y)',
             right: 'var(--fp-top-control-right)',
           }}
           data-no-wp-press
@@ -2186,7 +2194,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             data-no-wp-press
             className="fixed z-40 flex flex-col font-mono"
             style={{
-              top: 'var(--fp-editor-panel-y)',
+              top: 'var(--fp-owner-editor-panel-y)',
               right: 56,
               background: 'rgba(0,0,0,0.72)',
               backdropFilter: 'blur(20px)',
@@ -2352,9 +2360,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           <div className="relative mb-4 h-12 md:mb-6">
             <div
               className={`${roomNavDocked ? 'fixed inset-x-0' : 'absolute inset-x-0'} z-30 flex items-center justify-center px-4 py-2 transition-[top] duration-300`}
-              style={{ top: roomNavDocked ? 'var(--fp-room-strip-y)' : 'var(--fp-room-strip-inline-y)' }}
+              style={{ top: roomNavDocked ? (isOwner && editorMode ? 'var(--fp-owner-room-strip-y)' : 'var(--fp-room-strip-y)') : 'var(--fp-room-strip-inline-y)' }}
             >
-              <div className="flex max-w-full items-center gap-3 overflow-x-auto hide-scrollbar px-1 font-mono" data-no-wp-press>
+              <div
+                className="flex max-w-full items-center gap-3 overflow-x-auto hide-scrollbar px-1 font-mono"
+                style={isOwner && editorMode ? { paddingRight: 'calc(var(--fp-safe-right) + 72px)' } : undefined}
+                data-no-wp-press
+              >
                 {visibleRooms.map((room, index) => (
                   <RoomPillNode key={room.id} room={room} index={index} />
                 ))}
@@ -2379,6 +2391,8 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                       border: 'none',
                       padding: '8px 6px',
                       margin: '-8px -2px',
+                      minWidth: 44,
+                      minHeight: 44,
                       cursor: 'pointer',
                     }}
                   >
@@ -2407,7 +2421,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                     data-no-wp-press
                     className="absolute z-40 flex flex-col font-mono"
                     style={{
-                      top: roomNavDocked ? 'var(--fp-room-strip-y)' : 44,
+                      top: roomNavDocked ? (isOwner && editorMode ? 'var(--fp-owner-room-strip-y)' : 'var(--fp-room-strip-y)') : 44,
                       left: '50%',
                       transform: 'translateX(-50%)',
                       background: 'rgba(0,0,0,0.72)',
