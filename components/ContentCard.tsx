@@ -31,7 +31,6 @@ import {
   shouldUseYouTubePosterSurface,
   startYouTubePlayback,
   YOUTUBE_READY_SETTLE_MS,
-  YOUTUBE_REVEAL_FALLBACK_MS,
 } from '@/lib/youtube-player'
 import { beginInvocation, isIntentionalInvocation, type InvocationPoint } from '@/lib/media-invocation'
 
@@ -274,7 +273,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const youtubePendingActivationRef = useRef(false)
   const youtubeRevealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const invocationPointRef = useRef<InvocationPoint | null>(null)
-  const [youtubeFrameReady, setYoutubeFrameReady] = useState(false)
   const [youtubeRevealSettled, setYoutubeRevealSettled] = useState(false)
   const [pressActive, setPressActive] = useState(false)
   // FIDELIO: Detect post vs profile for social embeds
@@ -331,12 +329,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         youtubeRevealTimerRef.current = null
       }
       youtubePendingActivationRef.current = false
-      youtubePlayerReadyRef.current = false
       activatedRef.current = false
       audioManager.release(audioIdRef.current)
       setIsActivated(false)
       setYoutubeHasStarted(false)
-      setYoutubeFrameReady(false)
       setYoutubeRevealSettled(false)
     } else if (content.type === 'soundcloud' || content.type === 'spotify' || musicProviderFromUrl(content.url) || content.type === 'tiktok') {
       activatedRef.current = false
@@ -370,7 +366,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     setIsActivated(true)
     if (content.type === 'youtube') {
       setYoutubeHasStarted(false)
-      setYoutubeFrameReady(youtubePlayerReadyRef.current)
       setYoutubeRevealSettled(false)
       if (youtubeRevealTimerRef.current) {
         clearTimeout(youtubeRevealTimerRef.current)
@@ -483,7 +478,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       activatedRef.current = false
       setIsActivated(false)
       setYoutubeHasStarted(false)
-      setYoutubeFrameReady(false)
       setYoutubeRevealSettled(false)
     }
     window.addEventListener('fp:collection-scroll-start', onCollectionScroll)
@@ -527,15 +521,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         youtubePlayerReadyRef.current = true
         const activation = consumePendingYouTubeActivation(youtubePendingActivationRef.current)
         youtubePendingActivationRef.current = activation.pendingActivation
-        setYoutubeFrameReady(true)
         if (activation.shouldPlayNow) {
           startYouTubePlayback(iframe)
-        }
-        if (!isSoundRoom) {
-          if (youtubeRevealTimerRef.current) clearTimeout(youtubeRevealTimerRef.current)
-          youtubeRevealTimerRef.current = setTimeout(() => {
-            setYoutubeRevealSettled(true)
-          }, YOUTUBE_REVEAL_FALLBACK_MS)
         }
       }, YOUTUBE_READY_SETTLE_MS)
     }
@@ -544,7 +531,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     const shouldUsePosterSurface = shouldUseYouTubePosterSurface(isSoundRoom, isYouTubeShort, effectiveAspect)
     const shouldMountPlayer = shouldMountYouTubePlayer('youtube', isActivated, isCoarsePointer, isNearViewport)
     const shouldRevealFromReadyState =
-      youtubeFrameReady && !youtubePendingActivationRef.current
+      !isCoarsePointer && youtubePlayerReadyRef.current && !youtubePendingActivationRef.current
     const shouldRevealPlayer = shouldUsePosterSurface
       ? shouldRevealYouTubePlayer(isActivated, youtubeHasStarted, true, false, false)
       : shouldRevealYouTubePlayer(
@@ -639,7 +626,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             onLoad={handleYTLoad}
           />
         </div>
-        {(shouldShowPosterVeil || isActivated) && (
+        {shouldShowPosterVeil && (
           <button
             type="button"
             aria-label="Play video"
@@ -653,8 +640,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               border: 'none',
               padding: 0,
               background: 'transparent',
-              opacity: shouldShowPosterVeil ? 1 : 0,
-              transition: 'opacity 240ms ease-out',
               pointerEvents: isActivated ? 'none' : 'auto',
             }}
           >

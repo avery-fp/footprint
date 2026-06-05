@@ -13,7 +13,6 @@ import {
   shouldUseYouTubePosterSurface,
   startYouTubePlayback,
   YOUTUBE_READY_SETTLE_MS,
-  YOUTUBE_REVEAL_FALLBACK_MS,
   youtubePrewarmOptions,
 } from '@/lib/youtube-player'
 
@@ -41,11 +40,12 @@ describe('mobile youtube prewarm contract', () => {
     expect(shouldMountYouTubePlayer('youtube', true, true, false)).toBe(true)
   })
 
-  it('keeps the poster visible until playback is confirmed', () => {
-    expect(shouldRevealYouTubePlayer(true, false)).toBe(false)
-    expect(shouldRevealYouTubePlayer(true, true)).toBe(false)
+  it('reveals normal youtube immediately after activation', () => {
+    expect(shouldRevealYouTubePlayer(false, false)).toBe(false)
+    expect(shouldRevealYouTubePlayer(true, false)).toBe(true)
+    expect(shouldRevealYouTubePlayer(true, true)).toBe(true)
     expect(shouldRevealYouTubePlayer(true, true, true)).toBe(false)
-    expect(shouldRevealYouTubePlayer(true, false, false, true)).toBe(false)
+    expect(shouldRevealYouTubePlayer(true, false, false, true)).toBe(true)
     expect(shouldRevealYouTubePlayer(true, true, false, true)).toBe(true)
     expect(shouldRevealYouTubePlayer(true, false, true, true)).toBe(false)
     expect(shouldRevealYouTubePlayer(true, false, false, true, true)).toBe(true)
@@ -155,9 +155,8 @@ describe('mobile youtube prewarm contract', () => {
     expect(YOUTUBE_READY_SETTLE_MS).toBe(800)
   })
 
-  it('keeps normal youtube veiled once activation has been consumed if PLAYING arrives late', () => {
-    expect(shouldRevealYouTubePlayer(true, false, false, true)).toBe(false)
-    expect(shouldRevealYouTubePlayer(true, false, false, true, true)).toBe(true)
+  it('reveals normal youtube once activation has been consumed even if PLAYING arrives late', () => {
+    expect(shouldRevealYouTubePlayer(true, false, false, true)).toBe(true)
   })
 
   it('keeps poster-locked music hidden even after activation is consumed', () => {
@@ -172,17 +171,16 @@ describe('mobile youtube prewarm contract', () => {
     expect(shouldUseYouTubePosterSurface(false, false, 'square')).toBe(false)
   })
 
-  it('does not reveal normal youtube immediately on activation before play settles', () => {
-    expect(shouldRevealYouTubePlayer(true, false, false, false, false)).toBe(false)
+  it('reveals normal youtube immediately on activation before play settles', () => {
+    expect(shouldRevealYouTubePlayer(true, false, false, false, false)).toBe(true)
   })
 
-  it('reveals normal youtube only after the play settle condition when ready-state reveal is disabled', () => {
-    expect(shouldRevealYouTubePlayer(true, true, false, false, false)).toBe(false)
+  it('does not require play settle or ready-state reveal for normal youtube', () => {
+    expect(shouldRevealYouTubePlayer(true, true, false, false, false)).toBe(true)
     expect(shouldRevealYouTubePlayer(true, false, false, true, true)).toBe(true)
   })
 
   it('uses a dedicated mobile settle delay for clean youtube reveal', () => {
     expect(YOUTUBE_MOBILE_REVEAL_SETTLE_MS).toBe(900)
-    expect(YOUTUBE_REVEAL_FALLBACK_MS).toBe(1200)
   })
 })
