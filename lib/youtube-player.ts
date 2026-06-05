@@ -1,5 +1,5 @@
 const YOUTUBE_PLAY_RETRY_MS = [250, 700, 1200] as const
-export const YOUTUBE_READY_SETTLE_MS = 800
+export const YOUTUBE_READY_SETTLE_MS = 80
 export const YOUTUBE_MOBILE_REVEAL_SETTLE_MS = 900
 
 function postYouTubeMessage(

@@ -405,6 +405,18 @@ input:-webkit-autofill:focus {
   }
 }
 
+@keyframes fp-youtube-ack-veil {
+  0% {
+    opacity: 1;
+  }
+  62% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fp-media-settle {
     animation: none;

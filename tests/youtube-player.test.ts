@@ -152,7 +152,7 @@ describe('mobile youtube prewarm contract', () => {
   })
 
   it('uses a single settled-ready delay for hidden priming', () => {
-    expect(YOUTUBE_READY_SETTLE_MS).toBe(800)
+    expect(YOUTUBE_READY_SETTLE_MS).toBe(80)
   })
 
   it('reveals normal youtube once activation has been consumed even if PLAYING arrives late', () => {

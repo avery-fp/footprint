@@ -589,7 +589,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     // The iframe may mount hidden as plumbing. The Footprint poster owns
     // loading/resting/paused; YouTube only becomes visible for motion.
     const ytActivatedSrc = buildYouTubeEmbedUrl(youtubeId, {
-      autoplay: false,
+      autoplay: true,
       mute: true,
       start: extractYouTubeStart(content.url),
       hd: true,
@@ -666,6 +666,43 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               />
             </div>
           </button>
+        )}
+        {isActivated && !shouldUsePosterSurface && (
+          <div
+            className="pointer-events-none absolute inset-0"
+            aria-hidden="true"
+            style={{
+              zIndex: 2,
+              animation: 'fp-youtube-ack-veil 680ms ease-out both',
+            }}
+          >
+            <div className="fp-resting-video-frame">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={youtubeThumbCandidates[0]}
+                alt=""
+                className={`fp-resting-video-media${getPublicPosterClass(youtubeThumbCandidates[0])}`}
+                loading={isPriorityPoster ? 'eager' : 'lazy'}
+                fetchPriority={isPriorityPoster ? 'high' : 'auto'}
+                decoding={posterDecoding}
+                referrerPolicy="no-referrer"
+              />
+            </div>
+            <div
+              className="absolute left-1/2 top-1/2 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full"
+              style={{
+                background: 'rgba(0,0,0,0.34)',
+                border: '1px solid rgba(255,255,255,0.18)',
+                color: 'rgba(255,255,255,0.78)',
+                backdropFilter: 'blur(10px)',
+                WebkitBackdropFilter: 'blur(10px)',
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </div>
+          </div>
         )}
       </div>
     )
