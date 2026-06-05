@@ -866,3 +866,19 @@ input:-webkit-autofill:focus {
     filter: brightness(0.3) !important;
   }
 }
+
+/* Exact fix: Drake VEVO thumbnail. */
+img[src*="SD4yRDY9mek"].fp-resting-video-media {
+  object-fit: cover !important;
+  object-position: 72% center !important;
+  transform: scale(1.32) !important;
+  transform-origin: center center !important;
+}
+
+/* Exact fix: BB Trickz / PlaqueBoyMax VEVO poster. */
+img[src*="1780628070537-kc8rfb.jpg"].fp-public-poster {
+  object-fit: cover !important;
+  object-position: 72% center !important;
+  transform: scale(1.48) !important;
+  transform-origin: center center !important;
+}
