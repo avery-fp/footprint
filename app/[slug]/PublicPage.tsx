@@ -2387,9 +2387,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             delete). Tapping the empty space after the last pill in
             editor mode prompts for room creation. */}
         {(visibleRooms.length > 1 || (isOwner && editorMode)) && (
-          <div className="relative mb-4 h-12 md:mb-6">
+          <div className="fp-room-nav-shell relative mb-4 h-12 md:mb-6">
             <div
-              className={`${roomNavDocked ? 'fixed inset-x-0' : 'absolute inset-x-0'} z-30 flex items-center justify-center px-4 py-2 transition-[top] duration-300`}
+              className={`fp-room-nav-row ${roomNavDocked ? 'fixed inset-x-0' : 'absolute inset-x-0'} z-30 flex items-center justify-center px-4 py-2 transition-[top] duration-300`}
               style={{ top: roomNavDocked ? (isOwner && editorMode ? 'var(--fp-owner-room-strip-y)' : 'var(--fp-room-strip-y)') : 'var(--fp-room-strip-inline-y)' }}
             >
               <div
@@ -2519,7 +2519,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
         {/* Grid */}
         <div
-          className={`fp-grid-arrive ${isHorizontal ? 'w-full' : `fp-grid-container mx-auto w-full ${isGrid ? 'fp-puzzle-frame' : ''}`}`}
+          className={`fp-room-content-grid fp-grid-arrive ${isHorizontal ? 'w-full' : `fp-grid-container mx-auto w-full ${isGrid ? 'fp-puzzle-frame' : ''}`}`}
           style={isHorizontal ? undefined : { maxWidth: isGrid ? '900px' : '880px' }}
         >
           {activeGrid}

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   consumePendingYouTubeActivation,
+  isYouTubeNonPlayingMessage,
   isYouTubePlayingMessage,
   pauseYouTubePlayback,
   primeYouTubePlayer,
@@ -27,6 +28,21 @@ describe('isYouTubePlayingMessage', () => {
 
   it('rejects non-playing states', () => {
     expect(isYouTubePlayingMessage({ event: 'onStateChange', info: 0 })).toBe(false)
+  })
+})
+
+describe('isYouTubeNonPlayingMessage', () => {
+  it('accepts paused ended buffering cued and unstarted states', () => {
+    expect(isYouTubeNonPlayingMessage({ event: 'onStateChange', info: -1 })).toBe(true)
+    expect(isYouTubeNonPlayingMessage({ event: 'onStateChange', info: 0 })).toBe(true)
+    expect(isYouTubeNonPlayingMessage({ event: 'onStateChange', info: 2 })).toBe(true)
+    expect(isYouTubeNonPlayingMessage({ event: 'onStateChange', info: 3 })).toBe(true)
+    expect(isYouTubeNonPlayingMessage({ event: 'infoDelivery', info: { playerState: 5 } })).toBe(true)
+  })
+
+  it('rejects playing state and unrelated messages', () => {
+    expect(isYouTubeNonPlayingMessage({ event: 'onStateChange', info: 1 })).toBe(false)
+    expect(isYouTubeNonPlayingMessage({ event: 'command', info: 2 })).toBe(false)
   })
 })
 

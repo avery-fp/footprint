@@ -122,3 +122,16 @@ export function isYouTubePlayingMessage(data: unknown) {
       payload.info?.playerState === 1)
   )
 }
+
+export function isYouTubeNonPlayingMessage(data: unknown) {
+  if (!data || typeof data !== 'object') return false
+  const payload = data as {
+    event?: string
+    info?: number | { playerState?: number }
+  }
+  const state = typeof payload.info === 'object' ? payload.info?.playerState : payload.info
+  return (
+    (payload.event === 'onStateChange' || payload.event === 'infoDelivery') &&
+    (state === -1 || state === 0 || state === 2 || state === 3 || state === 5)
+  )
+}

@@ -602,6 +602,27 @@ input:-webkit-autofill:focus {
   /* Side breathing room handled by inline paddng */
 }
 
+@media (max-width: 767px) {
+  .fp-room-nav-shell {
+    margin-bottom: 1.375rem;
+  }
+
+  .fp-room-nav-row {
+    background: linear-gradient(
+      to bottom,
+      rgba(5, 5, 5, 0.32),
+      rgba(5, 5, 5, 0.16) 62%,
+      rgba(5, 5, 5, 0)
+    );
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .fp-room-content-grid {
+    margin-top: 0.25rem;
+  }
+}
+
 /* Upload progress — indeterminate sweep used by PublicPage's _temp tile
    overlay before the XHR onprogress callback reports a real percentage.
    Pure transform so it never reflows the grid. */

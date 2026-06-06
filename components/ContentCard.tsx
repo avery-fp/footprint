@@ -19,6 +19,7 @@ import ReaderTile from '@/components/ReaderTile'
 import { sanitizeLinkMeta, normalizeLinkObject } from '@/lib/link-object'
 import {
   consumePendingYouTubeActivation,
+  isYouTubeNonPlayingMessage,
   isYouTubePlayingMessage,
   nudgeYouTubeQuality,
   pauseYouTubePlayback,
@@ -481,6 +482,9 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             setYoutubeRevealSettled(true)
           }, isCoarsePointer ? YOUTUBE_MOBILE_REVEAL_SETTLE_MS : 0)
         }
+      } else if (isYouTubeNonPlayingMessage(data)) {
+        setYoutubeHasStarted(false)
+        setYoutubeRevealSettled(false)
       }
     }
     window.addEventListener('message', onMessage)
