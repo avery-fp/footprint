@@ -418,25 +418,43 @@ input:-webkit-autofill:focus {
 }
 
 .fp-youtube-touch-ack {
-  width: clamp(58px, 18vw, 82px);
-  height: clamp(58px, 18vw, 82px);
+  width: clamp(62px, 18vw, 72px);
+  height: clamp(62px, 18vw, 72px);
   border-radius: 999px;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.82);
   background:
-    radial-gradient(circle at 48% 42%, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.08) 46%, rgba(255, 255, 255, 0.025) 72%, rgba(255, 255, 255, 0) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+    radial-gradient(circle at 49% 42%, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.105) 42%, rgba(255, 255, 255, 0.035) 72%, rgba(255, 255, 255, 0) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   box-shadow:
-    0 14px 42px rgba(0, 0, 0, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18);
-  backdrop-filter: blur(14px) saturate(112%);
-  -webkit-backdrop-filter: blur(14px) saturate(112%);
+    0 16px 44px rgba(0, 0, 0, 0.14),
+    0 0 24px rgba(255, 255, 255, 0.045),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px) saturate(112%);
+  -webkit-backdrop-filter: blur(10px) saturate(112%);
+  transition:
+    transform 140ms cubic-bezier(0.22, 1, 0.36, 1),
+    background 140ms ease-out,
+    border-color 140ms ease-out,
+    box-shadow 140ms ease-out;
 }
 
 .fp-youtube-touch-ack-icon {
-  width: 18px;
-  height: 18px;
+  width: 17px;
+  height: 17px;
   margin-left: 2px;
-  filter: drop-shadow(0 1px 5px rgba(0, 0, 0, 0.32));
+  opacity: 0.9;
+  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.28));
+}
+
+.fp-youtube-touch-ack-pressed {
+  transform: scale(0.94);
+  background:
+    radial-gradient(circle at 49% 42%, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.15) 42%, rgba(255, 255, 255, 0.05) 72%, rgba(255, 255, 255, 0) 100%);
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow:
+    0 12px 34px rgba(0, 0, 0, 0.12),
+    0 0 30px rgba(255, 255, 255, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
 }
 
 @media (min-width: 768px) and (pointer: fine) {
@@ -458,6 +476,14 @@ input:-webkit-autofill:focus {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .fp-youtube-touch-ack {
+    transition: none;
+  }
+
+  .fp-youtube-touch-ack-pressed {
+    transform: none;
+  }
+
   .fp-media-settle {
     animation: none;
     opacity: 1;

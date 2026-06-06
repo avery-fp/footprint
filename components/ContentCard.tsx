@@ -666,7 +666,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             </div>
             {isActivated && !shouldUsePosterSurface && (
               <div
-                className="fp-youtube-touch-ack pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center"
+                className={`fp-youtube-touch-ack${pressActive ? ' fp-youtube-touch-ack-pressed' : ''} pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center`}
                 aria-hidden="true"
               >
                 <svg className="fp-youtube-touch-ack-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -698,7 +698,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               />
             </div>
             <div
-              className="fp-youtube-touch-ack absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center"
+              className={`fp-youtube-touch-ack${pressActive ? ' fp-youtube-touch-ack-pressed' : ''} absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center`}
             >
               <svg className="fp-youtube-touch-ack-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M8 5v14l11-7z" />
