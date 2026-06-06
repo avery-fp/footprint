@@ -49,6 +49,7 @@ const YOUTUBE_COARSE_TAP_TOLERANCE_PX = 96
 const YOUTUBE_PENDING_RETRY_THROTTLE_MS = 900
 const YOUTUBE_MOBILE_TAP_TARGET_CLASS =
   '[@media(pointer:coarse)]:inset-auto [@media(pointer:coarse)]:left-1/2 [@media(pointer:coarse)]:top-1/2 [@media(pointer:coarse)]:h-[68%] [@media(pointer:coarse)]:w-[68%] [@media(pointer:coarse)]:-translate-x-1/2 [@media(pointer:coarse)]:-translate-y-1/2'
+const YOUTUBE_VISUAL_FRAME_STYLE: React.CSSProperties = { inset: 6, borderRadius: 12 }
 const settledPublicPosters = new Set<string>()
 
 // ════════════════════════════════════════
@@ -586,6 +587,30 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           youtubeRevealSettled,
         )
     const shouldShowPosterVeil = shouldShowYouTubePosterVeil(isActivated, shouldRevealPlayer)
+    const posterLayer = (
+      <div className="fp-resting-video-frame">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={youtubeThumbCandidates[0]}
+          alt=""
+          className={`fp-resting-video-media${getPublicPosterClass(youtubeThumbCandidates[0])}`}
+          loading={isPriorityPoster ? 'eager' : 'lazy'}
+          fetchPriority={isPriorityPoster ? 'high' : 'auto'}
+          decoding={posterDecoding}
+          referrerPolicy="no-referrer"
+          ref={(img) => {
+            if (img?.complete && img.naturalWidth) {
+              applyThumbnailLoadGuard(img, youtubeThumbCandidates)
+            }
+          }}
+          onLoad={(e) => {
+            applyThumbnailLoadGuard(e.currentTarget, youtubeThumbCandidates)
+            markPublicPosterLoaded(youtubeThumbCandidates[0])
+          }}
+          onError={(e) => applyNextThumbnailFallback(e.currentTarget, youtubeThumbCandidates)}
+        />
+      </div>
+    )
 
     if (!shouldMountPlayer) {
       return (
@@ -594,27 +619,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           className="w-full h-full fp-tile overflow-hidden relative group"
           style={{ background: 'transparent', ...tapResponseStyle }}
         >
-          <div className="fp-resting-video-frame">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={youtubeThumbCandidates[0]}
-              alt=""
-              className={`fp-resting-video-media${getPublicPosterClass(youtubeThumbCandidates[0])}`}
-              loading={isPriorityPoster ? 'eager' : 'lazy'}
-              fetchPriority={isPriorityPoster ? 'high' : 'auto'}
-              decoding={posterDecoding}
-              referrerPolicy="no-referrer"
-              ref={(img) => {
-                if (img?.complete && img.naturalWidth) {
-                  applyThumbnailLoadGuard(img, youtubeThumbCandidates)
-                }
-              }}
-              onLoad={(e) => {
-                applyThumbnailLoadGuard(e.currentTarget, youtubeThumbCandidates)
-                markPublicPosterLoaded(youtubeThumbCandidates[0])
-              }}
-              onError={(e) => applyNextThumbnailFallback(e.currentTarget, youtubeThumbCandidates)}
-            />
+          <div className="absolute overflow-hidden" style={YOUTUBE_VISUAL_FRAME_STYLE}>
+            {posterLayer}
           </div>
           <button
             type="button"
@@ -644,32 +650,35 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         className="w-full max-w-full h-full fp-tile overflow-hidden relative group"
         style={{ background: 'transparent', ...tapResponseStyle }}
       >
-        <div
-          className="absolute inset-0 w-full h-full [&_iframe]:!w-full [&_iframe]:!max-w-full [&_iframe]:!h-full"
-          style={{
-            opacity: shouldRevealPlayer ? 1 : 0,
-            pointerEvents: shouldRevealPlayer ? 'auto' : 'none',
-            transition: 'opacity 0.2s ease',
-            zIndex: 1,
-          }}
-        >
-          <iframe
-            ref={youtubeIframeRef}
-            src={ytActivatedSrc}
-            width={1920}
-            height={1080}
-            className="block w-full h-full"
+        <div className="absolute overflow-hidden" style={YOUTUBE_VISUAL_FRAME_STYLE}>
+          <div
+            className="absolute inset-0 w-full h-full [&_iframe]:!w-full [&_iframe]:!max-w-full [&_iframe]:!h-full"
             style={{
-              border: 'none',
-              aspectRatio: effectiveAspect === 'tall' ? '9 / 16' : effectiveAspect === 'portrait' ? '3 / 4' : '16 / 9',
-              maxWidth: '100%',
-              maxHeight: '100%',
+              opacity: shouldRevealPlayer ? 1 : 0,
+              pointerEvents: shouldRevealPlayer ? 'auto' : 'none',
+              transition: 'opacity 0.2s ease',
+              zIndex: 1,
             }}
-            allow="autoplay; encrypted-media; fullscreen"
-            allowFullScreen
-            referrerPolicy="strict-origin-when-cross-origin"
-            onLoad={handleYTLoad}
-          />
+          >
+            <iframe
+              ref={youtubeIframeRef}
+              src={ytActivatedSrc}
+              width={1920}
+              height={1080}
+              className="block w-full h-full"
+              style={{
+                border: 'none',
+                aspectRatio: effectiveAspect === 'tall' ? '9 / 16' : effectiveAspect === 'portrait' ? '3 / 4' : '16 / 9',
+                maxWidth: '100%',
+                maxHeight: '100%',
+              }}
+              allow="autoplay; encrypted-media; fullscreen"
+              allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
+              onLoad={handleYTLoad}
+            />
+          </div>
+          {shouldShowPosterVeil && posterLayer}
         </div>
         {shouldShowPosterVeil && (
           <button
@@ -686,30 +695,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               padding: 0,
               background: 'transparent',
             }}
-          >
-            <div className="fp-resting-video-frame">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={youtubeThumbCandidates[0]}
-                alt=""
-                className={`fp-resting-video-media${getPublicPosterClass(youtubeThumbCandidates[0])}`}
-                loading={isPriorityPoster ? 'eager' : 'lazy'}
-                fetchPriority={isPriorityPoster ? 'high' : 'auto'}
-                decoding={posterDecoding}
-                referrerPolicy="no-referrer"
-                ref={(img) => {
-                  if (img?.complete && img.naturalWidth) {
-                    applyThumbnailLoadGuard(img, youtubeThumbCandidates)
-                  }
-                }}
-                onLoad={(e) => {
-                  applyThumbnailLoadGuard(e.currentTarget, youtubeThumbCandidates)
-                  markPublicPosterLoaded(youtubeThumbCandidates[0])
-                }}
-                onError={(e) => applyNextThumbnailFallback(e.currentTarget, youtubeThumbCandidates)}
-              />
-            </div>
-          </button>
+          />
         )}
       </div>
     )
