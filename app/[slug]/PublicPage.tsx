@@ -100,6 +100,8 @@ function arrayMoveLocal<T>(items: T[], from: number, to: number): T[] {
 const CONTINUITY_TTL_MS = 1000 * 60 * 60 * 2
 const ROOM_SWITCH_HIDE_MS = 180
 const ROOM_SWITCH_REVEAL_MS = 320
+const SCROLL_CONTINUITY_SAVE_MS = 400
+const ROOM_NAV_DOCK_THRESHOLD = 160
 
 function continuityKey(slug: string, key: string) {
   return `fp:${slug}:${key}`
@@ -160,6 +162,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [isMobile, setIsMobile] = useState(false)
   const [roomFade, setRoomFade] = useState<'visible' | 'out' | 'in'>('visible')
   const [roomNavDocked, setRoomNavDocked] = useState(false)
+  const roomNavDockedRef = useRef(false)
 
   // ── Owner editor surface ──
   // editorMode is the toggle behind the corner home button: when off,
@@ -548,15 +551,21 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   }, [collectionOverlayOpen, footprint.username, isEditorActive])
 
   useEffect(() => {
-    let rafId = 0
+    let saveTimer: number | null = null
     const scheduleSave = () => {
-      if (rafId) return
-      rafId = requestAnimationFrame(() => {
-        rafId = 0
+      if (saveTimer) return
+      saveTimer = window.setTimeout(() => {
+        saveTimer = null
         saveContinuityRef.current()
-      })
+      }, SCROLL_CONTINUITY_SAVE_MS)
     }
-    const saveNow = () => saveContinuityRef.current()
+    const saveNow = () => {
+      if (saveTimer) {
+        window.clearTimeout(saveTimer)
+        saveTimer = null
+      }
+      saveContinuityRef.current()
+    }
     const saveOnVisibility = () => {
       if (document.visibilityState === 'hidden') saveNow()
     }
@@ -566,7 +575,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     window.addEventListener('beforeunload', saveNow)
     document.addEventListener('visibilitychange', saveOnVisibility)
     return () => {
-      if (rafId) cancelAnimationFrame(rafId)
+      if (saveTimer) window.clearTimeout(saveTimer)
       window.removeEventListener('scroll', scheduleSave)
       window.removeEventListener('pagehide', saveNow)
       window.removeEventListener('beforeunload', saveNow)
@@ -707,7 +716,12 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
   useEffect(() => {
     if (visibleRooms.length <= 1) return
-    const updateDocked = () => setRoomNavDocked(window.scrollY > 160)
+    const updateDocked = () => {
+      const nextDocked = window.scrollY > ROOM_NAV_DOCK_THRESHOLD
+      if (nextDocked === roomNavDockedRef.current) return
+      roomNavDockedRef.current = nextDocked
+      setRoomNavDocked(nextDocked)
+    }
     updateDocked()
     window.addEventListener('scroll', updateDocked, { passive: true })
     return () => window.removeEventListener('scroll', updateDocked)
