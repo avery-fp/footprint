@@ -189,6 +189,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // below.
   const tileEditScrollAnchor = useRef<number | null>(null)
   const editModeScrollAnchor = useRef<number | null>(null)
+  const editToggleActivatedAtRef = useRef(0)
   // Draft claim sheet — opens from the ClaimPlaque in the top-right of
   // the draft chrome. Collects desired username + owner PIN, then routes
   // to Stripe via /api/checkout.
@@ -316,6 +317,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         ...pending,
       ])
     }
+  }
+  const activateEditToggle = (event?: React.SyntheticEvent) => {
+    event?.stopPropagation()
+    event?.preventDefault()
+    editToggleActivatedAtRef.current = Date.now()
+    setEditTogglePressed(false)
+    if (editorMode) handleDoneEditing()
+    else setEditorModeInPlace(true)
   }
   const titleInputRef = useRef<HTMLInputElement>(null)
   // Wallpaper local state — mirrors the prop so blur and replace-image
@@ -2164,14 +2173,18 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           type="button"
           aria-label={editorMode ? 'done editing' : 'edit page'}
           aria-pressed={editorMode}
-          onPointerDown={() => setEditTogglePressed(true)}
-          onPointerUp={() => setEditTogglePressed(false)}
+          data-no-wp-press
+          onPointerDown={(e) => { e.stopPropagation(); setEditTogglePressed(true) }}
+          onPointerUp={activateEditToggle}
           onPointerCancel={() => setEditTogglePressed(false)}
           onPointerLeave={() => setEditTogglePressed(false)}
-          onClick={() => {
-            setEditTogglePressed(false)
-            if (editorMode) handleDoneEditing()
-            else setEditorModeInPlace(true)
+          onClick={(e) => {
+            if (Date.now() - editToggleActivatedAtRef.current < 500) {
+              e.preventDefault()
+              e.stopPropagation()
+              return
+            }
+            activateEditToggle(e)
           }}
           className="fixed z-50 flex items-center justify-center touch-manipulation"
           style={{
@@ -2193,6 +2206,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             opacity: editTogglePressed ? 0.9 : 1,
             transform: editTogglePressed ? 'scale(0.985)' : 'scale(1)',
             transition: 'opacity 120ms ease-out, transform 120ms ease-out',
+            pointerEvents: 'auto',
           }}
         >
           {editorMode ? (
@@ -2373,7 +2387,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </header>
         </RemoveBubble>
 
-        {!isEditorActive ? (
+        <div className="relative">
           <PublicRoomSurface
             content={displayContent}
             visibleRooms={visibleRooms}
@@ -2387,19 +2401,19 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             isGrid={isGrid}
             containerMeta={containerMeta}
             expanded={expanded}
-            showOverlay={showOverlay}
+            showOverlay={showOverlay && !isEditorActive}
             collectionChildren={localChildren}
             loadingChildren={loadingChildren}
             expandedContainerLabel={expandedContainerLabel}
-            canEditCollections={isOwner}
+            canEditCollections={isOwner && !isEditorActive}
             onEditCollections={() => setEditorModeInPlace(true)}
             expand={expand}
             collapse={collapse}
             registerRef={registerRef}
             depthTouchStart={depthTouchStart}
           />
-        ) : (
-          <>
+          {isEditorActive && (
+            <div className="absolute inset-0 z-20 pointer-events-auto">
         {/* DndContext hoist — wraps both the room nav and the grid so
             tile drags can land on room pills (the send-to-room gesture)
             in addition to reordering tiles. For non-owners we render
@@ -2721,8 +2735,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             )}
           </>
         )}
-          </>
-        )}
+            </div>
+          )}
+        </div>
 
         {content.length === 0 && (
           <div className="py-16" />
