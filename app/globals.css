@@ -40,13 +40,23 @@
   --fp-collection-header-padding-top: var(--fp-safe-top);
 }
 
+@media (max-width: 767px) {
+  :root {
+    --fp-mobile-safe-top: max(var(--fp-safe-top), 24px);
+    --fp-top-control-y: calc(var(--fp-mobile-safe-top) + 16px);
+    --fp-room-strip-y: calc(var(--fp-mobile-safe-top) + 64px);
+    --fp-owner-room-strip-y: calc(var(--fp-mobile-safe-top) + 80px);
+  }
+}
+
 @media (display-mode: standalone) {
   :root {
-    --fp-top-control-y: calc(var(--fp-safe-top) + 18px);
+    --fp-mobile-safe-top: max(var(--fp-safe-top), 32px);
+    --fp-top-control-y: calc(var(--fp-mobile-safe-top) + 18px);
     --fp-top-control-left: calc(var(--fp-safe-left) + 20px);
     --fp-top-control-right: calc(var(--fp-safe-right) + 18px);
-    --fp-room-strip-y: calc(var(--fp-safe-top) + 68px);
-    --fp-owner-room-strip-y: calc(var(--fp-safe-top) + 86px);
+    --fp-room-strip-y: calc(var(--fp-mobile-safe-top) + 68px);
+    --fp-owner-room-strip-y: calc(var(--fp-mobile-safe-top) + 86px);
   }
 }
 

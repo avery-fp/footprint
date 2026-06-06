@@ -2107,36 +2107,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           <ClaimPlaque onClick={() => setDraftClaimOpen(true)} />
         </div>
       )}
-      {isOwner && !expanded && !claimActive && (
-        <button
-          type="button"
-          aria-label="reload Footprint"
-          title="reload Footprint"
-          onClick={() => window.location.reload()}
-          className="fixed z-40 flex items-center justify-center touch-manipulation"
-          style={{
-            top: 'var(--fp-top-control-y)',
-            left: 'var(--fp-top-control-left)',
-            width: 44,
-            height: 44,
-            background: 'transparent',
-            backdropFilter: 'none',
-            WebkitBackdropFilter: 'none',
-            border: '1px solid transparent',
-            color: 'rgba(255,255,255,0.42)',
-            borderRadius: 999,
-            cursor: 'pointer',
-            userSelect: 'none',
-            WebkitUserSelect: 'none',
-            WebkitTapHighlightColor: 'transparent',
-          }}
-        >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M21 12a9 9 0 1 1-2.64-6.36" />
-            <path d="M21 4v5h-5" />
-          </svg>
-        </button>
-      )}
       {/* Gift — owner edit-mode only, lives in the bottom owner cluster
           next to the collection control. Hidden when giftsRemaining hits
           zero, when not in edit mode, and on stranger views. */}
