@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect, lazy, Suspense } from 'react'
 import Image from 'next/image'
 import dynamic from 'next/dynamic'
 import UnifiedTile from '@/components/UnifiedTile'
@@ -32,9 +32,30 @@ const DraftClaimForm = dynamic(() => import('@/components/DraftClaimForm'), { ss
 const GiftModal = dynamic(() => import('@/components/GiftModal'), { ssr: false })
 const CommandLayer = dynamic(() => import('@/components/CommandLayer'), { ssr: false })
 const SovereignTile = dynamic(() => import('@/components/SovereignTile'), { ssr: false })
-const OwnerDndFrame = dynamic(() => import('@/components/OwnerDndKit').then((m) => m.OwnerDndFrame), { ssr: false })
-const OwnerSortableContext = dynamic(() => import('@/components/OwnerDndKit').then((m) => m.OwnerSortableContext), { ssr: false })
-const SortableTileWrapper = dynamic(() => import('@/components/OwnerDndKit').then((m) => m.SortableTileWrapper), { ssr: false })
+const OwnerDndPassthrough = ({ children }: { children?: React.ReactNode }) => <>{children}</>
+const SortableTilePassthrough = ({ children, className, style, dataCollectionChildId }: any) => (
+  <div className={className} style={style} data-collection-child-id={dataCollectionChildId}>
+    {children}
+  </div>
+)
+const LazyOwnerDndFrame = lazy(() => import('@/components/OwnerDndKit').then((m) => ({ default: m.OwnerDndFrame })))
+const LazyOwnerSortableContext = lazy(() => import('@/components/OwnerDndKit').then((m) => ({ default: m.OwnerSortableContext })))
+const LazySortableTileWrapper = lazy(() => import('@/components/OwnerDndKit').then((m) => ({ default: m.SortableTileWrapper })))
+const OwnerDndFrame = (props: any) => (
+  <Suspense fallback={<OwnerDndPassthrough>{props.children}</OwnerDndPassthrough>}>
+    <LazyOwnerDndFrame {...props} />
+  </Suspense>
+)
+const OwnerSortableContext = (props: any) => (
+  <Suspense fallback={<OwnerDndPassthrough>{props.children}</OwnerDndPassthrough>}>
+    <LazyOwnerSortableContext {...props} />
+  </Suspense>
+)
+const SortableTileWrapper = (props: any) => (
+  <Suspense fallback={<SortableTilePassthrough {...props} />}>
+    <LazySortableTileWrapper {...props} />
+  </Suspense>
+)
 
 interface Room {
   id: string
