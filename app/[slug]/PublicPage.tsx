@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from 'react'
 import Image from 'next/image'
 import dynamic from 'next/dynamic'
 import UnifiedTile from '@/components/UnifiedTile'
@@ -164,6 +164,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // opens. Read by handleTilePointerDownForAnchor + the layoutEffect
   // below.
   const tileEditScrollAnchor = useRef<number | null>(null)
+  const editModeScrollAnchor = useRef<number | null>(null)
   // Draft claim sheet — opens from the ClaimPlaque in the top-right of
   // the draft chrome. Collects desired username + owner PIN, then routes
   // to Stripe via /api/checkout.
@@ -247,12 +248,34 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [titleEditing, setTitleEditing] = useState(false)
   const pendingSavesRef = useRef<Promise<unknown>[]>([])
 
+  const setEditorModeInPlace = useCallback((next: boolean) => {
+    if (typeof window !== 'undefined') {
+      editModeScrollAnchor.current = Math.max(0, Math.round(window.scrollY || 0))
+    }
+    setEditorMode(next)
+  }, [])
+
+  useLayoutEffect(() => {
+    const anchor = editModeScrollAnchor.current
+    if (anchor === null) return
+    editModeScrollAnchor.current = null
+    const restore = () => {
+      const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight)
+      window.scrollTo({ top: Math.min(anchor, maxScroll), left: 0, behavior: 'auto' })
+    }
+    restore()
+    requestAnimationFrame(() => {
+      restore()
+      requestAnimationFrame(restore)
+    })
+  }, [activeRoomId, editorMode])
+
   const handleDoneEditing = () => {
     setPillMenuOpenForId(null)
     setPageSettingsOpen(false)
     setSelectedTileId(null)
     setTitleEditing(false)
-    setEditorMode(false)
+    setEditorModeInPlace(false)
 
     let titleSave: Promise<unknown> | null = null
     if (titleEditing) {
@@ -2143,7 +2166,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           onClick={() => {
             setEditTogglePressed(false)
             if (editorMode) handleDoneEditing()
-            else setEditorMode(true)
+            else setEditorModeInPlace(true)
           }}
           className="fixed z-50 flex items-center justify-center touch-manipulation"
           style={{
@@ -2364,7 +2387,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             loadingChildren={loadingChildren}
             expandedContainerLabel={expandedContainerLabel}
             canEditCollections={isOwner}
-            onEditCollections={() => setEditorMode(true)}
+            onEditCollections={() => setEditorModeInPlace(true)}
             expand={expand}
             collapse={collapse}
             registerRef={registerRef}
