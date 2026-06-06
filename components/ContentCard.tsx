@@ -445,10 +445,9 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const handlePressEnd = () => setPressActive(false)
 
   const tapResponseStyle: React.CSSProperties = {
-    transform: pressActive ? 'scale(0.996)' : 'scale(1)',
-    opacity: pressActive ? 0.96 : 1,
-    transition: 'transform 120ms ease-out, opacity 120ms ease-out',
-    willChange: pressActive ? 'transform, opacity' : undefined,
+    transform: pressActive ? 'scale(0.998)' : 'scale(1)',
+    transition: 'transform 140ms ease-out',
+    willChange: pressActive ? 'transform' : undefined,
   }
 
   useEffect(() => {

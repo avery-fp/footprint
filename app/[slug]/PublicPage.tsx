@@ -1561,9 +1561,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
 
   const fadeStyle = {
-    opacity: roomFade === 'out' ? 0.18 : 1,
+    opacity: roomFade === 'out' ? 0.42 : 1,
     transform: roomFade === 'out' ? 'translateY(4px)' : roomFade === 'in' ? 'translateY(-4px)' : 'translateY(0)',
-    transition: 'opacity 220ms ease-out, transform 320ms ease-out',
+    transition: 'opacity 240ms ease-out, transform 320ms ease-out',
   }
 
   // Persist a layout pick from the toggle. Optimistic update on the

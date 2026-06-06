@@ -204,7 +204,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
             zIndex: 3,
             border: 'none',
             background: videoPressActive ? 'rgba(255,255,255,0.025)' : 'transparent',
-            opacity: videoPressActive ? 0.7 : 0,
+            opacity: videoPressActive ? 0.18 : 0,
             transition: 'opacity 140ms ease',
           }}
         />

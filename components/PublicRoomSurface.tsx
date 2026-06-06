@@ -123,11 +123,10 @@ export default function PublicRoomSurface({
   }, [expanded, collectionChildren, syncCollectionActiveIndex])
 
   const fadeStyle = {
-    opacity: roomFade === 'out' ? 0.18 : 1,
-    filter: roomFade === 'out' ? 'saturate(0.98) brightness(0.96)' : 'none',
+    opacity: roomFade === 'out' ? 0.42 : 1,
     transform: roomFade === 'out' ? 'translate3d(0, 5px, 0) scale(0.998)' : roomFade === 'in' ? 'translate3d(0, -5px, 0) scale(0.999)' : 'translate3d(0, 0, 0) scale(1)',
-    transition: 'opacity 220ms ease-out, filter 220ms ease-out, transform 320ms cubic-bezier(0.22, 1, 0.36, 1)',
-    willChange: roomFade === 'visible' ? undefined : 'opacity, transform, filter',
+    transition: 'opacity 240ms ease-out, transform 320ms cubic-bezier(0.22, 1, 0.36, 1)',
+    willChange: roomFade === 'visible' ? undefined : 'opacity, transform',
   }
 
   const tileGeometry = (item: any): PublicTileGeometry => item.public_geometry || getPublicTileGeometry(item, containerMeta)
