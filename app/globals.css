@@ -404,13 +404,13 @@ input:-webkit-autofill:focus {
 
 @keyframes fpMediaSettle {
   from {
-    opacity: 0.82;
-    transform: translateY(1px) scale(0.998);
-    filter: blur(1px);
+    opacity: 0.94;
+    transform: none;
+    filter: none;
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: none;
     filter: none;
   }
 }

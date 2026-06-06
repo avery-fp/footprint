@@ -10,7 +10,7 @@ import PublicAcquisitionOverlays from '@/components/PublicAcquisitionOverlays'
 import PublicPage from './PublicPage'
 import { getPublicPosterUrl, withPublicTileGeometry } from '@/lib/public-tile-geometry'
 
-const PUBLIC_POSTER_PRELOAD_LIMIT = 16
+const PUBLIC_POSTER_PRELOAD_LIMIT = 28
 
 function collectPublicPosterPreloads(
   rooms: Array<{ content: any[] }>,
@@ -18,13 +18,7 @@ function collectPublicPosterPreloads(
   containerMeta: Record<string, { childCount: number; firstThumb: string | null }>
 ) {
   const firstRoomWithContent = rooms.find((room) => (room.content || []).length > 0)
-  const laterRooms = rooms.filter((room) => room !== firstRoomWithContent)
-  const ordered = firstRoomWithContent
-    ? [
-        ...(firstRoomWithContent.content || []),
-        ...laterRooms.flatMap((room) => room.content || []),
-      ]
-    : content
+  const ordered = firstRoomWithContent ? (firstRoomWithContent.content || []) : content
   const seen = new Set<string>()
   const urls: string[] = []
 

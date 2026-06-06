@@ -6,9 +6,10 @@ import { useAspectDetection } from '@/lib/aspectDetection'
 import { audioManager } from '@/lib/audio-manager'
 import { beginInvocation, isIntentionalInvocation, type InvocationPoint } from '@/lib/media-invocation'
 
-const PUBLIC_EAGER_IMAGE_COUNT = 16
-const PUBLIC_SYNC_DECODE_COUNT = 8
-const PUBLIC_NEAR_VIEWPORT_MARGIN = '1200px 0px 1200px 0px'
+const PUBLIC_EAGER_IMAGE_COUNT = 32
+const PUBLIC_HIGH_PRIORITY_IMAGE_COUNT = 16
+const PUBLIC_SYNC_DECODE_COUNT = 12
+const PUBLIC_NEAR_VIEWPORT_MARGIN = '2200px 0px 2200px 0px'
 const settledPublicMedia = new Set<string>()
 
 interface TileImageProps {
@@ -216,9 +217,10 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
   // browser-native scheduling owns loading. Player/video depth still sleeps
   // elsewhere; this is only the visual surface.
   if (isPublicView) {
-    const isPriority = index < PUBLIC_EAGER_IMAGE_COUNT
+    const isEager = index < PUBLIC_EAGER_IMAGE_COUNT
+    const isPriority = index < PUBLIC_HIGH_PRIORITY_IMAGE_COUNT
     const isSyncDecode = index < PUBLIC_SYNC_DECODE_COUNT
-    const shouldLoadNow = isPriority || isNearPublicViewport
+    const shouldLoadNow = isEager || isNearPublicViewport
     const publicPosterClass = `absolute inset-0 h-full w-full object-cover fp-public-poster${shouldSettlePublicMedia ? ' fp-media-settle' : ''}`
     return (
       <div ref={containerRef} className="absolute inset-0">
