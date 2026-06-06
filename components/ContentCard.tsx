@@ -35,6 +35,7 @@ import {
   YOUTUBE_READY_SETTLE_MS,
 } from '@/lib/youtube-player'
 import { beginInvocation, isIntentionalInvocation, type InvocationPoint } from '@/lib/media-invocation'
+import { tryNativeFullscreen } from '@/lib/fullscreen'
 
 // ════════════════════════════════════════
 // Glass Embed Frame — imported from extracted component
@@ -276,6 +277,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const containerRef = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const youtubeIframeRef = useRef<HTMLIFrameElement>(null)
+  const youtubeFrameRef = useRef<HTMLDivElement>(null)
   const audioIdRef = useRef(`card-${content.id}`)
   const activatedRef = useRef(false)
   const youtubePlayerReadyRef = useRef(false)
@@ -411,6 +413,15 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       audioManager.silenceNativeMedia(video)
       setIsVideoMuted(true)
     }
+  }
+
+  const handleYouTubeFullscreen = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation()
+    e.preventDefault()
+    tryNativeFullscreen(youtubeIframeRef.current).then((ok) => {
+      if (ok) return
+      tryNativeFullscreen(youtubeFrameRef.current)
+    })
   }
 
   const handleInvocationPointerDown = (e: PointerEvent<HTMLElement>, invoke: () => void) => {
@@ -682,7 +693,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         className="w-full max-w-full h-full fp-tile overflow-hidden relative group"
         style={{ background: 'transparent', outline: 'none', ...tapResponseStyle }}
       >
-        <div className="absolute overflow-hidden" style={YOUTUBE_VISUAL_FRAME_STYLE}>
+        <div ref={youtubeFrameRef} className="absolute overflow-hidden" style={YOUTUBE_VISUAL_FRAME_STYLE}>
           <div
             className="absolute inset-0 w-full h-full [&_iframe]:!w-full [&_iframe]:!max-w-full [&_iframe]:!h-full"
             style={{
@@ -721,6 +732,34 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 background: 'transparent',
               }}
             />
+          )}
+          {shouldRevealPlayer && (
+            <button
+              type="button"
+              aria-label="Fullscreen"
+              onClick={handleYouTubeFullscreen}
+              className="absolute flex items-center justify-center text-white/80 hover:text-white transition-opacity duration-200"
+              style={{
+                bottom: 10,
+                right: 10,
+                width: 28,
+                height: 28,
+                borderRadius: 999,
+                zIndex: 5,
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+                background: 'rgba(0,0,0,0.38)',
+                backdropFilter: 'blur(10px) saturate(140%)',
+                WebkitBackdropFilter: 'blur(10px) saturate(140%)',
+                boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08)',
+                opacity: 0.78,
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6" />
+              </svg>
+            </button>
           )}
           {shouldShowPosterVeil && posterLayer}
         </div>
