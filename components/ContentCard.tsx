@@ -45,6 +45,10 @@ const GlassPlaceholder = GlassPlaceholderExtracted
 const PUBLIC_EAGER_POSTER_COUNT = 16
 const PUBLIC_SYNC_POSTER_COUNT = 8
 const PUBLIC_MEDIA_ROOT_MARGIN = '1600px 0px 1600px 0px'
+const YOUTUBE_COARSE_TAP_TOLERANCE_PX = 96
+const YOUTUBE_PENDING_RETRY_THROTTLE_MS = 900
+const YOUTUBE_MOBILE_TAP_TARGET_CLASS =
+  '[@media(pointer:coarse)]:inset-auto [@media(pointer:coarse)]:left-1/2 [@media(pointer:coarse)]:top-1/2 [@media(pointer:coarse)]:h-[68%] [@media(pointer:coarse)]:w-[68%] [@media(pointer:coarse)]:-translate-x-1/2 [@media(pointer:coarse)]:-translate-y-1/2'
 const settledPublicPosters = new Set<string>()
 
 // ════════════════════════════════════════
@@ -273,6 +277,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const activatedRef = useRef(false)
   const youtubePlayerReadyRef = useRef(false)
   const youtubePendingActivationRef = useRef(false)
+  const youtubeLastPendingRetryAtRef = useRef(0)
   const youtubeRevealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const invocationPointRef = useRef<InvocationPoint | null>(null)
   const [youtubeRevealSettled, setYoutubeRevealSettled] = useState(false)
@@ -376,7 +381,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       const iframe = youtubeIframeRef.current
       youtubePendingActivationRef.current = true
       const activation = requestYouTubeActivation(youtubePlayerReadyRef.current || !!iframe)
-      if (activation.shouldPlayNow) startYouTubePlayback(iframe)
+      if (activation.shouldPlayNow) {
+        youtubeLastPendingRetryAtRef.current = Date.now()
+        startYouTubePlayback(iframe)
+      }
     }
   }
 
@@ -429,7 +437,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       e.pointerId,
       e.clientX,
       e.clientY,
-      isCoarsePointer ? 48 : undefined,
+      isCoarsePointer ? YOUTUBE_COARSE_TAP_TOLERANCE_PX : undefined,
     )
     invocationPointRef.current = null
     setPressActive(false)
@@ -484,6 +492,16 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       } else if (isYouTubeNonPlayingMessage(data)) {
         setYoutubeHasStarted(false)
         setYoutubeRevealSettled(false)
+        const iframe = youtubeIframeRef.current
+        const now = Date.now()
+        if (
+          youtubePendingActivationRef.current &&
+          iframe &&
+          now - youtubeLastPendingRetryAtRef.current >= YOUTUBE_PENDING_RETRY_THROTTLE_MS
+        ) {
+          youtubeLastPendingRetryAtRef.current = now
+          startYouTubePlayback(iframe)
+        }
       }
     }
     window.addEventListener('message', onMessage)
@@ -545,6 +563,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         youtubePlayerReadyRef.current = true
         const activation = consumePendingYouTubeActivation(youtubePendingActivationRef.current)
         if (activation.shouldPlayNow) {
+          youtubeLastPendingRetryAtRef.current = Date.now()
           startYouTubePlayback(iframe)
         }
       }, YOUTUBE_READY_SETTLE_MS)
@@ -604,7 +623,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             onPointerUp={handleYouTubeInvocationPointerUp}
             onPointerCancel={handleInvocationPointerCancel}
             onPointerLeave={handlePressEnd}
-            className="absolute inset-0"
+            className={`absolute inset-0 ${YOUTUBE_MOBILE_TAP_TARGET_CLASS}`}
             style={{ zIndex: 3, border: 'none', background: 'transparent', padding: 0, cursor: 'pointer' }}
           />
         </div>
@@ -660,7 +679,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             onPointerUp={handleYouTubeInvocationPointerUp}
             onPointerCancel={handleInvocationPointerCancel}
             onPointerLeave={handlePressEnd}
-            className="absolute inset-0 cursor-pointer"
+            className={`absolute inset-0 cursor-pointer ${YOUTUBE_MOBILE_TAP_TARGET_CLASS}`}
             style={{
               zIndex: 3,
               border: 'none',
