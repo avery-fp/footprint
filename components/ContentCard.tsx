@@ -691,51 +691,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 onError={(e) => applyNextThumbnailFallback(e.currentTarget, youtubeThumbCandidates)}
               />
             </div>
-            {isActivated && !shouldUsePosterSurface && (
-              <div
-                className="fp-youtube-touch-ack-anchor pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center"
-                aria-hidden="true"
-              >
-                <div className={`fp-youtube-touch-ack${pressActive ? ' fp-youtube-touch-ack-pressed' : ''} flex items-center justify-center`}>
-                  <svg className="fp-youtube-touch-ack-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                </div>
-              </div>
-            )}
           </button>
-        )}
-        {isActivated && !shouldShowPosterVeil && !shouldUsePosterSurface && (
-          <div
-            className="pointer-events-none absolute inset-0"
-            aria-hidden="true"
-            style={{
-              zIndex: 2,
-              animation: 'fp-youtube-ack-veil 680ms ease-out both',
-            }}
-          >
-            <div className="fp-resting-video-frame">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={youtubeThumbCandidates[0]}
-                alt=""
-                className={`fp-resting-video-media${getPublicPosterClass(youtubeThumbCandidates[0])}`}
-                loading={isPriorityPoster ? 'eager' : 'lazy'}
-                fetchPriority={isPriorityPoster ? 'high' : 'auto'}
-                decoding={posterDecoding}
-                referrerPolicy="no-referrer"
-              />
-            </div>
-            <div
-              className="fp-youtube-touch-ack-anchor absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center"
-            >
-              <div className={`fp-youtube-touch-ack${pressActive ? ' fp-youtube-touch-ack-pressed' : ''} flex items-center justify-center`}>
-                <svg className="fp-youtube-touch-ack-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M8 5v14l11-7z" />
-                </svg>
-              </div>
-            </div>
-          </div>
         )}
       </div>
     )
