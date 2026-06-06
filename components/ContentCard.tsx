@@ -26,6 +26,7 @@ import {
   requestYouTubeActivation,
   YOUTUBE_MOBILE_REVEAL_SETTLE_MS,
   shouldMountYouTubePlayer,
+  shouldPrewarmYouTubePlayer,
   shouldRevealYouTubePlayer,
   shouldShowYouTubePosterVeil,
   shouldUseYouTubePosterSurface,
@@ -548,7 +549,9 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
 
     const isYouTubeShort = /\/shorts\//i.test(content.url || '')
     const shouldUsePosterSurface = shouldUseYouTubePosterSurface(isSoundRoom, isYouTubeShort, effectiveAspect)
-    const shouldMountPlayer = shouldMountYouTubePlayer('youtube', isActivated, isCoarsePointer, isNearViewport)
+    const shouldPrewarmPlayer = shouldPrewarmYouTubePlayer('youtube', isCoarsePointer, isNearViewport)
+    const shouldMountPlayer =
+      shouldMountYouTubePlayer('youtube', isActivated, isCoarsePointer, isNearViewport) || shouldPrewarmPlayer
     const shouldRevealFromReadyState =
       !isCoarsePointer && youtubePlayerReadyRef.current && !youtubePendingActivationRef.current
     const shouldRevealPlayer = shouldUsePosterSurface
@@ -608,7 +611,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     // The iframe may mount hidden as plumbing. The Footprint poster owns
     // loading/resting/paused; YouTube only becomes visible for motion.
     const ytActivatedSrc = buildYouTubeEmbedUrl(youtubeId, {
-      autoplay: true,
+      autoplay: false,
       mute: true,
       start: extractYouTubeStart(content.url),
       hd: true,
@@ -623,6 +626,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           className="absolute inset-0 w-full h-full [&_iframe]:!w-full [&_iframe]:!max-w-full [&_iframe]:!h-full"
           style={{
             opacity: shouldRevealPlayer ? 1 : 0,
+            pointerEvents: shouldRevealPlayer ? 'auto' : 'none',
             transition: 'opacity 0.2s ease',
             zIndex: 1,
           }}

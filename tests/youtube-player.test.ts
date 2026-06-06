@@ -31,12 +31,12 @@ describe('isYouTubePlayingMessage', () => {
 })
 
 describe('mobile youtube prewarm contract', () => {
-  it('does not prewarm youtube before explicit activation', () => {
-    expect(shouldPrewarmYouTubePlayer('youtube', true, true)).toBe(false)
-    expect(shouldMountYouTubePlayer('youtube', false, true, true)).toBe(false)
+  it('prewarms youtube backstage near the viewport before explicit activation', () => {
+    expect(shouldPrewarmYouTubePlayer('youtube', true, true)).toBe(true)
   })
 
-  it('mounts youtube after explicit activation', () => {
+  it('mounts youtube near viewport or after explicit activation', () => {
+    expect(shouldMountYouTubePlayer('youtube', false, true, true)).toBe(true)
     expect(shouldMountYouTubePlayer('youtube', true, true, false)).toBe(true)
   })
 

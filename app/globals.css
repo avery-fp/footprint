@@ -421,16 +421,16 @@ input:-webkit-autofill:focus {
   width: clamp(62px, 18vw, 72px);
   height: clamp(62px, 18vw, 72px);
   border-radius: 999px;
-  color: rgba(255, 255, 255, 0.82);
+  color: rgba(255, 255, 255, 0.76);
   background:
-    radial-gradient(circle at 49% 42%, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.105) 42%, rgba(255, 255, 255, 0.035) 72%, rgba(255, 255, 255, 0) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+    radial-gradient(circle at 50% 44%, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.085) 44%, rgba(255, 255, 255, 0.025) 74%, rgba(255, 255, 255, 0) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.13);
   box-shadow:
-    0 16px 44px rgba(0, 0, 0, 0.14),
-    0 0 24px rgba(255, 255, 255, 0.045),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(10px) saturate(112%);
-  -webkit-backdrop-filter: blur(10px) saturate(112%);
+    0 14px 40px rgba(0, 0, 0, 0.08),
+    0 0 26px rgba(255, 255, 255, 0.035),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(8px) saturate(108%);
+  -webkit-backdrop-filter: blur(8px) saturate(108%);
   transition:
     transform 140ms cubic-bezier(0.22, 1, 0.36, 1),
     background 140ms ease-out,
@@ -439,22 +439,22 @@ input:-webkit-autofill:focus {
 }
 
 .fp-youtube-touch-ack-icon {
-  width: 17px;
-  height: 17px;
-  margin-left: 2px;
-  opacity: 0.9;
-  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.28));
+  width: 15px;
+  height: 15px;
+  margin-left: 1px;
+  opacity: 0.78;
+  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.2));
 }
 
 .fp-youtube-touch-ack-pressed {
   transform: scale(0.94);
   background:
-    radial-gradient(circle at 49% 42%, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.15) 42%, rgba(255, 255, 255, 0.05) 72%, rgba(255, 255, 255, 0) 100%);
-  border-color: rgba(255, 255, 255, 0.22);
+    radial-gradient(circle at 50% 44%, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.125) 44%, rgba(255, 255, 255, 0.04) 74%, rgba(255, 255, 255, 0) 100%);
+  border-color: rgba(255, 255, 255, 0.18);
   box-shadow:
-    0 12px 34px rgba(0, 0, 0, 0.12),
-    0 0 30px rgba(255, 255, 255, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+    0 10px 30px rgba(0, 0, 0, 0.08),
+    0 0 32px rgba(255, 255, 255, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 @media (min-width: 768px) and (pointer: fine) {

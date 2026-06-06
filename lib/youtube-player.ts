@@ -57,10 +57,8 @@ export function shouldPrewarmYouTubePlayer(
   isCoarsePointer: boolean,
   isNearViewport: boolean,
 ) {
-  void platform
   void isCoarsePointer
-  void isNearViewport
-  return false
+  return platform === 'youtube' && isNearViewport
 }
 
 export function shouldMountYouTubePlayer(
@@ -70,8 +68,7 @@ export function shouldMountYouTubePlayer(
   isNearViewport: boolean,
 ) {
   void isCoarsePointer
-  void isNearViewport
-  return platform === 'youtube' && isActivated
+  return platform === 'youtube' && (isActivated || isNearViewport)
 }
 
 export function shouldRevealYouTubePlayer(
