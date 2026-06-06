@@ -854,7 +854,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     const nativePosterUrl = content.thumbnail_url ? transformImageUrl(content.thumbnail_url) : null
     const shouldShowNativePosterVeil = !!nativePosterUrl && !isNativeVideoActivated && nativeVideoResting
     return (
-      <div ref={containerRef} className="fp-tile overflow-hidden relative group">
+      <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative group">
         {isVideoError ? (
           <GlassPlaceholder aspectClass={aspectClass || 'aspect-video'} />
         ) : isInView ? (
@@ -868,7 +868,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               playsInline
               preload="metadata"
               poster={content.thumbnail_url || undefined}
-              className={`block w-full ${aspectClass || 'aspect-video'} ${fitClass} cursor-pointer`}
+              className={`absolute inset-0 h-full w-full ${fitClass} cursor-pointer`}
               onLoadedData={() => setIsLoaded(true)}
               onCanPlay={(e) => {
                 if (!isNativeVideoActivated && isVideoPlayable && !e.currentTarget.paused) {
