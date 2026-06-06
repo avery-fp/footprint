@@ -371,9 +371,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         clearTimeout(youtubeRevealTimerRef.current)
         youtubeRevealTimerRef.current = null
       }
-      const activation = requestYouTubeActivation(youtubePlayerReadyRef.current)
-      youtubePendingActivationRef.current = activation.pendingActivation
-      if (activation.shouldPlayNow) startYouTubePlayback(youtubeIframeRef.current)
+      const iframe = youtubeIframeRef.current
+      youtubePendingActivationRef.current = true
+      const activation = requestYouTubeActivation(youtubePlayerReadyRef.current || !!iframe)
+      if (activation.shouldPlayNow) startYouTubePlayback(iframe)
     }
   }
 
@@ -415,6 +416,24 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     if (shouldInvoke) invoke()
   }
 
+  const handleYouTubeInvocationPointerUp = (e: PointerEvent<HTMLElement>) => {
+    e.stopPropagation()
+    if (e.pointerType === 'mouse') {
+      setPressActive(false)
+      return
+    }
+    const shouldInvoke = isIntentionalInvocation(
+      invocationPointRef.current,
+      e.pointerId,
+      e.clientX,
+      e.clientY,
+      isCoarsePointer ? 48 : undefined,
+    )
+    invocationPointRef.current = null
+    setPressActive(false)
+    if (shouldInvoke) handleActivate()
+  }
+
   const handleInvocationPointerCancel = () => {
     invocationPointRef.current = null
     setPressActive(false)
@@ -453,6 +472,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         try { data = JSON.parse(data) } catch { return }
       }
       if (isYouTubePlayingMessage(data)) {
+        youtubePendingActivationRef.current = false
         setYoutubeHasStarted(true)
         if (!isSoundRoom) {
           if (youtubeRevealTimerRef.current) clearTimeout(youtubeRevealTimerRef.current)
@@ -520,7 +540,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         primeYouTubePlayer(iframe, youtubeId)
         youtubePlayerReadyRef.current = true
         const activation = consumePendingYouTubeActivation(youtubePendingActivationRef.current)
-        youtubePendingActivationRef.current = activation.pendingActivation
         if (activation.shouldPlayNow) {
           startYouTubePlayback(iframe)
         }
@@ -576,7 +595,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             type="button"
             aria-label="Play video"
             onPointerDown={(e) => handleInvocationPointerDown(e, handleActivate)}
-            onPointerUp={(e) => handleInvocationPointerUp(e, handleActivate)}
+            onPointerUp={handleYouTubeInvocationPointerUp}
             onPointerCancel={handleInvocationPointerCancel}
             onPointerLeave={handlePressEnd}
             className="absolute inset-0"
@@ -631,7 +650,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             type="button"
             aria-label="Play video"
             onPointerDown={(e) => handleInvocationPointerDown(e, handleActivate)}
-            onPointerUp={(e) => handleInvocationPointerUp(e, handleActivate)}
+            onPointerUp={handleYouTubeInvocationPointerUp}
             onPointerCancel={handleInvocationPointerCancel}
             onPointerLeave={handlePressEnd}
             className="absolute inset-0 cursor-pointer"
