@@ -630,8 +630,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           <button
             type="button"
             aria-label="Play video"
-            onPointerDown={!isActivated ? (e) => handleInvocationPointerDown(e, handleActivate) : undefined}
-            onPointerUp={!isActivated ? (e) => handleInvocationPointerUp(e, handleActivate) : undefined}
+            onPointerDown={(e) => handleInvocationPointerDown(e, handleActivate)}
+            onPointerUp={(e) => handleInvocationPointerUp(e, handleActivate)}
             onPointerCancel={handleInvocationPointerCancel}
             onPointerLeave={handlePressEnd}
             className="absolute inset-0 cursor-pointer"
@@ -640,7 +640,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               border: 'none',
               padding: 0,
               background: 'transparent',
-              pointerEvents: isActivated ? 'none' : 'auto',
             }}
           >
             <div className="fp-resting-video-frame">
@@ -665,9 +664,26 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 onError={(e) => applyNextThumbnailFallback(e.currentTarget, youtubeThumbCandidates)}
               />
             </div>
+            {isActivated && !shouldUsePosterSurface && (
+              <div
+                className="pointer-events-none absolute left-1/2 top-1/2 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full"
+                aria-hidden="true"
+                style={{
+                  background: 'rgba(0,0,0,0.34)',
+                  border: '1px solid rgba(255,255,255,0.18)',
+                  color: 'rgba(255,255,255,0.78)',
+                  backdropFilter: 'blur(10px)',
+                  WebkitBackdropFilter: 'blur(10px)',
+                }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              </div>
+            )}
           </button>
         )}
-        {isActivated && !shouldUsePosterSurface && (
+        {isActivated && !shouldShowPosterVeil && !shouldUsePosterSurface && (
           <div
             className="pointer-events-none absolute inset-0"
             aria-hidden="true"
