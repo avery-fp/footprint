@@ -47,6 +47,7 @@ const PUBLIC_SYNC_POSTER_COUNT = 8
 const PUBLIC_MEDIA_ROOT_MARGIN = '1600px 0px 1600px 0px'
 const YOUTUBE_COARSE_TAP_TOLERANCE_PX = 96
 const YOUTUBE_PENDING_RETRY_THROTTLE_MS = 900
+const YOUTUBE_STARTUP_TOUCH_SHIELD_MS = 1100
 const YOUTUBE_MOBILE_TAP_TARGET_CLASS =
   '[@media(pointer:coarse)]:inset-auto [@media(pointer:coarse)]:left-1/2 [@media(pointer:coarse)]:top-1/2 [@media(pointer:coarse)]:h-[68%] [@media(pointer:coarse)]:w-[68%] [@media(pointer:coarse)]:-translate-x-1/2 [@media(pointer:coarse)]:-translate-y-1/2'
 const YOUTUBE_VISUAL_FRAME_STYLE: React.CSSProperties = { inset: 6, borderRadius: 12 }
@@ -247,6 +248,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const posterDecoding = isPublicView && index < PUBLIC_SYNC_POSTER_COUNT ? 'sync' : 'async'
   const [isActivated, setIsActivated] = useState(false)
   const [youtubeHasStarted, setYoutubeHasStarted] = useState(false)
+  const [youtubeStartupTouchShield, setYoutubeStartupTouchShield] = useState(false)
   const [isCoarsePointer, setIsCoarsePointer] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
   const [isInView, setIsInView] = useState(false)
@@ -280,6 +282,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const youtubePendingActivationRef = useRef(false)
   const youtubeLastPendingRetryAtRef = useRef(0)
   const youtubeRevealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const youtubeStartupTouchShieldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const invocationPointRef = useRef<InvocationPoint | null>(null)
   const [youtubeRevealSettled, setYoutubeRevealSettled] = useState(false)
   const [pressActive, setPressActive] = useState(false)
@@ -336,6 +339,11 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         clearTimeout(youtubeRevealTimerRef.current)
         youtubeRevealTimerRef.current = null
       }
+      if (youtubeStartupTouchShieldTimerRef.current) {
+        clearTimeout(youtubeStartupTouchShieldTimerRef.current)
+        youtubeStartupTouchShieldTimerRef.current = null
+      }
+      setYoutubeStartupTouchShield(false)
       youtubePendingActivationRef.current = false
       activatedRef.current = false
       audioManager.release(audioIdRef.current)
@@ -466,6 +474,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   useEffect(() => {
     return () => {
       if (youtubeRevealTimerRef.current) clearTimeout(youtubeRevealTimerRef.current)
+      if (youtubeStartupTouchShieldTimerRef.current) clearTimeout(youtubeStartupTouchShieldTimerRef.current)
     }
   }, [])
 
@@ -484,6 +493,18 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       if (isYouTubePlayingMessage(data)) {
         youtubePendingActivationRef.current = false
         setYoutubeHasStarted(true)
+        youtubeIframeRef.current?.blur()
+        requestAnimationFrame(() => {
+          containerRef.current?.focus({ preventScroll: true })
+        })
+        if (isCoarsePointer) {
+          if (youtubeStartupTouchShieldTimerRef.current) clearTimeout(youtubeStartupTouchShieldTimerRef.current)
+          setYoutubeStartupTouchShield(true)
+          youtubeStartupTouchShieldTimerRef.current = setTimeout(() => {
+            setYoutubeStartupTouchShield(false)
+            youtubeStartupTouchShieldTimerRef.current = null
+          }, YOUTUBE_STARTUP_TOUCH_SHIELD_MS)
+        }
         if (!isSoundRoom) {
           if (youtubeRevealTimerRef.current) clearTimeout(youtubeRevealTimerRef.current)
           youtubeRevealTimerRef.current = setTimeout(() => {
@@ -493,6 +514,11 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       } else if (isYouTubeNonPlayingMessage(data)) {
         setYoutubeHasStarted(false)
         setYoutubeRevealSettled(false)
+        if (youtubeStartupTouchShieldTimerRef.current) {
+          clearTimeout(youtubeStartupTouchShieldTimerRef.current)
+          youtubeStartupTouchShieldTimerRef.current = null
+        }
+        setYoutubeStartupTouchShield(false)
         const iframe = youtubeIframeRef.current
         const now = Date.now()
         if (
@@ -517,6 +543,11 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
         clearTimeout(youtubeRevealTimerRef.current)
         youtubeRevealTimerRef.current = null
       }
+      if (youtubeStartupTouchShieldTimerRef.current) {
+        clearTimeout(youtubeStartupTouchShieldTimerRef.current)
+        youtubeStartupTouchShieldTimerRef.current = null
+      }
+      setYoutubeStartupTouchShield(false)
       youtubePendingActivationRef.current = false
       activatedRef.current = false
       setIsActivated(false)
@@ -647,8 +678,9 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     return (
       <div
         ref={containerRef}
+        tabIndex={-1}
         className="w-full max-w-full h-full fp-tile overflow-hidden relative group"
-        style={{ background: 'transparent', ...tapResponseStyle }}
+        style={{ background: 'transparent', outline: 'none', ...tapResponseStyle }}
       >
         <div className="absolute overflow-hidden" style={YOUTUBE_VISUAL_FRAME_STYLE}>
           <div
@@ -678,6 +710,18 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               onLoad={handleYTLoad}
             />
           </div>
+          {shouldRevealPlayer && youtubeStartupTouchShield && (
+            <div
+              aria-hidden="true"
+              className="absolute inset-0"
+              style={{
+                zIndex: 4,
+                pointerEvents: 'auto',
+                touchAction: 'pan-x pan-y',
+                background: 'transparent',
+              }}
+            />
+          )}
           {shouldShowPosterVeil && posterLayer}
         </div>
         {shouldShowPosterVeil && (
