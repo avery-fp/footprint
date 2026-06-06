@@ -44,7 +44,7 @@ const GlassEmbedFrame = GlassEmbedFrameExtracted
 const GlassPlaceholder = GlassPlaceholderExtracted
 const PUBLIC_EAGER_POSTER_COUNT = 16
 const PUBLIC_SYNC_POSTER_COUNT = 8
-const PUBLIC_MEDIA_ROOT_MARGIN = '1200px 0px 1200px 0px'
+const PUBLIC_MEDIA_ROOT_MARGIN = '1600px 0px 1600px 0px'
 const settledPublicPosters = new Set<string>()
 
 // ════════════════════════════════════════
