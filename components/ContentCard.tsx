@@ -7,7 +7,7 @@ import { audioManager } from '@/lib/audio-manager'
 import { parseEmbed, extractYouTubeId, extractYouTubeStart, buildYouTubeEmbedUrl } from '@/lib/parseEmbed'
 import type { EmbedResult } from '@/lib/parseEmbed'
 import GlassEmbedFrameExtracted, { GlassPlaceholder as GlassPlaceholderExtracted } from '@/components/GlassEmbedFrame'
-import { getPublicImageUrl, transformImageUrl } from '@/lib/image'
+import { transformImageUrl } from '@/lib/image'
 import { applyNextThumbnailFallback, applyThumbnailLoadGuard, getBestThumbnailUrl, getYouTubeThumbnailCandidates } from '@/lib/media/thumbnails'
 import ArtifactShell from '@/components/ArtifactShell'
 import SocialEmbed from '@/components/SocialEmbed'
@@ -247,8 +247,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const fitClass = 'object-cover'
   const isPriorityPoster = isPublicView && index < PUBLIC_EAGER_POSTER_COUNT
   const posterDecoding = isPublicView && index < PUBLIC_SYNC_POSTER_COUNT ? 'sync' : 'async'
-  const displayImageUrl = (url: string | null | undefined) =>
-    isPublicView ? getPublicImageUrl(url) || url || null : transformImageUrl(url) || null
   const [isActivated, setIsActivated] = useState(false)
   const [youtubeHasStarted, setYoutubeHasStarted] = useState(false)
   const [youtubeStartupTouchShield, setYoutubeStartupTouchShield] = useState(false)
@@ -578,13 +576,13 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // ════════════════════════════════════════
   // Detect YouTube by URL, not just stored type — catches mistyped tiles
   const youtubeId = extractYouTubeId(content.url)
-  const cachedYouTubeThumb = content.thumbnail_url ? displayImageUrl(content.thumbnail_url) : null
+  const cachedYouTubeThumb = content.thumbnail_url ? transformImageUrl(content.thumbnail_url) : null
   const youtubeThumbCandidates = youtubeId
     ? Array.from(
         new Set([
           cachedYouTubeThumb,
-          content.thumbnail_url_override ? displayImageUrl(content.thumbnail_url_override) : null,
-          content.thumbnail_url_hq ? displayImageUrl(content.thumbnail_url_hq) : null,
+          content.thumbnail_url_override ? transformImageUrl(content.thumbnail_url_override) : null,
+          content.thumbnail_url_hq ? transformImageUrl(content.thumbnail_url_hq) : null,
           ...getYouTubeThumbnailCandidates({
             url: content.url,
             media_id: youtubeId,
@@ -922,7 +920,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     // Append #t=0.1 so the first frame renders as poster instead of a black square.
     // Skips if URL already has a fragment.
     const videoSrc = content.url && !content.url.includes('#') ? `${content.url}#t=0.1` : content.url
-    const nativePosterUrl = content.thumbnail_url ? displayImageUrl(content.thumbnail_url) : null
+    const nativePosterUrl = content.thumbnail_url ? transformImageUrl(content.thumbnail_url) : null
     const shouldShowNativePosterVeil = !!nativePosterUrl && !isNativeVideoActivated && nativeVideoResting
     return (
       <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative group">
@@ -938,7 +936,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               loop
               playsInline
               preload="metadata"
-              poster={nativePosterUrl || undefined}
+              poster={content.thumbnail_url || undefined}
               className={`absolute inset-0 h-full w-full ${fitClass} cursor-pointer`}
               onLoadedData={() => setIsLoaded(true)}
               onCanPlay={(e) => {
@@ -1009,7 +1007,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   // IMAGE — vapor box + 800ms materialization
   // ════════════════════════════════════════
   if (content.type === 'image') {
-    const imageSrc = displayImageUrl(content.url) || content.url
+    const imageSrc = transformImageUrl(content.url)
     return (
       <div ref={containerRef} className="fp-tile overflow-hidden relative w-full h-full">
         <a href={content.url} target="_blank" rel="noopener noreferrer" className="absolute inset-0 block">
@@ -1085,7 +1083,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             {rows.map((item, index) => rowShell(item, index, (
               <>
                 {item.image ? (
-                  <img src={displayImageUrl(item.image) || item.image} alt="" className="aspect-square w-full rounded-lg object-cover bg-black/25" loading="lazy" />
+                  <img src={item.image} alt="" className="aspect-square w-full rounded-lg object-cover bg-black/25" loading="lazy" />
                 ) : null}
                 <div className="mt-2 px-1">
                   {item.title ? <div className="text-[12px] leading-snug text-white/78 line-clamp-2">{item.title}</div> : null}
@@ -1112,7 +1110,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             const inner = productMode || mediaMode ? (
               <div className="flex gap-3">
                 {item.image ? (
-                  <img src={displayImageUrl(item.image) || item.image} alt="" className="h-16 w-16 shrink-0 rounded-lg object-cover bg-black/25" loading="lazy" />
+                  <img src={item.image} alt="" className="h-16 w-16 shrink-0 rounded-lg object-cover bg-black/25" loading="lazy" />
                 ) : null}
                 <div className="min-w-0 flex-1">
                   {item.title ? <div className="text-[13px] leading-snug text-white/80">{item.title}</div> : null}
@@ -1143,7 +1141,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             ) : (
               <div className="flex gap-3">
                 {item.image ? (
-                  <img src={displayImageUrl(item.image) || item.image} alt="" className="h-12 w-12 shrink-0 rounded-lg object-cover bg-black/25" loading="lazy" />
+                  <img src={item.image} alt="" className="h-12 w-12 shrink-0 rounded-lg object-cover bg-black/25" loading="lazy" />
                 ) : null}
                 <div className="min-w-0 flex-1">
                   {item.title ? <div className="text-[13px] leading-snug text-white/78">{item.title}</div> : null}
@@ -1181,7 +1179,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       {
         title: sourceExcerpt?.title || content.title,
         creator: sourceExcerpt?.handle || content.artist,
-        image: displayImageUrl(sourceExcerpt?.image || getBestThumbnailUrl(content)),
+        image: sourceExcerpt?.image || getBestThumbnailUrl(content),
         description: sourceExcerpt?.description || content.description,
       },
       content.url
@@ -1264,12 +1262,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   if (content.type === 'tiktok') {
     const sourceExcerpt = content.metadata?.source_excerpt || null
     const sourceExcerptImage = sourceExcerpt?.image && !isPlatformLogoImage(sourceExcerpt.image)
-      ? displayImageUrl(sourceExcerpt.image) || sourceExcerpt.image
+      ? sourceExcerpt.image
       : null
-    const firstSourceItemImageRaw = sourceExcerpt?.items?.find((item) => item?.image)?.image || null
-    const firstSourceItemImage = displayImageUrl(firstSourceItemImageRaw) || firstSourceItemImageRaw
-    const bestThumbnailUrl = getBestThumbnailUrl(content)
-    const thumbSrc = sourceExcerptImage || firstSourceItemImage || displayImageUrl(bestThumbnailUrl) || bestThumbnailUrl
+    const firstSourceItemImage = sourceExcerpt?.items?.find((item) => item?.image)?.image || null
+    const thumbSrc = sourceExcerptImage || firstSourceItemImage || getBestThumbnailUrl(content)
     const hasManualSourceRows = !!sourceExcerpt?.items?.some((item) => item?.title || item?.description || item?.text || item?.image)
     // Numeric video ID from the canonical tiktok.com/@user/video/{id} shape.
     // external_id (when present) wins; otherwise extract from the URL.
@@ -1415,19 +1411,16 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   if (content.type === 'instagram' && (isInstagramPostUrl(content.url) || hasSourceRows(content.metadata))) {
     const sourceExcerpt = content.metadata?.source_excerpt || null
     const sourceImage = sourceExcerpt?.image && !isPlatformLogoImage(sourceExcerpt.image)
-      ? displayImageUrl(sourceExcerpt.image) || sourceExcerpt.image
+      ? sourceExcerpt.image
       : null
-    const firstSourceItemImageRaw = sourceExcerpt?.items?.find((item) => item?.image)?.image || null
-    const firstSourceItemImage = displayImageUrl(firstSourceItemImageRaw) || firstSourceItemImageRaw
-    const productImageRaw = sourceExcerpt?.product?.image || content.metadata?.product?.image || null
-    const productImage = displayImageUrl(productImageRaw) || productImageRaw
-    const rawThumbSrc =
+    const firstSourceItemImage = sourceExcerpt?.items?.find((item) => item?.image)?.image || null
+    const productImage = sourceExcerpt?.product?.image || content.metadata?.product?.image || null
+    const thumbSrc =
       content.thumbnail_url_override ||
       sourceImage ||
       firstSourceItemImage ||
       productImage ||
       getBestThumbnailUrl(content)
-    const thumbSrc = displayImageUrl(rawThumbSrc) || rawThumbSrc
     const hasManualSourceRows = !!sourceExcerpt?.items?.some((item) => item?.title || item?.description || item?.text || item?.image)
 
     // Thumb 404 or no content at all → FallbackCard. Spec Task 3.
@@ -1531,15 +1524,13 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     !isMusicProviderUrl(content.url)
 
   if (isGenericExternalArtifact) {
-    const rawThumbSrc =
+    const thumbSrc =
       content.thumbnail_url_override ||
       content.thumbnail_url_hq ||
       content.thumbnail_url ||
       ''
-    const thumbSrc = displayImageUrl(rawThumbSrc) || rawThumbSrc
-    const sourcePreviewImage = displayImageUrl(sourceExcerptImage(content.metadata))
-    const rawTileSurfaceImage = content.thumbnail_url_override || sourcePreviewImage || thumbSrc
-    const tileSurfaceImage = displayImageUrl(rawTileSurfaceImage) || rawTileSurfaceImage
+    const sourcePreviewImage = sourceExcerptImage(content.metadata)
+    const tileSurfaceImage = content.thumbnail_url_override || sourcePreviewImage || thumbSrc
 
     const host = getExternalHost(content.url)
 
@@ -1554,12 +1545,11 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             url: item?.url,
             date: item?.date,
             description: item?.description || item?.text,
-            image: displayImageUrl(item?.image) || item?.image,
+            image: item?.image,
           }))
         : content.metadata?.excerpt_items || []
     ).filter((item) => item?.title)
-    const rawArtifactImage = productMeta?.image || sourcePreviewImage || thumbSrc
-    const artifactImage = displayImageUrl(rawArtifactImage) || rawArtifactImage
+    const artifactImage = productMeta?.image || sourcePreviewImage || thumbSrc
     const hasArtifactImage = !!artifactImage && !socialThumbFailed
     const sourceKind = sourceExcerpt?.kind || content.metadata?.source_excerpt_category || null
     const productArtifact = sourceKind === 'product' || !!productMeta || isProductSource(content.url)
@@ -1851,8 +1841,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
       url={content.url}
       title={content.title}
       description={content.description}
-      thumbnail={displayImageUrl(getBestThumbnailUrl(content))}
-      thumbnailOverride={displayImageUrl(content.thumbnail_url_override)}
+      thumbnail={getBestThumbnailUrl(content)}
+      thumbnailOverride={content.thumbnail_url_override || null}
       artist={content.artist}
       isInView={isInView}
       aspectClass={aspectClass}

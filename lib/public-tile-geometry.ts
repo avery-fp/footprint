@@ -1,5 +1,5 @@
 import { tileAspectRatio } from '@/lib/grid-layouts'
-import { getPublicImageUrl } from '@/lib/image'
+import { transformImageUrl } from '@/lib/image'
 import { getGridClass, isVideoTile, resolveAspect } from '@/lib/media/aspect'
 import { getYouTubeThumbnailCandidates } from '@/lib/media/thumbnails'
 import { extractYouTubeId } from '@/lib/parseEmbed'
@@ -75,11 +75,11 @@ export function getPublicPosterUrl(
 ): string | null {
   const youtubeId = extractYouTubeId(item?.url || '')
   if (youtubeId) {
-    const cachedYouTubeThumb = item.thumbnail_url ? getPublicImageUrl(item.thumbnail_url) : null
+    const cachedYouTubeThumb = item.thumbnail_url ? transformImageUrl(item.thumbnail_url) : null
     const candidates = [
       cachedYouTubeThumb,
-      item.thumbnail_url_override ? getPublicImageUrl(item.thumbnail_url_override) : null,
-      item.thumbnail_url_hq ? getPublicImageUrl(item.thumbnail_url_hq) : null,
+      item.thumbnail_url_override ? transformImageUrl(item.thumbnail_url_override) : null,
+      item.thumbnail_url_hq ? transformImageUrl(item.thumbnail_url_hq) : null,
       ...getYouTubeThumbnailCandidates({
         url: item.url,
         media_id: youtubeId,
@@ -91,9 +91,9 @@ export function getPublicPosterUrl(
     return candidates[0] || null
   }
 
-  if (item.type === 'image') return getPublicImageUrl(item.url) || null
+  if (item.type === 'image') return item.url || null
   if (item.type === 'container') {
-    return getPublicImageUrl(item.container_cover_url) || getPublicImageUrl(containerMeta?.[item.id]?.firstThumb) || null
+    return item.container_cover_url || containerMeta?.[item.id]?.firstThumb || null
   }
 
   const raw =
@@ -104,7 +104,7 @@ export function getPublicPosterUrl(
     containerMeta?.[item.id]?.firstThumb ||
     null
 
-  return getPublicImageUrl(raw) || null
+  return raw
 }
 
 export function getPublicTileGeometry(

@@ -5,7 +5,7 @@ import UnifiedTile from '@/components/UnifiedTile'
 import { getCollectionRenderRadius, shouldRenderCollectionTile } from '@/lib/collection-window'
 import { getGridLayout, type RoomLayout } from '@/lib/grid-layouts'
 import { glassStyle } from '@/lib/glass'
-import { getPublicImageUrl } from '@/lib/image'
+import { transformImageUrl } from '@/lib/image'
 import { getPublicTileGeometry, type PublicTileGeometry } from '@/lib/public-tile-geometry'
 
 interface Room {
@@ -244,7 +244,7 @@ export default function PublicRoomSurface({
   )
 
   const renderCollectionTilePlaceholder = (child: any) => {
-    const previewUrl = tileGeometry(child).posterUrl || getPublicImageUrl(
+    const previewUrl = tileGeometry(child).posterUrl || transformImageUrl(
       child.thumbnail_url_override ||
       child.thumbnail_url_hq ||
       child.thumbnail_url ||
