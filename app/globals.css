@@ -86,6 +86,50 @@ body {
   overflow-x: hidden;
 }
 
+.fp-pull-refresh-indicator {
+  position: fixed;
+  top: calc(var(--fp-safe-top) + 6px);
+  left: 50%;
+  z-index: 70;
+  width: 36px;
+  height: 36px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  will-change: opacity, transform;
+  transition: opacity 120ms ease-out, transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.fp-pull-refresh-indicator span {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-top-color: rgba(255, 255, 255, 0.62);
+  background: rgba(255, 255, 255, 0.045);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.fp-pull-refresh-indicator-ready span {
+  border-color: rgba(255, 255, 255, 0.34);
+  border-top-color: rgba(255, 255, 255, 0.82);
+}
+
+@media (pointer: coarse) and (max-width: 767px) {
+  .fp-pull-refresh-indicator {
+    display: flex;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fp-pull-refresh-indicator {
+    transition: opacity 80ms linear;
+  }
+}
+
 img,
 video,
 canvas,

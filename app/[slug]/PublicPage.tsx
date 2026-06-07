@@ -102,6 +102,8 @@ const ROOM_SWITCH_HIDE_MS = 180
 const ROOM_SWITCH_REVEAL_MS = 320
 const SCROLL_CONTINUITY_SAVE_MS = 400
 const ROOM_NAV_DOCK_THRESHOLD = 160
+const PULL_REFRESH_THRESHOLD_PX = 78
+const PULL_REFRESH_MAX_PX = 112
 
 function continuityKey(slug: string, key: string) {
   return `fp:${slug}:${key}`
@@ -162,7 +164,13 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [isMobile, setIsMobile] = useState(false)
   const [roomFade, setRoomFade] = useState<'visible' | 'out' | 'in'>('visible')
   const [roomNavDocked, setRoomNavDocked] = useState(false)
+  const [pullRefreshDistance, setPullRefreshDistance] = useState(0)
+  const [pullRefreshArmed, setPullRefreshArmed] = useState(false)
+  const [pullRefreshRefreshing, setPullRefreshRefreshing] = useState(false)
   const roomNavDockedRef = useRef(false)
+  const pullRefreshStartYRef = useRef<number | null>(null)
+  const pullRefreshActiveRef = useRef(false)
+  const pullRefreshArmedRef = useRef(false)
 
   // ── Owner editor surface ──
   // editorMode is the toggle behind the corner home button: when off,
@@ -743,6 +751,58 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       scrollToTile()
     }
   }, [activeRoomId, goToRoom])
+
+  const resetPullRefresh = useCallback(() => {
+    pullRefreshStartYRef.current = null
+    pullRefreshActiveRef.current = false
+    pullRefreshArmedRef.current = false
+    setPullRefreshDistance(0)
+    setPullRefreshArmed(false)
+  }, [])
+
+  const shouldIgnorePullRefreshTarget = (target: EventTarget | null) => {
+    if (!(target instanceof Element)) return false
+    return Boolean(target.closest('button, a, input, textarea, select, [contenteditable="true"], [data-no-ptr], [data-no-wp-press]'))
+  }
+
+  const handlePullRefreshTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    if (!isMobile || pullRefreshRefreshing || expanded || claimActive) return
+    if (window.scrollY > 2 || e.touches.length !== 1) return
+    if (shouldIgnorePullRefreshTarget(e.target)) return
+    pullRefreshStartYRef.current = e.touches[0].clientY
+    pullRefreshActiveRef.current = true
+  }, [claimActive, expanded, isMobile, pullRefreshRefreshing])
+
+  const handlePullRefreshTouchMove = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    if (!pullRefreshActiveRef.current || pullRefreshStartYRef.current === null) return
+    if (window.scrollY > 2) {
+      resetPullRefresh()
+      return
+    }
+    const delta = e.touches[0].clientY - pullRefreshStartYRef.current
+    if (delta <= 0) {
+      resetPullRefresh()
+      return
+    }
+    if (delta > 12) e.preventDefault()
+    const eased = Math.min(PULL_REFRESH_MAX_PX, Math.round(delta * 0.58))
+    const armed = delta >= PULL_REFRESH_THRESHOLD_PX
+    pullRefreshArmedRef.current = armed
+    setPullRefreshDistance(eased)
+    setPullRefreshArmed(armed)
+  }, [resetPullRefresh])
+
+  const handlePullRefreshTouchEnd = useCallback(() => {
+    if (!pullRefreshActiveRef.current) return
+    const shouldRefresh = pullRefreshArmedRef.current && window.scrollY <= 2
+    resetPullRefresh()
+    if (!shouldRefresh) return
+    setPullRefreshRefreshing(true)
+    saveContinuityRef.current()
+    window.setTimeout(() => {
+      window.location.reload()
+    }, 90)
+  }, [resetPullRefresh])
 
   // ═══════════════════════════════════════════
   // Drag-to-reorder for owners on public page
@@ -2052,7 +2112,23 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     <div
       className={`relative flex min-h-[100dvh] w-full flex-col overflow-x-clip${isGrid ? ' fp-puzzle-page' : ''}`}
       style={{ background: theme.colors.background, color: theme.colors.text, '--fp-glass': theme.colors.glass, '--fp-text-muted': theme.colors.textMuted } as React.CSSProperties}
+      onTouchStart={handlePullRefreshTouchStart}
+      onTouchMove={handlePullRefreshTouchMove}
+      onTouchEnd={handlePullRefreshTouchEnd}
+      onTouchCancel={resetPullRefresh}
     >
+      {(pullRefreshDistance > 0 || pullRefreshRefreshing) && (
+        <div
+          className={`fp-pull-refresh-indicator${pullRefreshArmed || pullRefreshRefreshing ? ' fp-pull-refresh-indicator-ready' : ''}`}
+          style={{
+            opacity: pullRefreshRefreshing ? 1 : Math.min(0.82, pullRefreshDistance / PULL_REFRESH_THRESHOLD_PX),
+            transform: `translate3d(-50%, ${Math.min(46, pullRefreshDistance * 0.42)}px, 0) scale(${pullRefreshArmed || pullRefreshRefreshing ? 1 : 0.92})`,
+          }}
+          aria-hidden="true"
+        >
+          <span />
+        </div>
+      )}
       {/* Wallpaper layer — GPU composited for 60fps scroll. Keyed by URL so
           a replaced wallpaper drops the previous decoded layer instead of
           repainting it under the new src while the new bytes load. */}
