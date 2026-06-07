@@ -11,17 +11,16 @@ import { RemoveBubble } from '@/components/RemoveBubble'
 import { PlusButton } from '@/components/PlusButton'
 import FloatingCtaBar from '@/components/FloatingCtaBar'
 import AddToHomeScreen from '@/components/AddToHomeScreen'
-import { getGridLayout, tileAspectRatio, LAYOUT_LABELS, type RoomLayout } from '@/lib/grid-layouts'
+import { getGridLayout, LAYOUT_LABELS, type RoomLayout } from '@/lib/grid-layouts'
 import LayoutToggle from '@/components/LayoutToggle'
 import { glassStyle } from '@/lib/glass'
 import { useDepthExpansion } from '@/hooks/useDepthExpansion'
 import { moveChild, removeChild } from '@/lib/container-child-ops'
 import { getCollectionRenderRadius, shouldRenderCollectionTile } from '@/lib/collection-window'
-import { getGridClass, resolveAspect, isVideoTile } from '@/lib/media/aspect'
+import type { PublicTileGeometry } from '@/lib/public-tile-geometry'
 import { getFootprintDisplayTitle } from '@/lib/footprint'
 import { getRoomAtmosphere } from '@/lib/roomAtmosphere'
 import { wallpaperSourceFromTile } from '@/lib/tile-rendering'
-import { transformImageUrl } from '@/lib/image'
 
 const OwnerActionBar = dynamic(() => import('@/components/OwnerActionBar'), { ssr: false })
 const OwnerTileSheet = dynamic(() => import('@/components/OwnerTileSheet'), { ssr: false })
@@ -104,6 +103,25 @@ const SCROLL_CONTINUITY_SAVE_MS = 400
 const ROOM_NAV_DOCK_THRESHOLD = 160
 const PULL_REFRESH_THRESHOLD_PX = 78
 const PULL_REFRESH_MAX_PX = 112
+
+function stableFallbackTileGeometry(item: any): PublicTileGeometry {
+  const size = Number(item?.size || 1)
+  const gridClass = size >= 3
+    ? 'col-span-2 row-span-2 md:col-span-3 md:row-span-3 aspect-square'
+    : size >= 2
+      ? 'col-span-2 row-span-2 aspect-square'
+      : 'col-span-1 aspect-square'
+  return {
+    resolvedAspect: 'square',
+    gridClass,
+    fitClass: '',
+    aspectCss: '1 / 1',
+    posterUrl: item?.thumbnail_url_override || item?.thumbnail_url_hq || item?.thumbnail_url || item?.poster_url || null,
+    railHeightMobile: size >= 3 ? 'min(78vh, 600px)' : size <= 1 ? 'min(58vh, 420px)' : 'min(72vh, 540px)',
+    railHeightDesktop: size >= 3 ? 'min(76vh, 700px)' : size <= 1 ? 'min(54vh, 500px)' : 'min(70vh, 640px)',
+    viewportFitHeight: 'calc(100vw - 32px)',
+  }
+}
 
 function continuityKey(slug: string, key: string) {
   return `fp:${slug}:${key}`
@@ -1638,45 +1656,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // ═══════════════════════════════════════════
   const displayContent = isOwner ? localContent : content
 
-  // Map any tile to a CSS aspect-ratio string. Provider embeds use their
-  // content-native ratio; everything else routes through resolveAspect →
-  // tileAspectRatio. Public tile geometry is fixed before media bytes load.
-  const tileAspectCss = (item: any): string => {
-    const isSpotify = item.type === 'spotify' || /open\.spotify\.com/i.test(item.url || '')
-    const isAppleMusic = item.type === 'apple_music' || /music\.apple\.com/i.test(item.url || '')
-    const isOtherMusic = item.type === 'soundcloud' || item.type === 'bandcamp' ||
-      /(?:soundcloud\.com|\.bandcamp\.com\/(?:album|track)\/)/i.test(item.url || '')
-
-    if (isSpotify) {
-      if (item.aspect === 'square') return '1 / 1'
-      return '9 / 2'
-    }
-
-    if (isAppleMusic) {
-      return item.aspect === 'wide' || item.aspect === 'landscape' ? '9 / 2' : '1 / 1'
-    }
-
-    if (isOtherMusic) {
-      return item.aspect === 'wide' || item.aspect === 'landscape' ? '9 / 2' : '1 / 1'
-    }
-
-    // Explicit user shape wins, and URL-derived vertical video signals
-    // like YouTube Shorts must be resolved before generic provider
-    // defaults force embeds to 16:9.
-    if (item.aspect === 'square' || item.aspect === 'wide' || item.aspect === 'tall' || item.aspect === 'portrait') {
-      return tileAspectRatio(item.aspect)
-    }
-    const resolved = resolveAspect(item.aspect, item.type, item.url)
-    if (resolved === 'square' || resolved === 'wide' || resolved === 'tall' || resolved === 'portrait') {
-      return tileAspectRatio(resolved)
-    }
-    const isEmbedVid = item.type === 'youtube' || item.type === 'vimeo' ||
-      item.url?.includes('youtube') || item.url?.includes('youtu.be')
-    if (isEmbedVid) return '16 / 9'
-    if (item.type === 'soundcloud') return '16 / 9'
-    return tileAspectRatio(resolved)
-  }
-
+  const tileGeometry = (item: any): PublicTileGeometry => item?.public_geometry || stableFallbackTileGeometry(item)
 
   const fadeStyle = {
     opacity: roomFade === 'out' ? 0.42 : 1,
@@ -1735,6 +1715,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const renderTileBody = (item: any, idx: number) => {
     const isContainer = item.type === 'container'
     const isThisExpanded = expanded?.id === item.id
+    const geometry = tileGeometry(item)
     return (
       <div
         ref={(el: HTMLDivElement | null) => registerRef(item.id, el)}
@@ -1749,7 +1730,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             item={item}
             index={idx}
             size={item.size || 1}
-            aspect={resolveAspect(item.aspect, item.type, item.url)}
+            aspect={geometry.resolvedAspect}
             mode="public"
             layout={roomLayout}
             isMobile={isMobile}
@@ -1824,30 +1805,23 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     )
   }
 
-  // Per-tile wrapper for grid masonry. Uses getGridClass (the tuned
-  // col/row span + aspect engine from lib/media/aspect.ts) so every
-  // tile gets the right footprint from size × resolved-aspect.
+  // Per-tile wrapper for grid masonry. Geometry is precomputed by the
+  // server component and applied inline here so the frame arrives before
+  // media bytes, hydration, or owner/editor machinery.
   const renderMasonryTile = (item: any, idx: number) => {
-    const resolved = resolveAspect(item.aspect, item.type, item.url)
-    const gridClass = getGridClass(Number(item.size || 1), resolved, isVideoTile(item.type, item.url), item.type)
+    const geometry = tileGeometry(item)
     const tileBody = renderTileBody(item, idx)
-    // Spotify's compact embed locks at ~152px tall. Without self-start, CSS
-    // grid stretches the cell to match the tallest sibling in the same row,
-    // leaving black space below the iframe. Self-start keeps it fitted.
-    const fitClass =
-      ((item.type === 'spotify' || item.type === 'apple_music') && resolved === 'wide')
-        ? ' self-start'
-        : ''
-    const wrapperClass = `relative overflow-hidden rounded-2xl ${gridClass}${fitClass}`
+    const wrapperClass = `relative overflow-hidden rounded-2xl ${geometry.gridClass}${geometry.fitClass}`
+    const wrapperStyle: React.CSSProperties = { aspectRatio: geometry.aspectCss }
     if (isEditorActive) {
       return (
-        <SortableTileWrapper key={item.id} item={item} idx={idx} className={wrapperClass} disabled={!!expanded}>
+        <SortableTileWrapper key={item.id} item={item} idx={idx} className={wrapperClass} style={wrapperStyle} disabled={!!expanded}>
           {tileBody}
         </SortableTileWrapper>
       )
     }
     return (
-      <div key={item.id} className={wrapperClass}>
+      <div key={item.id} className={wrapperClass} style={wrapperStyle}>
         {tileBody}
       </div>
     )
@@ -1885,24 +1859,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       onScroll={notifyCollectionScroll}
     >
       {items.map((item: any, idx: number) => {
-        const aspectCss = tileAspectCss(item)
-        const size = Number(item.size || 1)
-        const railHeight = size >= 3
-          ? (isMobile ? 'min(78vh, 600px)' : 'min(76vh, 700px)')
-          : size <= 1
-            ? (isMobile ? 'min(58vh, 420px)' : 'min(54vh, 500px)')
-            : (isMobile ? 'min(72vh, 540px)' : 'min(70vh, 640px)')
-        const [aspectWidth, aspectHeight] = aspectCss.split('/').map(part => Number(part.trim()))
-        const aspectRatioValue = Number.isFinite(aspectWidth) && Number.isFinite(aspectHeight) && aspectHeight > 0
-          ? aspectWidth / aspectHeight
-          : 1
-        const viewportFitHeight = `calc(${100 / aspectRatioValue}vw - ${32 / aspectRatioValue}px)`
+        const geometry = tileGeometry(item)
+        const railHeight = isMobile ? geometry.railHeightMobile : geometry.railHeightDesktop
         const wrapperStyle: React.CSSProperties = {
           height: railHeight,
-          aspectRatio: aspectCss,
+          aspectRatio: geometry.aspectCss,
           ...(fitMobileViewport && isMobile ? {
             maxWidth: 'calc(100vw - 32px)',
-            maxHeight: `min(${railHeight}, ${viewportFitHeight})`,
+            maxHeight: `min(${railHeight}, ${geometry.viewportFitHeight})`,
           } : {}),
         }
         const wrapperClass = getGridLayout('horizontal').tileClass
@@ -1945,47 +1909,44 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     )
   }
 
-  const renderCollectionTileBody = (child: any, idx: number) => (
-    <div className="w-full h-full relative">
-      <div
-        className={`relative w-full max-w-full h-full overflow-hidden fp-tile-hover rounded-2xl${isSoundRoom ? ' fp-sound-tile' : ''}`}
-        style={{ background: 'transparent', border: '1px solid transparent' }}
-      >
-        <UnifiedTile
-          item={{
-            id: child.id,
-            url: child.url,
-            type: child.type,
-            title: child.title || null,
-            description: child.description || null,
-            thumbnail_url: child.thumbnail_url || null,
-            embed_html: child.embed_html || null,
-            render_mode: child.render_mode,
-            artist: child.artist,
-            thumbnail_url_hq: child.thumbnail_url_hq,
-            thumbnail_url_override: child.thumbnail_url_override,
-            media_id: child.media_id,
-          }}
-          index={idx}
-          size={child.size || 1}
-          aspect={resolveAspect(child.aspect, child.type, child.url)}
-          mode="public"
-          layout="horizontal"
-          isMobile={isMobile}
-          isSoundRoom={isSoundRoom}
-        />
+  const renderCollectionTileBody = (child: any, idx: number) => {
+    const geometry = tileGeometry(child)
+    return (
+      <div className="w-full h-full relative">
+        <div
+          className={`relative w-full max-w-full h-full overflow-hidden fp-tile-hover rounded-2xl${isSoundRoom ? ' fp-sound-tile' : ''}`}
+          style={{ background: 'transparent', border: '1px solid transparent' }}
+        >
+          <UnifiedTile
+            item={{
+              id: child.id,
+              url: child.url,
+              type: child.type,
+              title: child.title || null,
+              description: child.description || null,
+              thumbnail_url: child.thumbnail_url || null,
+              embed_html: child.embed_html || null,
+              render_mode: child.render_mode,
+              artist: child.artist,
+              thumbnail_url_hq: child.thumbnail_url_hq,
+              thumbnail_url_override: child.thumbnail_url_override,
+              media_id: child.media_id,
+            }}
+            index={idx}
+            size={child.size || 1}
+            aspect={geometry.resolvedAspect}
+            mode="public"
+            layout="horizontal"
+            isMobile={isMobile}
+            isSoundRoom={isSoundRoom}
+          />
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   const renderCollectionTilePlaceholder = (child: any) => {
-    const previewUrl = transformImageUrl(
-      child.thumbnail_url_override ||
-      child.thumbnail_url_hq ||
-      child.thumbnail_url ||
-      child.poster_url ||
-      null
-    )
+    const previewUrl = tileGeometry(child).posterUrl
 
     return (
       <div className="w-full h-full relative">

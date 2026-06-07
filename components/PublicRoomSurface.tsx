@@ -200,7 +200,11 @@ export default function PublicRoomSurface({
   const renderMasonryTile = (item: any, idx: number) => {
     const geometry = tileGeometry(item)
     return (
-      <div key={item.id} className={`relative overflow-hidden rounded-2xl ${geometry.gridClass}${geometry.fitClass}`}>
+      <div
+        key={item.id}
+        className={`relative overflow-hidden rounded-2xl ${geometry.gridClass}${geometry.fitClass}`}
+        style={{ aspectRatio: geometry.aspectCss }}
+      >
         {renderTileBody(item, idx)}
       </div>
     )
