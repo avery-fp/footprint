@@ -415,10 +415,13 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     }
   }
 
-  const handleTileFullscreen = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault()
+  const handleYouTubeFullscreen = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation()
-    await tryNativeFullscreen(containerRef.current)
+    e.preventDefault()
+    tryNativeFullscreen(youtubeIframeRef.current).then((ok) => {
+      if (ok) return
+      tryNativeFullscreen(youtubeFrameRef.current)
+    })
   }
 
   const handleInvocationPointerDown = (e: PointerEvent<HTMLElement>, invoke: () => void) => {
@@ -663,21 +666,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           </div>
           <button
             type="button"
-            aria-label="Fullscreen"
-            className="fp-tile-fullscreen-button"
-            onPointerDown={(e) => e.stopPropagation()}
-            onPointerUp={(e) => e.stopPropagation()}
-            onClick={handleTileFullscreen}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M8 3H3v5" />
-              <path d="M16 3h5v5" />
-              <path d="M21 16v5h-5" />
-              <path d="M3 16v5h5" />
-            </svg>
-          </button>
-          <button
-            type="button"
             aria-label="Play video"
             onPointerDown={(e) => handleInvocationPointerDown(e, handleActivate)}
             onPointerUp={handleYouTubeInvocationPointerUp}
@@ -747,21 +735,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           )}
           {shouldShowPosterVeil && posterLayer}
         </div>
-        <button
-          type="button"
-          aria-label="Fullscreen"
-          className="fp-tile-fullscreen-button"
-          onPointerDown={(e) => e.stopPropagation()}
-          onPointerUp={(e) => e.stopPropagation()}
-          onClick={handleTileFullscreen}
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M8 3H3v5" />
-            <path d="M16 3h5v5" />
-            <path d="M21 16v5h-5" />
-            <path d="M3 16v5h5" />
-          </svg>
-        </button>
         {shouldShowPosterVeil && (
           <button
             type="button"
@@ -994,21 +967,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 transition: 'opacity 180ms ease',
               }}
             />
-            <button
-              type="button"
-              aria-label="Fullscreen"
-              className="fp-tile-fullscreen-button"
-              onPointerDown={(e) => e.stopPropagation()}
-              onPointerUp={(e) => e.stopPropagation()}
-              onClick={handleTileFullscreen}
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M8 3H3v5" />
-                <path d="M16 3h5v5" />
-                <path d="M21 16v5h-5" />
-                <path d="M3 16v5h5" />
-              </svg>
-            </button>
           </>
         ) : (
           <div className={`w-full ${aspectClass || 'aspect-video'}`} style={{ background: 'transparent' }} />
