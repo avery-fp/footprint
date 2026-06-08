@@ -201,7 +201,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // top-right corner surfaces ClaimPlaque instead), so the action bar
   // must already be reachable.
   const [editorMode, setEditorMode] = useState(!!isDraft)
+  const [editorReady, setEditorReady] = useState(!!isDraft)
+  const editToggleHandledRef = useRef(false)
   const isEditorActive = isOwner && editorMode
+  const isEditorReady = isEditorActive && editorReady
   const [selectedTileId, setSelectedTileId] = useState<string | null>(null)
   // Editor-mode tile-tap scroll anchor. The interceptor sits inside a
   // dnd-kit Sortable wrapper, which exposes role="button" + tabIndex=0
@@ -302,8 +305,39 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     if (typeof window !== 'undefined') {
       editModeScrollAnchor.current = Math.max(0, Math.round(window.scrollY || 0))
     }
+    if (!next) setEditorReady(false)
     setEditorMode(next)
   }, [])
+
+  useEffect(() => {
+    if (!isOwner || !editorMode) return
+    let idleId: number | null = null
+    let rafId: number | null = null
+    let cancelled = false
+    const makeReady = () => {
+      if (!cancelled) setEditorReady(true)
+    }
+    rafId = window.requestAnimationFrame(() => {
+      rafId = null
+      const idleWindow = window as Window & {
+        requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number
+        cancelIdleCallback?: (handle: number) => void
+      }
+      if (idleWindow.requestIdleCallback) {
+        idleId = idleWindow.requestIdleCallback(makeReady, { timeout: 700 })
+      } else {
+        makeReady()
+      }
+    })
+    return () => {
+      cancelled = true
+      if (rafId !== null) window.cancelAnimationFrame(rafId)
+      if (idleId !== null) {
+        const idleWindow = window as Window & { cancelIdleCallback?: (handle: number) => void }
+        idleWindow.cancelIdleCallback?.(idleId)
+      }
+    }
+  }, [editorMode, isOwner])
 
   useLayoutEffect(() => {
     const anchor = editModeScrollAnchor.current
@@ -342,6 +376,12 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         ...pending,
       ])
     }
+  }
+
+  const handleEditToggleAction = () => {
+    setEditTogglePressed(false)
+    if (editorMode) handleDoneEditing()
+    else setEditorModeInPlace(true)
   }
   const titleInputRef = useRef<HTMLInputElement>(null)
   // Wallpaper local state — mirrors the prop so blur and replace-image
@@ -508,15 +548,16 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   useEffect(() => {
     if (!isOwner) return
     const warmOwnerEditor = () => { void import('@/components/OwnerDndKit') }
+    if (typeof window !== 'undefined' && window.innerWidth < 768) return
     const idleWindow = window as Window & {
       requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number
       cancelIdleCallback?: (handle: number) => void
     }
     if (idleWindow.requestIdleCallback) {
-      const idleId = idleWindow.requestIdleCallback(warmOwnerEditor, { timeout: 1500 })
+      const idleId = idleWindow.requestIdleCallback(warmOwnerEditor, { timeout: 4000 })
       return () => idleWindow.cancelIdleCallback?.(idleId)
     }
-    const timer = window.setTimeout(warmOwnerEditor, 250)
+    const timer = window.setTimeout(warmOwnerEditor, 2000)
     return () => window.clearTimeout(timer)
   }, [isOwner])
 
@@ -1790,7 +1831,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             See tileEditScrollAnchor above: we snapshot the scroll Y at
             pointerdown so the page can be restored if the browser scrolls
             the focusable Sortable wrapper into view on focus. */}
-        {isEditorActive && !expanded && (
+        {isEditorReady && !expanded && (
           <div
             className="absolute inset-0 z-20 cursor-pointer"
             onPointerDown={() => { tileEditScrollAnchor.current = window.scrollY }}
@@ -1813,7 +1854,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     const tileBody = renderTileBody(item, idx)
     const wrapperClass = `relative overflow-hidden rounded-2xl ${geometry.gridClass}${geometry.fitClass}`
     const wrapperStyle: React.CSSProperties = { aspectRatio: geometry.aspectCss }
-    if (isEditorActive) {
+    if (isEditorReady) {
       return (
         <SortableTileWrapper key={item.id} item={item} idx={idx} className={wrapperClass} style={wrapperStyle} disabled={!!expanded}>
           {tileBody}
@@ -1879,7 +1920,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
             {renderOverlay?.(item, idx)}
           </>
         )
-        if (sortable && isEditorActive) {
+        if (sortable && isEditorReady) {
           return (
             <SortableTileWrapper
               key={item.id}
@@ -1975,7 +2016,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     )
   }
 
-  const renderCollectionOwnerControls = (child: any, idx: number) => isEditorActive ? (
+  const renderCollectionOwnerControls = (child: any, idx: number) => isEditorReady ? (
     <div className="absolute inset-0 z-10 pointer-events-none opacity-100 transition-opacity duration-150">
       <button
         type="button"
@@ -2063,7 +2104,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // (see render below) so room pills can register as droppable targets
   // for the send-to-room gesture. Here we just hand back the grid
   // wrapped in a SortableContext for tile reorder.
-  const activeGrid = isEditorActive ? (
+  const activeGrid = isEditorReady ? (
     <OwnerSortableContext items={displayContent.map((item: any) => item.id)} orientation="grid">
       {gridInner}
     </OwnerSortableContext>
@@ -2201,14 +2242,27 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           type="button"
           aria-label={editorMode ? 'done editing' : 'edit page'}
           aria-pressed={editorMode}
-          onPointerDown={() => setEditTogglePressed(true)}
-          onPointerUp={() => setEditTogglePressed(false)}
+          onPointerDown={() => {
+            editToggleHandledRef.current = false
+            setEditTogglePressed(true)
+          }}
+          onPointerUp={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            if (editToggleHandledRef.current) return
+            editToggleHandledRef.current = true
+            handleEditToggleAction()
+          }}
           onPointerCancel={() => setEditTogglePressed(false)}
           onPointerLeave={() => setEditTogglePressed(false)}
-          onClick={() => {
-            setEditTogglePressed(false)
-            if (editorMode) handleDoneEditing()
-            else setEditorModeInPlace(true)
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            if (editToggleHandledRef.current) {
+              editToggleHandledRef.current = false
+              return
+            }
+            handleEditToggleAction()
           }}
           className="fixed z-50 flex items-center justify-center touch-manipulation"
           style={{
@@ -2410,7 +2464,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </header>
         </RemoveBubble>
 
-        {!isEditorActive ? (
+        {!isEditorReady ? (
           <PublicRoomSurface
             content={displayContent}
             visibleRooms={visibleRooms}
@@ -2595,7 +2649,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         <div style={{ height: 96 }} aria-hidden="true" />
             </>
           )
-          return isEditorActive ? (
+          return isEditorReady ? (
             <OwnerDndFrame
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
@@ -2672,7 +2726,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                   style={{ padding: '18px 0 6px', overscrollBehavior: 'contain' }}
                 >
                   {localChildren.length > 0 ? (
-                    isEditorActive ? (
+                    isEditorReady ? (
                       <OwnerDndFrame
                         onDragStart={handleDragStart}
                         onDragEnd={handleChildDragEnd}
@@ -2692,7 +2746,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 </div>
 
                 {/* Owner-only add URL footer */}
-                {isEditorActive && (
+                {isEditorReady && (
                   <div
                     className="pointer-events-auto flex-shrink-0 flex items-center gap-2 px-4 py-3 relative z-[2]"
                     style={{
@@ -2869,7 +2923,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           Four labeled creation verbs (link, text, collection, image).
           That's the entire bar. Page settings (layout, wallpaper,
           public/private) live in the per-room ⋯ popover above. */}
-      {isOwner && editorMode && !selectedTileId && !expanded && !claimActive && (
+      {isEditorReady && !selectedTileId && !expanded && !claimActive && (
         <OwnerActionBar
           open={editorMode}
           slug={footprint.username}
