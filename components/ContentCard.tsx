@@ -733,34 +733,6 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               }}
             />
           )}
-          {shouldRevealPlayer && (
-            <button
-              type="button"
-              aria-label="Fullscreen"
-              onClick={handleYouTubeFullscreen}
-              className="absolute flex items-center justify-center text-white/80 hover:text-white transition-opacity duration-200"
-              style={{
-                bottom: 10,
-                right: 10,
-                width: 28,
-                height: 28,
-                borderRadius: 999,
-                zIndex: 5,
-                border: 'none',
-                padding: 0,
-                cursor: 'pointer',
-                background: 'rgba(0,0,0,0.38)',
-                backdropFilter: 'blur(10px) saturate(140%)',
-                WebkitBackdropFilter: 'blur(10px) saturate(140%)',
-                boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08)',
-                opacity: 0.78,
-              }}
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6" />
-              </svg>
-            </button>
-          )}
           {shouldShowPosterVeil && posterLayer}
         </div>
         {shouldShowPosterVeil && (

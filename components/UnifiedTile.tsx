@@ -310,45 +310,7 @@ function VideoTile({ url, id, posterUrl }: { url: string; id: string; posterUrl?
           }}
         />
       </div>
-      <button
-        type="button"
-        aria-label="Fullscreen"
-        onClick={(e) => {
-          e.stopPropagation()
-          // Uploaded video has the real fullscreen API on every supported
-          // platform: webkitEnterFullscreen for iOS Safari (the only path
-          // that surfaces the native player chrome), requestFullscreen for
-          // everything else. Container fallback is the safety net for
-          // browsers that reject the video element specifically.
-          const v = videoRef.current
-          if (tryVideoEnterFullscreen(v)) return
-          tryNativeFullscreen(v).then((ok) => {
-            if (ok) return
-            tryNativeFullscreen(containerRef.current)
-          })
-        }}
-        className="absolute flex items-center justify-center text-white/85 hover:text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-300"
-        style={{
-          bottom: 12,
-          right: 12,
-          width: 28,
-          height: 28,
-          borderRadius: 999,
-          zIndex: 3,
-          background: 'rgba(0,0,0,0.45)',
-          backdropFilter: 'blur(10px) saturate(140%)',
-          WebkitBackdropFilter: 'blur(10px) saturate(140%)',
-          boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08)',
-          // Inline override drives the mobile reveal-fade; undefined falls
-          // through to the Tailwind opacity-0 / group-hover pair on desktop.
-          opacity: chipRevealed ? 1 : undefined,
-          pointerEvents: 'auto',
-        }}
-      >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6" />
-        </svg>
-      </button>
+      
     </div>
   )
 }
