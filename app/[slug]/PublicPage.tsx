@@ -179,7 +179,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const [toastMessage, setToastMessage] = useState('copied.')
   const [editTogglePressed, setEditTogglePressed] = useState(false)
   const [serialFlyout, setSerialFlyout] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
+  const [isMobile, setIsMobile] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 768 : false))
+  const [shouldMountCommandLayer, setShouldMountCommandLayer] = useState(() => (typeof window !== 'undefined' ? window.innerWidth >= 768 : true))
+  const [openPeopleOnMountToken, setOpenPeopleOnMountToken] = useState(0)
   const [roomFade, setRoomFade] = useState<'visible' | 'out' | 'in'>('visible')
   const [roomNavDocked, setRoomNavDocked] = useState(false)
   const [pullRefreshDistance, setPullRefreshDistance] = useState(0)
@@ -678,6 +680,40 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     setIsMobile(window.innerWidth < 768)
     window.addEventListener('resize', check)
     return () => { window.removeEventListener('resize', check); clearTimeout(timeout) }
+  }, [])
+
+  useEffect(() => {
+    if (!isMobile) {
+      setShouldMountCommandLayer(true)
+      return
+    }
+    if (shouldMountCommandLayer) return
+
+    let idleId: number | null = null
+    let timerId: number | null = null
+    const mountCommandLayer = () => setShouldMountCommandLayer(true)
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number
+      cancelIdleCallback?: (handle: number) => void
+    }
+
+    if (idleWindow.requestIdleCallback) {
+      idleId = idleWindow.requestIdleCallback(mountCommandLayer, { timeout: 3000 })
+    } else {
+      timerId = window.setTimeout(mountCommandLayer, 3000)
+    }
+
+    return () => {
+      if (idleId !== null) idleWindow.cancelIdleCallback?.(idleId)
+      if (timerId !== null) window.clearTimeout(timerId)
+    }
+  }, [isMobile, shouldMountCommandLayer])
+
+  const handleDeferredPeopleOpen = useCallback((event: React.PointerEvent<HTMLButtonElement> | React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault()
+    event.stopPropagation()
+    setShouldMountCommandLayer(true)
+    setOpenPeopleOnMountToken((token) => token + 1)
   }, [])
 
   // Owner check: presence of an fp_edit_{slug} cookie implies edit access.
@@ -2168,17 +2204,35 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </div>
       )}
       <WeatherEffect type={footprint.weather_effect || null} />
-      <CommandLayer
-        content={allContent}
-        rooms={visibleRooms}
-        footprint={footprint}
-        theme={theme}
-        isMobile={isMobile}
-        isOwner={isOwner}
-        activeRoomId={activeRoomId}
-        onNavigateToTile={handleTileNavigate}
-        onNavigateToRoom={goToRoom}
-      />
+      {shouldMountCommandLayer ? (
+        <CommandLayer
+          content={allContent}
+          rooms={visibleRooms}
+          footprint={footprint}
+          theme={theme}
+          isMobile={isMobile}
+          isOwner={isOwner}
+          activeRoomId={activeRoomId}
+          onNavigateToTile={handleTileNavigate}
+          onNavigateToRoom={goToRoom}
+          openPeopleOnMountToken={openPeopleOnMountToken}
+        />
+      ) : isMobile ? (
+        <div className="fp-people-control flex items-center gap-1">
+          <button
+            type="button"
+            onClick={handleDeferredPeopleOpen}
+            aria-label="Open people"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-[18px] leading-none text-white/28 outline-none transition-colors duration-200 hover:text-white/55 focus-visible:ring-2 focus-visible:ring-white/20 touch-manipulation"
+            style={{
+              background: 'transparent',
+              fontWeight: 300,
+            }}
+          >
+            +
+          </button>
+        </div>
+      ) : null}
 
       <AddToHomeScreen enabled={!isDraft && isOwner && !expanded} slug={footprint.username} />
 

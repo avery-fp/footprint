@@ -22,6 +22,7 @@ interface CommandLayerProps {
   activeRoomId: string | null
   onNavigateToTile: (tileId: string, roomId: string) => void
   onNavigateToRoom: (roomId: string | null) => void
+  openPeopleOnMountToken?: number
 }
 
 interface SearchResult {
@@ -73,6 +74,7 @@ export default function CommandLayer({
   activeRoomId,
   onNavigateToTile,
   onNavigateToRoom,
+  openPeopleOnMountToken = 0,
 }: CommandLayerProps) {
   const [open, setOpen] = useState(false)
   const [peopleOpen, setPeopleOpen] = useState(false)
@@ -88,6 +90,7 @@ export default function CommandLayer({
   const [peopleQuery, setPeopleQuery] = useState('')
   const [peopleResults, setPeopleResults] = useState<PersonResult[]>([])
   const peopleDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastOpenPeopleTokenRef = useRef(0)
   const currentSlug = footprint.username
   const currentSaved = rolodexLoaded && has(currentSlug)
 
@@ -232,6 +235,12 @@ export default function CommandLayer({
       await add(currentSlug)
     }
   }, [add, currentSaved, currentSlug, isOwner])
+
+  useEffect(() => {
+    if (!openPeopleOnMountToken || openPeopleOnMountToken === lastOpenPeopleTokenRef.current) return
+    lastOpenPeopleTokenRef.current = openPeopleOnMountToken
+    void handlePeopleOpen()
+  }, [handlePeopleOpen, openPeopleOnMountToken])
 
   // Group results by room + stable flat indices (computed in useMemo, not mutated during render)
   const { groups, flatResults } = useMemo(() => {
