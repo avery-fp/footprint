@@ -17,7 +17,7 @@ import { glassStyle } from '@/lib/glass'
 import { useDepthExpansion } from '@/hooks/useDepthExpansion'
 import { moveChild, removeChild } from '@/lib/container-child-ops'
 import { getCollectionRenderRadius, shouldRenderCollectionTile } from '@/lib/collection-window'
-import type { PublicTileGeometry } from '@/lib/public-tile-geometry'
+import { getPublicTileGeometry, type PublicTileGeometry } from '@/lib/public-tile-geometry'
 import { getFootprintDisplayTitle } from '@/lib/footprint'
 import { getRoomAtmosphere } from '@/lib/roomAtmosphere'
 import { wallpaperSourceFromTile } from '@/lib/tile-rendering'
@@ -972,21 +972,24 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // size/aspect/parent_tile_id changes — keep it generic so 4.5 (rooms)
   // and 5 (drag-to-room) can lean on the same helper.
   const handleTileChange = useCallback((id: string, patch: Record<string, unknown>) => {
+    const shouldLeaveCurrentRoom =
+      (Object.prototype.hasOwnProperty.call(patch, 'parent_tile_id') && patch.parent_tile_id != null) ||
+      (Object.prototype.hasOwnProperty.call(patch, 'room_id') && (patch.room_id || null) !== (activeRoomId || null))
+
     setLocalContent((prev) => {
-      if (
-        Object.prototype.hasOwnProperty.call(patch, 'parent_tile_id') &&
-        patch.parent_tile_id != null
-      ) {
-        return prev.filter((t) => t.id !== id)
-      }
-      if (
-        Object.prototype.hasOwnProperty.call(patch, 'room_id') &&
-        (patch.room_id || null) !== (activeRoomId || null)
-      ) {
+      if (shouldLeaveCurrentRoom) {
         return prev.filter((t) => t.id !== id)
       }
       return prev.map((t) => (t.id === id ? { ...t, ...patch } : t))
     })
+    setRoomsLocal((prev) =>
+      prev.map((room) => ({
+        ...room,
+        content: (((room as any).content || []) as any[])
+          .map((tile) => (tile.id === id ? { ...tile, ...patch } : tile))
+          .filter((tile) => !(shouldLeaveCurrentRoom && tile.id === id)),
+      }))
+    )
   }, [activeRoomId])
 
   const handleTileDelete = useCallback((id: string) => {
@@ -1697,7 +1700,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // ═══════════════════════════════════════════
   const displayContent = isOwner ? localContent : content
 
-  const tileGeometry = (item: any): PublicTileGeometry => item?.public_geometry || stableFallbackTileGeometry(item)
+  const tileGeometry = (item: any): PublicTileGeometry => {
+    if (isOwner) return getPublicTileGeometry(item, containerMeta)
+    return item?.public_geometry || stableFallbackTileGeometry(item)
+  }
 
   const fadeStyle = {
     opacity: roomFade === 'out' ? 0.42 : 1,
