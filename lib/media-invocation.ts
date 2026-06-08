@@ -4,7 +4,7 @@ export type InvocationPoint = {
   pointerId: number
 }
 
-export const MOBILE_INVOCATION_TOLERANCE_PX = 18
+export const MOBILE_INVOCATION_TOLERANCE_PX = 32
 
 export function beginInvocation(pointerId: number, x: number, y: number): InvocationPoint {
   return { pointerId, x, y }

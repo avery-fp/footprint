@@ -201,10 +201,10 @@ export default function CommandLayer({
   }, [open])
 
   useEffect(() => {
-    if (peopleOpen) {
+    if (peopleOpen && !isMobile) {
       requestAnimationFrame(() => peopleInputRef.current?.focus())
     }
-  }, [peopleOpen])
+  }, [peopleOpen, isMobile])
 
   // Global keyboard: `/` to open, Escape to close
   useEffect(() => {
@@ -276,7 +276,7 @@ export default function CommandLayer({
       {/* People/search memory — restored for owners too. The visual
           magnifying-glass entry was redundant (search opens via `/` and
           from the people sheet); only the people `+` lives here now. */}
-      <div className="fixed left-4 top-4 z-40 md:left-6 md:top-5 flex items-center gap-1">
+      <div className="fp-people-control flex items-center gap-1">
         <button
           type="button"
           onClick={handlePeopleOpen}
