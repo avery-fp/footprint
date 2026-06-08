@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useState, useRef, useEffect, useCallback, type PointerEvent } from 'react'
+import { memo, useState, useRef, useEffect, useCallback, type MouseEvent, type PointerEvent } from 'react'
 import ContentCardBase from '@/components/ContentCard'
 import GhostTileBase from '@/components/GhostTile'
 import TileImage from '@/components/TileImage'
@@ -17,7 +17,7 @@ import { isNewStyleRenderMode } from '@/lib/media/types'
 import type { RenderMode } from '@/lib/media/types'
 import DepthTile from '@/components/DepthTile'
 import { matchDepthProvider } from '@/lib/depth-providers'
-import { tryNativeFullscreen, tryVideoEnterFullscreen } from '@/lib/fullscreen'
+import { tryNativeFullscreen } from '@/lib/fullscreen'
 import { audioManager } from '@/lib/audio-manager'
 import { beginInvocation, isIntentionalInvocation, type InvocationPoint } from '@/lib/media-invocation'
 
@@ -220,6 +220,12 @@ function VideoTile({ url, id, posterUrl }: { url: string; id: string; posterUrl?
     }
   }, [url])
 
+  const handleFullscreen = useCallback(async (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    await tryNativeFullscreen(containerRef.current)
+  }, [])
+
   const handleInvocationPointerDown = useCallback((e: PointerEvent<HTMLElement>) => {
     e.stopPropagation()
     if (e.pointerType === 'mouse') {
@@ -247,7 +253,7 @@ function VideoTile({ url, id, posterUrl }: { url: string; id: string; posterUrl?
   return (
     <div
       ref={containerRef}
-      className="w-full h-full relative group"
+      className="w-full h-full fp-tile relative group"
       data-tile-id={id}
       data-tile-type="video"
       onPointerDown={revealChip}
@@ -309,6 +315,21 @@ function VideoTile({ url, id, posterUrl }: { url: string; id: string; posterUrl?
             transition: 'opacity 180ms ease',
           }}
         />
+        <button
+          type="button"
+          aria-label="Fullscreen"
+          className="fp-tile-fullscreen-button"
+          onPointerDown={(e) => e.stopPropagation()}
+          onPointerUp={(e) => e.stopPropagation()}
+          onClick={handleFullscreen}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M8 3H3v5" />
+            <path d="M16 3h5v5" />
+            <path d="M21 16v5h-5" />
+            <path d="M3 16v5h5" />
+          </svg>
+        </button>
       </div>
       
     </div>

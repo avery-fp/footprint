@@ -142,6 +142,53 @@ iframe {
   display: block;
 }
 
+.fp-tile-fullscreen-button {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 6;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.56);
+  background: rgba(0, 0, 0, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 140ms ease-out, background 140ms ease-out, border-color 140ms ease-out, transform 140ms ease-out;
+}
+
+.fp-tile-fullscreen-button:hover {
+  color: rgba(255, 255, 255, 0.82);
+  background: rgba(0, 0, 0, 0.34);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.fp-tile-fullscreen-button:active {
+  transform: scale(0.96);
+}
+
+.fp-tile:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  background: #000;
+  border-radius: 0;
+}
+
+.fp-tile:fullscreen iframe,
+.fp-tile:fullscreen video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 @media (pointer: coarse) {
   input,
   textarea,
