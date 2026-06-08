@@ -639,8 +639,6 @@ function ThumbnailBg({
   cropBars?: boolean
   onExhausted?: () => void
 }) {
-  const [loaded, setLoaded] = useState(false)
-
   if (!src) return (
     <div className="absolute inset-0" style={{ background: 'transparent' }} />
   )
@@ -650,7 +648,7 @@ function ThumbnailBg({
       <img
         src={src}
         alt=""
-        className={`${cropBars ? 'fp-resting-video-media' : 'absolute inset-0 w-full h-full object-cover'} transition-opacity duration-700 ease-out ${loaded ? 'opacity-100' : 'opacity-0'}`}
+        className={cropBars ? 'fp-resting-video-media' : 'absolute inset-0 w-full h-full object-cover'}
         style={{}}
         loading="eager"
         fetchPriority="high"
@@ -658,7 +656,6 @@ function ThumbnailBg({
         referrerPolicy="no-referrer"
         onLoad={(e) => {
           applyThumbnailLoadGuard(e.currentTarget, candidates)
-          setLoaded(true)
           // Chain landed on the lowest-res `/default.jpg` — every higher-res
           // ytimg variant returned the grey unavailable placeholder.
           const finalSrc = e.currentTarget.currentSrc || e.currentTarget.src

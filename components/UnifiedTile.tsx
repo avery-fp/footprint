@@ -154,7 +154,7 @@ function VideoTile({ url, id, posterUrl }: { url: string; id: string; posterUrl?
           obs.disconnect()
         }
       },
-      { rootMargin: '200px' }
+      { rootMargin: '1200px' }
     )
     obs.observe(el)
     return () => obs.disconnect()
@@ -290,7 +290,7 @@ function VideoTile({ url, id, posterUrl }: { url: string; id: string; posterUrl?
               transition: 'opacity 220ms ease-out',
               zIndex: 2,
             }}
-            loading="lazy"
+            loading="eager"
             decoding="async"
           />
         )}
