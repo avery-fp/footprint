@@ -91,7 +91,7 @@ export function getPublicPosterUrl(
     return candidates[0] || null
   }
 
-  if (item.type === 'image') return item.url || null
+  if (item.type === 'image') return transformImageUrl(item.url) || null
   if (item.type === 'container') {
     return item.container_cover_url || containerMeta?.[item.id]?.firstThumb || null
   }
