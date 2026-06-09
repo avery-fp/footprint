@@ -29,7 +29,7 @@ function collectPublicPosterPreloads(
   const urls: string[] = []
 
   for (const item of ordered) {
-    const url = item?.public_geometry?.posterUrl || getPublicPosterUrl(item, containerMeta)
+    const url = item?.public_poster_url || item?.public_geometry?.posterUrl || getPublicPosterUrl(item, containerMeta)
     if (!url || seen.has(url)) continue
     seen.add(url)
     urls.push(url)

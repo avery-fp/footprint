@@ -17,6 +17,47 @@ const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'imag
 const VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v', 'video/mov', 'video/3gpp', 'video/3gpp2', 'video/x-matroska']
 const ALLOWED_TYPES = [...IMAGE_TYPES, ...VIDEO_TYPES]
 
+const PUBLIC_OBJECT_PREFIX = '/storage/v1/object/public/'
+const PUBLIC_RENDER_PREFIX = '/storage/v1/render/image/public/'
+
+function buildPublicPosterDerivativeUrl(publicUrl: string) {
+  const clean = publicUrl.replace(/[\n\r]/g, '').trim()
+  const objectIndex = clean.indexOf(PUBLIC_OBJECT_PREFIX)
+  if (objectIndex === -1) return null
+  const base = clean.split('?')[0]
+  return `${base.replace(PUBLIC_OBJECT_PREFIX, PUBLIC_RENDER_PREFIX)}?width=512&quality=70`
+}
+
+async function createImagePosterDerivative(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  sourcePublicUrl: string,
+  serialNumber: string
+) {
+  const renderUrl = buildPublicPosterDerivativeUrl(sourcePublicUrl)
+  if (!renderUrl) return null
+
+  const response = await fetch(renderUrl)
+  if (!response.ok) return null
+
+  const bytes = Buffer.from(await response.arrayBuffer())
+  const contentType = (response.headers.get('content-type') || 'image/jpeg').split(';')[0].trim() || 'image/jpeg'
+  const ext = contentType.includes('png')
+    ? 'png'
+    : contentType.includes('webp')
+    ? 'webp'
+    : 'jpg'
+  const posterPath = `${serialNumber}/posters/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+
+  const { error } = await supabase.storage
+    .from('content')
+    .upload(posterPath, bytes, { contentType, upsert: false })
+
+  if (error) return null
+
+  const { data: posterUrlData } = supabase.storage.from('content').getPublicUrl(posterPath)
+  return posterUrlData.publicUrl.replace(/[\n\r]/g, '')
+}
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
@@ -89,6 +130,7 @@ export async function POST(request: NextRequest) {
     // Get public URL (sanitize — Supabase sometimes injects newlines)
     const { data: urlData } = supabase.storage.from('content').getPublicUrl(filename)
     const publicUrl = urlData.publicUrl.replace(/[\n\r]/g, '')
+    const publicPosterUrl = isVideo ? null : await createImagePosterDerivative(supabase, publicUrl, serialNumber)
 
     // Get next position
     const { data: maxPos } = await supabase
@@ -107,6 +149,7 @@ export async function POST(request: NextRequest) {
       .insert({
         serial_number: serialNumber,
         image_url: publicUrl,
+        ...(publicPosterUrl ? { public_poster_url: publicPosterUrl } : {}),
         position: nextPosition,
         room_id: room_id || null,
       })
@@ -123,6 +166,7 @@ export async function POST(request: NextRequest) {
       tile: {
         id: tile.id,
         url: tile.image_url,
+        public_poster_url: tile.public_poster_url || publicPosterUrl || null,
         type: isVideo ? 'video' : 'image',
         title: null,
         description: null,

@@ -44,6 +44,7 @@ export interface Tile {
   artist?: string | null
   thumbnail_url_hq?: string | null
   thumbnail_url_override?: string | null
+  public_poster_url?: string | null
   media_id?: string | null
   container_label?: string | null
   container_cover_url?: string | null
@@ -116,6 +117,7 @@ function mapLibraryRow(row: any): Tile {
     caption_hidden: row.caption_hidden ?? false,
     playback_url: row.playback_url || null,
     poster_url: row.poster_url || null,
+    public_poster_url: row.public_poster_url || null,
     status: row.status || null,
     parent_tile_id: row.parent_tile_id || null,
     source: 'library',

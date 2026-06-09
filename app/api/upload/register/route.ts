@@ -19,6 +19,45 @@ const SUPABASE_STORAGE_MARKER = 'supabase.co/storage/v1/'
 // Embedded newlines/control chars in stored URLs are a known data-corruption
 // pattern that produces broken <img>/<video> srcs downstream.
 const CONTROL_CHARS = /[\x00-\x1F\x7F]/
+const PUBLIC_OBJECT_PREFIX = '/storage/v1/object/public/'
+const PUBLIC_RENDER_PREFIX = '/storage/v1/render/image/public/'
+
+function buildPublicPosterDerivativeUrl(publicUrl: string) {
+  const clean = publicUrl.replace(/[\n\r]/g, '').trim()
+  if (!clean.includes(PUBLIC_OBJECT_PREFIX)) return null
+  const base = clean.split('?')[0]
+  return `${base.replace(PUBLIC_OBJECT_PREFIX, PUBLIC_RENDER_PREFIX)}?width=512&quality=70`
+}
+
+async function createImagePosterDerivative(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  sourcePublicUrl: string,
+  serialNumber: string
+) {
+  const renderUrl = buildPublicPosterDerivativeUrl(sourcePublicUrl)
+  if (!renderUrl) return null
+
+  const response = await fetch(renderUrl)
+  if (!response.ok) return null
+
+  const bytes = Buffer.from(await response.arrayBuffer())
+  const contentType = (response.headers.get('content-type') || 'image/jpeg').split(';')[0].trim() || 'image/jpeg'
+  const ext = contentType.includes('png')
+    ? 'png'
+    : contentType.includes('webp')
+    ? 'webp'
+    : 'jpg'
+  const posterPath = `${serialNumber}/posters/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+
+  const { error } = await supabase.storage
+    .from('content')
+    .upload(posterPath, bytes, { contentType, upsert: false })
+
+  if (error) return null
+
+  const { data: posterUrlData } = supabase.storage.from('content').getPublicUrl(posterPath)
+  return posterUrlData.publicUrl.replace(/[\n\r]/g, '')
+}
 
 // Lightweight endpoint: register a file already uploaded to Supabase Storage.
 // Used by client-side video uploads that bypass Vercel's body limit.
@@ -98,6 +137,9 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createServerSupabaseClient()
+    const mediaType = mediaTypeFromUrl(url)
+    const isImage = mediaType === 'image' || (typeof content_type === 'string' && content_type.startsWith('image/'))
+    const isVideo = mediaType === 'video'
 
     const { data: footprint } = await supabase
       .from('footprints')
@@ -161,11 +203,14 @@ export async function POST(request: NextRequest) {
     // M/L via the editor.
     const resolvedSize = (size === 1 || size === 2 || size === 3) ? size : 1
 
+    const publicPosterUrl = !isVideo && isImage ? await createImagePosterDerivative(supabase, url, serialNumber) : null
+
     const { data: tile, error: insertError } = await supabase
       .from('library')
       .insert({
         serial_number: serialNumber,
         image_url: url,
+        ...(publicPosterUrl ? { public_poster_url: publicPosterUrl } : {}),
         position: nextPosition,
         room_id: parent_tile_id ? null : (room_id || null),
         parent_tile_id: parent_tile_id || null,
@@ -189,6 +234,7 @@ export async function POST(request: NextRequest) {
       tile: {
         id: tile.id,
         url: tile.image_url,
+        public_poster_url: tile.public_poster_url || publicPosterUrl || null,
         type: canonicalType,
         title: null,
         description: null,
