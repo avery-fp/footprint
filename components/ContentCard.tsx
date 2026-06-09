@@ -43,9 +43,9 @@ import { tryNativeFullscreen } from '@/lib/fullscreen'
 
 const GlassEmbedFrame = GlassEmbedFrameExtracted
 const GlassPlaceholder = GlassPlaceholderExtracted
-const PUBLIC_EAGER_POSTER_COUNT = 16
-const PUBLIC_SYNC_POSTER_COUNT = 8
-const PUBLIC_MEDIA_ROOT_MARGIN = '1600px 0px 1600px 0px'
+const PUBLIC_EAGER_POSTER_COUNT = 96
+const PUBLIC_SYNC_POSTER_COUNT = 16
+const PUBLIC_MEDIA_ROOT_MARGIN = '3200px 0px 3200px 0px'
 const YOUTUBE_COARSE_TAP_TOLERANCE_PX = 96
 const YOUTUBE_PENDING_RETRY_THROTTLE_MS = 900
 const YOUTUBE_STARTUP_TOUCH_SHIELD_MS = 1100
