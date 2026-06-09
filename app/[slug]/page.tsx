@@ -9,7 +9,6 @@ import EventTracker from '@/components/EventTracker'
 import PublicAcquisitionOverlays from '@/components/PublicAcquisitionOverlays'
 import PublicPage from './PublicPage'
 import { getPublicPosterUrl, withPublicTileGeometry } from '@/lib/public-tile-geometry'
-import { transformImageUrl } from '@/lib/image'
 
 const PUBLIC_POSTER_PRELOAD_LIMIT = 16
 
@@ -30,7 +29,7 @@ function collectPublicPosterPreloads(
   const urls: string[] = []
 
   for (const item of ordered) {
-    const url = transformImageUrl(item?.public_geometry?.posterUrl || getPublicPosterUrl(item, containerMeta))
+    const url = item?.public_geometry?.posterUrl || getPublicPosterUrl(item, containerMeta)
     if (!url || seen.has(url)) continue
     seen.add(url)
     urls.push(url)
