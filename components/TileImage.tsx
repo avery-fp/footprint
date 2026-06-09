@@ -6,10 +6,11 @@ import { useAspectDetection } from '@/lib/aspectDetection'
 import { audioManager } from '@/lib/audio-manager'
 import { beginInvocation, isIntentionalInvocation, type InvocationPoint } from '@/lib/media-invocation'
 
-const PUBLIC_EAGER_IMAGE_COUNT = 16
-const PUBLIC_SYNC_DECODE_COUNT = 8
-const PUBLIC_NEAR_VIEWPORT_MARGIN = '1200px 0px 1200px 0px'
+const PUBLIC_EAGER_IMAGE_COUNT = 96
+const PUBLIC_SYNC_DECODE_COUNT = 16
+const PUBLIC_NEAR_VIEWPORT_MARGIN = '3200px 0px 3200px 0px'
 const settledPublicMedia = new Set<string>()
+const settledTileMedia = new Set<string>()
 
 interface TileImageProps {
   src: string
@@ -30,7 +31,7 @@ function inferAspect(r: number): 'portrait' | 'landscape' | 'square' {
 export default function TileImage({ src, alt, sizes, index, aspect, layout, size, isPublicView = false }: TileImageProps) {
   const [failed, setFailed] = useState(false)
   const [videoFailed, setVideoFailed] = useState(false)
-  const [loaded, setLoaded] = useState(() => isPublicView && settledPublicMedia.has(src))
+  const [loaded, setLoaded] = useState(() => settledTileMedia.has(src) || (isPublicView && settledPublicMedia.has(src)))
   const [shouldSettlePublicMedia, setShouldSettlePublicMedia] = useState(false)
   const [videoMuted, setVideoMuted] = useState(true)
   const [videoPressActive, setVideoPressActive] = useState(false)
@@ -44,7 +45,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
   useEffect(() => {
     setFailed(false)
     setVideoFailed(false)
-    setLoaded(isPublicView && settledPublicMedia.has(src))
+    setLoaded(settledTileMedia.has(src) || (isPublicView && settledPublicMedia.has(src)))
     setShouldSettlePublicMedia(false)
     setVideoMuted(true)
     setFallbackVideoResting(false)
@@ -115,6 +116,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
     const img = containerRef.current.querySelector('img')
     if (!img || !img.complete || !img.naturalWidth) return
     setLoaded(true)
+    settledTileMedia.add(src)
     if (isPublicView) settledPublicMedia.add(src)
     if (!isPublicView && onAspectDetected && img.naturalHeight) {
       onAspectDetected(inferAspect(img.naturalWidth / img.naturalHeight))
@@ -233,6 +235,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
           decoding={isSyncDecode ? 'sync' : 'async'}
           onLoad={() => {
             setLoaded(true)
+            settledTileMedia.add(src)
             if (!settledPublicMedia.has(src)) {
               settledPublicMedia.add(src)
               setShouldSettlePublicMedia(true)
@@ -259,6 +262,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
         quality={90}
         onLoad={(e) => {
           setLoaded(true)
+          settledTileMedia.add(src)
           if (onAspectDetected) {
             const img = e.currentTarget as HTMLImageElement
             onAspectDetected(inferAspect(img.naturalWidth / img.naturalHeight))

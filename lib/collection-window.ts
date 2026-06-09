@@ -4,7 +4,7 @@ export interface CollectionRenderWindow {
 }
 
 export function getCollectionRenderRadius(isMobile: boolean): number {
-  return isMobile ? 1 : 2
+  return isMobile ? 3 : 4
 }
 
 export function clampCollectionIndex(index: number, length: number): number {
