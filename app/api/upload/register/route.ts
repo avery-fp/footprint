@@ -26,7 +26,7 @@ function buildPublicPosterDerivativeUrl(publicUrl: string) {
   const clean = publicUrl.replace(/[\n\r]/g, '').trim()
   if (!clean.includes(PUBLIC_OBJECT_PREFIX)) return null
   const base = clean.split('?')[0]
-  return `${base.replace(PUBLIC_OBJECT_PREFIX, PUBLIC_RENDER_PREFIX)}?width=512&quality=70`
+  return `${base.replace(PUBLIC_OBJECT_PREFIX, PUBLIC_RENDER_PREFIX)}?width=960&quality=75`
 }
 
 async function createImagePosterDerivative(
