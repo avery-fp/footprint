@@ -220,7 +220,6 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
   if (isPublicView) {
     const isPriority = index < PUBLIC_EAGER_IMAGE_COUNT
     const isSyncDecode = index < PUBLIC_SYNC_DECODE_COUNT
-    const shouldLoadNow = isPriority || isNearPublicViewport
     const publicPosterClass = `absolute inset-0 h-full w-full object-cover fp-public-poster${shouldSettlePublicMedia ? ' fp-media-settle' : ''}`
     return (
       <div ref={containerRef} className="absolute inset-0">
@@ -230,7 +229,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
           alt={alt}
           sizes={sizes}
           className={publicPosterClass}
-          loading={shouldLoadNow ? 'eager' : 'lazy'}
+          loading="eager"
           fetchPriority={isPriority ? 'high' : 'auto'}
           decoding={isSyncDecode ? 'sync' : 'async'}
           onLoad={() => {
