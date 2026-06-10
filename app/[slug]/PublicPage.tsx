@@ -778,38 +778,29 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
 
   // Navigate to room
   const goToRoom = useCallback((roomId: string | null) => {
-    if (roomId === activeRoomId || roomFade !== 'visible') return
+    if (roomId === activeRoomId) return
 
     roomSwitchTimersRef.current.forEach(clearTimeout)
     roomSwitchTimersRef.current = []
     saveContinuityRef.current()
     explicitRoomSwitchRef.current = true
     scrollRestoreAttemptedRef.current = true
-    setRoomFade('out')
 
-    const hideTimer = setTimeout(() => {
-      // Hide the jump during fade-out, then reveal the next room from its entrance.
-      window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
-      document.documentElement.scrollTop = 0
-      document.body.scrollTop = 0
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+    document.documentElement.scrollTop = 0
+    document.body.scrollTop = 0
 
-      setActiveRoomId(roomId)
-      if (roomId) {
-        writeFreshLocalValue(continuityKey(footprint.username, 'activeRoom'), roomId)
-        writeFreshLocalValue(roomScrollKey(footprint.username, roomId), 0)
-      }
+    setActiveRoomId(roomId)
+    if (roomId) {
+      writeFreshLocalValue(continuityKey(footprint.username, 'activeRoom'), roomId)
+      writeFreshLocalValue(roomScrollKey(footprint.username, roomId), 0)
+    }
 
-      requestAnimationFrame(() => {
-        setRoomFade('in')
-        const revealTimer = setTimeout(() => {
-          explicitRoomSwitchRef.current = false
-          setRoomFade('visible')
-        }, ROOM_SWITCH_REVEAL_MS)
-        roomSwitchTimersRef.current.push(revealTimer)
-      })
-    }, ROOM_SWITCH_HIDE_MS)
-    roomSwitchTimersRef.current.push(hideTimer)
-  }, [activeRoomId, footprint.username, roomFade])
+    requestAnimationFrame(() => {
+      explicitRoomSwitchRef.current = false
+      setRoomFade('visible')
+    })
+  }, [activeRoomId, footprint.username])
 
   useEffect(() => {
     if (!showToast) return
@@ -892,11 +883,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     const shouldRefresh = pullRefreshArmedRef.current && window.scrollY <= 2
     resetPullRefresh()
     if (!shouldRefresh) return
-    setPullRefreshRefreshing(true)
     saveContinuityRef.current()
-    window.setTimeout(() => {
-      window.location.reload()
-    }, 90)
   }, [resetPullRefresh])
 
   // ═══════════════════════════════════════════
@@ -1742,9 +1729,9 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   }
 
   const fadeStyle = {
-    opacity: roomFade === 'out' ? 0.42 : 1,
-    transform: roomFade === 'out' ? 'translateY(4px)' : roomFade === 'in' ? 'translateY(-4px)' : 'translateY(0)',
-    transition: 'opacity 240ms ease-out, transform 320ms ease-out',
+    opacity: 1,
+    transform: 'none',
+    transition: 'none',
   }
 
   // Persist a layout pick from the toggle. Optimistic update on the
@@ -1761,11 +1748,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     // comes from the prop snapshot used to build activeRoom. After PATCH
     // the next navigation reloads via noStore() for owners, so the new
     // layout reads back fresh on the next render.
-    setRoomFade('out')
-    setTimeout(() => {
-      setRoomFade('in')
-      setTimeout(() => setRoomFade('visible'), 300)
-    }, 200)
     // Mutate the activeRoom layout in place so the current render reflows
     // without a navigation. visibleRooms is derived from rooms; rooms is
     // the prop. We mirror the change into activeRoom's layout via a

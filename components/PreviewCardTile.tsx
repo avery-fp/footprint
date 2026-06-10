@@ -25,6 +25,8 @@ interface PreviewCardTileProps {
   index?: number
 }
 
+const settledPreviewMedia = new Set<string>()
+
 export default function PreviewCardTile({
   url,
   thumbnailUrl,
@@ -43,7 +45,7 @@ export default function PreviewCardTile({
   // element on a transparent tile — reads as an empty rectangle. Flip to
   // the no-thumbnail glass card so the tile still shows title + provider.
   const [allCandidatesFailed, setAllCandidatesFailed] = useState(false)
-  const [loaded, setLoaded] = useState(false)
+  const [loaded, setLoaded] = useState(() => !!thumbSrc && settledPreviewMedia.has(thumbSrc))
 
   // ── With thumbnail: visual card ──
   if (thumbSrc && !allCandidatesFailed) {
@@ -75,6 +77,7 @@ export default function PreviewCardTile({
             }}
             onLoad={(e) => {
               applyThumbnailLoadGuard(e.currentTarget, candidates)
+              settledPreviewMedia.add(e.currentTarget.currentSrc || e.currentTarget.src || thumbSrc)
               setLoaded(true)
             }}
             onError={(e) => {

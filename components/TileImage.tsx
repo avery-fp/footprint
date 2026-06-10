@@ -12,6 +12,12 @@ const PUBLIC_NEAR_VIEWPORT_MARGIN = '3200px 0px 3200px 0px'
 const settledPublicMedia = new Set<string>()
 const settledTileMedia = new Set<string>()
 
+function logMediaMount(label: string, id: string) {
+  if (process.env.NODE_ENV !== 'development') return
+  console.debug(`[fp-media] mount ${label}`, id)
+  return () => console.debug(`[fp-media] unmount ${label}`, id)
+}
+
 interface TileImageProps {
   src: string
   alt: string
@@ -42,6 +48,8 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
   const audioIdRef = useRef(`tile-image-video-${src}`)
   const invocationPointRef = useRef<InvocationPoint | null>(null)
 
+  useEffect(() => logMediaMount('TileImage', src), [src])
+
   useEffect(() => {
     setFailed(false)
     setVideoFailed(false)
@@ -49,7 +57,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
     setShouldSettlePublicMedia(false)
     setVideoMuted(true)
     setFallbackVideoResting(false)
-    setIsNearPublicViewport(false)
+    setIsNearPublicViewport(settledTileMedia.has(src) || (isPublicView && settledPublicMedia.has(src)))
   }, [isPublicView, src])
 
   // Ref for the grid-mode wrapper div. Used in the mount-time fallback to detect

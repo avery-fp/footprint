@@ -54,6 +54,12 @@ const YOUTUBE_MOBILE_TAP_TARGET_CLASS =
 const YOUTUBE_VISUAL_FRAME_STYLE: React.CSSProperties = { inset: 6, borderRadius: 12 }
 const settledPublicPosters = new Set<string>()
 
+function logMediaMount(label: string, id: string) {
+  if (process.env.NODE_ENV !== 'development') return
+  console.debug(`[fp-media] mount ${label}`, id)
+  return () => console.debug(`[fp-media] unmount ${label}`, id)
+}
+
 // ════════════════════════════════════════
 // AE Embed Heights — stable per-provider defaults
 // ════════════════════════════════════════
@@ -292,14 +298,17 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
   const socialVariant = detectVariant(content.type, content.url)
   const hasSocialEmbed = ['twitter', 'tiktok', 'instagram'].includes(content.type)
 
+  useEffect(() => logMediaMount('ContentCard', content.id), [content.id])
+
   // IntersectionObserver — only load content when near viewport
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
     const observer = new IntersectionObserver(
       ([entry]) => {
-        setIsNearViewport(entry.isIntersecting)
-        if (entry.isIntersecting) setIsInView(true)
+        if (!entry.isIntersecting) return
+        setIsNearViewport(true)
+        setIsInView(true)
       },
       { rootMargin: PUBLIC_MEDIA_ROOT_MARGIN }
     )
@@ -965,6 +974,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 loading={isPublicView ? 'eager' : 'lazy'}
                 fetchPriority={isPriorityPoster ? 'high' : 'auto'}
                 decoding={posterDecoding}
+                onLoad={() => markPublicPosterLoaded(nativePosterUrl)}
               />
             )}
             <button
