@@ -25,13 +25,6 @@ const ContainerTile = memo(ContainerTileBase)
 
 const ContentCard = memo(ContentCardBase)
 const GhostTile = memo(GhostTileBase)
-const settledUnifiedVideoPosters = new Set<string>()
-
-function logMediaMount(label: string, id: string) {
-  if (process.env.NODE_ENV !== 'development') return
-  console.debug(`[fp-media] mount ${label}`, id)
-  return () => console.debug(`[fp-media] unmount ${label}`, id)
-}
 
 /**
  * UNIFIED TILE — layout-aware rendering
@@ -138,12 +131,10 @@ function VideoTile({ url, id, posterUrl }: { url: string; id: string; posterUrl?
   const [chipRevealed, setChipRevealed] = useState(false)
   const [isMuted, setIsMuted] = useState(true)
   const [isUserActivated, setIsUserActivated] = useState(false)
-  const [isVideoResting, setIsVideoResting] = useState(() => !!posterUrl && settledUnifiedVideoPosters.has(posterUrl))
+  const [isVideoResting, setIsVideoResting] = useState(false)
   const chipFadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const audioIdRef = useRef(`unified-video-${id}`)
   const invocationPointRef = useRef<InvocationPoint | null>(null)
-
-  useEffect(() => logMediaMount('UnifiedVideoTile', id), [id])
   const revealChip = useCallback(() => {
     setChipRevealed(true)
     if (chipFadeTimerRef.current) clearTimeout(chipFadeTimerRef.current)
@@ -295,13 +286,12 @@ function VideoTile({ url, id, posterUrl }: { url: string; id: string; posterUrl?
             alt=""
             className="pointer-events-none absolute inset-0 h-full w-full object-cover"
             style={{
-              opacity: !isUserActivated && (!isInView || isVideoResting) ? 1 : 0,
+              opacity: !isUserActivated && isVideoResting ? 1 : 0,
               transition: 'opacity 220ms ease-out',
               zIndex: 2,
             }}
             loading="eager"
             decoding="async"
-            onLoad={(e) => settledUnifiedVideoPosters.add(e.currentTarget.currentSrc || e.currentTarget.src || posterUrl)}
           />
         )}
         <button

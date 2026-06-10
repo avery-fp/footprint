@@ -35,12 +35,6 @@ import MusicEmbedTile from '@/components/MusicEmbedTile'
 
 const GHOST_PAUSE_EVENT = 'ghost-tile-pause'
 
-function logMediaMount(label: string, id: string) {
-  if (process.env.NODE_ENV !== 'development') return
-  console.debug(`[fp-media] mount ${label}`, id)
-  return () => console.debug(`[fp-media] unmount ${label}`, id)
-}
-
 type Archetype = 'audio' | 'visual'
 
 function getArchetype(platform: string, _url: string): Archetype {
@@ -101,8 +95,6 @@ export default function GhostTile({
   const invocationPointRef = useRef<InvocationPoint | null>(null)
   const [youtubeRevealSettled, setYoutubeRevealSettled] = useState(false)
 
-  useEffect(() => logMediaMount('GhostTile', `${platform}:${media_id}`), [media_id, platform])
-
   // Pause the underlying tile YouTube player while the theater overlay is
   // open so audio doesn't double-up.
   useEffect(() => {
@@ -143,9 +135,7 @@ export default function GhostTile({
     const el = tileRef.current
     if (!el) return
     const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) setIsNearViewport(true)
-      },
+      ([entry]) => setIsNearViewport(entry.isIntersecting),
       { rootMargin: '900px 0px 900px 0px' },
     )
     observer.observe(el)
