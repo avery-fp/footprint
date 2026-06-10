@@ -567,6 +567,14 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const scrollRestoreAttemptedRef = useRef(false)
   const explicitRoomSwitchRef = useRef(false)
   const lastActiveRoomIdRef = useRef<string | null>(activeRoomId)
+  
+  // State-driven transition double-buffering
+  const [prevRoomId, setPrevRoomId] = useState<string | null>(null);
+  useEffect(() => {
+    if (activeRoomId) {
+      setPrevRoomId(activeRoomId);
+    }
+  }, [activeRoomId]);
   const saveContinuityRef = useRef<() => void>(() => {})
   const roomSwitchTimersRef = useRef<ReturnType<typeof setTimeout>[]>([])
 
@@ -3117,9 +3125,3 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   )
 }
 
-
-if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
-  });
-}
