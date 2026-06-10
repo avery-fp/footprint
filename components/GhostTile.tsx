@@ -135,8 +135,8 @@ export default function GhostTile({
     const el = tileRef.current
     if (!el) return
     const observer = new IntersectionObserver(
-      ([entry]) => setIsNearViewport(entry.isIntersecting),
-      { rootMargin: '900px 0px 900px 0px' },
+      ([entry]) => { if (entry.isIntersecting) setIsNearViewport(true) },
+      { rootMargin: '1800px 0px 1800px 0px' },
     )
     observer.observe(el)
     return () => observer.disconnect()

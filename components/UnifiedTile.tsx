@@ -154,7 +154,7 @@ function VideoTile({ url, id, posterUrl }: { url: string; id: string; posterUrl?
           obs.disconnect()
         }
       },
-      { rootMargin: '1200px' }
+      { rootMargin: '1800px' }
     )
     obs.observe(el)
     return () => obs.disconnect()
