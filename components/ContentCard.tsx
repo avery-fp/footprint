@@ -298,7 +298,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     if (!el) return
     const observer = new IntersectionObserver(
       ([entry]) => {
-        setIsNearViewport(entry.isIntersecting)
+        if (entry.isIntersecting) setIsNearViewport(true)
         if (entry.isIntersecting) setIsInView(true)
       },
       { rootMargin: PUBLIC_MEDIA_ROOT_MARGIN }
