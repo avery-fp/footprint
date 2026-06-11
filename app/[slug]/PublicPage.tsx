@@ -567,14 +567,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const scrollRestoreAttemptedRef = useRef(false)
   const explicitRoomSwitchRef = useRef(false)
   const lastActiveRoomIdRef = useRef<string | null>(activeRoomId)
-  
-  // State-driven transition double-buffering
-  const [prevRoomId, setPrevRoomId] = useState<string | null>(null);
-  useEffect(() => {
-    if (activeRoomId) {
-      setPrevRoomId(activeRoomId);
-    }
-  }, [activeRoomId]);
   const saveContinuityRef = useRef<() => void>(() => {})
   const roomSwitchTimersRef = useRef<ReturnType<typeof setTimeout>[]>([])
 
@@ -2533,62 +2525,30 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
         </RemoveBubble>
 
         {!isEditorReady ? (
-          <div className="relative w-full h-full min-h-screen">
-            {visibleRooms.map((room) => {
-              const isActive = room.id === activeRoomId;
-              const currentRoomLayout = (
-                (room.id && layoutOverride[room.id]) ||
-                room.layout ||
-                'grid'
-              ) as RoomLayout;
-              const currentIsSoundRoom = room.name?.toLowerCase() === 'sound';
-              const currentIsGrid = currentRoomLayout === 'grid';
-              const currentContent = isActive ? displayContent : (room.content || []);
-
-              return (
-                <div
-                  key={room.id}
-                  className="room-surface-wrapper"
-                  style={{
-                    opacity: isActive ? 1 : 0,
-                    pointerEvents: isActive ? 'auto' : 'none',
-                    position: isActive ? 'relative' : 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    willChange: 'opacity, transform',
-                    transform: 'translateZ(0)',
-                    zIndex: isActive ? 10 : 0,
-                  }}
-                >
-                  <PublicRoomSurface
-                    content={currentContent}
-                    visibleRooms={visibleRooms}
-                    activeRoomId={activeRoomId}
-                    onNavigateRoom={goToRoom}
-                    roomLayout={currentRoomLayout}
-                    roomFade={isActive ? roomFade : 'visible'}
-                    roomNavDocked={roomNavDocked}
-                    isMobile={isMobile}
-                    isSoundRoom={currentIsSoundRoom}
-                    isGrid={currentIsGrid}
-                    containerMeta={containerMeta}
-                    expanded={expanded}
-                    showOverlay={showOverlay}
-                    collectionChildren={isActive ? localChildren : []}
-                    loadingChildren={isActive ? loadingChildren : false}
-                    expandedContainerLabel={expandedContainerLabel}
-                    canEditCollections={isOwner}
-                    onEditCollections={() => setEditorModeInPlace(true)}
-                    expand={expand}
-                    collapse={collapse}
-                    registerRef={registerRef}
-                    depthTouchStart={depthTouchStart}
-                  />
-                </div>
-              );
-            })}
-          </div>
+          <PublicRoomSurface
+            content={displayContent}
+            visibleRooms={visibleRooms}
+            activeRoomId={activeRoomId}
+            onNavigateRoom={goToRoom}
+            roomLayout={roomLayout}
+            roomFade={roomFade}
+            roomNavDocked={roomNavDocked}
+            isMobile={isMobile}
+            isSoundRoom={isSoundRoom}
+            isGrid={isGrid}
+            containerMeta={containerMeta}
+            expanded={expanded}
+            showOverlay={showOverlay}
+            collectionChildren={localChildren}
+            loadingChildren={loadingChildren}
+            expandedContainerLabel={expandedContainerLabel}
+            canEditCollections={isOwner}
+            onEditCollections={() => setEditorModeInPlace(true)}
+            expand={expand}
+            collapse={collapse}
+            registerRef={registerRef}
+            depthTouchStart={depthTouchStart}
+          />
         ) : (
           <>
         {/* DndContext hoist — wraps both the room nav and the grid so
@@ -3124,4 +3084,3 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
     </div>
   )
 }
-
