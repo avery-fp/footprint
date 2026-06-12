@@ -763,6 +763,42 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     ? content.type
     : musicProviderFromUrl(content.url)
 
+  if (musicProvider === 'spotify' && !iframeFailed) {
+    const embed = parseEmbed(content.url)
+    if (embed?.platform === 'spotify') {
+      const spotifySrc = enforceEmbedDarkMode(embed.embedUrl, 'spotify')
+      const spotifyHeight = Number(embed.height) || getAEEmbedHeight('spotify')
+      return (
+        <div
+          ref={containerRef}
+          className="w-full max-w-full fp-tile overflow-hidden"
+          style={{ height: `${spotifyHeight}px`, position: 'relative', background: 'transparent' }}
+        >
+          <iframe
+            src={spotifySrc}
+            width="100%"
+            height="100%"
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+            loading="lazy"
+            referrerPolicy="strict-origin-when-cross-origin"
+            onError={() => setIframeFailed(true)}
+            style={{
+              border: 'none',
+              width: '100%',
+              maxWidth: '100%',
+              height: '100%',
+              background: 'transparent',
+              overflow: 'hidden',
+              padding: 0,
+              margin: 0,
+              display: 'block',
+            }}
+          />
+        </div>
+      )
+    }
+  }
+
   if (musicProvider === 'spotify' || musicProvider === 'apple_music') {
     const thumbSrc = getBestThumbnailUrl(content)
     const { title, creator } = sanitizeLinkMeta(
@@ -1054,7 +1090,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     const productMode = kind === 'product'
     const mediaMode = kind === 'media'
     const rowShell = (item: typeof rows[number], index: number, children: React.ReactNode, className: string) => {
-      const key = `${item.url || item.title || 'row'}-${index}`
+      const key = `source-excerpt-item-${index}`
       return item.url ? (
         <a
           key={key}
@@ -1612,7 +1648,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
 
             return item.url ? (
               <a
-                key={`${item.title}-${item.url}`}
+                key={`excerpt-link-${index}`}
                 href={item.url}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -1622,7 +1658,10 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 {rowInner}
               </a>
             ) : (
-              <div key={`${item.title}-${item.date || ''}`} className="block rounded-xl border border-white/10 bg-white/[0.04] p-3.5 transition-colors hover:bg-white/[0.06]">
+              <div
+                key={`excerpt-row-${index}`}
+                className="block rounded-xl border border-white/10 bg-white/[0.04] p-3.5 transition-colors hover:bg-white/[0.06]"
+              >
                 {rowInner}
               </div>
             )
