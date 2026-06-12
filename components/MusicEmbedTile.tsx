@@ -16,15 +16,6 @@ interface MusicEmbedTileProps {
   displayMode: MusicDisplayMode
 }
 
-const MUSIC_SHELL_STYLE: React.CSSProperties = {
-  borderRadius: 'inherit',
-  background: 'rgba(255,255,255,0.08)',
-  backdropFilter: 'blur(24px) saturate(150%)',
-  WebkitBackdropFilter: 'blur(24px) saturate(150%)',
-  boxShadow:
-    'inset 0 1px 0 rgba(255,255,255,0.16), inset 0 0 0 1px rgba(255,255,255,0.12), 0 18px 42px rgba(0,0,0,0.28)',
-}
-
 type PreviewResolution = { previewUrl: string | null }
 
 type PreviewCacheEntry = {
@@ -665,8 +656,9 @@ function MusicFacade({
   return (
     <button
       type="button"
-      className="group relative flex h-full w-full items-center gap-4 overflow-hidden px-3 py-2.5 text-left fp-tile"
-      style={MUSIC_SHELL_STYLE}
+      className={provider === 'spotify'
+        ? 'relative flex h-full w-full items-center gap-3 overflow-hidden rounded-[inherit] bg-transparent px-0 py-0 text-left transition active:scale-[0.99]'
+        : 'relative flex h-full w-full items-center gap-4 overflow-hidden rounded-[inherit] border border-white/10 bg-white/10 px-3 py-2 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md transition active:scale-[0.99]'}
       aria-label={`${isPlaying ? 'Pause' : 'Play'} ${title}`}
     >
       <div
