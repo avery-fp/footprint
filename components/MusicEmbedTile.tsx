@@ -687,11 +687,7 @@ function MusicFacade({
       <div className="min-w-0 flex-1">
         <MusicMeta title={title} artist={artist} align="left" />
       </div>
-      {provider === 'spotify' ? (
-        <div className="absolute right-0 top-1/2 flex shrink-0 -translate-y-1/2 items-center">
-          <PlayIcon compact solid playing={isPlaying} />
-        </div>
-      ) : (
+      {provider !== 'spotify' && (
         <>
           <div className="absolute right-3 top-3">
             <ProviderMark provider={provider} />
