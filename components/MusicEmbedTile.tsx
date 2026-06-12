@@ -303,53 +303,15 @@ export default function MusicEmbedTile({
 
   if (displayMode === 'player') {
     if (provider === 'spotify') {
-      if (spotifyEmbedActive || spotifyEmbedWarming) {
-        return (
-          <SpotifyInlineDissolve
-            src={embed.embedUrl}
-            title={title}
-            audioId={tileIdRef.current}
-            ready={spotifyEmbedReady}
-            onReady={() => setSpotifyEmbedReady(true)}
-          >
-            <MusicFacade
-              provider={provider}
-              title={title}
-              artist={artist}
-              image={showArtwork ? image : null}
-              displayMode="player"
-              isPlaying={isPlaying}
-              onImageError={() => setImgFailed(true)}
-            />
-          </SpotifyInlineDissolve>
-        )
-      }
       return (
-        <MusicSurface
-          url={url}
-          provider={provider}
-          isPlaying={isPlaying}
-          onPlayingChange={setIsPlaying}
-          tileId={tileIdRef.current}
-          spotifyPreviewAudio={previewAudioRef.current}
-          spotifyPreviewResolved={previewResolved}
-          onSpotifyEmbedFallback={() => setSpotifyEmbedActive(true)}
-          onSpotifyEmbedWarm={() => {
-            spotifyTapPendingRef.current = true
-            setSpotifyEmbedReady(false)
-            setSpotifyEmbedWarming(true)
-          }}
-        >
-          <MusicFacade
-            provider={provider}
-            title={title}
-            artist={artist}
-            image={showArtwork ? image : null}
-            displayMode="player"
-            isPlaying={isPlaying}
-            onImageError={() => setImgFailed(true)}
-          />
-        </MusicSurface>
+        <NativeMusicBar
+          src={embed.embedUrl}
+          title={title}
+          provider="spotify"
+          audioId={tileIdRef.current}
+          loading="eager"
+          onReady={() => setSpotifyEmbedReady(true)}
+        />
       )
     }
     if (provider === 'apple_music' && supportsCompactAppleMusicBar(url)) {
