@@ -304,14 +304,27 @@ export default function MusicEmbedTile({
   if (displayMode === 'player') {
     if (provider === 'spotify') {
       return (
-        <NativeMusicBar
-          src={embed.embedUrl}
-          title={title}
-          provider="spotify"
-          audioId={tileIdRef.current}
-          loading="eager"
-          onReady={() => setSpotifyEmbedReady(true)}
-        />
+        <MusicSurface
+          url={url}
+          provider={provider}
+          isPlaying={isPlaying}
+          onPlayingChange={setIsPlaying}
+          tileId={tileIdRef.current}
+          spotifyPreviewAudio={previewAudioRef.current}
+          spotifyPreviewResolved={previewResolved}
+          onSpotifyEmbedFallback={() => {}}
+          onSpotifyEmbedWarm={() => {}}
+        >
+          <MusicFacade
+            provider={provider}
+            title={title}
+            artist={artist}
+            image={showArtwork ? image : null}
+            displayMode="player"
+            isPlaying={isPlaying}
+            onImageError={() => setImgFailed(true)}
+          />
+        </MusicSurface>
       )
     }
     if (provider === 'apple_music' && supportsCompactAppleMusicBar(url)) {
