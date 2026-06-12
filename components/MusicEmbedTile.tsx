@@ -164,10 +164,14 @@ export default function MusicEmbedTile({
   const previewPlayingRef = useRef(false)
   const [resolvedPreviewUrl, setResolvedPreviewUrl] = useState<string | null>(null)
   const [previewResolved, setPreviewResolved] = useState(false)
-  const [spotifyEmbedActive, setSpotifyEmbedActive] = useState(false)
+  const [spotifyEmbedActive, setSpotifyEmbedActive] = useState(() => provider === 'spotify')
   const [spotifyEmbedWarming, setSpotifyEmbedWarming] = useState(false)
   const [spotifyEmbedReady, setSpotifyEmbedReady] = useState(false)
   const spotifyTapPendingRef = useRef(false)
+  useEffect(() => {
+    if (provider === 'spotify') setSpotifyEmbedActive(true)
+  }, [provider])
+
 
   const stopPlayback = useCallback(() => {
     setIsPlaying(false)
