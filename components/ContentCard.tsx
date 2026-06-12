@@ -27,7 +27,6 @@ import {
   requestYouTubeActivation,
   YOUTUBE_MOBILE_REVEAL_SETTLE_MS,
   shouldMountYouTubePlayer,
-  shouldPrewarmYouTubePlayer,
   shouldRevealYouTubePlayer,
   shouldShowYouTubePosterVeil,
   shouldUseYouTubePosterSurface,
@@ -43,8 +42,8 @@ import { tryNativeFullscreen } from '@/lib/fullscreen'
 
 const GlassEmbedFrame = GlassEmbedFrameExtracted
 const GlassPlaceholder = GlassPlaceholderExtracted
-const PUBLIC_EAGER_POSTER_COUNT = 96
-const PUBLIC_SYNC_POSTER_COUNT = 16
+const PUBLIC_EAGER_POSTER_COUNT = 6
+const PUBLIC_SYNC_POSTER_COUNT = 6
 const PUBLIC_MEDIA_ROOT_MARGIN = '3200px 0px 3200px 0px'
 const YOUTUBE_COARSE_TAP_TOLERANCE_PX = 96
 const YOUTUBE_PENDING_RETRY_THROTTLE_MS = 900
@@ -614,9 +613,8 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
 
     const isYouTubeShort = /\/shorts\//i.test(content.url || '')
     const shouldUsePosterSurface = shouldUseYouTubePosterSurface(isSoundRoom, isYouTubeShort, effectiveAspect)
-    const shouldPrewarmPlayer = shouldPrewarmYouTubePlayer('youtube', isCoarsePointer, isNearViewport)
     const shouldMountPlayer =
-      shouldMountYouTubePlayer('youtube', isActivated, isCoarsePointer, isNearViewport) || shouldPrewarmPlayer
+      shouldMountYouTubePlayer('youtube', isActivated, isCoarsePointer, false)
     const shouldRevealFromReadyState =
       !isCoarsePointer && youtubePlayerReadyRef.current && !youtubePendingActivationRef.current
     const shouldRevealPlayer = shouldUsePosterSurface
@@ -636,7 +634,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           src={youtubeThumbCandidates[0]}
           alt=""
           className={`fp-resting-video-media${getPublicPosterClass(youtubeThumbCandidates[0])}`}
-          loading={isPublicView ? 'eager' : 'lazy'}
+          loading={isPriorityPoster ? 'eager' : 'lazy'}
           fetchPriority={isPriorityPoster ? 'high' : 'auto'}
           decoding={posterDecoding}
           referrerPolicy="no-referrer"
@@ -903,7 +901,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
               src={nativePosterUrl}
               alt=""
               className={`h-full w-full ${fitClass}${getPublicPosterClass(nativePosterUrl)}`}
-              loading={isPublicView ? 'eager' : 'lazy'}
+              loading={isPriorityPoster ? 'eager' : 'lazy'}
               fetchPriority={isPriorityPoster ? 'high' : 'auto'}
               decoding={posterDecoding}
               onLoad={() => markPublicPosterLoaded(nativePosterUrl)}
@@ -961,7 +959,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                   transition: 'opacity 220ms ease-out',
                   zIndex: 2,
                 }}
-                loading={isPublicView ? 'eager' : 'lazy'}
+                loading={isPriorityPoster ? 'eager' : 'lazy'}
                 fetchPriority={isPriorityPoster ? 'high' : 'auto'}
                 decoding={posterDecoding}
               />
@@ -1003,7 +1001,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             height={640}
             sizes="(max-width: 768px) 50vw, 25vw"
             className={`w-full h-full object-cover${getPublicPosterClass(imageSrc)}`}
-            loading={isPublicView ? 'eager' : 'lazy'}
+            loading={isPriorityPoster ? 'eager' : 'lazy'}
             fetchPriority={isPriorityPoster ? 'high' : 'auto'}
             decoding={posterDecoding}
             onLoad={(e) => {
@@ -1331,7 +1329,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 src={thumbSrc}
                 alt=""
                 className={`fp-resting-video-media${getPublicPosterClass(thumbSrc)}`}
-                loading={isPublicView ? 'eager' : 'lazy'}
+                loading={isPriorityPoster ? 'eager' : 'lazy'}
                 fetchPriority={isPriorityPoster ? 'high' : 'auto'}
                 decoding={posterDecoding}
                 onLoad={() => markPublicPosterLoaded(thumbSrc)}
@@ -1448,7 +1446,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 src={thumbSrc}
                 alt=""
                 className={`fp-resting-video-media${getPublicPosterClass(thumbSrc)}`}
-                loading={isPublicView ? 'eager' : 'lazy'}
+                loading={isPriorityPoster ? 'eager' : 'lazy'}
                 fetchPriority={isPriorityPoster ? 'high' : 'auto'}
                 decoding={posterDecoding}
                 onLoad={() => markPublicPosterLoaded(thumbSrc)}
@@ -1650,7 +1648,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 src={tileSurfaceImage}
                 alt=""
                 className={`fp-resting-video-media${getPublicPosterClass(tileSurfaceImage)}`}
-                loading={isPublicView ? 'eager' : 'lazy'}
+                loading={isPriorityPoster ? 'eager' : 'lazy'}
                 fetchPriority={isPriorityPoster ? 'high' : 'auto'}
                 decoding={posterDecoding}
                 onLoad={() => markPublicPosterLoaded(tileSurfaceImage)}
