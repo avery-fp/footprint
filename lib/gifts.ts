@@ -56,3 +56,50 @@ export async function sendGiftEmail(recipientEmail: string, claimToken: string) 
 
   return true
 }
+
+export async function sendGiftClaimCodeEmail(recipientEmail: string, code: string) {
+  if (!process.env.RESEND_API_KEY) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[DEV] Gift claim code for ${recipientEmail}: ${code}`)
+    }
+    return true
+  }
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: 'Footprint <hello@footprint.onl>',
+      to: recipientEmail,
+      subject: `your claim code: ${code}`,
+      html: `
+        <div style="background-color: #0c0c10; width: 100%; min-height: 100%; margin: 0; padding: 0;">
+          <div style="max-width: 520px; margin: 0 auto; padding: 72px 32px 60px 32px; text-align: center;">
+            <p style="margin: 0; font-family: 'DM Mono', 'Courier New', monospace; font-size: 13px; line-height: 1.6; font-weight: 300; color: #555560; letter-spacing: 0.04em; text-transform: lowercase;">
+              gift claim
+            </p>
+            <p style="margin: 40px 0 0 0; font-family: 'DM Mono', 'Courier New', monospace; font-size: 13px; line-height: 1.7; font-weight: 300; color: #777780; letter-spacing: 0.02em;">
+              your 6-digit code
+            </p>
+            <p style="margin: 20px 0 0 0; font-family: 'DM Mono', 'Courier New', monospace; font-size: 36px; line-height: 1.1; font-weight: 400; color: #d4c5a9; letter-spacing: 0.32em;">
+              ${code}
+            </p>
+            <p style="margin: 36px 16px 0 16px; font-family: 'DM Mono', 'Courier New', monospace; font-size: 11px; line-height: 1.7; font-weight: 300; color: #555560; letter-spacing: 0.02em;">
+              expires in 20 minutes. if you didn't request this, ignore this email.
+            </p>
+          </div>
+        </div>
+      `,
+    }),
+  })
+
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(`Resend API error (${res.status}): ${body}`)
+  }
+
+  return true
+}

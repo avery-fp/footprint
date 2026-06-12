@@ -12,14 +12,23 @@ function GiftClaimContent() {
   const [error, setError] = useState('')
   const [checking, setChecking] = useState(false)
   const [available, setAvailable] = useState<boolean | null>(null)
+  const [step, setStep] = useState<'username' | 'code'>('username')
+  const [code, setCode] = useState('')
   const [success, setSuccess] = useState<{ serial_number: number; username: string } | null>(null)
 
   const usernameRef = useRef<HTMLInputElement>(null)
+  const codeRef = useRef<HTMLInputElement>(null)
   const checkTimeout = useRef<ReturnType<typeof setTimeout>>()
 
   useEffect(() => {
     setTimeout(() => usernameRef.current?.focus(), 100)
   }, [])
+
+  useEffect(() => {
+    if (step === 'code') {
+      setTimeout(() => codeRef.current?.focus(), 100)
+    }
+  }, [step])
 
   useEffect(() => {
     if (checkTimeout.current) clearTimeout(checkTimeout.current)
@@ -81,8 +90,34 @@ function GiftClaimContent() {
   const usernameValid = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/.test(username) && username.length >= 3
   const formValid = usernameValid && available === true
 
-  const handleClaim = async () => {
+  const handleSendCode = async () => {
     if (!formValid || loading) return
+    setLoading(true)
+    setError('')
+
+    try {
+      const res = await fetch('/api/gifts/start-claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, username }),
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        setStep('code')
+      } else {
+        setError(data.error || 'Something went wrong')
+      }
+    } catch {
+      setError('Something went wrong')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleVerify = async () => {
+    if (code.length !== 6 || loading) return
     setLoading(true)
     setError('')
 
@@ -90,7 +125,7 @@ function GiftClaimContent() {
       const res = await fetch('/api/gifts/claim', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, username }),
+        body: JSON.stringify({ token, username, code }),
       })
 
       const data = await res.json()
@@ -119,33 +154,66 @@ function GiftClaimContent() {
           </p>
         </div>
 
-        <form onSubmit={(e) => { e.preventDefault(); handleClaim() }} className="space-y-4">
-          <div>
-            <input
-              ref={usernameRef}
-              type="text"
-              placeholder="pick a username"
-              value={username}
-              onChange={(e) => {
-                setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))
-                setError('')
-              }}
-              className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-3.5 text-white/90 placeholder:text-white/20 focus:outline-none focus:border-white/20 text-[14px]"
-              autoComplete="off"
-              maxLength={20}
-            />
-            {username.length >= 3 && (
-              <p className="text-[11px] mt-1.5 px-1 font-mono">
-                {checking ? (
-                  <span className="text-white/20">checking...</span>
-                ) : available === true ? (
-                  <span className="text-green-400/60">footprint.onl/{username} is yours</span>
-                ) : available === false ? (
-                  <span className="text-red-400/60">taken</span>
-                ) : null}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (step === 'username') {
+              handleSendCode()
+            } else {
+              handleVerify()
+            }
+          }}
+          className="space-y-4"
+        >
+          {step === 'username' ? (
+            <div>
+              <input
+                ref={usernameRef}
+                type="text"
+                placeholder="pick a username"
+                value={username}
+                onChange={(e) => {
+                  setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))
+                  setError('')
+                }}
+                className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-3.5 text-white/90 placeholder:text-white/20 focus:outline-none focus:border-white/20 text-[14px]"
+                autoComplete="off"
+                maxLength={20}
+              />
+              {username.length >= 3 && (
+                <p className="text-[11px] mt-1.5 px-1 font-mono">
+                  {checking ? (
+                    <span className="text-white/20">checking...</span>
+                  ) : available === true ? (
+                    <span className="text-green-400/60">footprint.onl/{username} is yours</span>
+                  ) : available === false ? (
+                    <span className="text-red-400/60">taken</span>
+                  ) : null}
+                </p>
+              )}
+            </div>
+          ) : (
+            <div>
+              <input
+                ref={codeRef}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                placeholder="6-digit code"
+                value={code}
+                onChange={(e) => {
+                  setCode(e.target.value.replace(/\D/g, '').slice(0, 6))
+                  setError('')
+                }}
+                className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-3.5 text-white/90 placeholder:text-white/20 focus:outline-none focus:border-white/20 text-[14px]"
+                autoComplete="one-time-code"
+                maxLength={6}
+              />
+              <p className="text-[11px] mt-1.5 px-1 font-mono text-white/25">
+                sent to the gifted email
               </p>
-            )}
-          </div>
+            </div>
+          )}
 
           {error && (
             <p className="text-red-400/70 text-[13px] text-center">{error}</p>
@@ -153,10 +221,10 @@ function GiftClaimContent() {
 
           <button
             type="submit"
-            disabled={!formValid || loading}
+            disabled={(step === 'username' ? !formValid : code.length !== 6) || loading}
             className="w-full py-3.5 rounded-xl bg-white text-black text-[14px] font-medium hover:bg-white/90 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            {loading ? '...' : 'claim'}
+            {loading ? '...' : step === 'username' ? 'send code' : 'verify'}
           </button>
         </form>
       </div>
