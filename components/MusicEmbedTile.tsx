@@ -665,8 +665,12 @@ function MusicFacade({
   return (
     <button
       type="button"
-      className="group relative flex h-full w-full items-center gap-4 overflow-hidden px-3 py-2.5 text-left fp-tile"
-      style={MUSIC_SHELL_STYLE}
+      className={
+        provider === 'spotify'
+          ? "group relative flex h-full w-full items-center gap-3 overflow-hidden bg-transparent px-0 py-0 text-left"
+          : "group relative flex h-full w-full items-center gap-4 overflow-hidden px-3 py-2.5 text-left fp-tile"
+      }
+      style={provider === 'spotify' ? { borderRadius: 'inherit' } : MUSIC_SHELL_STYLE}
       aria-label={`${isPlaying ? 'Pause' : 'Play'} ${title}`}
     >
       <div
