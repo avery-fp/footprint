@@ -61,7 +61,7 @@ const settledPublicPosters = new Set<string>()
 function getAEEmbedHeight(provider: string): number {
   switch (provider) {
     case 'youtube':    return 315
-    case 'spotify':    return 152
+    case 'spotify':    return 80
     case 'tiktok':     return 580
     case 'soundcloud': return 166
     case 'vimeo':      return 315
