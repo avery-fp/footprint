@@ -896,25 +896,24 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     const shouldShowNativePosterVeil = !!nativePosterUrl && !isNativeVideoActivated && nativeVideoResting
     return (
       <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative group">
-        {isVideoError ? (
-          nativePosterUrl ? (
-            <div className="absolute inset-0">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={nativePosterUrl}
-                alt=""
-                className={`h-full w-full ${fitClass}${getPublicPosterClass(nativePosterUrl)}`}
-                loading={isPublicView ? 'eager' : 'lazy'}
-                fetchPriority={isPriorityPoster ? 'high' : 'auto'}
-                decoding={posterDecoding}
-                onLoad={() => markPublicPosterLoaded(nativePosterUrl)}
-              />
-            </div>
-          ) : (
-            <GlassPlaceholder aspectClass={aspectClass || 'aspect-video'} />
-          )
-        ) : isInView ? (
-          <>
+        {nativePosterUrl ? (
+          <div className="absolute inset-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={nativePosterUrl}
+              alt=""
+              className={`h-full w-full ${fitClass}${getPublicPosterClass(nativePosterUrl)}`}
+              loading={isPublicView ? 'eager' : 'lazy'}
+              fetchPriority={isPriorityPoster ? 'high' : 'auto'}
+              decoding={posterDecoding}
+              onLoad={() => markPublicPosterLoaded(nativePosterUrl)}
+            />
+          </div>
+        ) : (
+          <div className={`w-full ${aspectClass || 'aspect-video'}`} style={{ background: 'transparent' }} />
+        )}
+        {!isVideoError && isInView && (
+          <div className="absolute inset-0">
             <video
               ref={videoRef}
               src={videoSrc}
@@ -982,22 +981,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 transition: 'opacity 180ms ease',
               }}
             />
-          </>
-        ) : nativePosterUrl ? (
-          <div className="absolute inset-0">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={nativePosterUrl}
-              alt=""
-              className={`h-full w-full ${fitClass}${getPublicPosterClass(nativePosterUrl)}`}
-              loading={isPublicView ? 'eager' : 'lazy'}
-              fetchPriority={isPriorityPoster ? 'high' : 'auto'}
-              decoding={posterDecoding}
-              onLoad={() => markPublicPosterLoaded(nativePosterUrl)}
-            />
           </div>
-        ) : (
-          <div className={`w-full ${aspectClass || 'aspect-video'}`} style={{ background: 'transparent' }} />
         )}
       </div>
     )
