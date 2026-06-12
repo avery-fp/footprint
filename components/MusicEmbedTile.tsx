@@ -682,26 +682,17 @@ function MusicFacade({
       </div>
       <div className="min-w-0 flex-1">
         <MusicMeta title={title} artist={artist} align="left" />
-        {provider === 'spotify' && (
-          <span className="mt-1.5 inline-flex rounded-[2px] bg-white/90 px-1.5 py-0.5 text-[9px] font-medium leading-none text-black/80">
-            Preview
-          </span>
-        )}
       </div>
-      <div className="absolute right-3 top-3">
-        <ProviderMark provider={provider} />
-      </div>
-      <div className="absolute bottom-2.5 right-3 flex shrink-0 items-center gap-3">
-        {provider === 'spotify' && (
-          <>
-            <CircleIcon label="Add">
-              <path d="M12 5v14M5 12h14" />
-            </CircleIcon>
-            <MoreIcon />
-          </>
-        )}
-        <PlayIcon compact solid={provider === 'spotify'} playing={isPlaying} />
-      </div>
+      {provider !== 'spotify' && (
+        <>
+          <div className="absolute right-3 top-3">
+            <ProviderMark provider={provider} />
+          </div>
+          <div className="absolute bottom-2.5 right-3 flex shrink-0 items-center gap-3">
+            <PlayIcon compact solid={false} playing={isPlaying} />
+          </div>
+        </>
+      )}
     </button>
   )
 }
