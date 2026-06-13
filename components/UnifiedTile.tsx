@@ -164,7 +164,9 @@ function VideoTile({ url, id, posterUrl }: { url: string; id: string; posterUrl?
     const el = containerRef.current
     if (!el) return
     const obs = new IntersectionObserver(
-      ([entry]) => setIsPlayable(entry.isIntersecting),
+      ([entry]) => {
+        if (entry.isIntersecting) setIsPlayable(true)
+      },
       { threshold: 0.5 }
     )
     obs.observe(el)

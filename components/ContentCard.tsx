@@ -313,7 +313,9 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     const el = containerRef.current
     if (!el) return
     const obs = new IntersectionObserver(
-      ([entry]) => setIsVideoPlayable(entry.isIntersecting),
+      ([entry]) => {
+        if (entry.isIntersecting) setIsVideoPlayable(true)
+      },
       { threshold: 0.5 }
     )
     obs.observe(el)
