@@ -6,8 +6,8 @@ import { useAspectDetection } from '@/lib/aspectDetection'
 import { audioManager } from '@/lib/audio-manager'
 import { beginInvocation, isIntentionalInvocation, type InvocationPoint } from '@/lib/media-invocation'
 
-const PUBLIC_EAGER_IMAGE_COUNT = 6
-const PUBLIC_SYNC_DECODE_COUNT = 6
+const PUBLIC_EAGER_IMAGE_COUNT = 96
+const PUBLIC_SYNC_DECODE_COUNT = 16
 const PUBLIC_NEAR_VIEWPORT_MARGIN = '3200px 0px 3200px 0px'
 const settledPublicMedia = new Set<string>()
 const settledTileMedia = new Set<string>()
@@ -229,7 +229,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
           alt={alt}
           sizes={sizes}
           className={publicPosterClass}
-          loading={isPriority ? 'eager' : 'lazy'}
+          loading="eager"
           fetchPriority={isPriority ? 'high' : 'auto'}
           decoding={isSyncDecode ? 'sync' : 'async'}
           onLoad={() => {

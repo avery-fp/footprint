@@ -27,6 +27,7 @@ import {
   requestYouTubeActivation,
   YOUTUBE_MOBILE_REVEAL_SETTLE_MS,
   shouldMountYouTubePlayer,
+  shouldPrewarmYouTubePlayer,
   shouldRevealYouTubePlayer,
   shouldShowYouTubePosterVeil,
   shouldUseYouTubePosterSurface,
@@ -42,8 +43,8 @@ import { tryNativeFullscreen } from '@/lib/fullscreen'
 
 const GlassEmbedFrame = GlassEmbedFrameExtracted
 const GlassPlaceholder = GlassPlaceholderExtracted
-const PUBLIC_EAGER_POSTER_COUNT = 6
-const PUBLIC_SYNC_POSTER_COUNT = 6
+const PUBLIC_EAGER_POSTER_COUNT = 96
+const PUBLIC_SYNC_POSTER_COUNT = 16
 const PUBLIC_MEDIA_ROOT_MARGIN = '3200px 0px 3200px 0px'
 const YOUTUBE_COARSE_TAP_TOLERANCE_PX = 96
 const YOUTUBE_PENDING_RETRY_THROTTLE_MS = 900
@@ -60,7 +61,7 @@ const settledPublicPosters = new Set<string>()
 function getAEEmbedHeight(provider: string): number {
   switch (provider) {
     case 'youtube':    return 315
-    case 'spotify':    return 80
+    case 'spotify':    return 152
     case 'tiktok':     return 580
     case 'soundcloud': return 166
     case 'vimeo':      return 315
@@ -613,8 +614,9 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
 
     const isYouTubeShort = /\/shorts\//i.test(content.url || '')
     const shouldUsePosterSurface = shouldUseYouTubePosterSurface(isSoundRoom, isYouTubeShort, effectiveAspect)
+    const shouldPrewarmPlayer = shouldPrewarmYouTubePlayer('youtube', isCoarsePointer, isNearViewport)
     const shouldMountPlayer =
-      shouldMountYouTubePlayer('youtube', isActivated, isCoarsePointer, false)
+      shouldMountYouTubePlayer('youtube', isActivated, isCoarsePointer, isNearViewport) || shouldPrewarmPlayer
     const shouldRevealFromReadyState =
       !isCoarsePointer && youtubePlayerReadyRef.current && !youtubePendingActivationRef.current
     const shouldRevealPlayer = shouldUsePosterSurface
@@ -634,7 +636,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
           src={youtubeThumbCandidates[0]}
           alt=""
           className={`fp-resting-video-media${getPublicPosterClass(youtubeThumbCandidates[0])}`}
-          loading={isPriorityPoster ? 'eager' : 'lazy'}
+          loading={isPublicView ? 'eager' : 'lazy'}
           fetchPriority={isPriorityPoster ? 'high' : 'auto'}
           decoding={posterDecoding}
           referrerPolicy="no-referrer"
@@ -894,24 +896,25 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     const shouldShowNativePosterVeil = !!nativePosterUrl && !isNativeVideoActivated && nativeVideoResting
     return (
       <div ref={containerRef} className="w-full h-full fp-tile overflow-hidden relative group">
-        {nativePosterUrl ? (
-          <div className="absolute inset-0">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={nativePosterUrl}
-              alt=""
-              className={`h-full w-full ${fitClass}${getPublicPosterClass(nativePosterUrl)}`}
-              loading={isPriorityPoster ? 'eager' : 'lazy'}
-              fetchPriority={isPriorityPoster ? 'high' : 'auto'}
-              decoding={posterDecoding}
-              onLoad={() => markPublicPosterLoaded(nativePosterUrl)}
-            />
-          </div>
-        ) : (
-          <div className={`w-full ${aspectClass || 'aspect-video'}`} style={{ background: 'transparent' }} />
-        )}
-        {!isVideoError && isInView && (
-          <div className="absolute inset-0">
+        {isVideoError ? (
+          nativePosterUrl ? (
+            <div className="absolute inset-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={nativePosterUrl}
+                alt=""
+                className={`h-full w-full ${fitClass}${getPublicPosterClass(nativePosterUrl)}`}
+                loading={isPublicView ? 'eager' : 'lazy'}
+                fetchPriority={isPriorityPoster ? 'high' : 'auto'}
+                decoding={posterDecoding}
+                onLoad={() => markPublicPosterLoaded(nativePosterUrl)}
+              />
+            </div>
+          ) : (
+            <GlassPlaceholder aspectClass={aspectClass || 'aspect-video'} />
+          )
+        ) : isInView ? (
+          <>
             <video
               ref={videoRef}
               src={videoSrc}
@@ -959,7 +962,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                   transition: 'opacity 220ms ease-out',
                   zIndex: 2,
                 }}
-                loading={isPriorityPoster ? 'eager' : 'lazy'}
+                loading={isPublicView ? 'eager' : 'lazy'}
                 fetchPriority={isPriorityPoster ? 'high' : 'auto'}
                 decoding={posterDecoding}
               />
@@ -979,7 +982,22 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 transition: 'opacity 180ms ease',
               }}
             />
+          </>
+        ) : nativePosterUrl ? (
+          <div className="absolute inset-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={nativePosterUrl}
+              alt=""
+              className={`h-full w-full ${fitClass}${getPublicPosterClass(nativePosterUrl)}`}
+              loading={isPublicView ? 'eager' : 'lazy'}
+              fetchPriority={isPriorityPoster ? 'high' : 'auto'}
+              decoding={posterDecoding}
+              onLoad={() => markPublicPosterLoaded(nativePosterUrl)}
+            />
           </div>
+        ) : (
+          <div className={`w-full ${aspectClass || 'aspect-video'}`} style={{ background: 'transparent' }} />
         )}
       </div>
     )
@@ -1001,7 +1019,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
             height={640}
             sizes="(max-width: 768px) 50vw, 25vw"
             className={`w-full h-full object-cover${getPublicPosterClass(imageSrc)}`}
-            loading={isPriorityPoster ? 'eager' : 'lazy'}
+            loading={isPublicView ? 'eager' : 'lazy'}
             fetchPriority={isPriorityPoster ? 'high' : 'auto'}
             decoding={posterDecoding}
             onLoad={(e) => {
@@ -1329,7 +1347,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 src={thumbSrc}
                 alt=""
                 className={`fp-resting-video-media${getPublicPosterClass(thumbSrc)}`}
-                loading={isPriorityPoster ? 'eager' : 'lazy'}
+                loading={isPublicView ? 'eager' : 'lazy'}
                 fetchPriority={isPriorityPoster ? 'high' : 'auto'}
                 decoding={posterDecoding}
                 onLoad={() => markPublicPosterLoaded(thumbSrc)}
@@ -1446,7 +1464,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 src={thumbSrc}
                 alt=""
                 className={`fp-resting-video-media${getPublicPosterClass(thumbSrc)}`}
-                loading={isPriorityPoster ? 'eager' : 'lazy'}
+                loading={isPublicView ? 'eager' : 'lazy'}
                 fetchPriority={isPriorityPoster ? 'high' : 'auto'}
                 decoding={posterDecoding}
                 onLoad={() => markPublicPosterLoaded(thumbSrc)}
@@ -1648,7 +1666,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
                 src={tileSurfaceImage}
                 alt=""
                 className={`fp-resting-video-media${getPublicPosterClass(tileSurfaceImage)}`}
-                loading={isPriorityPoster ? 'eager' : 'lazy'}
+                loading={isPublicView ? 'eager' : 'lazy'}
                 fetchPriority={isPriorityPoster ? 'high' : 'auto'}
                 decoding={posterDecoding}
                 onLoad={() => markPublicPosterLoaded(tileSurfaceImage)}

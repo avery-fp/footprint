@@ -401,12 +401,12 @@ export default function PublicRoomSurface({
 
       <div
         className={`fp-room-content-grid fp-grid-arrive ${isHorizontal ? 'w-full' : `fp-grid-container mx-auto w-full ${isGrid ? 'fp-puzzle-frame' : ''}`}`}
-        style={isHorizontal
-          ? { paddingBottom: 160 }
-          : { maxWidth: isGrid ? '900px' : '880px', paddingBottom: 160 }}
+        style={isHorizontal ? undefined : { maxWidth: isGrid ? '900px' : '880px' }}
       >
         {gridInner}
       </div>
+
+      <div style={{ height: 96 }} aria-hidden="true" />
 
       {showOverlay && (
         <>
