@@ -2701,28 +2701,26 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           style={isHorizontal ? undefined : { maxWidth: isGrid ? '900px' : '880px' }}
         >
           
-          {/* Top Taper Fade (Smooth-Step) */}
+          {/* Top Taper Fade (Sharp-Step) */}
           <div 
             className="pointer-events-none fixed top-0 left-0 right-0 z-20"
             style={{ 
               height: '80px', 
               background: `linear-gradient(to bottom, 
                 ${theme.colors.background} 0%, 
-                color-mix(in srgb, ${theme.colors.background} 70%, transparent) 30%,
-                color-mix(in srgb, ${theme.colors.background} 20%, transparent) 70%,
+                ${theme.colors.background} 30%, 
                 transparent 100%)` 
             }} 
           />
           
-          {/* Bottom Taper Fade (Smooth-Step) */}
+          {/* Bottom Taper Fade (Sharp-Step) */}
           <div 
             className="pointer-events-none fixed bottom-0 left-0 right-0 z-20"
             style={{ 
               height: '140px', 
               background: `linear-gradient(to top, 
                 ${theme.colors.background} 0%, 
-                color-mix(in srgb, ${theme.colors.background} 70%, transparent) 30%,
-                color-mix(in srgb, ${theme.colors.background} 20%, transparent) 70%,
+                ${theme.colors.background} 30%, 
                 transparent 100%)` 
             }} 
           />
