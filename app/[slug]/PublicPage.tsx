@@ -2701,27 +2701,27 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           style={isHorizontal ? undefined : { maxWidth: isGrid ? '900px' : '880px' }}
         >
           
-          {/* Top Taper Fade (Sharp-Step) */}
+          {/* Top Taper Fade (iOS Frosted Glass) */}
           <div 
             className="pointer-events-none fixed top-0 left-0 right-0 z-20"
             style={{ 
               height: '80px', 
-              background: `linear-gradient(to bottom, 
-                ${theme.colors.background} 0%, 
-                ${theme.colors.background} 30%, 
-                transparent 100%)` 
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              background: 'rgba(10, 10, 10, 0.15)',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.05)'
             }} 
           />
           
-          {/* Bottom Taper Fade (Sharp-Step) */}
+          {/* Bottom Taper Fade (iOS Frosted Glass) */}
           <div 
             className="pointer-events-none fixed bottom-0 left-0 right-0 z-20"
             style={{ 
               height: '140px', 
-              background: `linear-gradient(to top, 
-                ${theme.colors.background} 0%, 
-                ${theme.colors.background} 30%, 
-                transparent 100%)` 
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              background: 'rgba(10, 10, 10, 0.15)',
+              borderTop: '1px solid rgba(255, 255, 255, 0.05)'
             }} 
           />
           
