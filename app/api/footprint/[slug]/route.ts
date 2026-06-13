@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic'
  *
  * Two personas:
  *
- * 1. Editor / API client holding an edit_token (cookie, ?token=, or header)
+ * 1. Editor / API client holding an edit_token (cookie or header)
  *    → returns { owned: true, footprint, tiles }
  *
  * 2. Post-payment claim poll: ?stripe_session_id=... — if the session is

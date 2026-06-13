@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
   // Match. Look up the edit_token to set the cookie with.
   const { data: fp, error: fpErr } = await db
     .from('footprints')
-    .select('edit_token')
+    .select('edit_token, user_id, username')
     .eq('username', slug)
     .maybeSingle()
   if (fpErr || !fp?.edit_token) {
@@ -136,12 +136,31 @@ export async function POST(request: NextRequest) {
     .update({ consumed_at: new Date().toISOString() })
     .eq('id', row.id)
 
+  let ownedFootprints: Array<{ slug: string; edit_token: string }> = [{ slug, edit_token: fp.edit_token }]
+  if (fp.user_id) {
+    const { data: ownedRows } = await db
+      .from('footprints')
+      .select('username, edit_token')
+      .eq('user_id', fp.user_id)
+      .not('edit_token', 'is', null)
+      .order('username', { ascending: true })
+
+    const normalized = (ownedRows || [])
+      .filter((item) => item.username && item.edit_token)
+      .map((item) => ({ slug: item.username as string, edit_token: item.edit_token as string }))
+
+    if (normalized.length > 0) ownedFootprints = normalized
+  }
+
   console.log('[edit-access/verify] ok: cookie set', diag({
     row_id_8: row.id?.slice(0, 8),
     cookie_name: editCookieName(slug),
+    owned_count: ownedFootprints.length,
   }))
 
-  const res = NextResponse.json({ ok: true })
-  res.cookies.set(editCookieName(slug), fp.edit_token, EDIT_COOKIE_OPTIONS)
+  const res = NextResponse.json({ ok: true, slugs: ownedFootprints.map((item) => item.slug) })
+  for (const item of ownedFootprints) {
+    res.cookies.set(editCookieName(item.slug), item.edit_token, EDIT_COOKIE_OPTIONS)
+  }
   return res
 }

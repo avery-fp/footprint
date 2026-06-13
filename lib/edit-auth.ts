@@ -1,6 +1,5 @@
 import type { NextRequest } from 'next/server'
 import { createServerSupabaseClient } from './supabase'
-import { verifyOwnerSession } from './owner-return'
 
 /**
  * edit-token auth — the only auth this app has.
@@ -12,10 +11,9 @@ import { verifyOwnerSession } from './owner-return'
  * A caller proves ownership of a claimed footprint by presenting the
  * edit_token that was issued when the footprint was paid for.
  *
- * Token channels (priority order):
- *   1. ?token= query param   (first-use, from Stripe success URL or email link)
- *   2. fp_edit_{slug} cookie (set after first valid use)
- *   3. X-Edit-Token header   (programmatic access)
+ * Token channels:
+ *   1. fp_edit_{slug} cookie (set after email-OTP or checkout success)
+ *   2. X-Edit-Token header   (programmatic access)
  *
  * Drafts (username starts with "draft-") have no edit_token. Knowledge of
  * the unguessable draft slug is the credential for the draft phase — auth
@@ -49,10 +47,6 @@ export const EDIT_COOKIE_OPTIONS = {
  * Returns null if no token is present on any channel.
  */
 export function extractEditToken(request: NextRequest | Request, slug: string): string | null {
-  const url = new URL((request as Request).url)
-  const fromQuery = url.searchParams.get('token')
-  if (fromQuery) return fromQuery
-
   const asNext = request as NextRequest
   const fromCookieJar = asNext.cookies?.get?.(editCookieName(slug))?.value ?? null
   if (fromCookieJar) return fromCookieJar
@@ -133,21 +127,6 @@ export async function verifyEditToken(slug: string, token: string | null): Promi
  * Entry point: verify a request is authorized to edit {slug}.
  */
 export async function getEditAuth(request: NextRequest | Request, slug: string): Promise<EditAuthResult> {
-  const ownerSession = verifyOwnerSession(request, slug)
-  if (ownerSession) {
-    const db = createServerSupabaseClient()
-    const { data, error } = await db
-      .from('footprints')
-      .select('user_id, username, edit_token')
-      .eq('username', slug)
-      .eq('serial_number', ownerSession.serial)
-      .maybeSingle()
-
-    if (!error && data?.user_id && data?.edit_token) {
-      return { ok: true, userId: data.user_id, slug, isDraft: false }
-    }
-  }
-
   const token = extractEditToken(request, slug)
   return verifyEditToken(slug, token)
 }

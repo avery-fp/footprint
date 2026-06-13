@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from 'react'
 
 /**
- * Same-page email-code login for the editor. Rendered by /[slug]/home when
- * no fp_edit_{slug} cookie is present and no ?token= unlock is in the URL.
+ * Same-page email-code login for the editor. Rendered when no fp_edit_{slug}
+ * cookie is present.
  *
  * The screen is supposed to hold state for the user across the inevitable
  * tab-switch to their inbox. So:
@@ -98,6 +98,7 @@ export default function EditAccessScreen({ slug }: { slug: string }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [resendNotice, setResendNotice] = useState<string | null>(null)
+  const [choices, setChoices] = useState<string[]>([])
   const firstWrite = useRef(true)
 
   // Strip URL params after the first paint so a refresh doesn't keep
@@ -170,8 +171,16 @@ export default function EditAccessScreen({ slug }: { slug: string }) {
         body: JSON.stringify({ slug, email: email.trim().toLowerCase(), code: trimmed }),
       })
       if (res.ok) {
+        const data = await res.json().catch(() => ({}))
         clearSession(slug)
-        window.location.href = `/${encodeURIComponent(slug)}`
+        const slugs = Array.isArray(data?.slugs)
+          ? data.slugs.filter((item: unknown): item is string => typeof item === 'string' && item.length > 0)
+          : []
+        if (slugs.length > 1) {
+          setChoices(slugs)
+          return
+        }
+        window.location.href = `/${encodeURIComponent(slugs[0] || slug)}`
         return
       }
       setError('Invalid or expired code.')
@@ -283,6 +292,50 @@ export default function EditAccessScreen({ slug }: { slug: string }) {
   }
 
   // ── render ──
+  if (choices.length > 1) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          backgroundColor: '#0c0c10',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 24,
+        }}
+      >
+        <div style={{ maxWidth: 380, width: '100%' }}>
+          <p style={{ ...labelStyle, margin: '0 0 12px 0' }}>choose coordinate</p>
+          <h1 style={titleStyle}>your footprints</h1>
+          <div style={{ marginTop: 24, display: 'grid', gap: 10 }}>
+            {choices.map((choice) => (
+              <button
+                key={choice}
+                type="button"
+                onClick={() => { window.location.href = `/${encodeURIComponent(choice)}` }}
+                style={{
+                  width: '100%',
+                  padding: '14px 16px',
+                  background: 'rgba(255,255,255,0.035)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: 8,
+                  color: '#d4c5a9',
+                  fontFamily: "'DM Mono', 'Courier New', monospace",
+                  fontSize: 13,
+                  letterSpacing: '0.04em',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                }}
+              >
+                fp.onl/{choice}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div
       style={{

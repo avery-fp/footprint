@@ -8,7 +8,7 @@ import { normalizeEmail } from './auth'
  * Constitutional law (see lib/edit-auth.ts): every editor authorization must
  * trace to a Stripe-verified email or to the edit_token issued for it. This
  * module is the on-ramp for the email side: prove ownership of the Stripe
- * email, get the edit_token cookie, edit. No magic links, no Supabase auth.
+ * email, get the edit_token cookie, edit. No Supabase auth.
  */
 
 // 20 min — the user has to switch to their inbox tab, find the email
@@ -81,27 +81,10 @@ export async function sendEditAccessCodeEmail(email: string, slug: string, code:
   }
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.footprint.onl'
 
-  // Magic-auth: append the edit_token to the link so a click skips the
-  // 6-digit type-in. Both this email and the welcome email at
-  // lib/auth.ts:45 are proofs of email control delivered to a verified
-  // address; both should auto-auth on click. The 6-digit code in the
-  // body remains as a manual fallback if the link is corrupted/forwarded
-  // and re-typing is preferred. If edit_token rotation ever ships, both
-  // call sites must be updated together.
-  const db = createServerSupabaseClient()
-  const { data: fp } = await db
-    .from('footprints')
-    .select('edit_token')
-    .eq('username', slug)
-    .maybeSingle()
-  const editToken = fp?.edit_token
-
   // Unified entry: /{slug}?edit=1 surfaces EditAccessScreen as a
-  // full-page overlay on the public route. The optional &token= short
-  // circuits the email-code flow by auto-unlocking via /api/edit-unlock.
-  const editorUrl = editToken
-    ? `${baseUrl}/${slug}?edit=1&email=${encodeURIComponent(email)}&sent=1&token=${encodeURIComponent(editToken)}`
-    : `${baseUrl}/${slug}?edit=1&email=${encodeURIComponent(email)}&sent=1`
+  // full-page overlay on the public route. The URL carries no edit_token;
+  // the 6-digit code is the gate.
+  const editorUrl = `${baseUrl}/${slug}?edit=1&email=${encodeURIComponent(email)}&sent=1`
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {

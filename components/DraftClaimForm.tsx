@@ -6,11 +6,9 @@ import { useState, useEffect, useRef } from 'react'
  * DraftClaimForm — inline claim sheet on a draft footprint.
  *
  * Triggered by the ClaimPlaque in the top-right of the draft chrome.
- * Collects the desired permanent username and a 6-digit owner PIN, then
- * POSTs /api/checkout with { draft_slug, desired_slug, owner_key }. The
- * response carries the Stripe Checkout URL; we redirect to it.
- *
- * Stripe collects the email at checkout; we don't ask twice.
+ * Collects the desired permanent username and email, then POSTs
+ * /api/checkout with { draft_slug, desired_slug, email }. Stripe
+ * success/webhook authority completes the deed.
  */
 
 interface DraftClaimFormProps {
@@ -19,7 +17,7 @@ interface DraftClaimFormProps {
 }
 
 const SLUG_RE = /^[a-z0-9-]{1,40}$/
-const PIN_RE = /^\d{6}$/
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function normalizeSlug(s: string): string {
   return s.toLowerCase().trim().replace(/\s+/g, '-')
@@ -27,7 +25,8 @@ function normalizeSlug(s: string): string {
 
 export default function DraftClaimForm({ draftSlug, onClose }: DraftClaimFormProps) {
   const [username, setUsername] = useState('')
-  const [pin, setPin] = useState('')
+  const [email, setEmail] = useState('')
+  const [availability, setAvailability] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const usernameRef = useRef<HTMLInputElement>(null)
@@ -45,8 +44,41 @@ export default function DraftClaimForm({ draftSlug, onClose }: DraftClaimFormPro
 
   const desired = normalizeSlug(username)
   const usernameValid = SLUG_RE.test(desired) && !desired.startsWith('draft-')
-  const pinValid = PIN_RE.test(pin)
-  const canSubmit = usernameValid && pinValid && !busy
+  const emailValid = EMAIL_RE.test(email.trim())
+  const canSubmit = usernameValid && availability === 'available' && emailValid && !busy
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('fp:draft-slug-preview', {
+      detail: { slug: desired, available: availability === 'available' },
+    }))
+  }, [desired, availability])
+
+  useEffect(() => {
+    if (!desired || !usernameValid) {
+      setAvailability('idle')
+      return
+    }
+    setAvailability('checking')
+    const controller = new AbortController()
+    const id = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/check-username', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: desired }),
+          signal: controller.signal,
+        })
+        const data = await res.json().catch(() => ({}))
+        setAvailability(data?.available ? 'available' : 'taken')
+      } catch {
+        if (!controller.signal.aborted) setAvailability('taken')
+      }
+    }, 220)
+    return () => {
+      controller.abort()
+      clearTimeout(id)
+    }
+  }, [desired, usernameValid])
 
   async function submit() {
     if (!canSubmit) return
@@ -59,7 +91,7 @@ export default function DraftClaimForm({ draftSlug, onClose }: DraftClaimFormPro
         body: JSON.stringify({
           draft_slug: draftSlug,
           desired_slug: desired,
-          owner_key: pin,
+          email: email.trim().toLowerCase(),
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -153,22 +185,41 @@ export default function DraftClaimForm({ draftSlug, onClose }: DraftClaimFormPro
           />
         </label>
 
+        {desired && usernameValid && (
+          <p
+            className="font-mono"
+            style={{
+              fontSize: 10,
+              color: availability === 'available'
+                ? 'rgba(200,235,190,0.62)'
+                : availability === 'taken'
+                  ? 'rgba(220,90,90,0.75)'
+                  : 'rgba(255,255,255,0.35)',
+              margin: '-6px 0 14px 0',
+              letterSpacing: '0.08em',
+              textTransform: 'lowercase',
+            }}
+          >
+            {availability === 'available' ? 'available' : availability === 'taken' ? 'taken' : 'checking'}
+          </p>
+        )}
+
         <label className="block mb-5">
           <span
             className="font-mono lowercase block mb-1.5"
             style={{ fontSize: 10, letterSpacing: '0.12em', color: 'rgba(255,255,255,0.35)' }}
           >
-            owner pin (6 digits)
+            email
           </span>
           <input
-            type="text"
-            inputMode="numeric"
-            pattern="\d{6}"
+            type="email"
+            inputMode="email"
             autoComplete="off"
-            maxLength={6}
-            placeholder="••••••"
-            value={pin}
-            onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            autoCapitalize="none"
+            spellCheck={false}
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') submit() }}
             disabled={busy}
             style={{
@@ -178,8 +229,7 @@ export default function DraftClaimForm({ draftSlug, onClose }: DraftClaimFormPro
               borderRadius: 10,
               padding: '10px 12px',
               color: 'rgba(255,255,255,0.92)',
-              fontSize: 17,
-              letterSpacing: '0.4em',
+              fontSize: 15,
               outline: 'none',
               fontFamily: "'JetBrains Mono', monospace",
             }}

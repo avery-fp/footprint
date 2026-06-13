@@ -221,9 +221,10 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   const tileEditScrollAnchor = useRef<number | null>(null)
   const editModeScrollAnchor = useRef<number | null>(null)
   // Draft claim sheet — opens from the ClaimPlaque in the top-right of
-  // the draft chrome. Collects desired username + owner PIN, then routes
+  // the draft chrome. Collects desired username + email, then routes
   // to Stripe via /api/checkout.
   const [draftClaimOpen, setDraftClaimOpen] = useState(false)
+  const [draftSlugPreview, setDraftSlugPreview] = useState<{ slug: string; available: boolean } | null>(null)
   // Setup-time controls live behind long-press gestures so they don't
   // earn permanent chrome real estate. Eye flyout surfaces from the
   // top-left home toggle; wallpaper flyout surfaces at the touch point
@@ -418,34 +419,12 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   // surface the email-code login as a full-page overlay above the
   // public render. The overlay is dismissed on successful verify
   // (which redirects to the clean /{slug} URL with the cookie set).
-  // If the same URL also carries ?token=…, kick off the unlock flow
-  // immediately — magic links short-circuit the email-code form.
   const [editOverlayOpen, setEditOverlayOpen] = useState<boolean>(wantsEditOverlay)
   useEffect(() => {
     if (typeof window === 'undefined' || isOwnerHinted) return
     const params = new URLSearchParams(window.location.search)
     if (params.get('edit') === '1') setEditOverlayOpen(true)
   }, [isOwnerHinted])
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const params = new URLSearchParams(window.location.search)
-    const token = params.get('token')
-    if (!token || isOwnerHinted) return
-    ;(async () => {
-      try {
-        const res = await fetch('/api/edit-unlock', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ slug: footprint.username, token }),
-        })
-        if (res.ok) {
-          // Token valid — clean URL and reload so server sees cookie.
-          window.location.replace(`/${encodeURIComponent(footprint.username)}`)
-        }
-      } catch {}
-    })()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   // ── Integrated Void Transition ──
   const [claimActive, setClaimActive] = useState(false)
@@ -980,9 +959,25 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
   }, [expanded, localChildren, syncCollectionActiveIndex])
 
   const displayTitle = useMemo(() => {
+    if (isDraft) return draftSlugPreview?.slug || 'yourname'
     if (displayTitleLocal && displayTitleLocal.trim()) return displayTitleLocal
     return getFootprintDisplayTitle(footprint) || '\u00e6'
-  }, [footprint, displayTitleLocal])
+  }, [footprint, displayTitleLocal, isDraft, draftSlugPreview])
+
+  useEffect(() => {
+    if (!isDraft) return
+    const onDraftSlugPreview = (event: Event) => {
+      const detail = (event as CustomEvent<{ slug?: string; available?: boolean }>).detail
+      const slug = typeof detail?.slug === 'string' ? detail.slug.trim() : ''
+      if (!slug) {
+        setDraftSlugPreview(null)
+        return
+      }
+      setDraftSlugPreview({ slug, available: detail?.available === true })
+    }
+    window.addEventListener('fp:draft-slug-preview', onDraftSlugPreview)
+    return () => window.removeEventListener('fp:draft-slug-preview', onDraftSlugPreview)
+  }, [isDraft])
 
   // \u2500\u2500 Optimistic owner mutations: tiles \u2500\u2500
   const handleTileAdded = useCallback((tile: any) => {
@@ -2514,7 +2509,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
                 }${isGrid ? ' fp-puzzle-title' : ''}${isOwner && editorMode ? ' cursor-text' : ''}`}
                 style={{
                   color: theme.colors.text,
-                  opacity: 0.92,
+                  opacity: isDraft && draftSlugPreview ? (draftSlugPreview.available ? 1 : 0.2) : 0.92,
                   textShadow: wallpaperUrlLocal ? '0 2px 20px rgba(0,0,0,0.9)' : 'none',
                 }}
               >

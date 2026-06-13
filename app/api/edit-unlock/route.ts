@@ -8,8 +8,7 @@ import { verifyEditToken, editCookieName, EDIT_COOKIE_OPTIONS } from '@/lib/edit
  *
  * Verifies the token matches the footprint's edit_token and sets the
  * httpOnly fp_edit_{slug} cookie. Used by the post-payment claim page
- * once it has received the edit_token, and by the editor page on first
- * arrival with ?token= in the URL.
+ * after webhook completion exposes the edit_token to the success flow.
  */
 export async function POST(request: NextRequest) {
   try {

@@ -76,6 +76,7 @@ export default function OwnerActionBar({
   // image's caption (caption_hidden=false). Surface = image, depth = thought.
   const [attachedImage, setAttachedImage] = useState<File | null>(null)
   const [attachedPreviewUrl, setAttachedPreviewUrl] = useState<string | null>(null)
+  const [inputFocused, setInputFocused] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const thoughtImageInputRef = useRef<HTMLInputElement>(null)
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null)
@@ -118,6 +119,25 @@ export default function OwnerActionBar({
     const id = setTimeout(() => inputRef.current?.focus(), 60)
     return () => clearTimeout(id)
   }, [verb])
+
+  useEffect(() => {
+    const onFocusIn = (event: FocusEvent) => {
+      const target = event.target as HTMLElement | null
+      if (target?.matches('input, textarea, [contenteditable="true"]')) setInputFocused(true)
+    }
+    const onFocusOut = () => {
+      requestAnimationFrame(() => {
+        const active = document.activeElement as HTMLElement | null
+        setInputFocused(!!active?.matches('input, textarea, [contenteditable="true"]'))
+      })
+    }
+    window.addEventListener('focusin', onFocusIn)
+    window.addEventListener('focusout', onFocusOut)
+    return () => {
+      window.removeEventListener('focusin', onFocusIn)
+      window.removeEventListener('focusout', onFocusOut)
+    }
+  }, [])
 
   if (!open) return null
 
@@ -341,11 +361,14 @@ export default function OwnerActionBar({
         className="fixed left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 px-1.5 py-1"
         style={{
           ...glassBar,
-          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
+          bottom: 'max(env(safe-area-inset-bottom, 0px), 24px)',
           // Reserve right-edge real-estate for the bottom-right cluster
           // (gift + collection pills). The center bar must never extend
           // into that lane, even on narrow viewports.
           maxWidth: 'min(220px, calc(100vw - 184px))',
+          opacity: inputFocused && verb === 'idle' ? 0 : 1,
+          pointerEvents: inputFocused && verb === 'idle' ? 'none' : 'auto',
+          transition: 'opacity 0.2s ease',
         }}
         data-owner-action-bar
       >
@@ -560,7 +583,7 @@ export default function OwnerActionBar({
           className="fixed z-30 px-3 py-2.5 flex gap-2 items-center"
           style={{
             ...inputPanel,
-            bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px + 36px + 10px)',
+            bottom: 'calc(max(env(safe-area-inset-bottom, 0px), 24px) + 46px)',
             right: 16,
             borderRadius: 18,
             minWidth: 'min(280px, calc(100vw - 32px))',
@@ -596,7 +619,7 @@ export default function OwnerActionBar({
         className="fixed z-30 touch-manipulation"
         style={{
           ...glassBar,
-          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
+          bottom: 'max(env(safe-area-inset-bottom, 0px), 24px)',
           right: 16,
           width: 36,
           height: 36,
@@ -605,8 +628,9 @@ export default function OwnerActionBar({
           alignItems: 'center',
           justifyContent: 'center',
           color: verb === 'collection' ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.55)',
-          opacity: 0.92,
-          transition: 'color 160ms ease',
+          opacity: inputFocused && verb === 'idle' ? 0 : 0.92,
+          pointerEvents: inputFocused && verb === 'idle' ? 'none' : 'auto',
+          transition: 'color 160ms ease, opacity 0.2s ease',
         }}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

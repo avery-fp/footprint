@@ -8,13 +8,9 @@ const MONO = "'JetBrains Mono', monospace"
 /**
  * /claim/success?session_id=cs_...
  *
- * The synchronous return-from-Stripe path. POSTs to /api/claim/complete
- * which retrieves the session server-side, verifies it's paid, and
- * promotes the draft into a claimed footprint. Then cookies the
- * edit_token via /api/edit-unlock and bounces to /{slug}/home.
- *
- * Webhook signature/config no longer blocks the user — webhook is just
- * a backup that runs the same shared logic.
+ * Return-from-Stripe waiting room. The Stripe webhook is the minting
+ * authority; this page only observes completion, sets the edit-token
+ * cookie, and opens the newly claimed room.
  */
 export default function ClaimSuccessPage() {
   const [state, setState] = useState<'working' | 'retry' | 'failed'>('working')
@@ -26,46 +22,26 @@ export default function ClaimSuccessPage() {
     setErrorDetail(null)
     const sp = new URLSearchParams(window.location.search)
     const sessionId = sp.get('session_id')
+    const slug = sp.get('slug')
 
-    if (!sessionId) {
+    if (!sessionId || !slug) {
       setState('failed')
-      setErrorDetail('Missing session_id')
+      setErrorDetail('Missing session_id or slug')
       return
     }
 
     try {
-      const res = await fetch('/api/claim/complete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: sessionId }),
-      })
-      const data = await res.json().catch(() => ({}))
-
-      if (res.status === 402) {
-        // Stripe says session isn't paid yet — rare, but retry once.
-        await new Promise(r => setTimeout(r, 2000))
-        const retry = await fetch('/api/claim/complete', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ session_id: sessionId }),
-        })
-        const retryData = await retry.json().catch(() => ({}))
-        if (!retry.ok || !retryData?.slug) {
-          setState('retry')
-          setErrorDetail(retryData?.error || 'payment_not_yet_confirmed')
+      for (let attemptIndex = 0; attemptIndex < 8; attemptIndex += 1) {
+        if (attemptIndex > 0) await new Promise(r => setTimeout(r, 1500))
+        const res = await fetch(`/api/footprint/${encodeURIComponent(slug)}?stripe_session_id=${encodeURIComponent(sessionId)}`)
+        const data = await res.json().catch(() => ({}))
+        if (res.ok && data?.owned && data?.edit_token) {
+          await unlockAndRedirect(slug, data.edit_token)
           return
         }
-        await unlockAndRedirect(retryData.slug, retryData.edit_token)
-        return
       }
-
-      if (!res.ok || !data?.slug) {
-        setState('retry')
-        setErrorDetail(data?.error || `HTTP ${res.status}`)
-        return
-      }
-
-      await unlockAndRedirect(data.slug, data.edit_token)
+      setState('retry')
+      setErrorDetail('webhook_pending')
     } catch (err: any) {
       setState('retry')
       setErrorDetail(err?.message || 'network_error')

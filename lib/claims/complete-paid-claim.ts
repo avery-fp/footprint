@@ -6,14 +6,10 @@ import { RESERVED_SLUGS } from '@/lib/constants'
 /**
  * Shared paid-claim promotion logic.
  *
- * Two callers:
- *  1. POST /api/webhook  — Stripe checkout.session.completed webhook (backup).
- *  2. POST /api/claim/complete — synchronous return-from-Stripe path (primary).
+ * Caller:
+ *  1. POST /api/webhook  — Stripe checkout.session.completed webhook.
  *
- * Either path can fire first; the function is idempotent on
- * payments.stripe_session_id. The synchronous path is the user-facing one;
- * the webhook is purely a safety net for cases where the user closes the
- * tab before the redirect lands.
+ * The function is idempotent on payments.stripe_session_id.
  *
  * Returns the final slug + edit_token so callers can immediately cookie
  * the user in. Throws nothing — failures come back as { ok: false, ... }.
@@ -112,25 +108,12 @@ export async function completePaidClaimFromCheckoutSession(session: any): Promis
     ownerReservation = data
   }
 
-  // Sacred-law invariant: a paid claim cannot become a completed footprint
-  // without an owner_key_hash. Paid-and-locked-out is worse than failed
-  // checkout. If the reservation row is missing (expired, race, DB hiccup),
-  // refuse to mint the footprint. Webhook → 500 → Stripe retries; sync
-  // path → 500 → UI surfaces recovery. A human can inspect/refund/fix.
-  if (!ownerReservation?.owner_key_hash) {
-    log.error(
-      { session_id: session.id, desired_slug: desiredSlug },
-      `No owner_key_hash for session ${session.id}; refusing to complete paid claim`,
-    )
-    throw new Error(`No owner_key_hash for session ${session.id}; refusing to complete paid claim`)
-  }
-
   const ownerKeyFields = {
-    owner_key_hash: ownerReservation.owner_key_hash,
-    owner_key_set_at: ownerReservation.owner_key_set_at || new Date().toISOString(),
+    owner_key_hash: ownerReservation?.owner_key_hash || null,
+    owner_key_set_at: ownerReservation?.owner_key_set_at || null,
     owner_key_failed_attempts: 0,
     owner_key_locked_until: null,
-    owner_recovery_email: ownerReservation.owner_recovery_email || email,
+    owner_recovery_email: ownerReservation?.owner_recovery_email || email,
   }
 
   // ── 1. Look up the draft first. Its serial_number is the PK of the
@@ -312,7 +295,7 @@ export async function completePaidClaimFromCheckoutSession(session: any): Promis
   }
 
   // ── 5. Record payment (idempotency anchor). On unique conflict
-  //      (parallel webhook + /claim/complete) we silently ignore. ──
+  //      we silently ignore. ──
   const { error: payError } = await supabase.from('payments').insert({
     user_id: userId,
     stripe_session_id: session.id,

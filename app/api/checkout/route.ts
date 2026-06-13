@@ -6,7 +6,6 @@ import { validateBody } from '@/lib/validate'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { RESERVED_SLUGS } from '@/lib/constants'
 import { routeLogger } from '@/lib/logger'
-import { hashOwnerKey, OWNER_KEY_RE } from '@/lib/owner-return'
 
 const log = routeLogger('POST', '/api/checkout')
 
@@ -49,7 +48,7 @@ export async function POST(request: NextRequest) {
     // ── Step 2: shape validation via schema. ──
     const v = validateBody(checkoutSchema, body)
     if (!v.success) return v.response
-    const { email, remix_source, remix_room, ref, owner_key } = v.data
+    const { email, remix_source, remix_room, ref } = v.data
 
     // ── Step 3: normalize + validate the slug BEFORE touching Stripe or
     //    Supabase. A missing/invalid slug is a 400, not a silent Stripe hit. ──
@@ -59,13 +58,6 @@ export async function POST(request: NextRequest) {
     if (!desired) {
       return NextResponse.json({ error: 'A valid slug is required' }, { status: 400 })
     }
-
-    if (!OWNER_KEY_RE.test(owner_key)) {
-      return NextResponse.json({ error: 'owner key must be 6-8 digits' }, { status: 400 })
-    }
-
-    const ownerKeyHash = await hashOwnerKey(owner_key)
-    const ownerKeySetAt = new Date().toISOString()
 
     const supabase = createServerSupabaseClient()
 
@@ -112,10 +104,9 @@ export async function POST(request: NextRequest) {
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.footprint.onl'
 
-    // Success path: /claim/success synchronously calls /api/claim/complete
-    // which retrieves the Stripe session, verifies it's paid, and promotes
-    // the draft. Webhook stays as the idempotent safety net.
-    const successUrl = `${baseUrl}/claim/success?session_id={CHECKOUT_SESSION_ID}`
+    // Success path observes webhook completion. Stripe webhook is the
+    // authority that promotes the draft into a claimed footprint.
+    const successUrl = `${baseUrl}/claim/success?session_id={CHECKOUT_SESSION_ID}&slug=${encodeURIComponent(desired)}`
     const cancelUrl = draftSlug
       ? `${baseUrl}/${encodeURIComponent(draftSlug)}`
       : `${baseUrl}`
@@ -173,8 +164,6 @@ export async function POST(request: NextRequest) {
     const { error: reserveError } = await supabase.from('slug_reservations').insert({
       slug: desired,
       stripe_session_id: session.id,
-      owner_key_hash: ownerKeyHash,
-      owner_key_set_at: ownerKeySetAt,
       owner_recovery_email: email || null,
     })
 

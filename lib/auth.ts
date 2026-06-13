@@ -34,8 +34,8 @@ async function sendEmail(params: { from: string; to: string; subject: string; ht
 }
 
 /**
- * Welcome email: serial number + the permanent edit link.
- * That edit URL IS the credential. Bookmark it.
+ * Welcome email: serial number + editor entry.
+ * The link carries no edit token; email-OTP is the edit gate.
  */
 export async function sendWelcomeEmail(
   email: string,
@@ -43,8 +43,8 @@ export async function sendWelcomeEmail(
 ) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.footprint.onl'
   // Unified route: ?edit=1 surfaces the editor entry overlay on the
-  // public page. The token short-circuits the email-code flow.
-  const editUrl = `${baseUrl}/${params.slug}?edit=1&token=${params.editToken}`
+  // public page. The URL carries no edit token.
+  const editUrl = `${baseUrl}/${params.slug}?edit=1&email=${encodeURIComponent(email)}`
   const pageUrl = `${baseUrl}/${params.slug}`
 
   if (!process.env.RESEND_API_KEY) {
@@ -76,7 +76,7 @@ export async function sendWelcomeEmail(
               </a>
             </div>
             <p style="margin: 28px 16px 0 16px; font-family: 'DM Mono', 'Courier New', monospace; font-size: 11px; line-height: 1.7; font-weight: 300; color: #555560; letter-spacing: 0.02em;">
-              bookmark this email. the link above is your permanent edit credential.
+              bookmark this email. your email code is the edit gate.
             </p>
             <div style="margin: 80px 0 0 0; border-top: 1px solid #1e1e24; padding-top: 24px;">
               <a href="https://footprint.onl" style="font-family: 'DM Mono', 'Courier New', monospace; font-size: 12px; color: #555560; text-decoration: none; letter-spacing: 0.06em;">footprint.onl</a>
@@ -91,4 +91,3 @@ export async function sendWelcomeEmail(
 
   return true
 }
-

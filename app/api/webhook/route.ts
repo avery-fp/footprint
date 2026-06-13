@@ -24,13 +24,10 @@ export async function GET() {
 }
 
 /**
- * POST /api/webhook — Stripe checkout.session.completed (backup path).
+ * POST /api/webhook — Stripe checkout.session.completed.
  *
- * The primary claim path is now /api/claim/complete (called from
- * /claim/success after Stripe redirects back). The webhook still runs as
- * a safety net for cases where the user closes the tab before the
- * redirect lands. Both paths share lib/claims/complete-paid-claim.ts and
- * are idempotent on payments.stripe_session_id.
+ * Stripe is the deed authority. This path promotes paid drafts into
+ * claimed footprints and is idempotent on payments.stripe_session_id.
  */
 export async function POST(request: NextRequest) {
   try {
