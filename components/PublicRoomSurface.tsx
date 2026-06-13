@@ -41,9 +41,6 @@ interface PublicRoomSurfaceProps {
   expandedContainerLabel: string
   canEditCollections?: boolean
   onEditCollections?: () => void
-  canEditTiles?: boolean
-  onEditTile?: (id: string) => void
-  onEditTilePointerDown?: () => void
   expand: (id: string) => void
   collapse: () => void
   registerRef: (id: string, el: HTMLDivElement | null) => void
@@ -69,9 +66,6 @@ export default function PublicRoomSurface({
   expandedContainerLabel,
   canEditCollections = false,
   onEditCollections,
-  canEditTiles = false,
-  onEditTile,
-  onEditTilePointerDown,
   expand,
   collapse,
   registerRef,
@@ -196,17 +190,6 @@ export default function PublicRoomSurface({
               background: isPressedContainer ? 'rgba(255,255,255,0.024)' : 'transparent',
               boxShadow: isPressedContainer ? 'inset 0 0 0 1px rgba(255,255,255,0.045)' : 'none',
               transition: 'background 120ms ease-out, box-shadow 120ms ease-out',
-            }}
-          />
-        )}
-        {canEditTiles && !expanded && (
-          <div
-            className="absolute inset-0 z-20 cursor-pointer"
-            onPointerDown={onEditTilePointerDown}
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              onEditTile?.(item.id)
             }}
           />
         )}

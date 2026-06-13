@@ -27,6 +27,7 @@ import {
   requestYouTubeActivation,
   YOUTUBE_MOBILE_REVEAL_SETTLE_MS,
   shouldMountYouTubePlayer,
+  shouldPrewarmYouTubePlayer,
   shouldRevealYouTubePlayer,
   shouldShowYouTubePosterVeil,
   shouldUseYouTubePosterSurface,
@@ -313,9 +314,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
     const el = containerRef.current
     if (!el) return
     const obs = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) setIsVideoPlayable(true)
-      },
+      ([entry]) => setIsVideoPlayable(entry.isIntersecting),
       { threshold: 0.5 }
     )
     obs.observe(el)
@@ -615,7 +614,9 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
 
     const isYouTubeShort = /\/shorts\//i.test(content.url || '')
     const shouldUsePosterSurface = shouldUseYouTubePosterSurface(isSoundRoom, isYouTubeShort, effectiveAspect)
-    const shouldMountPlayer = shouldMountYouTubePlayer('youtube', isActivated)
+    const shouldPrewarmPlayer = shouldPrewarmYouTubePlayer('youtube', isCoarsePointer, isNearViewport)
+    const shouldMountPlayer =
+      shouldMountYouTubePlayer('youtube', isActivated, isCoarsePointer, isNearViewport) || shouldPrewarmPlayer
     const shouldRevealFromReadyState =
       !isCoarsePointer && youtubePlayerReadyRef.current && !youtubePendingActivationRef.current
     const shouldRevealPlayer = shouldUsePosterSurface

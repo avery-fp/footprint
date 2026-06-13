@@ -135,9 +135,7 @@ export default function GhostTile({
     const el = tileRef.current
     if (!el) return
     const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) setIsNearViewport(true)
-      },
+      ([entry]) => setIsNearViewport(entry.isIntersecting),
       { rootMargin: '900px 0px 900px 0px' },
     )
     observer.observe(el)
@@ -407,7 +405,7 @@ export default function GhostTile({
   const effectiveActivated = isPlaying || shouldAutoActivateEmbed
   const shouldMountPlayer =
     platform !== 'youtube' ||
-    shouldMountYouTubePlayer(platform, effectiveActivated)
+    shouldMountYouTubePlayer(platform, effectiveActivated, isCoarsePointer, isNearViewport)
   const shouldRevealFromReadyState =
     !isCoarsePointer && youtubePlayerReadyRef.current && !youtubePendingActivationRef.current
   const shouldRevealPlayer = platform === 'youtube'

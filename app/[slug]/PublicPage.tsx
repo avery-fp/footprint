@@ -793,7 +793,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       document.documentElement.scrollTop = 0
       document.body.scrollTop = 0
 
-      setTimeout(() => setActiveRoomId(roomId), 150)
+      setActiveRoomId(roomId)
       if (roomId) {
         writeFreshLocalValue(continuityKey(footprint.username, 'activeRoom'), roomId)
         writeFreshLocalValue(roomScrollKey(footprint.username, roomId), 0)
@@ -2195,6 +2195,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               transition: 'filter 0.8s ease',
             }}
             onLoad={() => setWallpaperLoaded(true)}
+            onLoadingComplete={() => setWallpaperLoaded(true)}
           />
           <div
             className="absolute inset-0 transition-all duration-800"
@@ -2523,34 +2524,356 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           </header>
         </RemoveBubble>
 
-        <PublicRoomSurface
-          key="stable-footprint-vessel"
-          content={displayContent}
-          visibleRooms={visibleRooms}
-          activeRoomId={activeRoomId}
-          onNavigateRoom={goToRoom}
-          roomLayout={roomLayout}
-          roomFade={roomFade}
-          roomNavDocked={roomNavDocked}
-          isMobile={isMobile}
-          isSoundRoom={isSoundRoom}
-          isGrid={isGrid}
-          containerMeta={containerMeta}
-          expanded={expanded}
-          showOverlay={showOverlay}
-          collectionChildren={localChildren}
-          loadingChildren={loadingChildren}
-          expandedContainerLabel={expandedContainerLabel}
-          canEditCollections={isOwner}
-          onEditCollections={() => setEditorModeInPlace(true)}
-          canEditTiles={isEditorReady}
-          onEditTile={(id) => setSelectedTileId(id)}
-          onEditTilePointerDown={() => { tileEditScrollAnchor.current = window.scrollY }}
-          expand={expand}
-          collapse={collapse}
-          registerRef={registerRef}
-          depthTouchStart={depthTouchStart}
-        />
+        {!isEditorReady ? (
+          <PublicRoomSurface
+            content={displayContent}
+            visibleRooms={visibleRooms}
+            activeRoomId={activeRoomId}
+            onNavigateRoom={goToRoom}
+            roomLayout={roomLayout}
+            roomFade={roomFade}
+            roomNavDocked={roomNavDocked}
+            isMobile={isMobile}
+            isSoundRoom={isSoundRoom}
+            isGrid={isGrid}
+            containerMeta={containerMeta}
+            expanded={expanded}
+            showOverlay={showOverlay}
+            collectionChildren={localChildren}
+            loadingChildren={loadingChildren}
+            expandedContainerLabel={expandedContainerLabel}
+            canEditCollections={isOwner}
+            onEditCollections={() => setEditorModeInPlace(true)}
+            expand={expand}
+            collapse={collapse}
+            registerRef={registerRef}
+            depthTouchStart={depthTouchStart}
+          />
+        ) : (
+          <>
+        {/* DndContext hoist — wraps both the room nav and the grid so
+            tile drags can land on room pills (the send-to-room gesture)
+            in addition to reordering tiles. For non-owners we render
+            the same content without the DndContext wrapper. */}
+        {(() => {
+          const navAndGrid = (
+            <>
+        {/* Room nav — pills only. No dot dividers (the gap between pills
+            is the separator). No edge controls (layout, create, menu) —
+            those surface on direct manipulation of the pill itself.
+            Tapping a non-active pill navigates; tapping the active pill
+            in editor mode opens its inline editor (rename + layout +
+            delete). Tapping the empty space after the last pill in
+            editor mode prompts for room creation. */}
+        {(visibleRooms.length > 1 || (isOwner && editorMode)) && (
+          <div className="fp-room-nav-shell relative mb-4 h-12 md:mb-6">
+            <div
+              className={`fp-room-nav-row ${roomNavDocked ? 'fixed inset-x-0' : 'absolute inset-x-0'} z-30 flex items-center justify-center px-4 py-2 transition-[top] duration-300`}
+              style={{ top: roomNavDocked ? (isOwner && editorMode ? 'var(--fp-owner-room-strip-y)' : 'var(--fp-room-strip-y)') : 'var(--fp-room-strip-inline-y)' }}
+            >
+              <div
+                className="flex max-w-full items-center gap-3 overflow-x-auto hide-scrollbar px-1 font-mono"
+                style={isOwner && editorMode ? { paddingRight: 'calc(var(--fp-safe-right) + 72px)' } : undefined}
+                data-no-wp-press
+              >
+                {visibleRooms.map((room, index) => (
+                  <RoomPillNode key={room.id} room={room} index={index} />
+                ))}
+
+                {/* Tap-empty-after-last-pill — a quiet wide tap-target
+                    after the last pill, in editor mode only. No icon;
+                    the gap itself is the affordance. Discoverable on
+                    the second look, not the first. */}
+                {isOwner && editorMode && (
+                  <button
+                    type="button"
+                    aria-label="add room"
+                    onClick={handleRoomCreate}
+                    className="touch-manipulation whitespace-nowrap"
+                    style={{
+                      fontSize: '11px',
+                      letterSpacing: '2.5px',
+                      textTransform: 'lowercase',
+                      fontWeight: 300,
+                      color: 'rgba(255,255,255,0.45)',
+                      background: 'none',
+                      border: 'none',
+                      padding: '8px 6px',
+                      margin: '-8px -2px',
+                      minWidth: 44,
+                      minHeight: 44,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    +
+                  </button>
+                )}
+              </div>
+
+            </div>
+
+            {/* Room ⋯ popover — vertical menu, single render at the row
+                level so it never clips off-screen for edge pills.
+                Centered below the nav row. Room-scoped only (rename,
+                lock, delete). Page-wide settings live behind the
+                page-settings button in the right column. */}
+            {isOwner && editorMode && pillMenuOpenForId && activeRoomId === pillMenuOpenForId && (() => {
+              const room = roomsLocal.find((r) => r.id === pillMenuOpenForId)
+              const locked = !!(room as any)?.is_locked
+              const labelStyle: React.CSSProperties = { color: 'rgba(255,255,255,0.40)', fontSize: 10, letterSpacing: '0.06em', textTransform: 'lowercase' }
+              const rowStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px' }
+              const actionStyle: React.CSSProperties = { background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.85)', cursor: 'pointer', fontSize: 12, letterSpacing: '0.04em', textTransform: 'lowercase', padding: '6px 10px', fontFamily: "'DM Mono', monospace" }
+              return (
+                <>
+                  <div className="fixed inset-0 z-[39]" onClick={() => setPillMenuOpenForId(null)} />
+                  <div
+                    data-no-wp-press
+                    className="absolute z-40 flex flex-col font-mono"
+                    style={{
+                      top: roomNavDocked ? (isOwner && editorMode ? 'var(--fp-owner-room-strip-y)' : 'var(--fp-room-strip-y)') : 44,
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      background: 'rgba(0,0,0,0.72)',
+                      backdropFilter: 'blur(20px)',
+                      WebkitBackdropFilter: 'blur(20px)',
+                      border: '1px solid rgba(255,255,255,0.10)',
+                      borderRadius: 12,
+                      minWidth: 240,
+                      overflow: 'hidden',
+                    }}
+                    // The active pill renders as an autoFocused rename
+                    // <input> while this popover is open. Without this
+                    // preventDefault, mousedown on lock/delete moves
+                    // focus from the input to the button, fires the
+                    // input's onBlur (which sets pillMenuOpenForId to
+                    // null), and unmounts the popover before the click
+                    // event can land — silently swallowing lock and
+                    // delete. preventDefault on mousedown blocks the
+                    // focus transfer; the click survives.
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* Room rename — clicking opens inline rename input via the pill itself.
+                        Here we just show the room name as a header. */}
+                    <div style={{ padding: '10px 12px 6px 12px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                      <span style={labelStyle}>room</span>
+                    </div>
+
+                    {/* Rename row */}
+                    <button
+                      type="button"
+                      onClick={() => { setRenameValue(room?.name || ''); /* close popover; the pill input opens via separate state */ setPillMenuOpenForId(null); /* reopen pill rename via cycle: setPillMenuOpenForId again on next tick triggers the rename mode */ setTimeout(() => setPillMenuOpenForId(pillMenuOpenForId), 0) }}
+                      style={{ ...rowStyle, ...actionStyle, justifyContent: 'flex-start' }}
+                    >
+                      rename
+                    </button>
+
+                    {/* Lock toggle */}
+                    <button
+                      type="button"
+                      onClick={() => { handleRoomLockToggle(pillMenuOpenForId); setPillMenuOpenForId(null) }}
+                      style={{ ...rowStyle, ...actionStyle, justifyContent: 'space-between', width: '100%' }}
+                    >
+                      <span>{locked ? 'unlock' : 'lock'}</span>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" style={{ opacity: 0.65 }}>
+                        <rect x="5" y="11" width="14" height="10" rx="1.5" />
+                        {locked ? <path d="M8 11V7a4 4 0 018 0v4" /> : <path d="M8 11V7a4 4 0 014-4 4 4 0 014 4" />}
+                      </svg>
+                    </button>
+
+                    {/* Delete row */}
+                    <button
+                      type="button"
+                      onClick={() => { handleRoomDelete(pillMenuOpenForId); setPillMenuOpenForId(null) }}
+                      style={{ ...rowStyle, ...actionStyle, justifyContent: 'flex-start', color: 'rgba(220,90,90,0.85)' }}
+                    >
+                      delete room
+                    </button>
+                  </div>
+                </>
+              )
+            })()}
+          </div>
+        )}
+
+        {/* Grid */}
+        <div
+          className={`fp-room-content-grid fp-grid-arrive ${isHorizontal ? 'w-full' : `fp-grid-container mx-auto w-full ${isGrid ? 'fp-puzzle-frame' : ''}`}`}
+          style={isHorizontal ? undefined : { maxWidth: isGrid ? '900px' : '880px' }}
+        >
+          {activeGrid}
+        </div>
+
+        {/* Room breathing room — every room exhales 96px before any
+            subsequent UI. Magazine pacing. No abrupt endings. */}
+        <div style={{ height: 96 }} aria-hidden="true" />
+            </>
+          )
+          return isEditorReady ? (
+            <OwnerDndFrame
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            >
+              {navAndGrid}
+            </OwnerDndFrame>
+          ) : navAndGrid
+        })()}
+
+        {/* ── Depth overlay: backdrop + close + child tiles ── */}
+        {showOverlay && (
+          <>
+              <div
+                className="fixed inset-0 z-[80]"
+                style={{
+                  backgroundColor: 'rgba(3, 3, 3, 0.96)',
+                opacity: expanded ? 1 : 0,
+                transition: 'opacity 0.4s ease',
+                willChange: 'opacity',
+                touchAction: 'none',
+              }}
+              onClick={collapse}
+              onTouchStart={(e) => { depthTouchStart.current = e.touches[0].clientY }}
+              onTouchEnd={(e) => { if (e.changedTouches[0].clientY - depthTouchStart.current > 60) collapse() }}
+            />
+            {/* Expanded container viewport: header bar + horizontal child rail */}
+            {expanded && (
+              <div
+                className="fixed inset-0 z-[90] flex flex-col pointer-events-none"
+                style={{
+                  opacity: loadingChildren ? 0 : 1,
+                  transition: 'opacity 0.3s ease 0.3s',
+                  background: 'rgba(3,3,3,0.98)',
+                  touchAction: 'pan-x',
+                  overscrollBehavior: 'contain',
+                }}
+              >
+                {/* Header bar — container label left, close X right */}
+                <div
+                  className="pointer-events-auto flex items-center justify-between px-5 flex-shrink-0 relative z-[2]"
+                  style={{
+                    height: 'var(--fp-collection-header-height)',
+                    paddingTop: 'var(--fp-collection-header-padding-top)',
+                    ...glassStyle,
+                    border: 'none',
+                    borderBottom: '1px solid rgba(255,255,255,0.025)',
+                    borderRadius: 0,
+                  }}
+                >
+                  <span
+                    className="font-mono text-white/50 tracking-[0.15em] uppercase truncate"
+                    style={{ fontSize: '11px', fontWeight: 400 }}
+                  >
+                    {expandedContainerLabel}
+                  </span>
+                  <button
+                    className="w-8 h-8 flex items-center justify-center rounded-full transition-all touch-manipulation flex-shrink-0 ml-3 hover:bg-white/[0.04] hover:border-white/[0.06]"
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid transparent',
+                    }}
+                    onClick={collapse}
+                    aria-label="Close container"
+                  >
+                    <svg className="w-3.5 h-3.5 text-white/30" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Child tiles — horizontal rail fills viewport below header */}
+                <div
+                  className="flex-1 flex items-center pointer-events-auto overflow-hidden relative z-[1]"
+                  style={{ padding: '18px 0 6px', overscrollBehavior: 'contain' }}
+                >
+                  {localChildren.length > 0 ? (
+                    isEditorReady ? (
+                      <OwnerDndFrame
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleChildDragEnd}
+                      >
+                        <OwnerSortableContext items={localChildren.map((item: any) => item.id)} orientation="horizontal">
+                          {renderHorizontalTiles(localChildren, renderCollectionTileBody, renderCollectionOwnerControls, false, false, true)}
+                        </OwnerSortableContext>
+                      </OwnerDndFrame>
+                    ) : (
+                      renderHorizontalTiles(localChildren, renderCollectionTileBody, renderCollectionOwnerControls, false, false, true)
+                    )
+                  ) : !loadingChildren ? (
+                    <div className="flex items-center justify-center w-full py-12">
+                      <span className="text-white/20 font-mono text-xs tracking-widest uppercase">empty</span>
+                    </div>
+                  ) : null}
+                </div>
+
+                {/* Owner-only add URL footer */}
+                {isEditorReady && (
+                  <div
+                    className="pointer-events-auto flex-shrink-0 flex items-center gap-2 px-4 py-3 relative z-[2]"
+                    style={{
+                      ...glassStyle,
+                      border: 'none',
+                      borderTop: '1px solid rgba(255,255,255,0.025)',
+                      borderRadius: 0,
+                    }}
+                  >
+                    <input
+                      type="url"
+                      placeholder="add url…"
+                      value={addUrl}
+                      onChange={e => setAddUrl(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleChildAdd() }}
+                      className="flex-1 bg-transparent text-white/70 placeholder-white/20 outline-none font-mono text-xs"
+                      style={{ minWidth: 0 }}
+                    />
+                    <button
+                      onClick={handleChildAdd}
+                      disabled={!addUrl.trim() || addPending}
+                      className="px-3 py-1 rounded-md font-mono text-xs touch-manipulation"
+                      style={{
+                        background: 'rgba(255,255,255,0.06)',
+                        border: '1px solid rgba(255,255,255,0.10)',
+                        color: 'rgba(255,255,255,0.45)',
+                        opacity: !addUrl.trim() || addPending ? 0.4 : 1,
+                        cursor: !addUrl.trim() || addPending ? 'default' : 'pointer',
+                      }}
+                    >
+                      {addPending ? '…' : 'add'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => childImageInputRef.current?.click()}
+                      disabled={childImagePending}
+                      className="px-3 py-1 rounded-md font-mono text-xs touch-manipulation"
+                      style={{
+                        background: 'rgba(255,255,255,0.06)',
+                        border: '1px solid rgba(255,255,255,0.10)',
+                        color: 'rgba(255,255,255,0.45)',
+                        opacity: childImagePending ? 0.4 : 1,
+                        cursor: childImagePending ? 'progress' : 'pointer',
+                      }}
+                    >
+                      {childImagePending ? '…' : 'image'}
+                    </button>
+                    <input
+                      ref={childImageInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={childImagePending}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) handleChildImagePick(file)
+                        e.target.value = ''
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+          </>
+        )}
 
         {content.length === 0 && (
           <div className="py-16" />
