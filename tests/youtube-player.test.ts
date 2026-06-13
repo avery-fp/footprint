@@ -8,6 +8,7 @@ import {
   requestYouTubeActivation,
   YOUTUBE_MOBILE_REVEAL_SETTLE_MS,
   shouldMountYouTubePlayer,
+  shouldPrewarmYouTubePlayer,
   shouldRevealYouTubePlayer,
   shouldShowYouTubePosterVeil,
   shouldUseYouTubePosterSurface,
@@ -45,10 +46,14 @@ describe('isYouTubeNonPlayingMessage', () => {
   })
 })
 
-describe('mobile youtube mount contract', () => {
-  it('mounts youtube only after explicit activation', () => {
-    expect(shouldMountYouTubePlayer('youtube', false)).toBe(false)
-    expect(shouldMountYouTubePlayer('youtube', true)).toBe(true)
+describe('mobile youtube prewarm contract', () => {
+  it('prewarms youtube backstage near the viewport before explicit activation', () => {
+    expect(shouldPrewarmYouTubePlayer('youtube', true, true)).toBe(true)
+  })
+
+  it('mounts youtube near viewport or after explicit activation', () => {
+    expect(shouldMountYouTubePlayer('youtube', false, true, true)).toBe(true)
+    expect(shouldMountYouTubePlayer('youtube', true, true, false)).toBe(true)
   })
 
   it('keeps provider chrome backstage until playback starts', () => {
@@ -152,12 +157,14 @@ describe('mobile youtube mount contract', () => {
     })
   })
 
-  it('does not mount non-youtube tiles through the youtube helper', () => {
-    expect(shouldMountYouTubePlayer('vimeo', false)).toBe(false)
+  it('does not prewarm non-youtube tiles', () => {
+    expect(shouldPrewarmYouTubePlayer('vimeo', true, true)).toBe(false)
+    expect(shouldMountYouTubePlayer('vimeo', false, true, true)).toBe(false)
   })
 
-  it('does not mount youtube without activation', () => {
-    expect(shouldMountYouTubePlayer('youtube', false)).toBe(false)
+  it('does not prewarm offscreen youtube tiles', () => {
+    expect(shouldPrewarmYouTubePlayer('youtube', true, false)).toBe(false)
+    expect(shouldMountYouTubePlayer('youtube', false, true, false)).toBe(false)
   })
 
   it('uses a single settled-ready delay for hidden priming', () => {
