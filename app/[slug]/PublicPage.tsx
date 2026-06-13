@@ -793,7 +793,7 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
       document.documentElement.scrollTop = 0
       document.body.scrollTop = 0
 
-      setActiveRoomId(roomId)
+      setTimeout(() => setActiveRoomId(roomId), 150)
       if (roomId) {
         writeFreshLocalValue(continuityKey(footprint.username, 'activeRoom'), roomId)
         writeFreshLocalValue(roomScrollKey(footprint.username, roomId), 0)
