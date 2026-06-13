@@ -6,7 +6,6 @@ const GENERIC_ERROR = 'couldn’t open'
 
 export default function ReturnPage() {
   const [identifier, setIdentifier] = useState('')
-  const [ownerKey, setOwnerKey] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -19,30 +18,15 @@ export default function ReturnPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     if (busy) return
-    if (!identifier.trim() || !/^\d{6,8}$/.test(ownerKey)) {
+    const slug = identifier.trim().toLowerCase()
+    if (!slug || !/^[a-z0-9-]{1,40}$/.test(slug)) {
       setError(GENERIC_ERROR)
       return
     }
 
     setBusy(true)
     setError('')
-    try {
-      const res = await fetch('/api/owner/return', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier, ownerKey }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (res.ok && data.destination) {
-        window.location.href = data.destination
-        return
-      }
-      setError(GENERIC_ERROR)
-    } catch {
-      setError(GENERIC_ERROR)
-    } finally {
-      setBusy(false)
-    }
+    window.location.href = `/${encodeURIComponent(slug)}?edit=1`
   }
 
   return (
@@ -63,21 +47,7 @@ export default function ReturnPage() {
           className="w-full rounded-[4px] border border-white/[0.1] bg-white/[0.04] px-4 py-3.5 font-mono text-[14px] text-[#d4c5a9] outline-none placeholder:text-white/18"
           autoFocus
         />
-        <p className="mt-2 mb-6 font-mono text-[11px] lowercase tracking-[0.04em] text-white/28">FP# works too</p>
-
-        <label className="block font-mono text-[11px] lowercase tracking-[0.06em] text-white/42 mb-2">
-          owner key
-        </label>
-        <input
-          type="password"
-          inputMode="numeric"
-          pattern="[0-9]*"
-          value={ownerKey}
-          onChange={(e) => { setOwnerKey(e.target.value.replace(/\D/g, '').slice(0, 8)); setError('') }}
-          placeholder="••••••"
-          autoComplete="off"
-          className="w-full rounded-[4px] border border-white/[0.1] bg-white/[0.04] px-4 py-3.5 font-mono text-[14px] text-[#d4c5a9] outline-none placeholder:text-white/18"
-        />
+        <p className="mt-2 mb-6 font-mono text-[11px] lowercase tracking-[0.04em] text-white/28">opens the email gate</p>
 
         <button
           type="submit"

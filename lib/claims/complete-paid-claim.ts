@@ -92,30 +92,6 @@ export async function completePaidClaimFromCheckoutSession(session: any): Promis
   }
   const desiredSlug = desiredSlugRaw as string
 
-  const { data: ownerReservationBySession } = await supabase
-    .from('slug_reservations')
-    .select('owner_key_hash, owner_key_set_at, owner_recovery_email')
-    .eq('stripe_session_id', session.id)
-    .maybeSingle()
-
-  let ownerReservation = ownerReservationBySession
-  if (!ownerReservation) {
-    const { data } = await supabase
-      .from('slug_reservations')
-      .select('owner_key_hash, owner_key_set_at, owner_recovery_email')
-      .eq('slug', desiredSlug)
-      .maybeSingle()
-    ownerReservation = data
-  }
-
-  const ownerKeyFields = {
-    owner_key_hash: ownerReservation?.owner_key_hash || null,
-    owner_key_set_at: ownerReservation?.owner_key_set_at || null,
-    owner_key_failed_attempts: 0,
-    owner_key_locked_until: null,
-    owner_recovery_email: ownerReservation?.owner_recovery_email || email,
-  }
-
   // ── 1. Look up the draft first. Its serial_number is the PK of the
   //      row we'll promote, so we MUST reuse it — we cannot mutate a PK
   //      that five other tables FK into. If no draft: we'll claim a new
@@ -242,7 +218,7 @@ export async function completePaidClaimFromCheckoutSession(session: any): Promis
         edit_token: editToken,
         published: true,
         is_primary: true,
-        ...ownerKeyFields,
+        owner_recovery_email: email,
       })
       .eq('username', draftSlug)
 
@@ -263,7 +239,7 @@ export async function completePaidClaimFromCheckoutSession(session: any): Promis
       icon: '◈',
       is_primary: true,
       published: true,
-      ...ownerKeyFields,
+      owner_recovery_email: email,
     })
 
     if (insError) {
@@ -276,7 +252,7 @@ export async function completePaidClaimFromCheckoutSession(session: any): Promis
             edit_token: editToken,
             published: true,
             is_primary: true,
-            ...ownerKeyFields,
+            owner_recovery_email: email,
           })
           .eq('username', draftSlug)
 
