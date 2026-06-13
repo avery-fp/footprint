@@ -56,7 +56,7 @@ export function shouldMountYouTubePlayer(
   platform: string,
   isActivated: boolean,
 ) {
-  return platform === 'youtube' && isActivated
+  return platform === 'youtube' || isActivated
 }
 
 export function shouldRevealYouTubePlayer(
