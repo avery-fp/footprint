@@ -405,7 +405,7 @@ export default function GhostTile({
   const effectiveActivated = isPlaying || shouldAutoActivateEmbed
   const shouldMountPlayer =
     platform !== 'youtube' ||
-    shouldMountYouTubePlayer(platform, effectiveActivated, isCoarsePointer, isNearViewport)
+    shouldMountYouTubePlayer(platform, effectiveActivated)
   const shouldRevealFromReadyState =
     !isCoarsePointer && youtubePlayerReadyRef.current && !youtubePendingActivationRef.current
   const shouldRevealPlayer = platform === 'youtube'

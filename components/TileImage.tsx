@@ -6,10 +6,8 @@ import { useAspectDetection } from '@/lib/aspectDetection'
 import { audioManager } from '@/lib/audio-manager'
 import { beginInvocation, isIntentionalInvocation, type InvocationPoint } from '@/lib/media-invocation'
 
-const PUBLIC_EAGER_IMAGE_COUNT = 96
+const PUBLIC_EAGER_IMAGE_COUNT = 24
 const PUBLIC_SYNC_DECODE_COUNT = 16
-const PUBLIC_NEAR_VIEWPORT_MARGIN = '3200px 0px 3200px 0px'
-const settledPublicMedia = new Set<string>()
 const settledTileMedia = new Set<string>()
 
 interface TileImageProps {
@@ -31,12 +29,10 @@ function inferAspect(r: number): 'portrait' | 'landscape' | 'square' {
 export default function TileImage({ src, alt, sizes, index, aspect, layout, size, isPublicView = false }: TileImageProps) {
   const [failed, setFailed] = useState(false)
   const [videoFailed, setVideoFailed] = useState(false)
-  const [loaded, setLoaded] = useState(() => settledTileMedia.has(src) || (isPublicView && settledPublicMedia.has(src)))
-  const [shouldSettlePublicMedia, setShouldSettlePublicMedia] = useState(false)
+  const [loaded, setLoaded] = useState(() => settledTileMedia.has(src))
   const [videoMuted, setVideoMuted] = useState(true)
   const [videoPressActive, setVideoPressActive] = useState(false)
   const [fallbackVideoResting, setFallbackVideoResting] = useState(false)
-  const [isNearPublicViewport, setIsNearPublicViewport] = useState(false)
   const onAspectDetected = useAspectDetection()
   const fallbackVideoRef = useRef<HTMLVideoElement>(null)
   const audioIdRef = useRef(`tile-image-video-${src}`)
@@ -45,11 +41,9 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
   useEffect(() => {
     setFailed(false)
     setVideoFailed(false)
-    setLoaded(settledTileMedia.has(src) || (isPublicView && settledPublicMedia.has(src)))
-    setShouldSettlePublicMedia(false)
+    setLoaded(settledTileMedia.has(src))
     setVideoMuted(true)
     setFallbackVideoResting(false)
-    setIsNearPublicViewport(false)
   }, [isPublicView, src])
 
   // Ref for the grid-mode wrapper div. Used in the mount-time fallback to detect
@@ -117,32 +111,11 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
     if (!img || !img.complete || !img.naturalWidth) return
     setLoaded(true)
     settledTileMedia.add(src)
-    if (isPublicView) settledPublicMedia.add(src)
     if (!isPublicView && onAspectDetected && img.naturalHeight) {
       onAspectDetected(inferAspect(img.naturalWidth / img.naturalHeight))
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // intentionally empty — one-time mount check only
-
-  useEffect(() => {
-    if (!isPublicView) return
-    const el = containerRef.current
-    if (!el) return
-    if (index < PUBLIC_EAGER_IMAGE_COUNT) {
-      setIsNearPublicViewport(true)
-      return
-    }
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting) return
-        setIsNearPublicViewport(true)
-        observer.disconnect()
-      },
-      { rootMargin: PUBLIC_NEAR_VIEWPORT_MARGIN }
-    )
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [index, isPublicView])
 
   if (failed && videoFailed) return null
 
@@ -220,7 +193,6 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
   if (isPublicView) {
     const isPriority = index < PUBLIC_EAGER_IMAGE_COUNT
     const isSyncDecode = index < PUBLIC_SYNC_DECODE_COUNT
-    const publicPosterClass = `absolute inset-0 h-full w-full object-cover fp-public-poster${shouldSettlePublicMedia ? ' fp-media-settle' : ''}`
     return (
       <div ref={containerRef} className="absolute inset-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -228,17 +200,13 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
           src={src}
           alt={alt}
           sizes={sizes}
-          className={publicPosterClass}
-          loading="eager"
+          className="absolute inset-0 h-full w-full object-cover"
+          loading={isPriority ? 'eager' : 'lazy'}
           fetchPriority={isPriority ? 'high' : 'auto'}
           decoding={isSyncDecode ? 'sync' : 'async'}
           onLoad={() => {
             setLoaded(true)
             settledTileMedia.add(src)
-            if (!settledPublicMedia.has(src)) {
-              settledPublicMedia.add(src)
-              setShouldSettlePublicMedia(true)
-            }
           }}
           onError={() => setFailed(true)}
         />
@@ -254,9 +222,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
         alt={alt}
         fill
         sizes={sizes}
-        className={isPublicView
-          ? 'object-cover fp-public-poster'
-          : `object-cover transition-opacity duration-700 ease-out ${loaded ? 'opacity-100' : 'opacity-0'}`}
+        className={`object-cover transition-opacity duration-700 ease-out ${loaded ? 'opacity-100' : 'opacity-0'}`}
         loading="lazy"
         quality={90}
         onLoad={(e) => {

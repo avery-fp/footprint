@@ -52,25 +52,10 @@ export function consumePendingYouTubeActivation(pendingActivation: boolean) {
   } as const
 }
 
-export function shouldPrewarmYouTubePlayer(
-  platform: string,
-  isCoarsePointer: boolean,
-  isNearViewport: boolean,
-) {
-  void platform
-  void isCoarsePointer
-  void isNearViewport
-  return false
-}
-
 export function shouldMountYouTubePlayer(
   platform: string,
   isActivated: boolean,
-  isCoarsePointer: boolean,
-  isNearViewport: boolean,
 ) {
-  void isCoarsePointer
-  void isNearViewport
   return platform === 'youtube' && isActivated
 }
 

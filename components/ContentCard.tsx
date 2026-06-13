@@ -27,7 +27,6 @@ import {
   requestYouTubeActivation,
   YOUTUBE_MOBILE_REVEAL_SETTLE_MS,
   shouldMountYouTubePlayer,
-  shouldPrewarmYouTubePlayer,
   shouldRevealYouTubePlayer,
   shouldShowYouTubePosterVeil,
   shouldUseYouTubePosterSurface,
@@ -614,9 +613,7 @@ export default function ContentCard({ content, onWidescreen, isMobile = false, t
 
     const isYouTubeShort = /\/shorts\//i.test(content.url || '')
     const shouldUsePosterSurface = shouldUseYouTubePosterSurface(isSoundRoom, isYouTubeShort, effectiveAspect)
-    const shouldPrewarmPlayer = shouldPrewarmYouTubePlayer('youtube', isCoarsePointer, isNearViewport)
-    const shouldMountPlayer =
-      shouldMountYouTubePlayer('youtube', isActivated, isCoarsePointer, isNearViewport) || shouldPrewarmPlayer
+    const shouldMountPlayer = shouldMountYouTubePlayer('youtube', isActivated)
     const shouldRevealFromReadyState =
       !isCoarsePointer && youtubePlayerReadyRef.current && !youtubePendingActivationRef.current
     const shouldRevealPlayer = shouldUsePosterSurface
