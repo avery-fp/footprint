@@ -2195,7 +2195,6 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
               transition: 'filter 0.8s ease',
             }}
             onLoad={() => setWallpaperLoaded(true)}
-            onLoadingComplete={() => setWallpaperLoaded(true)}
           />
           <div
             className="absolute inset-0 transition-all duration-800"
