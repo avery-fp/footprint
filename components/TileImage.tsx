@@ -36,7 +36,6 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
   const [videoMuted, setVideoMuted] = useState(true)
   const [videoPressActive, setVideoPressActive] = useState(false)
   const [fallbackVideoResting, setFallbackVideoResting] = useState(false)
-  const [displayReady, setDisplayReady] = useState(false);
   const [isNearPublicViewport, setIsNearPublicViewport] = useState(false)
   const onAspectDetected = useAspectDetection()
   const fallbackVideoRef = useRef<HTMLVideoElement>(null)
@@ -139,33 +138,11 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
         setIsNearPublicViewport(true)
         observer.disconnect()
       },
-      { rootMargin: '3000px' }
+      { rootMargin: PUBLIC_NEAR_VIEWPORT_MARGIN }
     )
     observer.observe(el)
     return () => observer.disconnect()
   }, [index, isPublicView])
-
-  // Background GPU Decoding block
-  useEffect(() => {
-    if (!isPublicView || !isNearPublicViewport || !src) return;
-    const img = new window.Image();
-    img.src = src;
-    img.decode()
-      .then(() => {
-        setDisplayReady(true);
-        setLoaded(true);
-        settledTileMedia.add(src);
-        if (!settledPublicMedia.has(src)) {
-          settledPublicMedia.add(src);
-          setShouldSettlePublicMedia(true);
-        }
-      })
-      .catch((err) => {
-        console.warn("Decode failed, falling back to paint:", err);
-        setDisplayReady(true);
-        setLoaded(true);
-      });
-  }, [src, isNearPublicViewport, isPublicView]);
 
   if (failed && videoFailed) return null
 
@@ -241,27 +218,30 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
   // browser-native scheduling owns loading. Player/video depth still sleeps
   // elsewhere; this is only the visual surface.
   if (isPublicView) {
-    if (!isNearPublicViewport) {
-      return <div ref={containerRef} className="absolute inset-0 bg-neutral-950" />
-    }
     const isPriority = index < PUBLIC_EAGER_IMAGE_COUNT
-    const publicPosterClass = `absolute inset-0 h-full w-full object-cover fp-public-poster transition-opacity duration-300 ${
-      displayReady ? 'opacity-100' : 'opacity-0'
-    }${shouldSettlePublicMedia ? ' fp-media-settle' : ''}`
+    const isSyncDecode = index < PUBLIC_SYNC_DECODE_COUNT
+    const publicPosterClass = `absolute inset-0 h-full w-full object-cover fp-public-poster${shouldSettlePublicMedia ? ' fp-media-settle' : ''}`
     return (
-      <div ref={containerRef} className="absolute inset-0 bg-neutral-950">
-        {displayReady && (
-          <img
-            src={src}
-            alt={alt}
-            sizes={sizes}
-            className={publicPosterClass}
-            loading="lazy"
-            fetchPriority={isPriority ? 'high' : 'auto'}
-            decoding="async"
-            onError={() => setFailed(true)}
-          />
-        )}
+      <div ref={containerRef} className="absolute inset-0">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={src}
+          alt={alt}
+          sizes={sizes}
+          className={publicPosterClass}
+          loading="eager"
+          fetchPriority={isPriority ? 'high' : 'auto'}
+          decoding={isSyncDecode ? 'sync' : 'async'}
+          onLoad={() => {
+            setLoaded(true)
+            settledTileMedia.add(src)
+            if (!settledPublicMedia.has(src)) {
+              settledPublicMedia.add(src)
+              setShouldSettlePublicMedia(true)
+            }
+          }}
+          onError={() => setFailed(true)}
+        />
       </div>
     )
   }
@@ -276,7 +256,7 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
         sizes={sizes}
         className={isPublicView
           ? 'object-cover fp-public-poster'
-          : `object-cover ${loaded ? 'opacity-100' : 'opacity-0'}`}
+          : `object-cover transition-opacity duration-700 ease-out ${loaded ? 'opacity-100' : 'opacity-0'}`}
         loading="lazy"
         quality={90}
         onLoad={(e) => {
