@@ -2700,6 +2700,25 @@ export default function PublicPage({ footprint, content: allContent, rooms, them
           className={`fp-room-content-grid fp-grid-arrive ${isHorizontal ? 'w-full' : `fp-grid-container mx-auto w-full ${isGrid ? 'fp-puzzle-frame' : ''}`}`}
           style={isHorizontal ? undefined : { maxWidth: isGrid ? '900px' : '880px' }}
         >
+          
+          {/* Top Taper Fade */}
+          <div 
+            className="pointer-events-none fixed top-0 left-0 right-0 z-[15]"
+            style={{ 
+              height: '8vh', 
+              background: `linear-gradient(to bottom, ${theme.colors.background} 10%, transparent 100%)` 
+            }} 
+          />
+          
+          {/* Bottom Taper Fade */}
+          <div 
+            className="pointer-events-none fixed bottom-0 left-0 right-0 z-[15]"
+            style={{ 
+              height: '12vh', 
+              background: `linear-gradient(to top, ${theme.colors.background} 10%, transparent 100%)` 
+            }} 
+          />
+          
           {activeGrid}
         </div>
 
