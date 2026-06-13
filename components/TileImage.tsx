@@ -6,8 +6,10 @@ import { useAspectDetection } from '@/lib/aspectDetection'
 import { audioManager } from '@/lib/audio-manager'
 import { beginInvocation, isIntentionalInvocation, type InvocationPoint } from '@/lib/media-invocation'
 
-const PUBLIC_EAGER_IMAGE_COUNT = 24
+const PUBLIC_EAGER_IMAGE_COUNT = 96
 const PUBLIC_SYNC_DECODE_COUNT = 16
+const PUBLIC_NEAR_VIEWPORT_MARGIN = '3200px 0px 3200px 0px'
+const settledPublicMedia = new Set<string>()
 const settledTileMedia = new Set<string>()
 
 interface TileImageProps {
@@ -29,10 +31,13 @@ function inferAspect(r: number): 'portrait' | 'landscape' | 'square' {
 export default function TileImage({ src, alt, sizes, index, aspect, layout, size, isPublicView = false }: TileImageProps) {
   const [failed, setFailed] = useState(false)
   const [videoFailed, setVideoFailed] = useState(false)
-  const [loaded, setLoaded] = useState(() => settledTileMedia.has(src))
+  const [loaded, setLoaded] = useState(() => settledTileMedia.has(src) || (isPublicView && settledPublicMedia.has(src)))
+  const [shouldSettlePublicMedia, setShouldSettlePublicMedia] = useState(false)
   const [videoMuted, setVideoMuted] = useState(true)
   const [videoPressActive, setVideoPressActive] = useState(false)
   const [fallbackVideoResting, setFallbackVideoResting] = useState(false)
+  const [displayReady, setDisplayReady] = useState(false);
+  const [isNearPublicViewport, setIsNearPublicViewport] = useState(false)
   const onAspectDetected = useAspectDetection()
   const fallbackVideoRef = useRef<HTMLVideoElement>(null)
   const audioIdRef = useRef(`tile-image-video-${src}`)
@@ -41,9 +46,11 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
   useEffect(() => {
     setFailed(false)
     setVideoFailed(false)
-    setLoaded(settledTileMedia.has(src))
+    setLoaded(settledTileMedia.has(src) || (isPublicView && settledPublicMedia.has(src)))
+    setShouldSettlePublicMedia(false)
     setVideoMuted(true)
     setFallbackVideoResting(false)
+    setIsNearPublicViewport(false)
   }, [isPublicView, src])
 
   // Ref for the grid-mode wrapper div. Used in the mount-time fallback to detect
@@ -111,11 +118,54 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
     if (!img || !img.complete || !img.naturalWidth) return
     setLoaded(true)
     settledTileMedia.add(src)
+    if (isPublicView) settledPublicMedia.add(src)
     if (!isPublicView && onAspectDetected && img.naturalHeight) {
       onAspectDetected(inferAspect(img.naturalWidth / img.naturalHeight))
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // intentionally empty — one-time mount check only
+
+  useEffect(() => {
+    if (!isPublicView) return
+    const el = containerRef.current
+    if (!el) return
+    if (index < PUBLIC_EAGER_IMAGE_COUNT) {
+      setIsNearPublicViewport(true)
+      return
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return
+        setIsNearPublicViewport(true)
+        observer.disconnect()
+      },
+      { rootMargin: '3000px' }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [index, isPublicView])
+
+  // Background GPU Decoding block
+  useEffect(() => {
+    if (!isPublicView || !isNearPublicViewport || !src) return;
+    const img = new window.Image();
+    img.src = src;
+    img.decode()
+      .then(() => {
+        setDisplayReady(true);
+        setLoaded(true);
+        settledTileMedia.add(src);
+        if (!settledPublicMedia.has(src)) {
+          settledPublicMedia.add(src);
+          setShouldSettlePublicMedia(true);
+        }
+      })
+      .catch((err) => {
+        console.warn("Decode failed, falling back to paint:", err);
+        setDisplayReady(true);
+        setLoaded(true);
+      });
+  }, [src, isNearPublicViewport, isPublicView]);
 
   if (failed && videoFailed) return null
 
@@ -191,25 +241,27 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
   // browser-native scheduling owns loading. Player/video depth still sleeps
   // elsewhere; this is only the visual surface.
   if (isPublicView) {
+    if (!isNearPublicViewport) {
+      return <div ref={containerRef} className="absolute inset-0 bg-neutral-950" />
+    }
     const isPriority = index < PUBLIC_EAGER_IMAGE_COUNT
-    const isSyncDecode = index < PUBLIC_SYNC_DECODE_COUNT
+    const publicPosterClass = `absolute inset-0 h-full w-full object-cover fp-public-poster transition-opacity duration-300 ${
+      displayReady ? 'opacity-100' : 'opacity-0'
+    }${shouldSettlePublicMedia ? ' fp-media-settle' : ''}`
     return (
-      <div ref={containerRef} className="absolute inset-0">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={src}
-          alt={alt}
-          sizes={sizes}
-          className="absolute inset-0 h-full w-full object-cover"
-          loading={isPriority ? 'eager' : 'lazy'}
-          fetchPriority={isPriority ? 'high' : 'auto'}
-          decoding={isSyncDecode ? 'sync' : 'async'}
-          onLoad={() => {
-            setLoaded(true)
-            settledTileMedia.add(src)
-          }}
-          onError={() => setFailed(true)}
-        />
+      <div ref={containerRef} className="absolute inset-0 bg-neutral-950">
+        {displayReady && (
+          <img
+            src={src}
+            alt={alt}
+            sizes={sizes}
+            className={publicPosterClass}
+            loading="lazy"
+            fetchPriority={isPriority ? 'high' : 'auto'}
+            decoding="async"
+            onError={() => setFailed(true)}
+          />
+        )}
       </div>
     )
   }
@@ -222,7 +274,9 @@ export default function TileImage({ src, alt, sizes, index, aspect, layout, size
         alt={alt}
         fill
         sizes={sizes}
-        className={`object-cover transition-opacity duration-700 ease-out ${loaded ? 'opacity-100' : 'opacity-0'}`}
+        className={isPublicView
+          ? 'object-cover fp-public-poster'
+          : `object-cover ${loaded ? 'opacity-100' : 'opacity-0'}`}
         loading="lazy"
         quality={90}
         onLoad={(e) => {
